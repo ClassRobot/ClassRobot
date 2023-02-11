@@ -1,0 +1,68 @@
+{% extends 'base.jinja' %}
+{% block style %}
+p,
+.useView {
+    margin-top: 1.25em;
+    margin-bottom: 1.25em;
+}
+body {
+    margin: 1em 2em;
+}
+li,
+.user {
+    margin-top: 0.5em;
+    margin-bottom: 0.5em;
+}
+code {
+    background-color: #f6f7f8;
+    border: 0.1rem solid rgba(0,0,0,.1);
+    border-radius: 0.4rem;
+    font-size: .875em;
+    font-weight: 600;
+    padding: 0.2rem 0.3rem;
+}
+.useView {
+    padding: 1em 1.5em;
+    background-color: #f3f4f5;
+}
+.user {
+    font-size: .85em;
+    margin-bottom: 0.15em;
+}
+.msg {
+    text-align: left;
+    display: inline-block;
+    margin: .2em .5em;
+    border-radius: .3em;
+    background-color: #e5e5e5;
+    padding: .5em .75em;
+}
+.botMsg {
+    text-align: right;
+}
+.botMsg,
+.userMsg {
+    position: relative;
+}
+.userMsg::after,
+.botMsg::after {
+    content: "";
+    width: 5.5px;
+    height: 100%;
+    bottom: 0;
+    border-radius: 50px;
+    right: -1em;
+    position: absolute;
+    display: block;
+    background-color: #CCCCFF;
+}
+.userMsg::after {
+    left: -1em;
+    background-color: #99CCFF;
+}
+{% endblock style %}
+
+    
+{% block body %}
+    {% block helper %}{% endblock helper %}
+{% endblock body %}

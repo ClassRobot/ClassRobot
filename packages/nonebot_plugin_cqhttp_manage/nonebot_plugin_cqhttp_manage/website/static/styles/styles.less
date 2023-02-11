@@ -1,0 +1,468 @@
+@border-style: 1px solid #EDEDED;
+@gt-50: #CE8181;
+@lt-50: #81CE97;
+@pie-size: 16vh;
+
+#setScrollbar(@width, @height) {
+    &::-webkit-scrollbar {
+        width: @width;
+        height: @height;
+        background-color:#F5F5F5;
+        // border-radius:45px;
+    }
+    &::-webkit-scrollbar-track {
+        background-color:#F5F5F5;
+        // border-radius:45px;
+    }
+    &::-webkit-scrollbar-thumb {
+        background-color:#777;
+        // border-radius:45px;
+    }
+}
+.progress-pie-chart {
+    @pie-min-size: @pie-size * 0.5;
+    width: @pie-size;
+    height: @pie-size;
+    border-radius: 50%;
+    background-color: #E5E5E5;
+    position: relative;
+    // margin: 25px auto;
+    &.gt-50 {
+        background-color: @gt-50;
+        .ppc-progress {
+            clip: rect(0, @pie-min-size, @pie-size, 0);
+            .ppc-progress-fill {
+                clip: rect(0, @pie-size, @pie-size, @pie-min-size);
+                background: #E5E5E5;
+            }
+        }
+        .ppc-percents span {
+            color: @gt-50;
+        }
+    }
+    .ppc-percents {
+        position: absolute;
+        border-radius: 50%;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        width: @pie-size * 0.9;
+        height: @pie-size * 0.9;
+        background: #fff;
+        text-align: center;
+        display: table;
+        span {
+            display: block;
+            font-size: calc(@pie-size * .2);
+            font-weight: bold;
+            color: @lt-50;
+        }
+        .pcc-percents-wrapper {
+            display: table-cell;
+            vertical-align: middle;
+        }
+    }
+    .ppc-progress {
+        content: "";
+        position: absolute;
+        border-radius: 50%;
+        left: calc(50% - @pie-min-size);
+        top: calc(50% - @pie-min-size);
+        width: @pie-size;
+        height: @pie-size;
+        clip: rect(0, @pie-size, @pie-size, @pie-min-size);
+        .ppc-progress-fill {
+            content: "";
+            position: absolute;
+            border-radius: 50%;
+            left: calc(50% - @pie-min-size);
+            top: calc(50% - @pie-min-size);
+            width: @pie-size;
+            height: @pie-size;
+            clip: rect(0, @pie-min-size, @pie-size, 0);
+            background: @lt-50;
+            transform: rotate(60deg);
+        }
+    }
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+    font-family: BlinkMacSystemFont,"Segoe UI","Roboto","Oxygen","Ubuntu","Cantarell","Fira Sans","Droid Sans","Helvetica Neue",sans-serif;;
+}
+
+main {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    .header {
+        display: flex;
+        padding: 0 12px;
+        border-bottom: @border-style;
+        h3 {
+            width: 180px;
+            text-align: center;
+        }
+        .status-bar {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: end;
+            .wss-status {
+                padding: 6px 16px;
+                background-color: #0dbc6a;
+                border-radius: 50px;
+                font-weight: bold;
+                color: white;
+                align-items: center;
+                justify-content: center;
+                position: relative;
+                font-size: 1em;
+                &::before {
+                    content: "";
+                    background-image: url(../images/compare_arrows.png);
+                    background-repeat: no-repeat;
+                    background-size: cover;
+                    background-position: center center;
+                    margin-right: 6px;
+                    width: 1.3em;
+                    height: 0.8em;
+                    display: inline-block;
+                }
+            }
+            .wss-close {
+                background-color: #FF6666;
+            }
+        }
+    }
+    .main {
+        flex: 1;
+        display: flex;
+        overflow: hidden;
+        .left-bar {
+            width: 200px;
+            overflow-y: scroll;
+            border-right: @border-style;
+            #setScrollbar(6px, auto);
+            .tools {
+                display: flex;
+                .button:hover {
+                    background-color: #CCCCFF;
+                }
+            }
+            .button {
+                flex: 1;
+                cursor: pointer;
+                text-align: center;
+                padding: 10px 0;
+                font-size: 0.8em;
+                border-bottom: @border-style;
+            }
+            .accordion {
+                border-bottom: @border-style;
+                &::after {
+                    content: "";
+                    display: block;
+                    height: 16px;
+                    background-image: url(../images/icon-arrow-up.png);
+                    background-size: auto 100%;
+                    background-repeat: no-repeat;
+                    background-position: top center;
+                }
+                &:hover::after {
+                    background-color: #99CCFF;
+                }
+            }
+            .down::after {
+                background-image: url(../images/icon-arrow-down.png);
+            }
+            .bot-card,
+            .login-card {
+                position: relative;
+                padding: 0.5em 1em;
+                border-bottom: @border-style;
+                img {
+                    border-radius: 50px;
+                    height: 46px;
+                    width: 46px;
+                }
+                .select,
+                .select-robot {
+                    position: absolute;
+                    top: 0;
+                    width: 0px;
+                    height: 100%;
+                    right: 0;
+                    transition: 0.3s;
+                    &:hover {
+                        background-color: #FF6666;
+                        cursor: pointer;
+                    }
+                }
+                .select-robot {
+                    width: 20px;
+                    background-color: #99CCFF;
+                }
+                &:hover {
+                    .select {
+                        .select-robot();
+                        background-color: #CCFF99;
+                    }
+                }
+            }
+            .bot-card {
+                text-align: center;
+                .info {
+                    padding: 0px 10px;
+                }
+                .nickname {
+                    white-space: nowrap;
+                    text-overflow: ellipsis;
+                    font-size: 1em;
+                    font-weight: bold;
+                }
+            }
+            .login-card {
+                cursor: pointer;
+                display: flex;
+                .info {
+                    padding: 12px;
+                }
+            }
+        }
+        .view {
+            flex: 1;
+            position: relative;
+            .quit {
+                top: 10px;
+                right: 20px;
+                position: absolute;
+                cursor: pointer;
+                background-color: white;
+                width: 24px;
+                height: 24px;
+                line-height: 24px;
+                text-align: center;
+                border-radius: 50px;
+                &:hover{
+                    background-color: #FF6666;
+                    color: white;
+                }
+            }
+            .bot-view,
+            .login-view, 
+            .qrcode-view,
+            .nonebot-view {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+            }
+            .qrcode-view,
+            .login-view {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background-color: rgba(119, 119, 119, 0.3);
+            }
+            .logger-style {
+                #setScrollbar(6px, 6px);
+                padding: 0.5em;
+                background-color: #22272e;
+                color: #d0d7de;
+                overflow: scroll;
+                height: 100%;
+                font-family: Menlo,Consolas,Monaco,Liberation Mono,Lucida Console,monospace;
+                white-space: nowrap;
+                a {
+                    color: #3b8eea;
+                }
+            }
+            .login-view {
+                .login-form {
+                    padding: 20px;
+                    background-color: white;
+                    text-align: center;
+                    border-radius: 12px;
+                    input {
+                        margin-left: 3px;
+                        padding: 4px;
+                        border: none;
+                        border-bottom: 1px solid black;
+                    }
+                    button {
+                        padding: 3px 20px;
+                    }
+                    .input {
+                        padding: 12px;
+                    }
+                }
+            }
+            .qrcode-view {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background-color: rgba(119, 119, 119, 0.3);
+                .qrcode {
+                    text-align: center;
+                    width: 200px;
+                    .qrcode-img {
+                        width: 100%;
+                        border-radius: 15px;
+                    }
+                    .qrcode-info {
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        border-radius: 15px;
+                        background-color: white;
+                        padding: 6px;
+                        .logo {
+                            width: 42px;
+                            margin-right: 10px;
+                            border-radius: 50px;
+                        }
+                    }
+                }
+            }
+            .bot-view {
+                .logger {
+                    width: 50%;
+                    height: 100%;
+                    display: flex;
+                    flex-direction: column;
+                    .logger-bar {
+                        display: flex;
+                        background-color: white;
+                        
+                        .logger-date {
+                            width: calc(100% - 50px);
+                            #setScrollbar(auto, 6px);
+                            display: flex;
+                            overflow-x: scroll;
+                            align-items: center;
+                            .date {
+                                padding: 10px 12px;
+                                white-space: nowrap;
+                                cursor: pointer;
+                                &:hover {
+                                    background-color: #99CCFF;
+                                }
+                            }
+                            .select {
+                                position: relative;
+                                &::after {
+                                    content: "";
+                                    display: block;
+                                    position: absolute;
+                                    left: 0;
+                                    bottom: 0;
+                                    width: 100%;
+                                    height: 5px;
+                                    
+                                    background-color: #99CCFF;
+                                }
+                            }
+                        }
+                        .logger-update {
+                            width: 50px;
+                            height: 50px;
+                            background-image: url(../images/Icon_refresh.png);
+                            background-repeat: no-repeat;
+                            background-size: 50%;
+                            background-position: center center;
+                            cursor: pointer;
+                        }
+                        .number {
+                            display: flex;
+                            white-space: nowrap;
+                            border-left: @border-style;
+                            border-right: @border-style;
+                            align-items: center;
+                            .logger-length {
+                                font-size: 1em;
+                                padding-left: 10px;
+                                border: none;
+                                width: 66px;
+                            }
+                        }
+                    }
+                }
+            }
+            .nonebot-view {
+                display: flex;
+                .bar {
+                    padding: 10px;
+                }
+                .cpu {
+                    flex: 1;
+                    .state-view {
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                    }
+                }
+                .cpu,
+                .disk,
+                .memory {
+                    display: flex;
+                    flex-direction: column;
+                }
+                .system-state {
+                    #setScrollbar(6px, 6px);
+                    overflow-y: auto;
+                    width: 40%;
+                    max-width: 360px;
+                    height: 100%;
+                    border-right: @border-style;
+                    display: flex;
+                    flex-direction: column;
+                    .state-view {
+                        flex: 1;
+                        display: flex;
+                        flex-direction: column;
+                        padding: 5% 1.25em;
+                    }
+                    .text {
+                        height: 50%;
+                        text-align: center;
+                        margin-bottom: 1.25em;
+                    }
+                    .percent-bar {
+                        height: 16px;
+                        font-size: .5em;
+                        font-weight: bold;
+                        color: white;
+                        background-color: #e5e5e5;
+                        text-align: center;
+                        width: 80%;
+                        margin: 0 auto;
+                        border-radius: 50px;
+                        .percent {
+                            line-height: 16px;
+                            font-size: 12px;
+                            height: 100%;
+                            border-radius: 50px;
+                            background-color: @lt-50;
+                        }
+                    }
+                    .state-view,
+                    .bar {
+                        border-bottom: @border-style;
+                    }
+                }
+                .system-logger {
+                    overflow: hidden;
+                    flex: 1;
+                    display: flex;
+                    flex-direction: column;
+                    
+                }
+            }
+        }
+    }
+}

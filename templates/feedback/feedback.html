@@ -1,0 +1,32 @@
+{% extends 'styles.html' %}
+{% block body %}
+<div class="main">
+    <div class="messages">
+        <div class="header">
+            <table>
+                <tr>
+                    <td class="log" width="50">
+                        <img src="http://q1.qlogo.cn/g?b=qq&nk={{ feedback.qq }}&s=100" alt="" srcset="">
+                    </td>
+                    <td>{{ feedback.log_date }}</td>
+                </tr>
+            </table>
+        </div>
+        <div class="message">
+            <table>
+                <tr>
+                    <td width="50">
+                        <svg t="1676002970906" class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="4547" width="32" height="32"><path d="M211.4 803.5v-583h601.3v479.2H370.1L211.4 803.5z m56.3-526.6v422.3l85.5-55.9h403V276.9H267.7z" fill="#232323" p-id="4548"></path><path d="M373.6 390.7h269.1v56.4H373.6zM373.6 502.9h207.3v56.4H373.6z" fill="#00AC4E" p-id="4549"></path></svg>
+                    </td>
+                    <td>{{ feedback.context }}</td>
+                </tr>
+            </table>
+        </div>
+        <div class="message">
+            {% for image in images %}
+            <img class="msg-img" src="{{ image }}">
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock body %}

@@ -1,0 +1,43 @@
+{% extends 'base.jinja' %}
+{% block style %}
+.cost {
+    padding: 1em;
+}
+
+.cost table {
+    width: 100%;
+}
+
+.cost .type {
+    font-weight: bold;
+    font-size: 1.2em;
+}
+
+.cost table .money {
+    font-weight: bold;
+    text-align: right;
+}
+{% endblock style %}
+{% block body %}
+<div class="cost">
+    <div class="type">{{ cost.fee_type }}</div>
+    <table>
+        <tbody>
+            <tr>
+                <td>班级</td>
+                <td>{{ class_name }}</td>
+            </tr>
+            <tr>
+                <td>记账人</td>
+                <td>{{ cost.invitee }}</td>
+                <td colspan="2" width="150" class="money">{{ cost.fee_money }}</td>
+            </tr>
+            <tr>
+            <tr>
+                <td>账单ID</td>
+                <td>{{ cost.fee_id }}</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+{% endblock body %}
