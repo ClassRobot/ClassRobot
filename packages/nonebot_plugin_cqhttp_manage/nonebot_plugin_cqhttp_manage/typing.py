@@ -2,6 +2,7 @@ from pydantic import BaseModel
 from typing import Union, List, Optional
 from nonebot.adapters import onebot
 from psutil import Process
+import yaml
 
 Bot = Union[onebot.v11.Bot, onebot.v12.Bot]
 

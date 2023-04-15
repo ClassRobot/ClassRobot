@@ -9,3 +9,4 @@ os.environ["DJANGO_ALLOW_ASYNC_UNSAFE"] = "true"
 setup()
 
 from .models import *
+from . import signals as _

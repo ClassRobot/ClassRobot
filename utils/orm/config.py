@@ -14,5 +14,9 @@ DATABASES = {
         "HOST": str(config.mysql_host),
         "PORT": str(config.mysql_port),
         "PASSWORD": str(config.mysql_password),
+        "CONN_MAX_AGE": 7.5 * 360,
+        "OPTIONS": {
+            "connect_timeout": 60
+        }
     }
 }

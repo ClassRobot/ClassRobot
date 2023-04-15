@@ -77,6 +77,14 @@ class AuthUserUserPermissions(models.Model):
         unique_together = (('user', 'permission'),)
 
 
+class CampusNotice(models.Model):
+    notice_id = models.AutoField(primary_key=True)
+
+    class Meta:
+        managed = False
+        db_table = 'campus_notice'
+
+
 class ClassCost(models.Model):
     fee_id = models.AutoField(primary_key=True)
     class_field = models.ForeignKey('ClassTable', models.DO_NOTHING, db_column='class_id')  # Field renamed because it was a Python reserved word.
@@ -98,6 +106,7 @@ class ClassTable(models.Model):
     class_name = models.CharField(unique=True, max_length=100)
     teacher = models.ForeignKey('Teacher', models.DO_NOTHING)
     college = models.ForeignKey('College', models.DO_NOTHING)
+    notice_group = models.BigIntegerField(blank=True, null=True)
 
     class Meta:
         managed = False
@@ -261,6 +270,18 @@ class StudentInfo(models.Model):
         db_table = 'student_info'
 
 
+class StudentUnion(models.Model):
+    qq = models.ForeignKey(StudentInfo, models.DO_NOTHING, db_column='qq')
+    name = models.CharField(max_length=20)
+    position = models.CharField(max_length=100)
+    department = models.CharField(max_length=100)
+    college = models.ForeignKey(College, models.DO_NOTHING)
+
+    class Meta:
+        managed = False
+        db_table = 'student_union'
+
+
 class Teacher(models.Model):
     teacher_id = models.AutoField(primary_key=True)
     qq = models.BigIntegerField(unique=True)
@@ -269,6 +290,8 @@ class Teacher(models.Model):
     invitee = models.BigIntegerField()
     password = models.CharField(max_length=30, blank=True, null=True)
     user_id = models.BigIntegerField(unique=True, blank=True, null=True)
+    position = models.CharField(max_length=255, blank=True, null=True)
+    class_list = models.JSONField(blank=True, null=True, default=list)
 
     class Meta:
         managed = False

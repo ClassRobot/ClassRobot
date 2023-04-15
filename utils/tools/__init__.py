@@ -77,13 +77,8 @@ def check_data(
     if isinstance(columns, list):
         raw_data = raw_data.loc[:, columns]
         check_data = check_data.loc[:, columns]
-    # print(raw_data, check_data)
     return check_data[~raw_data.isin(raw_data)]
-    
 
-
-
-    
 
 async def upload_file(
     event: MessageEvent,
@@ -109,10 +104,10 @@ async def upload_file(
         )
         
 
-async def html_to_image(html: str, options: Optional[dict] = None) -> bytes:
+async def html_to_image(html: str, options: Optional[dict] = None, width=600) -> bytes:
     return await sync_to_async(from_string)(
         html, None, options={
-            'width': 600,
+            'width': width,
             'encoding': 'UTF-8',
         } | (options or {})
     )
@@ -125,8 +120,12 @@ class MessageArgs:
 
         Args:
             args (Union[list, dict]): 需要获取的参数名称
-                传递的参数为dict时，会将key作为最终返回的key而value作为返回消息的名称
-                如果参数为list会将key和value设置为同一个
+                dict:
+                    key: 返回的对象的key
+                    value: 回复内容
+                    传递的参数为dict时，会将key作为最终返回的key而value作为返回消息的名称
+                list:
+                    如果参数为list会将key和value设置为同一个
             matcher (Matcher): 消息对象
             reply (Union[list, str], optional): 回复的消息. Defaults to "{}".
                 当传入list会对回复消息于要获取的参数一一对应，当回复消息短时会保持取最后一个
@@ -146,8 +145,11 @@ class MessageArgs:
             return self.__reply
         if len(self.__reply) == 1:
             self.__reply = self.__reply.pop(0)
-            return self.reply
+            return self.__reply
         return self.__reply.pop(0)
+    
+    def __format__(self, _: str) -> str:
+        return self.reply.format(self.args)
 
     async def __call__(self, params: Union[List[str], str]) -> dict:
         """取出所需参数

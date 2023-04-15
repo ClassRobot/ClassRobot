@@ -12,6 +12,8 @@ __pycache__/
 *.so
 
 # Distribution / packaging
+accounts/
+chatgpt/
 data/
 packages/
 .Python

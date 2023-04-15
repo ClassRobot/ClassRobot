@@ -1,8 +1,8 @@
 # go-cqhttp 默认配置文件
 
 account: # 账号相关
-  uin: {user_id} # QQ账号
-  password: '{password}' # 密码为空时使用扫码登录
+  uin:  # QQ账号
+  password: '' # 密码为空时使用扫码登录
   encrypt: false  # 是否开启密码加密
   status: 0      # 在线状态 请参考 https://docs.go-cqhttp.org/guide/config.html#在线状态
   relogin: # 重连设置
@@ -48,7 +48,7 @@ output:
   # 日志等级 trace,debug,info,warn,error
   log-level: warn
   # 日志时效 单位天. 超过这个时间之前的日志将会被自动删除. 设置为 0 表示永久保留.
-  log-aging: 15
+  log-aging: 30
   # 是否在每次启动时强制创建全新的文件储存日志. 为 false 的情况下将会在上次启动时创建的日志文件续写
   log-force-new: true
   # 是否启用日志颜色

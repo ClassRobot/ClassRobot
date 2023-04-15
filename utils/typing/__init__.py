@@ -4,7 +4,7 @@ from httpx import AsyncClient
 from nonebot.adapters.onebot.v11 import Message
 
 from ..localstore import LocalStore
-from ..orm import Teacher, StudentInfo, ClassTable
+from ..orm import Teacher, StudentInfo, ClassTable, StudentUnion
 from ..manages import User
 from ..manages.config import ClassCadre
 
@@ -39,6 +39,10 @@ class BaseAuth:
         if isinstance(self.user, StudentInfo):
             return self.user.position in self.class_cader_list
         return True
+
+    async def is_union(self) -> bool:
+        """是否为学生会干部"""
+        return await StudentUnion.objects.filter(pk=self.user.qq).aexists()
 
     @property
     def is_teacher(self) -> bool:
