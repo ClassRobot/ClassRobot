@@ -1,12 +1,14 @@
-# classbot
+# 班级管理机器人
 
-## How to start
+## 项目介绍
 
-1. generate project using `nb create` .
-2. create your plugin using `nb plugin create` .
-3. writing your plugins under `src/plugins` folder.
-4. run your bot using `nb run` .
+本项目是基于`nonebot2`+`go-cqhttp`开发的班级管理机器人
 
-## Documentation
+## 快速部署
 
-See [Docs](https://v2.nonebot.dev/)
+```shell
+git clone https://github.com/ClassRobot/ClassRobot
+cd ClassRobot
+pip install -r requirements.txt
+nb run
+```
