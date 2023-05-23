@@ -2,19 +2,18 @@
 name = "classbot"
 version = "0.1.0"
 description = "classbot"
-authors = []
+authors = ["2711402357@qq.com"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.7.3"
+python = "^3.8.0"
 nonebot2 = "^2.0.0-beta.1"
 
 [tool.poetry.dev-dependencies]
-nb-cli = "^0.6.0"
+nb-cli = "^1.0.2"
 
 [tool.nonebot]
 plugins = [
-    # "nonebot_plugin_animeres", 
     "packages",
     "nonebot_plugin_gocqhttp",
     ]
@@ -22,6 +21,7 @@ plugin_dirs = [
     # "src/plugins",
     "src/others"
 ]
+adapters = [{name = "OneBot V11", module_name = "nonebot.adapters.onebot.v11"}]
 
 [build-system]
 requires = ["poetry_core>=1.0.0"]
