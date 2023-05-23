@@ -15,7 +15,6 @@ __pycache__/
 accounts/
 chatgpt/
 data/
-packages/
 .Python
 build/
 develop-eggs/
