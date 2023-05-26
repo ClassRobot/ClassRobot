@@ -1,7 +1,15 @@
+'''
+Author: Melodyknit 2711402357@qq.com
+Date: 2023-02-11 20:06:30
+LastEditors: Melodyknit 2711402357@qq.com
+LastEditTime: 2023-05-25 21:00:07
+FilePath: \classbot2\classbot\src\plugins\user_manage\manage\user_setting\modify.py
+Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
+'''
 from typing import Dict, List, Optional
 from utils.manages import User
+from utils.tools import run_sync
 from utils.orm import Teacher, StudentInfo
-from asgiref.sync import sync_to_async
 
 from .config import ModifiableColumns
 
@@ -19,12 +27,9 @@ class ModifyUserInfo:
             self.keys = {}
 
     async def save(self):
-        await sync_to_async(self.user.save)()
+        await run_sync(self.user.save)()
 
-    def not_exist_fields(
-        self, 
-        keys: List[str]
-    ) -> List[str]:
+    def not_exist_fields(self, keys: List[str]) -> List[str]:
         """查看表中是否存在这个字段
 
         Args:
@@ -35,11 +40,7 @@ class ModifyUserInfo:
         """
         return [key for key in keys if key not in self.keys]
 
-    def modify(
-        self, 
-        keys: List[str], 
-        values: List[str]
-    ) -> Optional[Dict[str, list]]:
+    def modify(self, keys: List[str], values: List[str]) -> Optional[Dict[str, list]]:
         """修改字段内容
 
         Args:
@@ -55,10 +56,10 @@ class ModifyUserInfo:
         if self.keys:
             update_fields: Dict[str, list] = {}
             for key, value in zip(keys, values):
-                if field := self.keys.get(key):    # 获取字段名
+                if field := self.keys.get(key):  # 获取字段名
                     raw = getattr(self.user, field)
                     value = int(value) if isinstance(raw, int) else value
-                    if raw != value:    # 修改数据与原本数据不相同
+                    if raw != value:  # 修改数据与原本数据不相同
                         update_fields[key] = [raw, value]
                         setattr(self.user, field, value)
             return update_fields

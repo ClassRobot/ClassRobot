@@ -1,10 +1,8 @@
-from typing import Any, Optional, Union, Dict, List, Generator
+from typing import Optional, Union, Dict, List, Generator
 from nonebot.log import logger
 from pydantic import BaseModel
-from imgkit import from_string
-from asgiref.sync import sync_to_async
 
-from .config import BaseHelper, env, options
+from .config import BaseHelper, env
 
 InsertHelper = Union[dict, "Helper", List[Union[dict, "Helper"]], "HelperTags"]
 
@@ -27,13 +25,14 @@ class Helper(BaseModel, BaseHelper):
         alias (List[str]): 命令的别名
         params (List[str]): 命令参数
     """
+
     cmd: str
     use: Union[str, List[Union[str, List[Union[List[str], str]]]]] = ""
     doc: str = ""
     tags: List[str] = []
     alias: List[str] = []
     params: List[str] = []
-    
+
     async def to_string(self) -> str:
         """使用helper模板
 
@@ -42,11 +41,11 @@ class Helper(BaseModel, BaseHelper):
         """
         helper_template = env.get_template("helper.jinja")
         return await helper_template.render_async(
-            is_chat=isinstance(self.use, list), 
+            is_chat=isinstance(self.use, list),
             string=string,
             helper=self,
-            )
-    
+        )
+
     @staticmethod
     def make_missing_data(data: dict) -> dict:
         data = data.copy()
@@ -56,7 +55,7 @@ class Helper(BaseModel, BaseHelper):
         if isinstance(data["params"], str):
             data["params"] = data["params"].split()
         if not data.get("use"):
-            data["use"] = " ".join((data['cmd'], *data["params"]))
+            data["use"] = " ".join((data["cmd"], *data["params"]))
         return data
 
 
@@ -80,15 +79,12 @@ class HelperTags(BaseHelper):
 
     def __iter__(self) -> Generator[Helper, None, None]:
         yield from self.helpers
-    
-    def __getitem__(
-        self, 
-        index: Union[int, slice]
-        ) -> Union[Helper, "HelperTags"]:
+
+    def __getitem__(self, index: Union[int, slice]) -> Union[Helper, "HelperTags"]:
         if isinstance(index, int):
             return self.helpers[index]
         return HelperTags(self.helpers[index])  # type: ignore
-    
+
     async def to_string(self) -> str:
         tags_template = env.get_template("helper_tags.jinja")
         return await tags_template.render_async(helpers=self)
@@ -102,7 +98,11 @@ class HelperMenu(HelperTags):
 
     def append(self, helpers: InsertHelper):
         if isinstance(helpers, (dict, Helper)):
-            helper = Helper(**Helper.make_missing_data(helpers)) if isinstance(helpers, dict) else helpers
+            helper = (
+                Helper(**Helper.make_missing_data(helpers))
+                if isinstance(helpers, dict)
+                else helpers
+            )
             self.helpers.append(helper)
             for key in (*helper.alias, helper.cmd):
                 if key in self.cmd:
@@ -129,4 +129,3 @@ class HelperMenu(HelperTags):
                 return helper
             return self.tags.get(key)
         return self
-        

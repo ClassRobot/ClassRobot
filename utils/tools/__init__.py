@@ -1,17 +1,22 @@
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Union
-from pandas import DataFrame, merge, concat
+from pandas import DataFrame
 from nonebot import get_bot
 from nonebot.matcher import Matcher
-from nonebot.adapters.onebot.v11 import MessageEvent, GroupMessageEvent, PrivateMessageEvent, Bot
+from nonebot.adapters.onebot.v11 import (
+    MessageEvent,
+    GroupMessageEvent,
+    PrivateMessageEvent,
+    Bot,
+)
+from nb_cli.cli.utils import run_sync
 from imgkit import from_string
-from asgiref.sync import sync_to_async
 from datetime import datetime
 import re
 
 
 def match_date(date_str: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
-    date_pattern = re.compile(r'(\d{4})?\s?(\d{1,2})?\s?(\d{1,2})?')
+    date_pattern = re.compile(r"(\d{4})?\s?(\d{1,2})?\s?(\d{1,2})?")
     match = date_pattern.match(date_str)
     if match:
         year, month, day = match.groups()
@@ -20,9 +25,7 @@ def match_date(date_str: str) -> Tuple[Optional[str], Optional[str], Optional[st
 
 
 def query_date(
-    string: str, 
-    key_name: str, 
-    default_now: bool = True
+    string: str, key_name: str, default_now: bool = True
 ) -> Optional[Dict[str, int]]:
     """django查询的日期
 
@@ -39,10 +42,9 @@ def query_date(
     query_date = {key_name + "__year": now_date.year} if default_now else {}
     if any(dates):
         return query_date | {
-            f"{key_name}__{i}": int(v) for i, v in zip(
-                ["year", "month", "day"],
-                dates
-            ) if v is not None
+            f"{key_name}__{i}": int(v)
+            for i, v in zip(["year", "month", "day"], dates)
+            if v is not None
         }
     elif default_now:
         query_date[f"{key_name}__month"] = now_date.month
@@ -50,9 +52,9 @@ def query_date(
 
 
 def check_data(
-    raw_data: DataFrame, 
-    check_data: DataFrame, 
-    columns: Optional[Union[List[str], Dict[str, List[str]]]]
+    raw_data: DataFrame,
+    check_data: DataFrame,
+    columns: Optional[Union[List[str], Dict[str, List[str]]]],
 ) -> DataFrame:
     """检查两组数据是否相同，返回不同的数据
 
@@ -84,38 +86,38 @@ async def upload_file(
     event: MessageEvent,
     file: Path,
     name: Optional[str] = None,
-    bot: Optional[Bot] = None
+    bot: Optional[Bot] = None,
 ):
     self_bot = get_bot(str(event.self_id)) if bot is None else bot
     name = file.name if name is None else name
     if isinstance(event, GroupMessageEvent):
         await self_bot.call_api(
-            "upload_group_file", 
-            group_id=event.group_id, 
-            file=str(file), 
-            name=name
+            "upload_group_file", group_id=event.group_id, file=str(file), name=name
         )
     elif isinstance(event, PrivateMessageEvent):
         await self_bot.call_api(
-            "upload_private_file", 
-            user_id=event.user_id, 
-            file=str(file), 
-            name=name
+            "upload_private_file", user_id=event.user_id, file=str(file), name=name
         )
-        
+
 
 async def html_to_image(html: str, options: Optional[dict] = None, width=600) -> bytes:
-    return await sync_to_async(from_string)(
-        html, None, options={
-            'width': width,
-            'encoding': 'UTF-8',
-        } | (options or {})
+    return await run_sync(from_string)(  # type: ignore
+        html,
+        None,
+        options={
+            "width": width,
+            "encoding": "UTF-8",
+        }
+        | (options or {}),
     )
 
 
 class MessageArgs:
     """消息多参数获取"""
-    def __init__(self, args: Union[list, dict], matcher: Matcher, reply: Union[list, str] = ""):
+
+    def __init__(
+        self, args: Union[list, dict], matcher: Matcher, reply: Union[list, str] = ""
+    ):
         """消息参数获取
 
         Args:
@@ -129,7 +131,7 @@ class MessageArgs:
             matcher (Matcher): 消息对象
             reply (Union[list, str], optional): 回复的消息. Defaults to "{}".
                 当传入list会对回复消息于要获取的参数一一对应，当回复消息短时会保持取最后一个
-        
+
         Docs:
             ma = MessageArgs({"key": "value"})
             kwargs = await ma(params)
@@ -138,7 +140,7 @@ class MessageArgs:
         self.kwargs: Dict[str, Optional[str]] = {k: None for k in self.args.keys()}
         self.__reply: Union[list, str] = reply or "{}"
         self.matcher: Matcher = matcher
-    
+
     @property
     def reply(self) -> str:
         if isinstance(self.__reply, str):
@@ -147,7 +149,7 @@ class MessageArgs:
             self.__reply = self.__reply.pop(0)
             return self.__reply
         return self.__reply.pop(0)
-    
+
     def __format__(self, _: str) -> str:
         return self.reply.format(self.args)
 
@@ -169,4 +171,3 @@ class MessageArgs:
                 else:
                     await self.matcher.reject(self.reply.format(self.args[k]))
         return self.kwargs
-

@@ -1,3 +1,11 @@
+"""
+Author: Melodyknit 2711402357@qq.com
+Date: 2023-02-11 20:06:30
+LastEditors: Melodyknit 2711402357@qq.com
+LastEditTime: 2023-05-25 20:40:11
+FilePath: classbot\src\others\helper\__init__.py
+Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
+"""
 from nonebot import get_loaded_plugins, get_driver, on_command
 from nonebot.plugin import get_loaded_plugins
 from nonebot.log import logger
@@ -7,19 +15,15 @@ from nonebot.params import CommandArg
 from pydantic import ValidationError
 from .helper import HelperMenu
 
-helper_meun = HelperMenu()
+helper_menu = HelperMenu()
 driver = get_driver()
 help_cmd = on_command("帮助", aliases={"help"}, block=True, priority=1000)
 
 
 @help_cmd.handle()
 async def _(matcher: Matcher, msg: Message = CommandArg()):
-    if helper_msg :=  helper_meun.get(msg.extract_plain_text()):
-        await matcher.finish(
-            MessageSegment.image(
-                await helper_msg.to_image()
-                )
-            )
+    if helper_msg := helper_menu.get(msg.extract_plain_text()):
+        await matcher.finish(MessageSegment.image(await helper_msg.to_image()))
     await matcher.finish("没有找到这个命令！")
 
 
@@ -29,7 +33,7 @@ async def _():
     for plugin in get_loaded_plugins():
         try:
             if helper_info := plugin.module.__getattribute__("__helper__"):
-                helper_meun.append(helper_info)
+                helper_menu.append(helper_info)
         except ValidationError as err:
             logger.warning("__helper__内容存在错误: \n%r" % err)
         except (AttributeError, ValidationError):
@@ -40,5 +44,5 @@ __helper__ = {
     "cmd": "帮助",
     "doc": "获取命令相关帮助信息，你想要获取的帮助信息，可以通过输入命令名称或目录的tag也就是类型来查看。",
     "tags": ["帮助", "help"],
-    "params": "命令名称/类型"
+    "params": "命令名称/类型",
 }

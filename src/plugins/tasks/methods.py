@@ -1,17 +1,14 @@
 from time import time
 from pathlib import Path
 from asyncio import sleep
-from httpx import AsyncClient
-from asgiref.sync import sync_to_async
 from zipfile import ZipFile, ZIP_DEFLATED
 from django.db.models.functions import Now
-from nonebot.adapters.onebot.v11 import Message
 from django.db.models.manager import BaseManager
 from typing import Dict, List, Optional, Tuple, Union
 from utils.orm import ClassTable, Teacher, ClassTasks, StudentInfo, ClassTaskCollects
 
 from utils.manages import User
-from utils.tools import html_to_image
+from utils.tools import html_to_image, run_sync
 from utils.localstore import LocalStore
 from utils.typing import BaseAuth, SaveFile
 
@@ -310,7 +307,7 @@ class ExportTask(BaseTask):
             filepath (Path): 文件路径
         """
         try:
-            await sync_to_async(filepath.unlink)(True)
+            await run_sync(filepath.unlink)(True)
         except PermissionError:
             ...
 
@@ -323,7 +320,7 @@ class ClearTask(BaseTask):
         if task_store.exists():
             for file in task_store.listdir():
                 try:
-                    await sync_to_async(file.unlink)()
+                    await run_sync(file.unlink)()
                 except PermissionError:
                     clear_ok = False
         return clear_ok

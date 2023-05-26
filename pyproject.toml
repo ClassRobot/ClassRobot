@@ -8,9 +8,10 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = "^3.8.0"
 nonebot2 = "^2.0.0-beta.1"
+nb-cli = "^1.0.0"
 
 [tool.poetry.dev-dependencies]
-nb-cli = "^1.0.2"
+nb-cli = "^1.0.0"
 
 [tool.nonebot]
 plugins = [
@@ -18,7 +19,7 @@ plugins = [
     "nonebot_plugin_gocqhttp",
     ]
 plugin_dirs = [
-    # "src/plugins",
+    "src/plugins",
     "src/others"
 ]
 adapters = [{name = "OneBot V11", module_name = "nonebot.adapters.onebot.v11"}]
