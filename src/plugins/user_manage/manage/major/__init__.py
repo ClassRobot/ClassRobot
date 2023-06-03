@@ -27,7 +27,7 @@ async def _(state: T_State, event: MessageEvent, matcher: Matcher, params: str =
     values: dict = await state["args"](params.split())
     if college := await College.objects.filter(college=values["college"]).afirst():
         try:
-            await Major.objects.acreate(college_id=college.college_id, major=values["major"], invitee=event.user_id)
+            await Major.objects.acreate(college=college.college, major=values["major"], invitee=event.user_id)
             await matcher.finish("OK")
         except IntegrityError:
             await matcher.finish(f"好像已经存在了！")

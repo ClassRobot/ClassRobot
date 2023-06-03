@@ -16,7 +16,7 @@ del_class = on_command("删除班级", priority=100, block=True)
 @add_class.handle()
 async def _(matcher: Matcher, state: T_State, event: GroupMessageEvent, msg: Message = CommandArg(), _: Teacher = TEACHER):
     if class_table := await ClassTable.objects.filter(group_id=event.group_id).afirst():
-        await matcher.finish(f"已经是{class_table.class_name}班级群咯，不能再改了。")
+        await matcher.finish(f"已经是{class_table.name}班级群咯，不能再改了。")
     else:
         state["args"] = MessageArgs({"class_name": "班级名称", "major": "专业名称"}, matcher)
         if text := msg.get("text"):
@@ -31,9 +31,9 @@ async def _(state: T_State, event: GroupMessageEvent, matcher: Matcher, params: 
             await ClassTable.objects.acreate(
                 class_name=params, 
                 group_id=event.group_id, 
-                major_id=major.major_id, 
-                college_id=major.college.college_id,
-                teacher_id=state["teacher"].teacher_id)
+                major=major, 
+                college=major.college,
+                teacher=state["teacher"])
             await matcher.finish("OK")
         except InterruptedError:
             await matcher.finish("这个班级似乎已经存在了！！")
@@ -44,11 +44,11 @@ async def _(state: T_State, event: GroupMessageEvent, matcher: Matcher, params: 
 # --------------------------------- 删除班级 ---------------------------------
 @del_class.handle()
 async def _(state: T_State, matcher: Matcher, msg: Message = CommandArg(), teacher: Teacher = TEACHER):
-    state["all_class"] = ClassTable.objects.filter(teacher_id=teacher.teacher_id)
+    state["all_class"] = ClassTable.objects.filter(teacher=teacher)
     if text := msg.get("text"):
         state["params"] = text
     elif state["all_class"]:
-        await matcher.send("要删掉哪个呢？\n" + ("\n".join(i.class_name for i in state["all_class"])))
+        await matcher.send("要删掉哪个呢？\n" + ("\n".join(i.name for i in state["all_class"])))
     else:
         await matcher.finish("您还没有班级！")
 

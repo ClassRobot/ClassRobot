@@ -3,7 +3,7 @@ from pandas import DataFrame
 from numpy import where
 from django.db.models.manager import BaseManager
 from django.db.models import Q
-from utils.orm import StudentInfo, Teacher, ClassTable
+from utils.orm import Student, Teacher, ClassTable
 
 # 学生表格用于搜索的列
 find_columns = [
@@ -42,7 +42,7 @@ class FuzzySearch:
         columns: Optional[list] = None,
         all_find: bool = False,
         *,
-        table: Optional[BaseManager[StudentInfo]] = None,
+        table: Optional[BaseManager[Student]] = None,
     ) -> DataFrame:
         """查找学生
 
@@ -53,14 +53,14 @@ class FuzzySearch:
                 如果为None表示默认的列
             all_find (bool, optional): 进行全部列查找. Defaults to False.
                 当为True时忽略columns进行全部搜索
-            table (Optional[BaseManager[StudentInfo]]): 自定义的学生进行查找
+            table (Optional[BaseManager[Student]]): 自定义的学生进行查找
 
         Returns:
             DataFrame: 学生数据
         """
-        table = table or StudentInfo.objects
+        table = table or Student.objects
         if class_table is not None:
-            table = table.filter(class_field=class_table)
+            table = table.filter(class_table=class_table)
         student = DataFrame([i async for i in table.values()])
         if student.empty:
             return student

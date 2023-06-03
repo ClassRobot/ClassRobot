@@ -3,7 +3,7 @@ from django.db.models.functions import Now
 from pandas import DataFrame, Series
 
 from utils.typing import BaseAuth, SaveFile
-from utils.orm import MoralEducation, StudentInfo, ClassTable
+from utils.orm import MoralEducation, Student, ClassTable
 from utils.manages import User
 from utils.manages.finder import FuzzySearch
 from utils.localstore import LocalStore
@@ -13,7 +13,7 @@ local_store = LocalStore("morals")
 
 
 class AddMoral(BaseAuth):
-    user: StudentInfo
+    user: Student
     def __init__(self, user: User) -> None:
         super().__init__(user)
         self.text = ""
@@ -28,7 +28,7 @@ class AddMoral(BaseAuth):
             text (str): 学生的关键字
         """
         fs = FuzzySearch(text)
-        self.users = await fs.find_student(self.user.class_field)
+        self.users = await fs.find_student(self.user.class_table)
 
     def set_text(self, text: str) -> bool:
         """设置德育内容
@@ -46,7 +46,7 @@ class AddMoral(BaseAuth):
         file, _ = self.save_file.first_file
         if self.users.empty:
             await MoralEducation.objects.acreate(
-                class_field=self.user.class_field,
+                class_table=self.user.class_table,
                 explain_reason=self.text,
                 student_name=self.user.name,
                 student_id=self.user.student_id,
@@ -58,7 +58,7 @@ class AddMoral(BaseAuth):
         else:
             for _, row in self.users.iterrows():
                 await MoralEducation.objects.acreate(
-                    class_field=self.user.class_field,
+                    class_table=self.user.class_table,
                     explain_reason=self.text,
                     student_name=row["name"],
                     student_id=row["student_id"],
@@ -77,7 +77,7 @@ class ExportMoral(BaseAuth):
         file_name = moral_store.joinpath("-".join(str(i) for i in export_date.values()) + "德育日志.xlsx")
         moral_data = DataFrame([
             i async for i in MoralEducation.objects.filter(
-                class_field=class_table,
+                class_table=class_table,
                 **export_date
             ).values("student_id", "student_name", "score_type", "score", "log_time", "explain_reason")
         ])

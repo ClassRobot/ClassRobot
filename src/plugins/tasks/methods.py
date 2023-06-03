@@ -5,7 +5,7 @@ from zipfile import ZipFile, ZIP_DEFLATED
 from django.db.models.functions import Now
 from django.db.models.manager import BaseManager
 from typing import Dict, List, Optional, Tuple, Union
-from utils.orm import ClassTable, Teacher, ClassTasks, StudentInfo, ClassTaskCollects
+from utils.orm import ClassTable, Teacher, ClassTasks, Student, TaskFiles
 
 from utils.manages import User
 from utils.tools import html_to_image, run_sync
@@ -51,7 +51,7 @@ class BaseTask(BaseAuth):
                 title=title,
             ).aexists()
         return await ClassTasks.objects.filter(
-            class_field=class_table,
+            class_table=class_table,
             title=title,
         ).aexists()
 
@@ -65,11 +65,11 @@ class BaseTask(BaseAuth):
         if self._tasks is None:
             if isinstance(self.user, Teacher):
                 self._tasks = ClassTasks.objects.filter(
-                    class_field__in=self.teacher_class
+                    class_table__in=self.teacher_class
                 )
             else:
                 self._tasks = ClassTasks.objects.filter(
-                    class_field=self.user.class_field
+                    class_table=self.user.class_table
                 )
         return self._tasks
 
@@ -84,7 +84,7 @@ class BaseTask(BaseAuth):
         """
         template = env.get_template("tasklist.html")
         tasks = [i async for i in self.tasks]
-        tasks_size = [await ClassTaskCollects.objects.filter(
+        tasks_size = [await TaskFiles.objects.filter(
             task=task
         ).acount() for task in tasks]   # 获取任务提交数量
         return await html_to_image(
@@ -109,8 +109,8 @@ class BaseTask(BaseAuth):
         if size := self._class_size.get(class_table):
             return size
         else:
-            self._class_size[class_table] = StudentInfo.objects.filter(
-                class_field=class_table
+            self._class_size[class_table] = Student.objects.filter(
+                class_table=class_table
             ).count()
             return self._class_size[class_table]
 
@@ -166,7 +166,7 @@ class AddTask(BaseTask):
             return await ClassTasks.objects.acreate(
                 title=title,
                 type="image",
-                class_field=class_table,
+                class_table=class_table,
                 initiate=self.user.qq,
                 create_time=Now()
             )
@@ -176,44 +176,44 @@ class ShowTask(BaseTask):
     async def show_task(self, task_title_or_id: str):
         task_title_or_id = task_title_or_id.strip()
         if task := await self.query_task(task_title_or_id).afirst():
-            task_collects = ClassTaskCollects.objects.filter(task=task)
+            task_collects = TaskFiles.objects.filter(task=task)
             yield await self.committed(task_collects)
             await sleep(1)
-            yield await self.uncommitt(task.class_field, task_collects)
+            yield await self.uncommitt(task.class_table, task_collects)
         else:
             yield "没有这个任务哎！"
     
-    async def committed(self, task_collects: BaseManager[ClassTaskCollects]) -> str:
+    async def committed(self, task_collects: BaseManager[TaskFiles]) -> str:
         """已经提交的学生
 
         Args:
-            task_collects (BaseManager[ClassTaskCollects]): 已提交任务
+            task_collects (BaseManager[TaskFiles]): 已提交任务
 
         Returns:
             str: 回复消息
         """
         if await task_collects.aexists():
-            return "已提交\n" + ("\n".join([f"{v.user_name} | {v.push_time}" async for v in task_collects]))
+            return "已提交\n" + ("\n".join([f"{v.student.name} | {v.push_time}" async for v in task_collects]))
         return "还没人提交过呢"
 
     async def uncommitt(
         self, 
         class_table: ClassTable,
-        task_collects: BaseManager[ClassTaskCollects],
+        task_collects: BaseManager[TaskFiles],
     ) -> str:
         """未提交人的姓名
 
         Args:
             task (ClassTable): 班级
-            task_collects (BaseManager[ClassTaskCollects]): 已提交任务
+            task_collects (BaseManager[TaskFiles]): 已提交任务
 
         Returns:
             str: 回复消息
         """
-        uncommitt = StudentInfo.objects.filter(
-            class_field=class_table
+        uncommitt = Student.objects.filter(
+            class_table=class_table
         ).exclude(
-            qq__in=[i.qq async for i in task_collects]
+            pk__in=[i.student async for i in task_collects]
         )
         if await uncommitt.aexists():
             return "未提交\n" + (" ".join([i["name"] async for i in uncommitt.values("name")]))
@@ -232,22 +232,22 @@ class DelTask(BaseTask):
         return delete_ok
 
     async def delete_task_files(self, task: ClassTasks):
-        task_store = local_store.mkdir(str(task.class_field.group_id))
-        async for collect in ClassTaskCollects.objects.filter(task=task).values("file"):
+        task_store = local_store.mkdir(str(task.class_table.group_id))
+        async for collect in TaskFiles.objects.filter(task=task).values("file"):
             file_path = task_store.joinpath(collect["file"])
             if file_path.exists():
                 file_path.unlink(True)
 
 
 class PushTask(BaseTask):
-    user: StudentInfo
+    user: Student
     def __init__(self, user: User) -> None:
         super().__init__(user)
         self.save_file = SaveFile()
 
     async def task_file_exists(self, file: str) -> bool:
         """任务文件是否存在"""
-        return await ClassTaskCollects.objects.filter(file=file).aexists()
+        return await TaskFiles.objects.filter(file=file).aexists()
 
     async def push_task(self, title: str) -> str:
         title = title.strip()
@@ -255,19 +255,19 @@ class PushTask(BaseTask):
             file = self.save_file.files[0]
             if not await self.task_file_exists(file):   # 检查文件是否重复
                 reply = "OK"
-                self.save_file.local_store = local_store.mkdir(str(self.user.class_field.group_id))
-                if task_collect := await ClassTaskCollects.objects.filter(task=task, qq=self.user.qq).afirst():
-                    self.save_file.local_store.remove(task_collect.file)  # 删除原本文件
-                    task_collect.file = file
+                self.save_file.local_store = local_store.mkdir(str(self.user.class_table.group_id))
+                if task_collect := await TaskFiles.objects.filter(task=task, qq=self.user.qq).afirst():
+                    self.save_file.local_store.remove(task_collect.file_md5)  # 删除原本文件
+                    task_collect.file_md5 = file
                     task_collect.save()
                     reply = "文件修改成功！"
                 else:
-                    await ClassTaskCollects.objects.acreate(
+                    await TaskFiles.objects.acreate(
                         title=task.title,
                         task=task,
                         qq=self.user.qq,
                         user_name=self.user.name,
-                        class_field=self.user.class_field, # type: ignore   
+                        class_table=self.user.class_table, # type: ignore   
                         file=file,
                         push_time=Now()
                     )
@@ -288,14 +288,14 @@ class ExportTask(BaseTask):
         title = title.strip()
         for i in self.split_title(title):
             if task := await self.query_task(i).afirst():
-                task_store = local_store.mkdir(str(task.class_field.group_id))
+                task_store = local_store.mkdir(str(task.class_table.group_id))
                 zip_name = task.title + ".zip"
                 zip_path = task_store.joinpath(zip_name)
                 with ZipFile(zip_path, "w", ZIP_DEFLATED) as file:
-                    async for collect in ClassTaskCollects.objects.filter(task=task):
+                    async for collect in TaskFiles.objects.filter(task=task):
                         file.write(
-                            task_store.joinpath(collect.file), 
-                            f"{collect.user_name}{collect.qq}.jpg"
+                            task_store.joinpath(collect.file_md5), 
+                            f"{collect.student.name}{collect.student.qq}.jpg"
                         )
                 self.zip_files.append((zip_path, zip_name))
                 yield zip_path, zip_name
@@ -315,7 +315,7 @@ class ExportTask(BaseTask):
 class ClearTask(BaseTask):
     async def clear_task(self, class_table: ClassTable) -> bool:
         clear_ok = True
-        await self.tasks.filter(class_field=class_table).adelete()
+        await self.tasks.filter(class_table=class_table).adelete()
         task_store = local_store[str(class_table.group_id)]
         if task_store.exists():
             for file in task_store.listdir():

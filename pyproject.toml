@@ -16,13 +16,17 @@ nb-cli = "^1.0.0"
 [tool.nonebot]
 plugins = [
     "packages",
-    "nonebot_plugin_gocqhttp",
-    ]
+    "nonebot_plugin_animeres",
+    # "nonebot_plugin_gocqhttp",
+]
 plugin_dirs = [
     "src/plugins",
     "src/others"
 ]
-adapters = [{name = "OneBot V11", module_name = "nonebot.adapters.onebot.v11"}]
+adapters = [
+    {name = "OneBot V11", module_name = "nonebot.adapters.onebot.v11"}, 
+    # {name = "Console", module_name = "nonebot.adapters.console"}
+]
 
 [build-system]
 requires = ["poetry_core>=1.0.0"]

@@ -6,7 +6,7 @@ from nonebot.adapters.onebot.v11.helpers import extract_image_urls
 from nonebot.matcher import Matcher
 
 from utils.manages import User, USER, STUDENT
-from utils.orm import StudentInfo
+from utils.orm import Student
 from utils.manages.config import base_info, more_info
 from utils.tools.docs_sheet import re_docs
 from utils.manages import User, USER
@@ -28,7 +28,7 @@ async def _(matcher: Matcher, bot: Bot, event: GroupMessageEvent, msg: Message =
             await matcher.finish(f"将{text}作为名字")
         await matcher.send("让我看看有谁要改！！")
         for name, user_id in ((i["card"], i["user_id"]) for i in await bot.get_group_member_list(group_id=event.group_id)):
-            if user := await StudentInfo.objects.filter(qq=user_id).values(*_rename).afirst():
+            if user := await Student.objects.filter(qq=user_id).values(*_rename).afirst():
                 newname = " ".join(str(i) for i in user.values())
                 if newname not in name:
                     await sleep(3)
@@ -49,13 +49,13 @@ async def _(matcher: Matcher, state: T_State, url: Message = Arg()):
     if text := re_docs(str(url)):
         nwe = NotWriteExcel(state["user"])
         if nwe.is_student:
-            user: StudentInfo = state["user"]
-            await nwe.not_write_excel(text, user.class_field)
+            user: Student = state["user"]
+            await nwe.not_write_excel(text, user.class_table)
 
 
 # --------------------------------- 水印 ---------------------------------
 @add_watermark.handle()
-async def _(matcher: Matcher, msg: Message = CommandArg(), _: StudentInfo = STUDENT):
+async def _(matcher: Matcher, msg: Message = CommandArg(), _: Student = STUDENT):
     if images := msg.get("image"):
         matcher.set_arg("images", images)
 

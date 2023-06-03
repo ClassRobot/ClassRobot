@@ -1,7 +1,7 @@
 from typing import List
 from pandas import DataFrame
 
-from utils.orm import Teacher, ClassTable, StudentInfo
+from utils.orm import Teacher, ClassTable, Student
 
 from .config import base_info, all_info
 
@@ -14,10 +14,10 @@ class AddStudent:
         }
 
     async def insert(self, teacher: Teacher, class_table: ClassTable):
-        await StudentInfo.objects.acreate(
+        await Student.objects.acreate(
             **self.info,
             teacher=teacher, 
-            class_field=class_table,
+            class_table=class_table,
         )
 
 
@@ -71,11 +71,11 @@ class BatchImportStudents:
             teacher (Teacher): 教师信息
             class_table (ClassTable): 班级信息
         """
-        await StudentInfo.objects.filter(class_field=class_table).adelete()    # 删除之前的学生
-        await StudentInfo.objects.abulk_create(
-            StudentInfo(
+        await Student.objects.filter(class_table=class_table).adelete()    # 删除之前的学生
+        await Student.objects.abulk_create(
+            Student(
                 teacher=teacher, 
-                class_field=class_table, 
+                class_table=class_table, 
                 **value # type: ignore
             ) for value in self.data.to_dict("records")  
         )  # 写入新学生数据

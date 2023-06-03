@@ -3,7 +3,7 @@ from nonebot.adapters.onebot.v11 import Message, MessageSegment, Bot, MessageEve
 from nonebot.params import CommandArg, Arg
 from nonebot.matcher import Matcher
 
-from utils.orm import StudentInfo
+from utils.orm import Student
 from utils.manages import USER, User, STUDENT
 from utils.tools import upload_file
 
@@ -25,10 +25,10 @@ async def _(matcher: Matcher, state: T_State, task_title: Message = Arg()):
     if warn := task.check_task_name(title):
         await matcher.finish(warn)
     else:
-        student: StudentInfo = state["user"]
+        student: Student = state["user"]
         if task.is_student:
-            if class_task := await task.add_task(title, student.class_field):
-                await matcher.finish(f"OK,任务ID：{class_task.task_id}")
+            if class_task := await task.add_task(title, student.class_table):
+                await matcher.finish(f"OK,任务ID：{class_task.id}")
             await matcher.finish("似乎重名了！")
         else:
             state["task_title"] = title
@@ -48,7 +48,7 @@ async def _(matcher: Matcher, state: T_State, class_name: Message = Arg()):
             state["task_title"], 
             class_table=class_table
         ):
-            await matcher.finish(f"OK,任务ID：{class_task.task_id}")
+            await matcher.finish(f"OK,任务ID：{class_task.id}")
         await matcher.finish("似乎重名了！")
     else:
         await matcher.finish("没有这个班级，你是不是写错了？")
@@ -108,7 +108,7 @@ async def _(matcher: Matcher, msg: Message = CommandArg(), user: User = USER):
 
 # --------------------------------- 提交任务 ---------------------------------
 @push_task.handle()
-async def _(matcher: Matcher, state: T_State, msg: Message = CommandArg(), user: StudentInfo = STUDENT):
+async def _(matcher: Matcher, state: T_State, msg: Message = CommandArg(), user: Student = STUDENT):
     task = PushTask(user)
     state["task"] = task
     task.save_file.add_file(msg)
@@ -176,8 +176,8 @@ async def _(event: MessageEvent, state: T_State, task_title: Message = Arg()):
 async def _(matcher: Matcher, state: T_State, msg: Message = CommandArg(), user: User = USER):
     task = ClearTask(user)
     state["task"] = task
-    if isinstance(user, StudentInfo):   # 学生进行删除
-        if not await task.clear_task(user.class_field):
+    if isinstance(user, Student):   # 学生进行删除
+        if not await task.clear_task(user.class_table):
             await matcher.finish("OK,但似乎有文件被占用没有彻底删除，可以稍后重试！")
         await matcher.finish("OK")
     elif text := msg.get("text"):   # 教师清除时会选择班级
@@ -187,7 +187,7 @@ async def _(matcher: Matcher, state: T_State, msg: Message = CommandArg(), user:
             "要清空哪个呢？\n" + (
                 "\n".join(
                     f"{i}.{v}" for i, v in enumerate(
-                        [i.class_name async for i in task.teacher_class]
+                        [i.name async for i in task.teacher_class]
                     )
                 )
             )

@@ -4,7 +4,7 @@ from httpx import AsyncClient
 from nonebot.adapters.onebot.v11 import Message
 
 from ..localstore import LocalStore
-from ..orm import Teacher, StudentInfo, ClassTable, StudentUnion
+from ..orm import Teacher, Student, ClassTable
 from ..manages import User
 from ..manages.config import ClassCadre
 
@@ -13,36 +13,32 @@ class BaseAuth:
     _class_count: Optional[int] = None
     _start_index = 0
     _teacher_class: Optional[BaseManager[ClassTable]] = None
-    class_cader_list = ClassCadre.to_list()
+    class_cadre_list = ClassCadre.to_list()
 
     def __init__(self, user: User) -> None:
         self.user: User = user
-    
+
     @property
-    def is_cader(self) -> bool:
+    def is_cadre(self) -> bool:
         """是否为班干部
 
         Returns:
             bool: True or False
         """
-        if isinstance(self.user, StudentInfo):
-            return self.user.position in self.class_cader_list
+        if isinstance(self.user, Student):
+            return self.user.position in self.class_cadre_list
         return False
 
     @property
-    def is_cader_or_teacher(self) -> bool:
+    def is_cadre_or_teacher(self) -> bool:
         """是否为班干部或教师
 
         Returns:
             bool: True or False
         """
-        if isinstance(self.user, StudentInfo):
-            return self.user.position in self.class_cader_list
+        if isinstance(self.user, Student):
+            return self.user.position in self.class_cadre_list
         return True
-
-    async def is_union(self) -> bool:
-        """是否为学生会干部"""
-        return await StudentUnion.objects.filter(pk=self.user.qq).aexists()
 
     @property
     def is_teacher(self) -> bool:
@@ -50,33 +46,28 @@ class BaseAuth:
 
     @property
     def is_student(self) -> bool:
-        return isinstance(self.user, StudentInfo)
+        return isinstance(self.user, Student)
 
     @property
     def teacher_class(self) -> BaseManager[ClassTable]:
         if self._teacher_class is None:
             self._teacher_class = ClassTable.objects.filter(teacher=self.user)
         return self._teacher_class
-    
+
     @overload
     async def teacher_class_names(
-        self, 
-        join_str: None, 
-        index: bool =True, 
-        start: int = 0
-    )-> List[str]: ...
+        self, sep: None, index: bool = True, start: int = 0
+    ) -> List[str]:
+        """当sep=None时返回班级名称的List"""
+
     @overload
     async def teacher_class_names(
-        self, 
-        join_str: str = "\n", 
-        index: bool =True, 
-        start: int = 0
-    )-> str: ...
+        self, sep: str = "\n", index: bool = True, start: int = 0
+    ) -> str:
+        """当为str时候, 基于sep来拼接内容"""
+
     async def teacher_class_names(
-        self, 
-        join_str: Optional[str] ="\n", 
-        index: bool =True, 
-        start: int = 0
+        self, sep: Optional[str] = "\n", index: bool = True, start: int = 0
     ) -> Union[List[str], str]:
         """教师所管理班级的名字
 
@@ -86,14 +77,16 @@ class BaseAuth:
             start (int, optional): 索引的起始数. Defaults to 0.
 
         Returns:
-            Union[List[str], str]: 当join_str为None时返回List[str]
+            Union[List[str], str]: 当sep为None时返回List[str]
         """
         self._start_index = start
         names = [i["class_name"] async for i in self.teacher_class.values("class_name")]
-        if join_str is not None:
+        if sep is not None:
             if index:
-                return join_str.join(f"{i}.{v}" for i, v in enumerate(names, start=start))
-            return join_str.join(names)
+                return sep.join(
+                    f"{i}.{v}" for i, v in enumerate(names, start=start)
+                )
+            return sep.join(names)
         return names
 
     async def teacher_class_count(self) -> int:
@@ -102,9 +95,7 @@ class BaseAuth:
         return self._class_count
 
     async def select_class(
-        self, 
-        class_name: str, 
-        start: Optional[int] = None
+        self, class_name: str, start: Optional[int] = None
     ) -> Optional[ClassTable]:
         """教师选择需要的班级
 
@@ -119,11 +110,14 @@ class BaseAuth:
             if class_name.isdigit():
                 try:
                     return self.teacher_class[
-                        int(class_name) - (self._start_index if start is None else start)
+                        int(class_name)
+                        - (self._start_index if start is None else start)
                     ]
                 except IndexError:
                     return
-            elif class_table := await self.teacher_class.filter(class_name=class_name).afirst():
+            elif class_table := await self.teacher_class.filter(
+                class_name=class_name
+            ).afirst():
                 return class_table
 
 
@@ -131,7 +125,7 @@ class SaveFile:
     _files: Optional[List[str]] = None
     _urls: Optional[List[str]] = None
     local_store: LocalStore = LocalStore("temp")
-    duplicate_number: int = 0   # 文件重复次数
+    repeat_number: int = 0  # 文件重复次数
 
     @property
     def file_exists(self) -> bool:
@@ -148,7 +142,7 @@ class SaveFile:
         if self._urls is None:
             self._urls = []
         return self._urls
-    
+
     def file_duplicate(self, file: str) -> bool:
         """文件是否重复
 
@@ -167,15 +161,15 @@ class SaveFile:
         Args:
             message (Message): 消息内容
         """
-        _append = False # 是否有添加文件
+        _append = False  # 是否有添加文件
         for msg in message.get("image"):
             _append = True
-            file = msg.data['file'].split(".")[0]
+            file = msg.data["file"].split(".")[0]
             if not self.file_duplicate(file):
                 self.files.append(file)
                 self.urls.append(msg.data["url"])
             else:
-                self.duplicate_number += 1
+                self.repeat_number += 1
         return _append
 
     @property
@@ -203,7 +197,8 @@ class SaveFile:
                         (await client.get(url)).read()
                     )
 
+    def __bool__(self) -> bool:
+        return bool(self.files)
 
-__all__ = [
-    "BaseAuth"
-]
+
+__all__ = ["BaseAuth"]

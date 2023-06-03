@@ -26,7 +26,7 @@ async def _(state: T_State, matcher: Matcher, msg: Message = CommandArg(), _: Te
 async def _(state: T_State, matcher: Matcher, params: str = ArgPlainText()):
     try:
         args = await state["args"](params)
-        await Teacher.objects.acreate(**args, invitee=state["teacher"].invitee)
+        await Teacher.objects.acreate(**args, creator=state["teacher"].qq)
         await matcher.finish("OK")
     except IntegrityError:
         await matcher.finish("好像已经存在了呢")

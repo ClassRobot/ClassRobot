@@ -7,7 +7,6 @@ from .models import ClassTable, Teacher
 @receiver(post_save, sender=ClassTable)
 async def _(sender: Type[ClassTable], instance: ClassTable, **kwargs):
     teacher: Teacher = instance.teacher
-    teacher.class_list
     ...
 
 

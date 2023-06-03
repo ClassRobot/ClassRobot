@@ -72,7 +72,7 @@ body {
 {% for task, task_size in zip(tasks, tasks_size) %}
 <div class="task-box">
     <h2>
-        <span class="class-name">{{ task.class_field.class_name }}</span>
+        <span class="class-name">{{ task.class_table.name }}</span>
         {{ task.title }}
     </h2>
     <table>
@@ -96,7 +96,7 @@ body {
         </tbody>
     </table>
     <div class="loading">
-        {% set cs = class_size(task.class_field) %}
+        {% set cs = class_size(task.class_table) %}
         {% set ts = task_size %}
         {% set per = ts / cs * 100 // 1 %}
         <div class="progress-bar">

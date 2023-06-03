@@ -6,7 +6,7 @@ from django.db.utils import IntegrityError
 from nonebot.params import CommandArg, ArgPlainText
 from nonebot.adapters.onebot.v11 import Message, GroupMessageEvent, MessageEvent
 
-from utils.orm import Teacher, ClassTable, StudentInfo
+from utils.orm import Teacher, ClassTable, Student
 from utils.tools import MessageArgs, upload_file
 from utils.tools.docs_sheet import GetDocsSheet, InitialAttributedTextError
 from utils.params import DocsUrlParams
@@ -28,7 +28,7 @@ student_excel = on_command("获取导入表格", priority=100, block=True)
 async def _(matcher: Matcher, state: T_State, event: GroupMessageEvent, msg: Message = CommandArg(), teacher: Teacher = TEACHER):
     if class_table := await ClassTable.objects.filter(
         group_id=event.group_id, 
-        teacher_id=teacher.teacher_id
+        teacher=teacher
     ).afirst():
         state["class_table"] = class_table
         state["args"] = MessageArgs(add_args, matcher, "说一下“{}”")
@@ -57,7 +57,7 @@ async def _(matcher: Matcher, _: GroupMessageEvent, state: T_State, params: str 
 async def _(state: T_State, matcher: Matcher, event: GroupMessageEvent, msg: Message = CommandArg(), teacher: Teacher = TEACHER):
     if class_table := await ClassTable.objects.filter(
         group_id=event.group_id, 
-        teacher_id=teacher.teacher_id
+        teacher=teacher
         ).afirst():
         state["class_table"] = class_table
         if msg:
@@ -92,7 +92,7 @@ async def _(state: T_State, msg: Message = CommandArg(), _: Teacher = TEACHER):
 async def _(state: T_State, matcher: Matcher, text: str = ArgPlainText()):
     if all_id := [int(i) for i in text.split() if i.isdigit()]:
         teacher: Teacher = state["teacher"]
-        if (await StudentInfo.objects.filter(teacher_id=teacher.teacher_id, qq__in=all_id).adelete())[0]:   # 学生qq
+        if (await Student.objects.filter(teacher=teacher, qq__in=all_id).adelete())[0]:   # 学生qq
             await matcher.finish("OK")
         await matcher.finish("没有这位学生呢！")
 

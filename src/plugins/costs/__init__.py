@@ -3,7 +3,7 @@ from nonebot.adapters.onebot.v11 import Message, MessageSegment, MessageEvent
 from nonebot.params import CommandArg, Arg
 from nonebot.matcher import Matcher
 
-from utils.orm import StudentInfo
+from utils.orm import Student
 from utils.manages import User, USER
 from utils.tools import MessageArgs, upload_file
 
@@ -58,8 +58,8 @@ async def _(matcher: Matcher, state: T_State, msg: Message = CommandArg(), user:
     state["cost"] = cost
     text = msg.extract_plain_text()
     cost.set_date(text)
-    if isinstance(user, StudentInfo):
-        if costs := await cost.show_cost(user.class_field):
+    if isinstance(user, Student):
+        if costs := await cost.show_cost(user.class_table):
             await matcher.finish(MessageSegment.image(costs))
         else:
             await matcher.finish("还没有记录！")
@@ -87,8 +87,8 @@ async def _(matcher: Matcher, event: MessageEvent, state: T_State, msg: Message 
     cost = ExportCost(user)
     cost.set_date(msg.extract_plain_text())
     state["cost"] = cost
-    if isinstance(user, StudentInfo):
-        file_path = await cost.export_cost(user.class_field)
+    if isinstance(user, Student):
+        file_path = await cost.export_cost(user.class_table)
         await upload_file(event, file_path, file_path.name)
         await cost.clear_file(file_path.parent)
         await matcher.finish()
