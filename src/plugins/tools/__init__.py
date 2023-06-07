@@ -5,11 +5,11 @@ from nonebot.params import CommandArg, Arg
 from nonebot.adapters.onebot.v11.helpers import extract_image_urls
 from nonebot.matcher import Matcher
 
-from utils.manages import User, USER, STUDENT
+from utils.auth import User, USER, STUDENT
 from utils.orm import Student
-from utils.manages.config import base_info, more_info
+from utils.auth.config import base_info, more_info
 from utils.tools.docs_sheet import re_docs
-from utils.manages import User, USER
+from utils.auth import User, USER
 
 from .commands import rename, excel_not_write, reset_index, add_watermark
 from .methods import NotWriteExcel, Watermark

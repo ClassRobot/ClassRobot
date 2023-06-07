@@ -6,7 +6,7 @@ from nonebot.params import CommandArg, ArgPlainText
 from nonebot.matcher import Matcher
 from django.db.utils import IntegrityError
 
-from utils.manages import TEACHER
+from utils.auth import TEACHER
 from utils.tools import MessageArgs
 from utils.orm import Teacher
 

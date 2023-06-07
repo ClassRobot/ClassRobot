@@ -6,7 +6,7 @@ from nonebot.adapters.onebot.v11 import Message
 from nonebot.params import CommandArg, ArgPlainText
 
 from utils.orm import Teacher, College
-from utils.manages import TEACHER
+from utils.auth import TEACHER
 
 add_college = on_command("添加学院", aliases={"添加院系"}, priority=100, block=True)
 del_college = on_command("删除院系", aliases={"删除学院"}, priority=100, block=True)
@@ -25,7 +25,7 @@ async def _(state: T_State, matcher: Matcher, params: str = ArgPlainText()):
         if params:
             await College.objects.acreate(
                 college=params, 
-                invitee=state["teacher"].qq
+                creator=state["teacher"].qq
                 )
             await matcher.finish("OK")
         await matcher.finish("不说算了！")

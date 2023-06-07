@@ -5,7 +5,7 @@ from nonebot.params import CommandArg, Arg
 from nonebot.matcher import Matcher
 
 from utils.tools import upload_file
-from utils.manages import STUDENT, USER, User
+from utils.auth import STUDENT, USER, User
 from utils.orm import Student
 
 from .commands import add_moral, export_moral, __helper__

@@ -1,1 +1,1 @@
-from utils.manages.config import base_info
+from utils.auth.config import base_info

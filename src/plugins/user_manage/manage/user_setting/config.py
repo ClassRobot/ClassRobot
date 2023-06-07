@@ -1,4 +1,4 @@
-from utils.manages.config import all_info
+from utils.auth.config import all_info
 
 
 class ModifiableColumns:

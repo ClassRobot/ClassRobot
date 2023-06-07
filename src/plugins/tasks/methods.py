@@ -7,7 +7,7 @@ from django.db.models.manager import BaseManager
 from typing import Dict, List, Optional, Tuple, Union
 from utils.orm import ClassTable, Teacher, ClassTasks, Student, TaskFiles
 
-from utils.manages import User
+from utils.auth import User
 from utils.tools import html_to_image, run_sync
 from utils.localstore import LocalStore
 from utils.typing import BaseAuth, SaveFile

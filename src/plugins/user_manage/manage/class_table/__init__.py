@@ -6,7 +6,7 @@ from nonebot.matcher import Matcher
 
 from utils.tools import MessageArgs
 from utils.orm import Teacher, ClassTable, Major
-from utils.manages import TEACHER
+from utils.auth import TEACHER
 
 add_class = on_command("添加班级", priority=100, block=True)
 del_class = on_command("删除班级", priority=100, block=True)

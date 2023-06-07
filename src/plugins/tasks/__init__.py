@@ -4,7 +4,7 @@ from nonebot.params import CommandArg, Arg
 from nonebot.matcher import Matcher
 
 from utils.orm import Student
-from utils.manages import USER, User, STUDENT
+from utils.auth import USER, User, STUDENT
 from utils.tools import upload_file
 
 from .commands import add_task, del_task, show_task, push_task, export_task, clear_task, __helper__

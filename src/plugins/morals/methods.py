@@ -4,8 +4,8 @@ from pandas import DataFrame, Series
 
 from utils.typing import BaseAuth, SaveFile
 from utils.orm import MoralEducation, Student, ClassTable
-from utils.manages import User
-from utils.manages.finder import FuzzySearch
+from utils.auth import User
+from utils.auth.finder import FuzzySearch
 from utils.localstore import LocalStore
 from utils.tools import query_date
 

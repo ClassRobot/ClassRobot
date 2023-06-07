@@ -1,5 +1,5 @@
 from typing import Dict, List, Optional
-from utils.manages import User
+from utils.auth import User
 from utils.tools import run_sync
 from utils.orm import Teacher, Student
 

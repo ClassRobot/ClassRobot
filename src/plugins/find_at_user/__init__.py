@@ -2,7 +2,7 @@ from nonebot.adapters.onebot.v11 import Message, MessageSegment
 from nonebot.params import CommandArg
 from nonebot.matcher import Matcher
 
-from utils.manages import CLASS_TABLE, USER, User
+from utils.auth import CLASS_TABLE, USER, User
 from utils.orm import ClassTable
 
 from .commands import find_user, at_user

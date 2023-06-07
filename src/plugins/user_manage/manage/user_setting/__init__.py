@@ -6,7 +6,7 @@ from nonebot.adapters.onebot.v11 import Message
 
 from utils.orm import Student, Teacher
 from utils.tools import MessageArgs
-from utils.manages import User, USER, TEACHER
+from utils.auth import User, USER, TEACHER
 
 from .config import ModifiableColumns
 

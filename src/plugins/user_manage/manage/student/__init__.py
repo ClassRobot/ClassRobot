@@ -10,7 +10,7 @@ from utils.orm import Teacher, ClassTable, Student
 from utils.tools import MessageArgs, upload_file
 from utils.tools.docs_sheet import GetDocsSheet, InitialAttributedTextError
 from utils.params import DocsUrlParams
-from utils.manages import TEACHER
+from utils.auth import TEACHER
 
 from re import findall
 

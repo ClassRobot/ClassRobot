@@ -4,7 +4,7 @@ from nonebot.params import CommandArg, Arg
 from nonebot.matcher import Matcher
 
 from utils.orm import Student
-from utils.manages import User, USER
+from utils.auth import User, USER
 from utils.tools import MessageArgs, upload_file
 
 from .commands import add_cost, show_cost, export_cost, __helper__

@@ -2,8 +2,8 @@ from typing import List, Optional, Union
 from pandas import DataFrame
 
 from utils.orm.models import ClassTable, Student, Teacher
-from utils.manages.finder import FuzzySearch
-from utils.manages.config import base_info, more_info, all_info, BaseInfo, MoreInfo
+from utils.auth.finder import FuzzySearch
+from utils.auth.config import base_info, more_info, all_info, BaseInfo, MoreInfo
 
 
 class BaseFindUser:

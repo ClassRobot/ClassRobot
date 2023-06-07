@@ -7,7 +7,7 @@ from django.db.utils import IntegrityError
 
 from utils.orm import Teacher, Major, College
 from utils.tools import MessageArgs
-from utils.manages import TEACHER
+from utils.auth import TEACHER
 
 
 add_major = on_command("添加专业", priority=100, block=True)
@@ -27,7 +27,7 @@ async def _(state: T_State, event: MessageEvent, matcher: Matcher, params: str =
     values: dict = await state["args"](params.split())
     if college := await College.objects.filter(college=values["college"]).afirst():
         try:
-            await Major.objects.acreate(college=college.college, major=values["major"], invitee=event.user_id)
+            await Major.objects.acreate(college=college.college, major=values["major"], creator=event.user_id)
             await matcher.finish("OK")
         except IntegrityError:
             await matcher.finish(f"好像已经存在了！")

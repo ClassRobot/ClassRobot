@@ -6,7 +6,7 @@ from pandas import DataFrame
 from nonebot.rule import ArgumentParser
 
 from utils.orm.models import ClassTable, ClassFunds, Student
-from utils.manages import User
+from utils.auth import User
 from utils.tools import html_to_image, query_date, run_sync
 from utils.typing import BaseAuth
 from utils.localstore import LocalStore
@@ -30,14 +30,14 @@ class AddCost(BaseAuth):
     ) -> ClassFunds:
         if class_table is None and isinstance(self.user, Student):
             return await ClassFunds.objects.acreate(
-                invitee=self.user.qq,
+                creator=self.user.qq,
                 class_table=self.user.class_table,
                 fee_type=fee_type,
                 fee_money=fee_money,
                 fee_time=Now(),
             )
         return await ClassFunds.objects.acreate(
-            invitee=self.user.qq,
+            creator=self.user.qq,
             class_table=class_table,
             fee_type=fee_type,
             fee_money=fee_money,
@@ -107,7 +107,7 @@ class ExportCost(ShowCost):
                     "fee_id",
                     "fee_time",
                     "fee_money",
-                    "invitee",
+                    "creator",
                     "fee_type",
                 )
             ],

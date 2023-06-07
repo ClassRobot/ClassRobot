@@ -5,8 +5,8 @@ from nonebot.adapters.onebot.v11 import Message
 
 from ..localstore import LocalStore
 from ..orm import Teacher, Student, ClassTable
-from ..manages import User
-from ..manages.config import ClassCadre
+from ..auth import User
+from ..auth.config import ClassCadre
 
 
 class BaseAuth:
