@@ -1,15 +1,15 @@
 from pathlib import Path
-from typing import Dict, List, Optional
-from django.db.models.functions import Now
-from django.db.models import Sum, Q
-from pandas import DataFrame
-from nonebot.rule import ArgumentParser
+from typing import Optional
 
-from utils.orm.models import ClassTable, ClassFunds, Student
 from utils.auth import User
-from utils.tools import html_to_image, query_date, run_sync
-from utils.typing import BaseAuth
+from pandas import DataFrame
+from utils.typings import BaseAuth
+from django.db.models import Q, Sum
+from nonebot.rule import ArgumentParser
 from utils.localstore import LocalStore
+from django.db.models.functions import Now
+from utils.tools import run_sync, query_date, html_to_image
+from utils.orm.models import Student, ClassFunds, ClassTable
 
 from .config import env
 
@@ -47,9 +47,7 @@ class AddCost(BaseAuth):
     async def to_card(self, cost: ClassFunds) -> bytes:
         template = env.get_template("costcard.html")
         return await html_to_image(
-            await template.render_async(
-                class_name=cost.class_table.name, cost=cost
-            )
+            await template.render_async(class_name=cost.class_table.name, cost=cost)
         )
 
 

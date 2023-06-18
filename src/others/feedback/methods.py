@@ -1,11 +1,12 @@
 from typing import Optional
-from django.db.models.functions import Now
 from base64 import b64encode
-from utils.typing import SaveFile
-from utils.localstore import LocalStore
+
 from utils.orm import Feedback
+from utils.typings import SaveFile
+from utils.localstore import LocalStore
+from django.db.models.functions import Now
+from utils.tools import query_date, html_to_image
 from utils.tools.templates import create_template_env
-from utils.tools import html_to_image, query_date
 
 local_store = LocalStore("feedback")
 env = create_template_env("feedback")

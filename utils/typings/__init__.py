@@ -1,12 +1,13 @@
-from typing import List, Optional, Tuple, Union, overload
-from django.db.models.manager import BaseManager
+from typing import List, Tuple, Union, Optional, overload
+
 from httpx import AsyncClient
 from nonebot.adapters.onebot.v11 import Message
+from django.db.models.manager import BaseManager
 
-from ..localstore import LocalStore
-from ..orm import Teacher, Student, ClassTable
 from ..auth import User
+from ..localstore import LocalStore
 from ..auth.config import ClassCadre
+from ..orm import Student, Teacher, ClassTable
 
 
 class BaseAuth:
@@ -83,9 +84,7 @@ class BaseAuth:
         names = [i["class_name"] async for i in self.teacher_class.values("class_name")]
         if sep is not None:
             if index:
-                return sep.join(
-                    f"{i}.{v}" for i, v in enumerate(names, start=start)
-                )
+                return sep.join(f"{i}.{v}" for i, v in enumerate(names, start=start))
             return sep.join(names)
         return names
 
