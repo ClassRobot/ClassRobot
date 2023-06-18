@@ -1,0 +1,43 @@
+repos:
+  - repo: https://github.com/myint/autoflake.git
+    rev: v2.1.1
+    hooks:
+      - id: autoflake
+        args:
+          [
+            "--remove-all-unused-imports",
+            "--ignore-init-module-imports",
+            "--remove-unused-variables",
+          ]
+        stages: [commit]
+  
+  - repo: https://github.com/hadialqattan/pycln
+    rev: v2.1.5
+    hooks:
+      - id: pycln
+        args: [--config, pyproject.toml]
+        stages: [commit]
+
+  - repo: https://github.com/pycqa/isort
+    rev: 5.12.0
+    hooks:
+      - id: isort
+        args: ["--profile", "black"]
+        stages: [commit]
+
+  - repo: https://github.com/psf/black
+    rev: 23.3.0
+    hooks:
+      - id: black
+        stages: [commit]
+
+  - repo: https://github.com/python-poetry/poetry
+    rev: 1.5.0
+    hooks:
+      - id: poetry-export
+        name: poetry export
+        entry: poetry
+        args: ["export", "-f", "requirements.txt", "--output", "requirements.txt"]
+        stages: [commit]
+
+exclude: ^(migrations|include)/

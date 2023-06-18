@@ -1,12 +1,9 @@
-from utils.manages.config import all_info
+from utils.auth.config import all_info
 
 
 class ModifiableColumns:
     student = all_info.copy()
-    teacher = {
-        "姓名": "name",
-        "联系方式": "phone"
-    }
+    teacher = {"姓名": "name", "联系方式": "phone"}
     teacher_modifiable = {
         "职位": student.pop("职位"),
         "学号": student.pop("学号"),
@@ -16,4 +13,3 @@ class ModifiableColumns:
 
 
 ModifiableColumns.student.pop("QQ")
-

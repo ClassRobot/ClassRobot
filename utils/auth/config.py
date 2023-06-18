@@ -1,25 +1,25 @@
-from dataclasses import dataclass, fields
 from typing import Dict, List, Literal
+from dataclasses import fields, dataclass
 
 
 @dataclass
 class ClassCadre:
-    cc: Literal["班长"] = "班长" # Class Captain
-    vc: Literal["副班长"] = "副班长" # Vice-Captain
-    yls: Literal["团支书"] = "团支书" # Youth League Secretary
-    sc: Literal["学习委员"] = "学习委员" # Study Committee Member
-    oc: Literal["组织委员"] = "组织委员" # Organization Committee Member
-    pc: Literal["心理委员"] = "心理委员" # Psychological Committee Member
-    spc: Literal["宣传委员"] = "宣传委员" # Propaganda Committee Member
-    mc: Literal["男生委员"] = "男生委员" # Male Student Committee Member
-    fc: Literal["女生委员"] = "女生委员" # Female Student Committee Member
-    sec: Literal["治保委员"] = "治保委员" # Security Committee Member
-    hc: Literal["生卫委员"] = "生卫委员" # Health Committee Member
-    ic: Literal["权益委员"] = "权益委员" # Interests Committee Member
+    cc: Literal["班长"] = "班长"  # Class Captain
+    vc: Literal["副班长"] = "副班长"  # Vice-Captain
+    yls: Literal["团支书"] = "团支书"  # Youth League Secretary
+    sc: Literal["学习委员"] = "学习委员"  # Study Committee Member
+    oc: Literal["组织委员"] = "组织委员"  # Organization Committee Member
+    pc: Literal["心理委员"] = "心理委员"  # Psychological Committee Member
+    spc: Literal["宣传委员"] = "宣传委员"  # Propaganda Committee Member
+    mc: Literal["男生委员"] = "男生委员"  # Male Student Committee Member
+    fc: Literal["女生委员"] = "女生委员"  # Female Student Committee Member
+    sec: Literal["治保委员"] = "治保委员"  # Security Committee Member
+    hc: Literal["生卫委员"] = "生卫委员"  # Health Committee Member
+    ic: Literal["权益委员"] = "权益委员"  # Interests Committee Member
 
     @classmethod
     def to_list(cls) -> List[str]:
-        return [f.default for f in fields(cls)] # type: ignore
+        return [f.default for f in fields(cls)]  # type: ignore
 
     @classmethod
     def to_dict(cls) -> Dict[str, str]:

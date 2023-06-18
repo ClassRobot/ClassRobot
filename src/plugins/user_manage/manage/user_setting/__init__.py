@@ -1,12 +1,11 @@
 from nonebot import on_command
 from nonebot.typing import T_State
 from nonebot.matcher import Matcher
-from nonebot.params import CommandArg, Arg
-from nonebot.adapters.onebot.v11 import Message
-
-from utils.orm import StudentInfo, Teacher
 from utils.tools import MessageArgs
-from utils.manages import User, USER, TEACHER
+from utils.orm import Student, Teacher
+from nonebot.params import Arg, CommandArg
+from utils.auth import USER, TEACHER, User
+from nonebot.adapters.onebot.v11 import Message
 
 from .config import ModifiableColumns
 
@@ -18,21 +17,26 @@ set_user = on_command("修改信息", aliases={"修改内容"}, priority=100, bl
 # --------------------------------- 修改密码 ---------------------------------
 @set_password.handle()
 async def _(matcher: Matcher, msg: Message = CommandArg(), user: User = USER):
-    await StudentInfo.objects.filter(qq=user.qq).afirst()
+    await Student.objects.filter(qq=user.qq).afirst()
     if text := msg.extract_plain_text():
-        user.password = text
+        # user.password = text
         user.save()
         await matcher.finish("OK")
 
 
 # --------------------------------- 修改学生信息 ---------------------------------
 @set_student.handle()
-async def _(matcher: Matcher, state: T_State, msg: Message = CommandArg(), _: Teacher = TEACHER):
-    state["args"] = MessageArgs({
-        "user": "", 
-        "key": "你可以修改:%s" % " ".join(ModifiableColumns.teacher_modifiable.keys()), 
-        "value": "改成什么呢？"
-    }, matcher)
+async def _(
+    matcher: Matcher, state: T_State, msg: Message = CommandArg(), _: Teacher = TEACHER
+):
+    state["args"] = MessageArgs(
+        {
+            "user": "",
+            "key": "你可以修改:%s" % " ".join(ModifiableColumns.teacher_modifiable.keys()),
+            "value": "改成什么呢？",
+        },
+        matcher,
+    )
     if text := msg.get("text"):
         matcher.set_arg("params", text)
 
@@ -41,9 +45,8 @@ async def _(matcher: Matcher, state: T_State, msg: Message = CommandArg(), _: Te
 async def _(matcher: Matcher, state: T_State, params: Message = Arg()):
     info: dict = await state["args"](params.extract_plain_text())
     if key := ModifiableColumns.teacher_modifiable.get(info["key"]):
-        if student := await StudentInfo.objects.filter(
-            qq=info["user"],
-            teacher=state["teacher"]
+        if student := await Student.objects.filter(
+            qq=info["user"], teacher=state["teacher"]
         ).afirst():
             raw = getattr(student, key)
             if isinstance(raw, int):
@@ -61,9 +64,15 @@ async def _(matcher: Matcher, state: T_State, params: Message = Arg()):
 
 # --------------------------------- 修改其它信息 ---------------------------------
 @set_user.handle()
-async def _(matcher: Matcher, state: T_State, msg: Message = CommandArg(), user: User = USER):
+async def _(
+    matcher: Matcher, state: T_State, msg: Message = CommandArg(), user: User = USER
+):
     state["args"] = MessageArgs({"key": "", "value": "改成什么呢？"}, matcher)
-    state["mc"] = ModifiableColumns.student if isinstance(user, StudentInfo) else ModifiableColumns.teacher
+    state["mc"] = (
+        ModifiableColumns.student
+        if isinstance(user, Student)
+        else ModifiableColumns.teacher
+    )
     if text := msg.get("text"):
         matcher.set_arg("params", text)
     else:
@@ -95,23 +104,31 @@ async def _(matcher: Matcher, state: T_State, is_ok: Message = Arg()):
         await matcher.finish("已经取消了")
 
 
-__helper__ = [{
-    "cmd": "修改密码",
-    "alias": ["重置密码", "设置密码"],
-    "params": ["新密码"],
-    "tags": ["修改", "密码", "教师", "学生"]
-}, {
-    "cmd": "修改信息",
-    "alias": ["修改内容"],
-    "params": ["需要修改的", "修改的信息"],
-    "tags": ["修改", "学生", "教师"],
-    "use": [["修改信息 联系方式", "改成什么呢？"], ["114514", "您确定要将'123456'修改成'114514'吗？"], ["确认", "OK"]],
-    "doc": "修改自己的某项信息。"
-}, {
-    "cmd": "修改学生",
-    "alias": ["修改学生信息"],
-    "params": ["学生QQ", "需要修改的", "修改的信息"],
-    "tags": ["修改", "学生", "教师"],
-    "use": [["修改信息 123456 职位", "改成什么呢？"], ["班长", "'学生'修改成'班长'"]],
-    "doc": "可以修改的学生信息有%s" % " ".join(ModifiableColumns.teacher_modifiable.keys()),
-}]
+__helper__ = [
+    {
+        "cmd": "修改密码",
+        "alias": ["重置密码", "设置密码"],
+        "params": ["新密码"],
+        "tags": ["修改", "密码", "教师", "学生"],
+    },
+    {
+        "cmd": "修改信息",
+        "alias": ["修改内容"],
+        "params": ["需要修改的", "修改的信息"],
+        "tags": ["修改", "学生", "教师"],
+        "use": [
+            ["修改信息 联系方式", "改成什么呢？"],
+            ["114514", "您确定要将'123456'修改成'114514'吗？"],
+            ["确认", "OK"],
+        ],
+        "doc": "修改自己的某项信息。",
+    },
+    {
+        "cmd": "修改学生",
+        "alias": ["修改学生信息"],
+        "params": ["学生QQ", "需要修改的", "修改的信息"],
+        "tags": ["修改", "学生", "教师"],
+        "use": [["修改信息 123456 职位", "改成什么呢？"], ["班长", "'学生'修改成'班长'"]],
+        "doc": "可以修改的学生信息有%s" % " ".join(ModifiableColumns.teacher_modifiable.keys()),
+    },
+]

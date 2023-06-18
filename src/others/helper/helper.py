@@ -1,4 +1,5 @@
-from typing import Optional, Union, Dict, List, Generator
+from typing import Dict, List, Union, Optional, Generator
+
 from nonebot.log import logger
 from pydantic import BaseModel
 

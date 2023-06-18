@@ -1,7 +1,8 @@
 from typing import Dict, List, Optional
-from utils.manages import User
+
+from utils.auth import User
 from utils.tools import run_sync
-from utils.orm import Teacher, StudentInfo
+from utils.orm import Student, Teacher
 
 from .config import ModifiableColumns
 
@@ -10,7 +11,7 @@ class ModifyUserInfo:
     def __init__(self, user: User):
         self.user = user
         self.is_teacher = isinstance(user, Teacher)
-        self.is_student = isinstance(user, StudentInfo)
+        self.is_student = isinstance(user, Student)
         if self.is_teacher:
             self.keys = ModifiableColumns.teacher.copy()
         elif self.is_student:

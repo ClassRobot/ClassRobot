@@ -13,9 +13,8 @@ __author__ = "yanyongyu"
 from .imgkit import IMGKit
 from .api import config, from_url, from_file, from_string
 
-
 __all__ = [
-    "IMGKit", 
+    "IMGKit",
     "config",
     "from_url",
     "from_file",

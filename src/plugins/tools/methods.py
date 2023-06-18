@@ -1,9 +1,9 @@
 from typing import List
 
-from utils.orm import ClassTable, StudentInfo
-from utils.typing import BaseAuth
-from utils.tools.docs_sheet import docs_url, GetDocsSheet, DataFrame
-from utils.tools import html_to_image, check_data
+from utils.typings import BaseAuth
+from utils.orm import Student, ClassTable
+from utils.tools import check_data, html_to_image
+from utils.tools.docs_sheet import DataFrame, GetDocsSheet, docs_url
 
 
 class NotWriteExcel(BaseAuth):
@@ -11,18 +11,22 @@ class NotWriteExcel(BaseAuth):
         async with GetDocsSheet(excel_url) as sheet:
             if not sheet.data.empty:
                 names = DataFrame(
-                    [i async for i in StudentInfo.objects.filter(class_field=class_table).values("name")]
+                    [
+                        i
+                        async for i in Student.objects.filter(
+                            class_table=class_table
+                        ).values("name")
+                    ]
                 )
                 print(sheet.data["姓名"].isin(names))
-                # names = [i["name"] for i in StudentInfo.objects.filter(
-                #     class_field=class_table
+                # names = [i["name"] for i in Student.objects.filter(
+                #     class_table=class_table
                 # ).values("name")]
             return "看不到表格里面的数据！"
 
 
-
 class Watermark(BaseAuth):
-    user: StudentInfo
+    user: Student
     html = """
     <style>
         body { position: relative; }
@@ -41,11 +45,12 @@ class Watermark(BaseAuth):
         }
     </style>
     """
+
     async def watermark(self, urls: List[str]):
         for url in urls:
             yield await html_to_image(
-                self.html + 
-                f"<img src='{url}'><hr>" + 
-                f'<div class="text">{self.user.class_field.class_name}<br>{self.user.name}<br>{self.user.student_id}</div>',
-                options={"width": 720}
+                self.html
+                + f"<img src='{url}'><hr>"
+                + f'<div class="text">{self.user.class_table.name}<br>{self.user.name}<br>{self.user.student_id}</div>',
+                options={"width": 720},
             )

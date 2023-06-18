@@ -1,14 +1,15 @@
 from pathlib import Path
-from typing import Dict, List, Optional
-from django.db.models.functions import Now
-from django.db.models import Sum, Q
-from pandas import DataFrame
+from typing import Optional
 
-from utils.orm.models import ClassTable, ClassCost, StudentInfo
-from utils.manages import User
-from utils.tools import html_to_image, query_date, run_sync
-from utils.typing import BaseAuth
+from utils.auth import User
+from pandas import DataFrame
+from utils.typings import BaseAuth
+from django.db.models import Q, Sum
+from nonebot.rule import ArgumentParser
 from utils.localstore import LocalStore
+from django.db.models.functions import Now
+from utils.tools import run_sync, query_date, html_to_image
+from utils.orm.models import Student, ClassFunds, ClassTable
 
 from .config import env
 
@@ -26,29 +27,27 @@ class AddCost(BaseAuth):
 
     async def add_cost(
         self, fee_type: str, fee_money: str, class_table: Optional[ClassTable] = None
-    ) -> ClassCost:
-        if class_table is None and isinstance(self.user, StudentInfo):
-            return await ClassCost.objects.acreate(
-                invitee=self.user.qq,
-                class_field=self.user.class_field,
+    ) -> ClassFunds:
+        if class_table is None and isinstance(self.user, Student):
+            return await ClassFunds.objects.acreate(
+                creator=self.user.qq,
+                class_table=self.user.class_table,
                 fee_type=fee_type,
                 fee_money=fee_money,
                 fee_time=Now(),
             )
-        return await ClassCost.objects.acreate(
-            invitee=self.user.qq,
-            class_field=class_table,
+        return await ClassFunds.objects.acreate(
+            creator=self.user.qq,
+            class_table=class_table,
             fee_type=fee_type,
             fee_money=fee_money,
             fee_time=Now(),
         )
 
-    async def to_card(self, cost: ClassCost) -> bytes:
+    async def to_card(self, cost: ClassFunds) -> bytes:
         template = env.get_template("costcard.html")
         return await html_to_image(
-            await template.render_async(
-                class_name=cost.class_field.class_name, cost=cost
-            )
+            await template.render_async(class_name=cost.class_table.name, cost=cost)
         )
 
 
@@ -73,7 +72,7 @@ class ShowCost(BaseAuth):
 
     async def show_cost(self, class_table: ClassTable):
         costs_list = []
-        costs = ClassCost.objects.filter(class_field=class_table)
+        costs = ClassFunds.objects.filter(class_table=class_table)
         money = await costs.aaggregate(
             total_income=Sum("fee_money", filter=Q(fee_money__gt=0)),
             remaining=Sum("fee_money"),
@@ -82,8 +81,8 @@ class ShowCost(BaseAuth):
         money["expenditure_ratio"] = 0
         async for cost in costs.filter(**self.query_date):
             costs_list.append(cost)
-            if cost.fee_money < 0:
-                money["expenditure_ratio"] += -cost.fee_money
+            if cost.money < 0:
+                money["expenditure_ratio"] += -cost.money
         template = env.get_template("costlist.html")
         return await html_to_image(
             await template.render_async(
@@ -100,13 +99,13 @@ class ExportCost(ShowCost):
         DataFrame(
             [
                 i.values()
-                async for i in ClassCost.objects.filter(
-                    class_field=class_table, **self.query_date
+                async for i in ClassFunds.objects.filter(
+                    class_table=class_table, **self.query_date
                 ).values(
                     "fee_id",
                     "fee_time",
                     "fee_money",
-                    "invitee",
+                    "creator",
                     "fee_type",
                 )
             ],

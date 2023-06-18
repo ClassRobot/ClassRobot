@@ -1,18 +1,11 @@
-"""
-Author: Melodyknit 2711402357@qq.com
-Date: 2023-02-11 20:06:30
-LastEditors: Melodyknit 2711402357@qq.com
-LastEditTime: 2023-05-25 20:40:11
-FilePath: classbot\src\others\helper\__init__.py
-Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
-"""
-from nonebot import get_loaded_plugins, get_driver, on_command
-from nonebot.plugin import get_loaded_plugins
 from nonebot.log import logger
-from nonebot.adapters.onebot.v11 import Message, MessageSegment
-from nonebot.internal.matcher import Matcher
-from nonebot.params import CommandArg
 from pydantic import ValidationError
+from nonebot.params import CommandArg
+from nonebot.internal.matcher import Matcher
+from nonebot.plugin import get_loaded_plugins
+from nonebot import get_driver, on_command, get_loaded_plugins
+from nonebot.adapters.onebot.v11 import Message, MessageSegment
+
 from .helper import HelperMenu
 
 helper_menu = HelperMenu()
