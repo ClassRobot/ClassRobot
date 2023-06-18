@@ -1,5 +1,5 @@
-from pathlib import Path
 from typing import List
+from pathlib import Path
 from zipfile import ZipFile
 
 temp_zip_files: List[Path] = []
@@ -15,4 +15,3 @@ class TempZipFile(ZipFile):
     def __init__(self, file: Path, *args, **kwargs):
         super().__init__(file, *args, **kwargs)
         temp_zip_files.append(file)
-

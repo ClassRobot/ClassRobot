@@ -1,8 +1,9 @@
 from pathlib import Path
-from nonebot import get_driver
-from anyio import open_file
 from shutil import rmtree
 from typing import Union, Optional, Generator
+
+from anyio import open_file
+from nonebot import get_driver
 
 StrPath = Union[str, Path]
 driver = get_driver()

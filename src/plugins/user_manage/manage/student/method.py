@@ -1,22 +1,20 @@
 from typing import List
+
 from pandas import DataFrame
+from utils.orm import Student, Teacher, ClassTable
 
-from utils.orm import Teacher, ClassTable, Student
-
-from .config import base_info, all_info
+from .config import all_info, base_info
 
 
 class AddStudent:
     def __init__(self, info: dict) -> None:
         info["sex"] = int(info["sex"] == "男")
-        self.info = info | {
-            "dorm_master": 0
-        }
+        self.info = info | {"dorm_master": 0}
 
     async def insert(self, teacher: Teacher, class_table: ClassTable):
         await Student.objects.acreate(
             **self.info,
-            teacher=teacher, 
+            teacher=teacher,
             class_table=class_table,
         )
 
@@ -24,7 +22,9 @@ class AddStudent:
 class BatchImportStudents:
     def __init__(self, data: DataFrame):
         data.rename(columns=all_info, inplace=True)
-        self.data: DataFrame = DataFrame(data[[i for i in all_info.values() if i in data.columns]])
+        self.data: DataFrame = DataFrame(
+            data[[i for i in all_info.values() if i in data.columns]]
+        )
         self.revise()
 
     def check_base_columns(self) -> List[str]:
@@ -37,10 +37,10 @@ class BatchImportStudents:
 
     def revise(self):
         """修复数据中缺失数据和不全面数据"""
-        self.setdefault("dorm_master", 0, lambda x: int(x == '是'))
+        self.setdefault("dorm_master", 0, lambda x: int(x == "是"))
         self.setdefault("class_index", range(1, self.data.shape[0] + 1))
-    
-    def setdefault(self, key: str, default, callback = None):
+
+    def setdefault(self, key: str, default, callback=None):
         """设置数据中可能不存在的列
 
         Args:
@@ -71,12 +71,8 @@ class BatchImportStudents:
             teacher (Teacher): 教师信息
             class_table (ClassTable): 班级信息
         """
-        await Student.objects.filter(class_table=class_table).adelete()    # 删除之前的学生
+        await Student.objects.filter(class_table=class_table).adelete()  # 删除之前的学生
         await Student.objects.abulk_create(
-            Student(
-                teacher=teacher, 
-                class_table=class_table, 
-                **value # type: ignore
-            ) for value in self.data.to_dict("records")  
+            Student(teacher=teacher, class_table=class_table, **value)  # type: ignore
+            for value in self.data.to_dict("records")
         )  # 写入新学生数据
-

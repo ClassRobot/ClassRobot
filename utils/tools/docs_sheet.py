@@ -1,27 +1,35 @@
-from aiohttp import ClientSession
-from pandas import DataFrame, Series
-from datetime import datetime, timedelta
-from typing import List, Optional, Generator, Any, Union, overload
 import re
+from datetime import datetime, timedelta
+from typing import Any, List, Union, Optional, Generator, overload
+
+from aiohttp import ClientSession
+from pandas import Series, DataFrame
 
 SHEET_DATE: datetime = datetime(1899, 12, 30)
 docs_url = "https://docs.qq.com/dop-api/opendoc"
 headers = {
     "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
-                  "Chrome/94.0.4606.61 Safari/537.36 ",
+    "Chrome/94.0.4606.61 Safari/537.36 ",
     "content-type": "application/javascript; charset=utf-8",
     "referer": "https://docs.qq.com/sheet",
     "Upgrade-Insecure-Requests": "1",
     "Cache-Control": "max-age=0",
     "Connection": "keep-alive",
     "content-encoding": "gzip",
-    "appName": "Opera"
+    "appName": "Opera",
 }
 
 
-class ExtractError(Exception): ...
-class ExtractDataError(ExtractError): ...
-class InitialAttributedTextError(ExtractError): ...
+class ExtractError(Exception):
+    ...
+
+
+class ExtractDataError(ExtractError):
+    ...
+
+
+class InitialAttributedTextError(ExtractError):
+    ...
 
 
 def re_docs(text: str) -> Optional[str]:
@@ -33,7 +41,9 @@ def re_docs(text: str) -> Optional[str]:
     Returns:
         Optional[str]: 表格链接
     """
-    if url := re.search(r"https://docs.qq.com/sheet/\S[^\"']+", str(text).replace("\\", ""), re.I):
+    if url := re.search(
+        r"https://docs.qq.com/sheet/\S[^\"']+", str(text).replace("\\", ""), re.I
+    ):
         return url.group()
 
 
@@ -49,10 +59,7 @@ class GetDocsSheet:
     @property
     def params(self) -> dict:
         """提取URL所需params"""
-        params = {
-            "outformat": 1,
-            "normal": 1
-        }
+        params = {"outformat": 1, "normal": 1}
         url = self.url.split("/")[-1]
         param = re.findall(r"^\w+|tab=\w+", url)
         params["id"] = param[0]
@@ -67,7 +74,9 @@ class GetDocsSheet:
 
     @staticmethod
     def extract(data: dict) -> Optional[list]:
-        if data := data["clientVars"]["collab_client_vars"].get("initialAttributedText"):
+        if data := data["clientVars"]["collab_client_vars"].get(
+            "initialAttributedText"
+        ):
             for values in data["text"][0]:
                 for value in values:
                     try:
@@ -105,7 +114,7 @@ class GetDocsSheet:
                         index += 1
                         value = values.get("2")
                         arr.append(value[1] if value else value)
-                        continue 
+                        continue
                     arr.append(values)
                 data.append(arr)
             else:
@@ -117,11 +126,13 @@ class GetDocsSheet:
         找出columns所在位置
         """
         # 清除空行空列
-        self.base_data = DataFrame(self.convert2d(), dtype=str).apply(lambda x: x.str.strip())
-        self.base_data.dropna(axis=0, how='all', inplace=True)
-        self.base_data.dropna(axis=1, how='all', inplace=True)
+        self.base_data = DataFrame(self.convert2d(), dtype=str).apply(
+            lambda x: x.str.strip()
+        )
+        self.base_data.dropna(axis=0, how="all", inplace=True)
+        self.base_data.dropna(axis=1, how="all", inplace=True)
         for i, v in (j for j in self.base_data.iterrows() if all(j[1])):
-            return self.base_data.loc[i+1:].rename(columns=v)   # type: ignore
+            return self.base_data.loc[i + 1 :].rename(columns=v)  # type: ignore
         return DataFrame()
 
     async def __aenter__(self) -> "GetDocsSheet":
@@ -138,13 +149,23 @@ class GetDocsSheet:
     @staticmethod
     def get_excel_date(date_int: Union[str, int]) -> Optional[str]:
         """对于excel日期进行转换，以便写入数据"""
-        return str((SHEET_DATE + timedelta(int(date_int) + 1)).date()) if date_int else None
+        return (
+            str((SHEET_DATE + timedelta(int(date_int) + 1)).date())
+            if date_int
+            else None
+        )
 
     @overload
-    def reset_date(self, colunm: str = "出生日期", inplace: bool = True) -> None: ...
+    def reset_date(self, colunm: str = "出生日期", inplace: bool = True) -> None:
+        ...
+
     @overload
-    def reset_date(self, colunm: str = "出生日期", inplace: bool = False) -> Series: ...
-    def reset_date(self, colunm: str = "出生日期", inplace: bool = False) -> Optional[Series]:
+    def reset_date(self, colunm: str = "出生日期", inplace: bool = False) -> Series:
+        ...
+
+    def reset_date(
+        self, colunm: str = "出生日期", inplace: bool = False
+    ) -> Optional[Series]:
         """重置表格日期表格"""
         try:
             if not self.data.empty:
@@ -154,9 +175,9 @@ class GetDocsSheet:
                 self.data[colunm] = item
         except IndexError:
             ...
-    
+
     def __bool__(self) -> bool:
         return not self.data.empty
 
     async def __aexit__(self, *_):
-       ...
+        ...

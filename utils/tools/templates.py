@@ -1,7 +1,8 @@
 from typing import Optional
+from base64 import b64encode
+
 from utils.path import template_path
 from jinja2 import Environment, FileSystemLoader
-from base64 import b64encode
 
 
 def base64_img(data: str, type_="png") -> str:
@@ -9,9 +10,7 @@ def base64_img(data: str, type_="png") -> str:
 
 
 def create_template_env(
-    dir_name: str, 
-    filters: Optional[dict] = None, 
-    **kwargs
+    dir_name: str, filters: Optional[dict] = None, **kwargs
 ) -> Environment:
     """jinja2环境
 
@@ -25,12 +24,14 @@ def create_template_env(
     env = Environment(
         trim_blocks=True,
         lstrip_blocks=True,
-        loader=FileSystemLoader([
-            template_path / "base",
-            template_path / dir_name, 
-        ]),
+        loader=FileSystemLoader(
+            [
+                template_path / "base",
+                template_path / dir_name,
+            ]
+        ),
         enable_async=True,
-        **kwargs
+        **kwargs,
     )
     env.filters.update(filters or {})
     return env

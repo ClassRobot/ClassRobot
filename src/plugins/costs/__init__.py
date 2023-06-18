@@ -1,24 +1,24 @@
-from nonebot.typing import T_State
-from nonebot.adapters.onebot.v11 import Message, MessageSegment, MessageEvent
-from nonebot.params import CommandArg, Arg
-from nonebot.matcher import Matcher
-
 from utils.orm import Student
-from utils.auth import User, USER
+from utils.auth import USER, User
+from nonebot.typing import T_State
+from nonebot.matcher import Matcher
+from nonebot.params import Arg, CommandArg
 from utils.tools import MessageArgs, upload_file
+from nonebot.adapters.onebot.v11 import Message, MessageEvent, MessageSegment
 
-from .commands import add_cost, show_cost, export_cost, __helper__
-from .methods import AddCost, ExportCost, ShowCost
+from .methods import AddCost, ShowCost, ExportCost
+from .commands import add_cost, show_cost, __helper__, export_cost
 
 
 # --------------------------------- 添加班费 ---------------------------------
 @add_cost.handle()
-async def _(matcher: Matcher, state: T_State, msg: Message = CommandArg(), user: User = USER):
+async def _(
+    matcher: Matcher, state: T_State, msg: Message = CommandArg(), user: User = USER
+):
     state["cost"] = AddCost(user)
-    state["args"] = MessageArgs({
-        "fee_type": "是用来做什么了",
-        "fee_money": "花费多少（元）"
-    }, matcher)
+    state["args"] = MessageArgs(
+        {"fee_type": "是用来做什么了", "fee_money": "花费多少（元）"}, matcher
+    )
     if text := msg.get("text"):
         matcher.set_arg("msg", text)
 
@@ -45,15 +45,19 @@ async def _(matcher: Matcher, state: T_State, class_name: Message = Arg()):
     cost: AddCost = state["cost"]
     if name := class_name.extract_plain_text():
         if class_table := await cost.select_class(name):
-            class_cost = await cost.add_cost(**state["args"].kwargs, class_table=class_table)
+            class_cost = await cost.add_cost(
+                **state["args"].kwargs, class_table=class_table
+            )
             await matcher.finish(MessageSegment.image(await cost.to_card(class_cost)))
         await matcher.finish("没有这个班级！")
     await matcher.finish("不说算了！")
-            
+
 
 # --------------------------------- 查询班费 ---------------------------------
 @show_cost.handle()
-async def _(matcher: Matcher, state: T_State, msg: Message = CommandArg(), user: User = USER):
+async def _(
+    matcher: Matcher, state: T_State, msg: Message = CommandArg(), user: User = USER
+):
     cost = ShowCost(user)
     state["cost"] = cost
     text = msg.extract_plain_text()
@@ -79,11 +83,17 @@ async def _(matcher: Matcher, state: T_State, class_name: Message = Arg()):
             await matcher.finish("还没有记录！")
         await matcher.finish("没有这个班级！")
     await matcher.finish("不说算了")
-                
+
 
 # --------------------------------- 导出班费 ---------------------------------
 @export_cost.handle()
-async def _(matcher: Matcher, event: MessageEvent, state: T_State, msg: Message = CommandArg(), user: User = USER):
+async def _(
+    matcher: Matcher,
+    event: MessageEvent,
+    state: T_State,
+    msg: Message = CommandArg(),
+    user: User = USER,
+):
     cost = ExportCost(user)
     cost.set_date(msg.extract_plain_text())
     state["cost"] = cost
@@ -99,7 +109,9 @@ async def _(matcher: Matcher, event: MessageEvent, state: T_State, msg: Message 
 
 
 @export_cost.got("class_name")
-async def _(matcher: Matcher, event: MessageEvent, state: T_State, class_name: Message = Arg()):
+async def _(
+    matcher: Matcher, event: MessageEvent, state: T_State, class_name: Message = Arg()
+):
     cost: ExportCost = state["cost"]
     if name := class_name.extract_plain_text():
         if class_table := await cost.select_class(name):

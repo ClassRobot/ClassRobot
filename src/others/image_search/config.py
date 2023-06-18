@@ -1,5 +1,6 @@
-from pydantic import BaseModel
 from nonebot import get_driver
+from pydantic import BaseModel
+
 
 class Config(BaseModel):
     sauceno: bool = True
@@ -61,4 +62,3 @@ trace_query = """query ($ids: [Int]) {
               }
             }
           }"""
-

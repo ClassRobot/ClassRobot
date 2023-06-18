@@ -1,15 +1,14 @@
+from utils.orm import Student
 from nonebot import on_command
 from nonebot.typing import T_State
-from nonebot.adapters.onebot.v11 import Message, MessageEvent
-from nonebot.params import CommandArg, Arg
 from nonebot.matcher import Matcher
-
 from utils.tools import upload_file
-from utils.auth import STUDENT, USER, User
-from utils.orm import Student
+from nonebot.params import Arg, CommandArg
+from utils.auth import USER, STUDENT, User
+from nonebot.adapters.onebot.v11 import Message, MessageEvent
 
-from .commands import add_moral, export_moral, __helper__
 from .methods import AddMoral, ExportMoral
+from .commands import add_moral, __helper__, export_moral
 
 
 # --------------------------------- 添加德育 ---------------------------------
