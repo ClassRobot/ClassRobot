@@ -1,5 +1,5 @@
 repos:
-  - repo: https://github.com/myint/autoflake.git
+  - repo: https://github.com/PyCQA/autoflake
     rev: v2.1.1
     hooks:
       - id: autoflake
