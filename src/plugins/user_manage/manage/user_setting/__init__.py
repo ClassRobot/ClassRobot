@@ -1,12 +1,11 @@
 from nonebot import on_command
 from nonebot.typing import T_State
 from nonebot.matcher import Matcher
-from nonebot.params import CommandArg, Arg
-from nonebot.adapters.onebot.v11 import Message
-
-from utils.orm import Student, Teacher
 from utils.tools import MessageArgs
-from utils.auth import User, USER, TEACHER
+from utils.orm import Student, Teacher
+from nonebot.params import Arg, CommandArg
+from utils.auth import USER, TEACHER, User
+from nonebot.adapters.onebot.v11 import Message
 
 from .config import ModifiableColumns
 

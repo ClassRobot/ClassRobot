@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
+
 from utils.tools import html_to_image
 from utils.tools.templates import create_template_env
-
 
 env = create_template_env("helper")
 

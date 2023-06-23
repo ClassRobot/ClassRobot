@@ -2,6 +2,7 @@ import os
 
 from django import setup
 from utils.orm.config import app
+from pymysql import install_as_MySQLdb
 
 try:
     import pymysql

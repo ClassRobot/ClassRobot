@@ -1,33 +1,35 @@
-from typing import Generator, List, Optional, Union
-from pandas import DataFrame
+from typing import List, Union, Optional, Generator
+
 from numpy import where
-from django.db.models.manager import BaseManager
+from pandas import DataFrame
 from django.db.models import Q
+from django.db.models.manager import BaseManager
 from utils.orm import Student, Teacher, ClassTable
 
 # 学生表格用于搜索的列
 find_columns = [
-    "qq", 
-    "name", 
-    "sex", 
-    "student_id", 
-    "phone", 
-    "position", 
-    "dormitory", 
-    "wechat", 
-    "ethnic", 
-    "class_index", 
-    "email"
+    "qq",
+    "name",
+    "sex",
+    "student_id",
+    "phone",
+    "position",
+    "dormitory",
+    "wechat",
+    "ethnic",
+    "class_index",
+    "email",
 ]
 
 
 class FuzzySearch:
     """对用户进行模糊搜索"""
+
     def __init__(self, string: str):
         self.string: str = string
         self.raws: List[Union[str, int]] = []
-        self.numbers: List[int] = []    # 参数里的数字
-        self.strings: List[str] = []    # 字符串
+        self.numbers: List[int] = []  # 参数里的数字
+        self.strings: List[str] = []  # 字符串
         for i in string.split():
             if i.isdigit():
                 i = int(i)
@@ -38,7 +40,7 @@ class FuzzySearch:
 
     async def find_student(
         self,
-        class_table: Optional[ClassTable] = None, 
+        class_table: Optional[ClassTable] = None,
         columns: Optional[list] = None,
         all_find: bool = False,
         *,
@@ -64,7 +66,7 @@ class FuzzySearch:
         student = DataFrame([i async for i in table.values()])
         if student.empty:
             return student
-        student["sex"] = where(student['sex'], '男', '女')
+        student["sex"] = where(student["sex"], "男", "女")
         student["dorm_master"] = where(student["dorm_master"], "寝室长", "不是寝室长")
         find_student = student if all_find else student[columns or find_columns]
         return student[find_student.isin(self.raws).any(axis=1)].reset_index(drop=True)
@@ -76,13 +78,15 @@ class FuzzySearch:
             BaseManager[Teacher]: 教师信息
         """
         return DataFrame(
-            [i async for i in Teacher.objects.filter(
-                Q(qq__in=self.numbers) | 
-                Q(phone__in=self.numbers) |
-                Q(name__in=self.strings)
-            ).values()])
+            [
+                i
+                async for i in Teacher.objects.filter(
+                    Q(qq__in=self.numbers)
+                    | Q(phone__in=self.numbers)
+                    | Q(name__in=self.strings)
+                ).values()
+            ]
+        )
 
     def __iter__(self) -> Generator[Union[str, int], None, None]:
         yield from self.raws
-
-

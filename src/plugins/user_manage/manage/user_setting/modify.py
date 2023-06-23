@@ -1,7 +1,8 @@
 from typing import Dict, List, Optional
+
 from utils.auth import User
 from utils.tools import run_sync
-from utils.orm import Teacher, Student
+from utils.orm import Student, Teacher
 
 from .config import ModifiableColumns
 

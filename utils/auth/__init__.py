@@ -1,15 +1,10 @@
+from typing import List, Union, Optional
+
 from nonebot.params import Depends
-from nonebot.matcher import Matcher
-from nonebot.adapters.onebot.v11 import Event, GroupMessageEvent
 from nonebot.typing import T_State
-
-from typing import List, Optional, Union
-
-from utils.orm import (
-    Teacher,
-    Student,
-    ClassTable,
-)
+from nonebot.matcher import Matcher
+from utils.orm import Student, Teacher, ClassTable
+from nonebot.adapters.onebot.v11 import Event, GroupMessageEvent
 
 from .config import ClassCadre
 
@@ -26,7 +21,7 @@ async def student_depends(state: T_State, matcher: Matcher, event: Event):
 
 
 # 班干部身份
-def CLASS_CADRE(cadres: Optional[List[str]] = None):    # type: ignore
+def CLASS_CADRE(cadres: Optional[List[str]] = None):  # type: ignore
     """是否为班干部
 
     Args:
@@ -39,12 +34,14 @@ def CLASS_CADRE(cadres: Optional[List[str]] = None):    # type: ignore
         cadres = ClassCadre.to_list()
     elif isinstance(cadres, str):
         cadres = [cadres]
+
     async def _(state: T_State, matcher: Matcher, event: Event):
         if student := await Student.objects.filter(qq=event.get_user_id()).afirst():
             if student.position in cadres:
                 state["student"] = student
                 return student
         await matcher.finish()
+
     return Depends(_)
 
 
@@ -68,7 +65,9 @@ async def user_depends(state: T_State, matcher: Matcher, event: Event):
 
 
 # 检查是否为班级群
-async def class_table_depends(state: T_State, matcher: Matcher, event: GroupMessageEvent):
+async def class_table_depends(
+    state: T_State, matcher: Matcher, event: GroupMessageEvent
+):
     if class_table := await ClassTable.objects.filter(group_id=event.group_id).afirst():
         state["class_table"] = class_table
         return class_table
@@ -77,7 +76,9 @@ async def class_table_depends(state: T_State, matcher: Matcher, event: GroupMess
 
 
 # 教师或班干部
-async def teacher_or_class_cadre_depends(state: T_State, matcher: Matcher, event: Event):
+async def teacher_or_class_cadre_depends(
+    state: T_State, matcher: Matcher, event: Event
+):
     if teacher := await Teacher.objects.filter(qq=event.get_user_id()).afirst():
         state["teacher"] = teacher
         return teacher
