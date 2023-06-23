@@ -7,13 +7,16 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.10"
-nonebot2 = "^2.0.0"
+nonebot2 = {extras = ["fastapi"], version = "^2.0.0"}
 pandas = "^2.0.2"
 httpx = "^0.24.1"
 fastapi = "^0.97.0"
 django = "^4.2.2"
 nonebot-plugin-gocqhttp = "^0.6.10"
 nonebot-adapter-onebot = "^2.2.3"
+imgkit = "^1.2.3"
+jinja2 = "^3.1.2"
+pygtrans = "^1.5.2"
 
 [tool.poetry.group.dev.dependencies]
 pycln = "^2.1.5"

@@ -3,6 +3,7 @@ from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Tuple, Union, Optional
 
+from utils import run_sync
 from nonebot import get_bot
 from pandas import DataFrame
 from imgkit import from_string

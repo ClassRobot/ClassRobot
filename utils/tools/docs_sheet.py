@@ -2,7 +2,7 @@ import re
 from datetime import datetime, timedelta
 from typing import Any, List, Union, Optional, Generator, overload
 
-from aiohttp import ClientSession
+from httpx import AsyncClient
 from pandas import Series, DataFrame
 
 SHEET_DATE: datetime = datetime(1899, 12, 30)
@@ -68,9 +68,9 @@ class GetDocsSheet:
         return params
 
     async def get(self) -> dict:
-        async with ClientSession(headers=headers) as session:
-            async with session.get(docs_url, params=self.params) as res:
-                return await res.json()
+        client = AsyncClient(headers=headers)
+        response = await client.get(docs_url, params=self.params)
+        return await response.json()
 
     @staticmethod
     def extract(data: dict) -> Optional[list]:
