@@ -8,7 +8,6 @@ from nonebot import get_bot
 from pandas import DataFrame
 from imgkit import from_string
 from nonebot.matcher import Matcher
-from nb_cli.cli.utils import run_sync
 from nonebot.adapters.onebot.v11 import (
     Bot,
     MessageEvent,
