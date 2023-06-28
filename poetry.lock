@@ -23,8 +23,8 @@ trio = ["trio (<0.22)"]
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "asgiref"
@@ -45,18 +45,18 @@ tests = ["mypy (>=0.800)", "pytest", "pytest-asyncio"]
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "autoflake"
-version = "2.1.1"
+version = "2.2.0"
 description = "Removes unused imports and unused variables"
 optional = false
-python-versions = ">=3.7"
+python-versions = ">=3.8"
 files = [
-    {file = "autoflake-2.1.1-py3-none-any.whl", hash = "sha256:94e330a2bcf5ac01384fb2bf98bea60c6383eaa59ea62be486e376622deba985"},
-    {file = "autoflake-2.1.1.tar.gz", hash = "sha256:75524b48d42d6537041d91f17573b8a98cb645642f9f05c7fcc68de10b1cade3"},
+    {file = "autoflake-2.2.0-py3-none-any.whl", hash = "sha256:de409b009a34c1c2a7cc2aae84c4c05047f9773594317c6a6968bd497600d4a0"},
+    {file = "autoflake-2.2.0.tar.gz", hash = "sha256:62e1f74a0fdad898a96fee6f99fe8241af90ad99c7110c884b35855778412251"},
 ]
 
 [package.dependencies]
@@ -65,8 +65,8 @@ tomli = {version = ">=2.0.1", markers = "python_version < \"3.11\""}
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "black"
@@ -118,8 +118,8 @@ uvloop = ["uvloop (>=0.15.2)"]
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "certifi"
@@ -134,8 +134,8 @@ files = [
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "cfgv"
@@ -150,8 +150,8 @@ files = [
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "charset-normalizer"
@@ -239,24 +239,8 @@ files = [
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
-
-[[package]]
-name = "chevron"
-version = "0.14.0"
-description = "Mustache templating language renderer"
-optional = false
-python-versions = "*"
-files = [
-    {file = "chevron-0.14.0-py3-none-any.whl", hash = "sha256:fbf996a709f8da2e745ef763f482ce2d311aa817d287593a5b990d6d6e4f0443"},
-    {file = "chevron-0.14.0.tar.gz", hash = "sha256:87613aafdf6d77b6a90ff073165a61ae5086e21ad49057aa0e53681601800ebf"},
-]
-
-[package.source]
-type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "click"
@@ -274,8 +258,8 @@ colorama = {version = "*", markers = "platform_system == \"Windows\""}
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "colorama"
@@ -290,8 +274,8 @@ files = [
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "distlib"
@@ -306,8 +290,8 @@ files = [
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "django"
@@ -331,8 +315,8 @@ bcrypt = ["bcrypt"]
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "exceptiongroup"
@@ -350,8 +334,24 @@ test = ["pytest (>=6)"]
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
+
+[[package]]
+name = "fake-useragent"
+version = "1.1.3"
+description = "Up-to-date simple useragent faker with real world database"
+optional = false
+python-versions = "*"
+files = [
+    {file = "fake-useragent-1.1.3.tar.gz", hash = "sha256:1c06f0aa7d6e4894b919b30b9c7ebd72ff497325191057fbb5df3d5db06b93fc"},
+    {file = "fake_useragent-1.1.3-py3-none-any.whl", hash = "sha256:695d3b1bf7d11d04ab0f971fb73b0ca8de98b78bbadfbc8bacbc9a48423f7531"},
+]
+
+[package.source]
+type = "legacy"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "fastapi"
@@ -373,8 +373,8 @@ all = ["email-validator (>=1.1.1)", "httpx (>=0.23.0)", "itsdangerous (>=1.1.0)"
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "filelock"
@@ -393,8 +393,8 @@ testing = ["covdefaults (>=2.3)", "coverage (>=7.2.7)", "diff-cover (>=7.5)", "p
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "h11"
@@ -409,8 +409,8 @@ files = [
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "httpcore"
@@ -435,8 +435,8 @@ socks = ["socksio (==1.*)"]
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "httptools"
@@ -493,8 +493,8 @@ test = ["Cython (>=0.29.24,<0.30.0)"]
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "httpx"
@@ -521,8 +521,8 @@ socks = ["socksio (==1.*)"]
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "identify"
@@ -540,8 +540,8 @@ license = ["ukkonen"]
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "idna"
@@ -556,8 +556,8 @@ files = [
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "imgkit"
@@ -575,8 +575,8 @@ six = "*"
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "isort"
@@ -597,8 +597,8 @@ requirements-deprecated-finder = ["pip-api", "pipreqs"]
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "jinja2"
@@ -619,8 +619,8 @@ i18n = ["Babel (>=2.7)"]
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "libcst"
@@ -671,8 +671,8 @@ dev = ["Sphinx (>=5.1.1)", "black (==23.1.0)", "build (>=0.10.0)", "coverage (>=
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "loguru"
@@ -694,8 +694,29 @@ dev = ["Sphinx (==5.3.0)", "colorama (==0.4.5)", "colorama (==0.4.6)", "freezegu
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
+
+[[package]]
+name = "markdown2"
+version = "2.4.9"
+description = "A fast and complete Python implementation of Markdown"
+optional = false
+python-versions = ">=3.5, <4"
+files = [
+    {file = "markdown2-2.4.9-py2.py3-none-any.whl", hash = "sha256:58e1789543f47cdd4197760b04771671411f07699f958ad40a4b56c55ba3e668"},
+    {file = "markdown2-2.4.9.tar.gz", hash = "sha256:7a1742dade7ec29b90f5c1d5a820eb977eee597e314c428e6b0aa7929417cd1b"},
+]
+
+[package.extras]
+all = ["pygments (>=2.7.3)", "wavedrom"]
+code-syntax-highlighting = ["pygments (>=2.7.3)"]
+wavedrom = ["wavedrom"]
+
+[package.source]
+type = "legacy"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "markupsafe"
@@ -758,8 +779,8 @@ files = [
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "msgpack"
@@ -835,8 +856,8 @@ files = [
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "multidict"
@@ -923,8 +944,8 @@ files = [
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "mypy-extensions"
@@ -939,8 +960,8 @@ files = [
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "nodeenv"
@@ -958,8 +979,8 @@ setuptools = "*"
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "nonebot-adapter-onebot"
@@ -978,36 +999,8 @@ nonebot2 = ">=2.0.0-beta.3,<3.0.0"
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
-
-[[package]]
-name = "nonebot-plugin-gocqhttp"
-version = "0.6.10"
-description = "A plugin to run go-cqhttp directly in NoneBot2, without additional download and installation."
-optional = false
-python-versions = ">=3.8,<4.0"
-files = [
-    {file = "nonebot_plugin_gocqhttp-0.6.10-py3-none-any.whl", hash = "sha256:f7ba1c558649884ba981afe1dc53441c1b51a98f01e4089613b1f7bd2f834525"},
-    {file = "nonebot_plugin_gocqhttp-0.6.10.tar.gz", hash = "sha256:c33b17125343b11fab28c797c714746cf9ce8c83cdb2ac976b6b4bce842d725f"},
-]
-
-[package.dependencies]
-chevron = ">=0.14.0,<0.15.0"
-fastapi = ">=0.70.0"
-httpx = ">=0.20.0"
-nonebot-adapter-onebot = ">=2.0.0-beta.1,<3.0.0"
-nonebot2 = ">=2.0.0-beta.1,<3.0.0"
-psutil = ">=5.9.0,<6.0.0"
-py-cpuinfo = ">=8,<10"
-
-[package.extras]
-proxy = ["proxy.py (>=2.4.3,<3.0.0)"]
-
-[package.source]
-type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "nonebot2"
@@ -1040,8 +1033,8 @@ websockets = ["websockets (>=10.0)"]
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "numpy"
@@ -1079,8 +1072,8 @@ files = [
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "packaging"
@@ -1095,8 +1088,8 @@ files = [
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "pandas"
@@ -1166,8 +1159,8 @@ xml = ["lxml (>=4.6.3)"]
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "pathspec"
@@ -1182,18 +1175,18 @@ files = [
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "platformdirs"
-version = "3.5.3"
+version = "3.8.0"
 description = "A small Python package for determining appropriate platform-specific dirs, e.g. a \"user data dir\"."
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "platformdirs-3.5.3-py3-none-any.whl", hash = "sha256:0ade98a4895e87dc51d47151f7d2ec290365a585151d97b4d8d6312ed6132fed"},
-    {file = "platformdirs-3.5.3.tar.gz", hash = "sha256:e48fabd87db8f3a7df7150a4a5ea22c546ee8bc39bc2473244730d4b56d2cc4e"},
+    {file = "platformdirs-3.8.0-py3-none-any.whl", hash = "sha256:ca9ed98ce73076ba72e092b23d3c93ea6c4e186b3f1c3dad6edd98ff6ffcca2e"},
+    {file = "platformdirs-3.8.0.tar.gz", hash = "sha256:b0cabcb11063d21a0b261d557acb0a9d2126350e63b70cdf7db6347baea456dc"},
 ]
 
 [package.extras]
@@ -1202,8 +1195,8 @@ test = ["appdirs (==1.4.4)", "covdefaults (>=2.3)", "pytest (>=7.3.1)", "pytest-
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "pre-commit"
@@ -1225,55 +1218,8 @@ virtualenv = ">=20.10.0"
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
-
-[[package]]
-name = "psutil"
-version = "5.9.5"
-description = "Cross-platform lib for process and system monitoring in Python."
-optional = false
-python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
-files = [
-    {file = "psutil-5.9.5-cp27-cp27m-macosx_10_9_x86_64.whl", hash = "sha256:be8929ce4313f9f8146caad4272f6abb8bf99fc6cf59344a3167ecd74f4f203f"},
-    {file = "psutil-5.9.5-cp27-cp27m-manylinux2010_i686.whl", hash = "sha256:ab8ed1a1d77c95453db1ae00a3f9c50227ebd955437bcf2a574ba8adbf6a74d5"},
-    {file = "psutil-5.9.5-cp27-cp27m-manylinux2010_x86_64.whl", hash = "sha256:4aef137f3345082a3d3232187aeb4ac4ef959ba3d7c10c33dd73763fbc063da4"},
-    {file = "psutil-5.9.5-cp27-cp27mu-manylinux2010_i686.whl", hash = "sha256:ea8518d152174e1249c4f2a1c89e3e6065941df2fa13a1ab45327716a23c2b48"},
-    {file = "psutil-5.9.5-cp27-cp27mu-manylinux2010_x86_64.whl", hash = "sha256:acf2aef9391710afded549ff602b5887d7a2349831ae4c26be7c807c0a39fac4"},
-    {file = "psutil-5.9.5-cp27-none-win32.whl", hash = "sha256:5b9b8cb93f507e8dbaf22af6a2fd0ccbe8244bf30b1baad6b3954e935157ae3f"},
-    {file = "psutil-5.9.5-cp27-none-win_amd64.whl", hash = "sha256:8c5f7c5a052d1d567db4ddd231a9d27a74e8e4a9c3f44b1032762bd7b9fdcd42"},
-    {file = "psutil-5.9.5-cp36-abi3-macosx_10_9_x86_64.whl", hash = "sha256:3c6f686f4225553615612f6d9bc21f1c0e305f75d7d8454f9b46e901778e7217"},
-    {file = "psutil-5.9.5-cp36-abi3-manylinux_2_12_i686.manylinux2010_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:7a7dd9997128a0d928ed4fb2c2d57e5102bb6089027939f3b722f3a210f9a8da"},
-    {file = "psutil-5.9.5-cp36-abi3-manylinux_2_12_x86_64.manylinux2010_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:89518112647f1276b03ca97b65cc7f64ca587b1eb0278383017c2a0dcc26cbe4"},
-    {file = "psutil-5.9.5-cp36-abi3-win32.whl", hash = "sha256:104a5cc0e31baa2bcf67900be36acde157756b9c44017b86b2c049f11957887d"},
-    {file = "psutil-5.9.5-cp36-abi3-win_amd64.whl", hash = "sha256:b258c0c1c9d145a1d5ceffab1134441c4c5113b2417fafff7315a917a026c3c9"},
-    {file = "psutil-5.9.5-cp38-abi3-macosx_11_0_arm64.whl", hash = "sha256:c607bb3b57dc779d55e1554846352b4e358c10fff3abf3514a7a6601beebdb30"},
-    {file = "psutil-5.9.5.tar.gz", hash = "sha256:5410638e4df39c54d957fc51ce03048acd8e6d60abc0f5107af51e5fb566eb3c"},
-]
-
-[package.extras]
-test = ["enum34", "ipaddress", "mock", "pywin32", "wmi"]
-
-[package.source]
-type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
-
-[[package]]
-name = "py-cpuinfo"
-version = "9.0.0"
-description = "Get CPU info with pure Python"
-optional = false
-python-versions = "*"
-files = [
-    {file = "py-cpuinfo-9.0.0.tar.gz", hash = "sha256:3cdbbf3fac90dc6f118bfd64384f309edeadd902d7c8fb17f02ffa1fc3f49690"},
-    {file = "py_cpuinfo-9.0.0-py3-none-any.whl", hash = "sha256:859625bc251f64e21f077d099d4162689c762b5d6a4c3c97553d56241c9674d5"},
-]
-
-[package.source]
-type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "pycln"
@@ -1295,8 +1241,8 @@ typer = ">=0.4.1,<0.10.0"
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "pydantic"
@@ -1353,8 +1299,8 @@ email = ["email-validator (>=1.0.3)"]
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "pyflakes"
@@ -1369,8 +1315,8 @@ files = [
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "pygtrans"
@@ -1388,8 +1334,8 @@ requests = {version = "*", extras = ["socks"]}
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "pygtrie"
@@ -1404,8 +1350,8 @@ files = [
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "pysocks"
@@ -1421,8 +1367,8 @@ files = [
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "python-dateutil"
@@ -1440,8 +1386,8 @@ six = ">=1.5"
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "python-dotenv"
@@ -1459,8 +1405,8 @@ cli = ["click (>=5.0)"]
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "pytz"
@@ -1475,8 +1421,8 @@ files = [
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "pyyaml"
@@ -1529,8 +1475,8 @@ files = [
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "requests"
@@ -1556,18 +1502,18 @@ use-chardet-on-py3 = ["chardet (>=3.0.2,<6)"]
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "setuptools"
-version = "67.8.0"
+version = "68.0.0"
 description = "Easily download, build, install, upgrade, and uninstall Python packages"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "setuptools-67.8.0-py3-none-any.whl", hash = "sha256:5df61bf30bb10c6f756eb19e7c9f3b473051f48db77fddbe06ff2ca307df9a6f"},
-    {file = "setuptools-67.8.0.tar.gz", hash = "sha256:62642358adc77ffa87233bc4d2354c4b2682d214048f500964dbe760ccedf102"},
+    {file = "setuptools-68.0.0-py3-none-any.whl", hash = "sha256:11e52c67415a381d10d6b462ced9cfb97066179f0e871399e006c4ab101fc85f"},
+    {file = "setuptools-68.0.0.tar.gz", hash = "sha256:baf1fdb41c6da4cd2eae722e135500da913332ab3f2f5c7d33af9b492acb5235"},
 ]
 
 [package.extras]
@@ -1577,8 +1523,8 @@ testing-integration = ["build[virtualenv]", "filelock (>=3.4.0)", "jaraco.envs (
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "six"
@@ -1593,8 +1539,8 @@ files = [
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "sniffio"
@@ -1609,8 +1555,8 @@ files = [
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "sqlparse"
@@ -1630,8 +1576,8 @@ test = ["pytest", "pytest-cov"]
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "starlette"
@@ -1652,8 +1598,8 @@ full = ["httpx (>=0.22.0)", "itsdangerous", "jinja2", "python-multipart", "pyyam
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "tomli"
@@ -1668,8 +1614,8 @@ files = [
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "tomlkit"
@@ -1684,8 +1630,8 @@ files = [
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "typer"
@@ -1710,8 +1656,8 @@ test = ["black (>=22.3.0,<23.0.0)", "coverage (>=6.2,<7.0)", "isort (>=5.0.6,<6.
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "typing-extensions"
@@ -1726,8 +1672,8 @@ files = [
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "typing-inspect"
@@ -1746,8 +1692,8 @@ typing-extensions = ">=3.7.4"
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "tzdata"
@@ -1762,8 +1708,8 @@ files = [
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "urllib3"
@@ -1784,8 +1730,8 @@ zstd = ["zstandard (>=0.18.0)"]
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "uvicorn"
@@ -1814,8 +1760,8 @@ standard = ["colorama (>=0.4)", "httptools (>=0.5.0)", "python-dotenv (>=0.13)",
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "uvloop"
@@ -1863,8 +1809,8 @@ test = ["Cython (>=0.29.32,<0.30.0)", "aiohttp", "flake8 (>=3.9.2,<3.10.0)", "my
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "virtualenv"
@@ -1888,8 +1834,8 @@ test = ["covdefaults (>=2.3)", "coverage (>=7.2.7)", "coverage-enable-subprocess
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "watchfiles"
@@ -1927,8 +1873,8 @@ anyio = ">=3.0.0"
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "websockets"
@@ -2011,8 +1957,8 @@ files = [
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "win32-setctime"
@@ -2030,8 +1976,8 @@ dev = ["black (>=19.3b0)", "pytest (>=4.6.2)"]
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "yarl"
@@ -2122,10 +2068,10 @@ multidict = ">=4.0"
 
 [package.source]
 type = "legacy"
-url = "https://mirrors.aliyun.com/pypi/simple"
-reference = "aliyun"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "a59a4be2698510d4e5cbf22a44a35486e60c427d15a2dc73368dc9415b22b195"
+content-hash = "5b0f6774278f8b50fec84da8c27a09783b438804db3591a88e4b9bd008a4b5a1"
