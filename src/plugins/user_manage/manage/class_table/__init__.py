@@ -3,9 +3,10 @@ from utils.auth import TEACHER
 from nonebot.typing import T_State
 from nonebot.matcher import Matcher
 from utils.tools import MessageArgs
+from nonebot.adapters import Message
 from utils.orm import Major, Teacher, ClassTable
+from utils.adapter.event import GroupMessageEvent
 from nonebot.params import CommandArg, ArgPlainText
-from nonebot.adapters.onebot.v11 import Message, GroupMessageEvent
 
 add_class = on_command("添加班级", priority=100, block=True)
 del_class = on_command("删除班级", priority=100, block=True)

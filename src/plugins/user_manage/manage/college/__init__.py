@@ -2,9 +2,9 @@ from nonebot import on_command
 from utils.auth import TEACHER
 from nonebot.typing import T_State
 from nonebot.matcher import Matcher
+from nonebot.adapters import Message
 from utils.orm import College, Teacher
 from django.db.utils import IntegrityError
-from nonebot.adapters.onebot.v11 import Message
 from nonebot.params import CommandArg, ArgPlainText
 
 add_college = on_command("添加学院", aliases={"添加院系"}, priority=100, block=True)
