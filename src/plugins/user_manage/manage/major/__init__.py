@@ -3,10 +3,11 @@ from utils.auth import TEACHER
 from nonebot.typing import T_State
 from nonebot.matcher import Matcher
 from utils.tools import MessageArgs
+from nonebot.adapters import Message
 from django.db.utils import IntegrityError
+from utils.adapter.event import MessageEvent
 from utils.orm import Major, College, Teacher
 from nonebot.params import CommandArg, ArgPlainText
-from nonebot.adapters.onebot.v11 import Message, MessageEvent
 
 add_major = on_command("添加专业", priority=100, block=True)
 del_major = on_command("删除专业", priority=100, block=True)
