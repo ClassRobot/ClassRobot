@@ -35,7 +35,6 @@ priority = "default"
 
 [tool.nonebot]
 plugins = [
-    "packages",
 ]
 plugin_dirs = [
     "src/plugins",
