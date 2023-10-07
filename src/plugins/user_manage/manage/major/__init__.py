@@ -31,7 +31,7 @@ async def _(
     if college := await College.objects.filter(college=values["college"]).afirst():
         try:
             await Major.objects.acreate(
-                college=college.college, major=values["major"], creator=event.user_id
+                college=college, major=values["major"], creator=event.user_id
             )
             await matcher.finish("OK")
         except IntegrityError:

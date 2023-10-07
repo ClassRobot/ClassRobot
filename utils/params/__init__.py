@@ -13,4 +13,4 @@ async def docs_url_depends(state: T_State, matcher: Matcher) -> str:
     await matcher.finish()
 
 
-DocsUrlParams = Depends(docs_url_depends)
+DocsUrlParams = Depends(docs_url_depends, use_cache=True)
