@@ -27,6 +27,8 @@ nonebot-adapter-qqguild = "^0.4.0"
 anyio = ">=3.6,<4.0"
 nonebot-plugin-animeres = "^1.0.3"
 nonebot-plugin-blockwords = "^0.1.2"
+aiosqlite = "^0.19.0"
+aiomysql = "^0.2.0"
 
 [tool.poetry.group.dev.dependencies]
 pycln = "^2.1.5"
@@ -45,14 +47,16 @@ plugins = [
     "nonebot_plugin_localstore",
     "nonebot_plugin_orm",
     "nonebot_plugin_animeres",
-    "nonebot-plugin-blockwords",
+    "nonebot_plugin_blockwords",
+    "nonebot_plugin_apscheduler",
+    "utils.models",
 ]
 plugin_dirs = [
     "src/plugins",
     "src/others"
 ]
 adapters = [
-    {name = "QQ Guild", module_name = "nonebot.adapters.qqguild"},
+    # {name = "QQ Guild", module_name = "nonebot.adapters.qqguild"},
     {name = "OneBot V11", module_name = "nonebot.adapters.onebot.v11"}, 
     # {name = "Console", module_name = "nonebot.adapters.console"} 
 ]
