@@ -2,7 +2,7 @@ from typing import List, Optional
 
 from pandas import DataFrame
 from utils.auth.finder import FuzzySearch
-from utils.orm.models import Student, Teacher, ClassTable
+from utils.models.models import Student, Teacher, ClassTable
 from utils.auth.config import BaseInfo, MoreInfo, all_info, base_info, more_info
 
 

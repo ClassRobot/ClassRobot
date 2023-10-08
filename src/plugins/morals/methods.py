@@ -7,7 +7,7 @@ from utils.localstore import LocalStore
 from utils.auth.finder import FuzzySearch
 from django.db.models.functions import Now
 from utils.typings import BaseAuth, SaveFile
-from utils.orm import Student, ClassTable, MoralEducation
+from utils.models import Student, ClassTable, MoralEducation
 
 local_store = LocalStore("morals")
 

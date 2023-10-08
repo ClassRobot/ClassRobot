@@ -3,7 +3,7 @@ from utils.auth import TEACHER
 from nonebot.typing import T_State
 from nonebot.matcher import Matcher
 from nonebot.adapters import Message
-from utils.orm import College, Teacher
+from utils.models import College, Teacher
 from django.db.utils import IntegrityError
 from nonebot.params import CommandArg, ArgPlainText
 

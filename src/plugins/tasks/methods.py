@@ -9,7 +9,7 @@ from django.db.models.functions import Now
 from utils.typings import BaseAuth, SaveFile
 from utils.tools import run_sync, html_to_image
 from django.db.models.manager import BaseManager
-from utils.orm import Student, Teacher, TaskFiles, ClassTable, ClassTasks
+from utils.models import Student, Teacher, TaskFiles, ClassTable, ClassTasks
 
 from .config import TaskFinder, env
 

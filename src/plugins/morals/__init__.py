@@ -1,4 +1,4 @@
-from utils.orm import Student
+from utils.models import Student
 from nonebot import on_command
 from nonebot.typing import T_State
 from nonebot.matcher import Matcher

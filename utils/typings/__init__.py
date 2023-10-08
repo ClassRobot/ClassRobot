@@ -7,7 +7,7 @@ from django.db.models.manager import BaseManager
 from ..auth import User
 from ..localstore import LocalStore
 from ..auth.config import ClassCadre
-from ..orm import Student, Teacher, ClassTable
+from ..models import Student, Teacher, ClassTable
 
 
 class BaseAuth:

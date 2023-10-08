@@ -1,7 +1,7 @@
 from typing import Optional
 from base64 import b64encode
 
-from utils.orm import Feedback
+from utils.models import Feedback
 from utils.typings import SaveFile
 from utils.localstore import LocalStore
 from django.db.models.functions import Now

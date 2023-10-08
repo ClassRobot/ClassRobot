@@ -1,6 +1,6 @@
 from asyncio import sleep
 
-from utils.orm import Student
+from utils.models import Student
 from nonebot.typing import T_State
 from nonebot.matcher import Matcher
 from nonebot.params import Arg, CommandArg

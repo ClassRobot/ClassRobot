@@ -2,7 +2,7 @@ from nonebot import on_command
 from nonebot.typing import T_State
 from nonebot.matcher import Matcher
 from utils.tools import MessageArgs
-from utils.orm import Student, Teacher
+from utils.models import Student, Teacher
 from nonebot.params import Arg, CommandArg
 from utils.auth import USER, TEACHER, User
 from nonebot.adapters.onebot.v11 import Message

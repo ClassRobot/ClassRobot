@@ -4,7 +4,7 @@ from numpy import where
 from pandas import DataFrame
 from django.db.models import Q
 from django.db.models.manager import BaseManager
-from utils.orm import Student, Teacher, ClassTable
+from utils.models import Student, Teacher, ClassTable
 
 # 学生表格用于搜索的列
 find_columns = [

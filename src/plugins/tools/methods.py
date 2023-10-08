@@ -1,7 +1,7 @@
 from typing import List
 
 from utils.typings import BaseAuth
-from utils.orm import Student, ClassTable
+from utils.models import Student, ClassTable
 from utils.tools import check_data, html_to_image
 from utils.tools.docs_sheet import DataFrame, GetDocsSheet, docs_url
 

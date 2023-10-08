@@ -1,4 +1,4 @@
-from utils.orm import Student
+from utils.models import Student
 from utils.auth import USER, User
 from nonebot.typing import T_State
 from nonebot.matcher import Matcher

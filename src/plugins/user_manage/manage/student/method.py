@@ -1,8 +1,8 @@
 from typing import List
 
 from pandas import DataFrame
-from utils.orm import Student, Teacher, ClassTable
-
+from utils.models import Student, Teacher, ClassTable
+from nonebot_plugin_orm import get_session
 from .config import all_info, base_info
 
 
@@ -12,11 +12,14 @@ class AddStudent:
         self.info = info | {"dorm_master": 0}
 
     async def insert(self, teacher: Teacher, class_table: ClassTable):
-        await Student.objects.acreate(
-            **self.info,
-            teacher=teacher,
-            class_table=class_table,
-        )
+        async with get_session() as session:
+            student = Student(
+                **self.info,
+                teacher=teacher,
+                class_table=class_table,
+            )
+            session.add(student)
+            return student
 
 
 class BatchImportStudents:

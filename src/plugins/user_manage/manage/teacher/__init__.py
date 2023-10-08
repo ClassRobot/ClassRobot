@@ -1,4 +1,4 @@
-from utils.orm import Teacher
+from utils.models import Teacher
 from nonebot import on_command
 from utils.auth import TEACHER
 from nonebot.typing import T_State

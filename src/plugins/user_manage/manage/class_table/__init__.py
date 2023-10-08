@@ -4,7 +4,7 @@ from nonebot.typing import T_State
 from nonebot.matcher import Matcher
 from utils.tools import MessageArgs
 from nonebot.adapters import Message
-from utils.orm import Major, Teacher, ClassTable
+from utils.models import Major, Teacher, ClassTable
 from utils.adapter.event import GroupMessageEvent
 from nonebot.params import CommandArg, ArgPlainText
 

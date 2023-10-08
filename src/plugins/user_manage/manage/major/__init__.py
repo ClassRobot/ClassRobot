@@ -6,7 +6,7 @@ from utils.tools import MessageArgs
 from nonebot.adapters import Message
 from django.db.utils import IntegrityError
 from utils.adapter.event import MessageEvent
-from utils.orm import Major, College, Teacher
+from utils.models import Major, College, Teacher
 from nonebot.params import CommandArg, ArgPlainText
 
 add_major = on_command("添加专业", priority=100, block=True)

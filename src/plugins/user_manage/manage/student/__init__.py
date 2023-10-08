@@ -2,16 +2,18 @@ from re import findall
 from pathlib import Path
 
 from nonebot import on_command
-from utils.auth import TEACHER
 from nonebot.typing import T_State
 from nonebot.matcher import Matcher
-from utils.params import DocsUrlParams
-from django.db.utils import IntegrityError
-from utils.tools import MessageArgs, upload_file
-from utils.orm import Student, Teacher, ClassTable
 from nonebot.params import CommandArg, ArgPlainText
-from utils.tools.docs_sheet import GetDocsSheet, InitialAttributedTextError
 from nonebot.adapters.onebot.v11 import Message, MessageEvent, GroupMessageEvent
+
+from nonebot_plugin_orm import get_session, select
+
+from utils.auth import TEACHER, CLASS_TABLE
+from utils.params import DocsUrlParams
+from utils.tools import MessageArgs, upload_file
+from utils.models import Student, Teacher, ClassTable
+from utils.tools.docs_sheet import GetDocsSheet, InitialAttributedTextError
 
 from .method import AddStudent, BatchImportStudents, base_info
 
@@ -30,10 +32,9 @@ async def _(
     event: GroupMessageEvent,
     msg: Message = CommandArg(),
     teacher: Teacher = TEACHER,
+    class_table: ClassTable = CLASS_TABLE,
 ):
-    if class_table := await ClassTable.objects.filter(
-        group_id=event.group_id, teacher=teacher
-    ).afirst():
+    if class_table.teacher == teacher.id:
         state["class_table"] = class_table
         state["args"] = MessageArgs(add_args, matcher, "说一下“{}”")
         state["params"] = msg

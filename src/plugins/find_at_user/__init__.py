@@ -1,4 +1,4 @@
-from utils.orm import ClassTable
+from utils.models import ClassTable
 from nonebot.matcher import Matcher
 from nonebot.params import CommandArg
 from utils.auth import USER, CLASS_TABLE, User

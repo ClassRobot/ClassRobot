@@ -9,7 +9,7 @@ from nonebot.rule import ArgumentParser
 from utils.localstore import LocalStore
 from django.db.models.functions import Now
 from utils.tools import run_sync, query_date, html_to_image
-from utils.orm.models import Student, ClassFunds, ClassTable
+from utils.models.models import Student, ClassFunds, ClassTable
 
 from .config import env
 
