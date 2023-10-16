@@ -4,9 +4,9 @@ from nonebot.typing import T_State
 from nonebot.matcher import Matcher
 from utils.tools import MessageArgs
 from nonebot.adapters import Message
-from utils.models import Major, Teacher, ClassTable
 from utils.adapter.event import GroupMessageEvent
 from nonebot.params import CommandArg, ArgPlainText
+from utils.models import Major, Teacher, ClassTable
 
 add_class = on_command("添加班级", priority=100, block=True)
 del_class = on_command("删除班级", priority=100, block=True)

@@ -1,5 +1,5 @@
-from utils.models import ClassTable
 from nonebot.matcher import Matcher
+from utils.models import ClassTable
 from nonebot.params import CommandArg
 from utils.auth import USER, CLASS_TABLE, User
 from nonebot.adapters.onebot.v11 import Message, MessageSegment

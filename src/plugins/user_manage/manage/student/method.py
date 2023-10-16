@@ -1,8 +1,9 @@
 from typing import List
 
 from pandas import DataFrame
-from utils.models import Student, Teacher, ClassTable
 from nonebot_plugin_orm import get_session
+from utils.models import Student, Teacher, ClassTable
+
 from .config import all_info, base_info
 
 
