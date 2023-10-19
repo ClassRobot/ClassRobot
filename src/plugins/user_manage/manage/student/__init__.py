@@ -4,16 +4,14 @@ from pathlib import Path
 from nonebot import on_command
 from nonebot.typing import T_State
 from nonebot.matcher import Matcher
-from nonebot.params import CommandArg, ArgPlainText
-from nonebot.adapters.onebot.v11 import Message, MessageEvent, GroupMessageEvent
-
-from nonebot_plugin_orm import get_session, select
-
-from utils.auth import TEACHER, CLASS_TABLE
 from utils.params import DocsUrlParams
+from utils.auth import TEACHER, CLASS_TABLE
 from utils.tools import MessageArgs, upload_file
+from nonebot_plugin_orm import select, get_session
+from nonebot.params import CommandArg, ArgPlainText
 from utils.models import Student, Teacher, ClassTable
 from utils.tools.docs_sheet import GetDocsSheet, InitialAttributedTextError
+from nonebot.adapters.onebot.v11 import Message, MessageEvent, GroupMessageEvent
 
 from .method import AddStudent, BatchImportStudents, base_info
 

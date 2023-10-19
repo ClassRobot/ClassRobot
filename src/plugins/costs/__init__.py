@@ -35,7 +35,7 @@ async def _(matcher: Matcher, state: T_State, msg: Message = Arg()):
             await matcher.finish(MessageSegment.image(await cost.to_card(class_cost)))
         else:
             if len(text) > 2:
-                matcher.set_arg("class_name", Message(text[3])) # type: ignore
+                matcher.set_arg("class_name", Message(text[3]))  # type: ignore
             else:
                 await matcher.send(f"是哪个班级的支出呢？\n{await cost.teacher_class_names()}")
 

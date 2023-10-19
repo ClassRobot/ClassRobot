@@ -1,5 +1,6 @@
 from pathlib import Path
-from nonebot_plugin_localstore import get_cache_dir, get_data_dir, get_config_dir
+
+from nonebot_plugin_localstore import get_data_dir, get_cache_dir, get_config_dir
 
 base_path = Path.cwd()
 

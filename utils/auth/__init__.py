@@ -1,14 +1,13 @@
 from typing import List, Union, Optional
 
+from nonebot.adapters import Event
 from nonebot.params import Depends
 from nonebot.typing import T_State
 from nonebot.matcher import Matcher
 from sqlalchemy import ScalarResult
-from nonebot_plugin_orm import get_session, select, first, one_or_none
-from nonebot.adapters import Event
-
 from utils.adapter.event import GroupMessageEvent
 from utils.models import Student, Teacher, ClassTable
+from nonebot_plugin_orm import first, select, get_session, one_or_none
 
 from .config import ClassCadre
 
@@ -44,11 +43,13 @@ async def get_class_table(group_id: Union[str, int]) -> Optional[ClassTable]:
             return class_table
         return None
 
+
 async def get_teacher_class(teacher_id: int | str):
     async with get_session() as session:
         result = await session.scalars(
             select(ClassTable).where(ClassTable.teacher == Teacher.id)
         )
+
 
 def is_class_cadre(student: Student, cadres: str | list[str] | None = None) -> bool:
     """是否为班干部
