@@ -15,9 +15,9 @@ apscheduler==3.10.4 ; python_version >= "3.10" and python_version < "4.0" \
 arclet-alconna-tools==0.6.8 ; python_version >= "3.10" and python_version < "4.0" \
     --hash=sha256:a36ddc9c311cae3e1d9df0d6b11eb8d69c57304bbca744dc2c9532e53093cc6f \
     --hash=sha256:eff5254e19b3fb24222164f419302f5f8849b8c14ddf8d96199747adc1916a13
-arclet-alconna==1.7.35 ; python_version >= "3.10" and python_version < "4.0" \
-    --hash=sha256:1b3c5ae6419a86d46a9636222fd8dd15425d57edff6e2ae5cb70386715657ae0 \
-    --hash=sha256:cb12104133e49786d664910efea59e2999dc9ec33e70b7bed253fc7b76ebbab5
+arclet-alconna==1.7.36 ; python_version >= "3.10" and python_version < "4.0" \
+    --hash=sha256:680ea48485db0dbed32083a6a1160e5520d8acec0425e8f423d999c0f27bf0ab \
+    --hash=sha256:9bfe081f1bfa9883c28cd242c1587c9ea9cd0abd2b13c84ce26270cdbb0f4374
 async-timeout==4.0.3 ; python_version >= "3.10" and python_full_version <= "3.11.2" \
     --hash=sha256:4640d96be84d82d02ed59ea2b7105a0f7b33abe8703703cd0ab0bf87c427522f \
     --hash=sha256:7405140ff1230c310e51dc27b3145b9092d659ce68ff733fb0cefe3ee42be028
@@ -540,9 +540,9 @@ nonebot-adapter-onebot==2.3.1 ; python_version >= "3.10" and python_version < "4
 nonebot-adapter-qq==1.1.1 ; python_version >= "3.10" and python_version < "4.0" \
     --hash=sha256:45014d435ee56cd2a0885bcbdec12b00fd2a2267205d5452de4e9cbcfb584edb \
     --hash=sha256:d452d5a7046c4021e18bbdc6a27fb0880e3911844d0bfba3e2bd08042ae5c671
-nonebot-plugin-alconna==0.33.4 ; python_version >= "3.10" and python_version < "4.0" \
-    --hash=sha256:00d83599dea4822b48f3c9d7a7f3a49076936aeb63ff0f31f2796f17375b7151 \
-    --hash=sha256:c5990488000326153ea3d4e6b209a961d79e32ea16efa3e7f0a3f2f57a93ddfe
+nonebot-plugin-alconna==0.33.5 ; python_version >= "3.10" and python_version < "4.0" \
+    --hash=sha256:57414d52fbe586479c6a372a58213346ceeccf7aeec261a18df5351f9a489069 \
+    --hash=sha256:ecb5213402cff4cd93a04e7a8c618d434972ca144eb2a6010df6e85b47f520fa
 nonebot-plugin-animeres==1.0.4 ; python_version >= "3.10" and python_version < "4.0" \
     --hash=sha256:3d8d3526f920650e561df6843b0fe14fc0e91fdbe0e0baa208790f7c242ebba1 \
     --hash=sha256:5f16c9bd263a5ebf8a4869eb927fc202aae12159fe3d623c19d86e1a4af775f9

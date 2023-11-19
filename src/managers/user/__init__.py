@@ -1,33 +1,15 @@
 from utils.models import User
-from nonebot import on_command
 from utils.params import UserId
 from nonebot.typing import T_State
 from nonebot.adapters import Message
 from utils.session import SessionPlatform
 from nonebot.internal.matcher import Matcher
-from nonebot_plugin_alconna import on_alconna
-from utils.auth.extension import UserExtension
 from nonebot.params import CommandArg, ArgPlainText
 from utils.typings import UserType, UserTypeChinese
-from utils.models.depends import get_user, create_user, add_user_bind, remove_user_bind
+from utils.models.depends import get_user, create_user, rebind_user, add_user_bind
 
 from .bind_token import get_bind_data, get_bind_token
-
-rules = {
-    UserTypeChinese[rule]: rule
-    for rule in [UserType.USER, UserType.STUDENT, UserType.TEACHER]
-}
-
-
-create_user_cmd = on_command("创建用户", aliases={"成为用户"}, block=True)
-show_user_cmd = on_command("用户信息", aliases={"我的信息"}, block=True)
-bind_user_cmd = on_alconna(
-    "绑定用户",
-    aliases={"绑定我的信息", "绑定信息", "绑定平台"},
-    block=True,
-    extensions=[UserExtension(True)],
-)
-bind_token_cmd = on_command("bind_token=", block=True)
+from .commands import bind_user_cmd, show_user_cmd, bind_token_cmd, create_user_cmd
 
 
 # --------------------------------- 创建用户 ---------------------------------
@@ -52,7 +34,7 @@ async def _(
 ):
     if user := await get_user(session.id, user_id):
         await matcher.finish(
-            f"用户ID: {user.id}" f"\n用户类型: {UserTypeChinese[user.user_type]}"
+            f"用户ID: {user.id}\n用户类型: {UserTypeChinese[user.user_type]}"
         )
     else:
         await matcher.finish(f"您还不是用户哦, 请先发送[成为用户]命令")
@@ -108,6 +90,5 @@ async def _(
     if is_ok == "是":
         bind_user: User = state["bind_user"]
         old_user: User = state["old_user"]
-        await remove_user_bind(session.id, user_id, old_user)  # 删除掉之前绑定的平台账号id
-        await add_user_bind(session.id, user_id, bind_user)  # 绑定到该用户上
+        await rebind_user(session.id, user_id, old_user, bind_user)
         await bind_token_cmd.finish(f"已将您绑定到用户[{bind_user.id}]")

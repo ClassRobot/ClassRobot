@@ -1,8 +1,8 @@
 from utils.typings import UserType
-from sqlalchemy import delete, select
 from sqlalchemy.orm import selectinload
 from nonebot_plugin_orm import get_session
 from utils.models import Bind, User, Teacher
+from sqlalchemy import delete, select, update
 
 
 async def get_user(
@@ -26,8 +26,7 @@ async def get_user(
     async with get_session() as session:
         if account_id is None:
             # 当account_id为None时, 将platform_id作为user_id进行查找
-            user = await session.scalars(select(User).where(User.id == platform_id))
-            return user.one_or_none()
+            return await session.get(User, platform_id)
         else:
             bind = await session.scalars(
                 select(Bind)
@@ -50,7 +49,7 @@ async def no_bind_user(user_id: int) -> bool:
     """
     async with get_session() as session:
         bind = await session.scalars(select(Bind).where(Bind.user_id == user_id))
-        return not bind.one_or_none()
+        return not bind.first()
 
 
 async def create_user(platform_id: int, account_id: str, user_type: UserType) -> User:
@@ -71,7 +70,7 @@ async def add_user_bind(platform_id: int, account_id: str, user: User):
         await session.commit()
 
 
-async def remove_user_bind(platform_id: int, account_id: str, user: User):
+async def remove_user_bind(platform_id: int, account_id: str):
     """删除用户绑定的平台
 
     Args:
@@ -83,6 +82,26 @@ async def remove_user_bind(platform_id: int, account_id: str, user: User):
             delete(Bind)
             .where(Bind.account_id == account_id)
             .where(Bind.platform_id == platform_id)
+        )
+        await session.commit()
+
+
+async def rebind_user(
+    platform_id: int, account_id: str, old_user: User, new_user: User
+):
+    """重新绑定用户
+
+    Args:
+        platform_id (int): 平台id
+        account_id (str): 平台账户id
+    """
+    async with get_session() as session:
+        await session.execute(
+            update(Bind)
+            .where(Bind.account_id == account_id)
+            .where(Bind.user == old_user)
+            .where(Bind.platform_id == platform_id)
+            .values(user_id=new_user.id)
         )
         await session.commit()
 
