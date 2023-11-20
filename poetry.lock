@@ -1403,13 +1403,13 @@ reference = "tsinghua"
 
 [[package]]
 name = "nonebot-adapter-qq"
-version = "1.1.1"
+version = "1.1.2"
 description = "QQ adapter for nonebot2"
 optional = false
 python-versions = ">=3.8,<4.0"
 files = [
-    {file = "nonebot_adapter_qq-1.1.1-py3-none-any.whl", hash = "sha256:45014d435ee56cd2a0885bcbdec12b00fd2a2267205d5452de4e9cbcfb584edb"},
-    {file = "nonebot_adapter_qq-1.1.1.tar.gz", hash = "sha256:d452d5a7046c4021e18bbdc6a27fb0880e3911844d0bfba3e2bd08042ae5c671"},
+    {file = "nonebot_adapter_qq-1.1.2-py3-none-any.whl", hash = "sha256:39e6ab0fffce12476e89713faf598f15d703c12970ebf908d285b756eb481258"},
+    {file = "nonebot_adapter_qq-1.1.2.tar.gz", hash = "sha256:7780158228000d44d462009653ef71f2486474b416e92f51487f26d7b952bd61"},
 ]
 
 [package.dependencies]
@@ -1425,13 +1425,13 @@ reference = "tsinghua"
 
 [[package]]
 name = "nonebot-plugin-alconna"
-version = "0.33.5"
+version = "0.33.6"
 description = "Alconna Adapter for Nonebot"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "nonebot_plugin_alconna-0.33.5-py3-none-any.whl", hash = "sha256:57414d52fbe586479c6a372a58213346ceeccf7aeec261a18df5351f9a489069"},
-    {file = "nonebot_plugin_alconna-0.33.5.tar.gz", hash = "sha256:ecb5213402cff4cd93a04e7a8c618d434972ca144eb2a6010df6e85b47f520fa"},
+    {file = "nonebot_plugin_alconna-0.33.6-py3-none-any.whl", hash = "sha256:89989dd6dc1bccd8a1603159b57e9e96da438eb0bbbdbbcd2bfcf747594e12c3"},
+    {file = "nonebot_plugin_alconna-0.33.6.tar.gz", hash = "sha256:54e761ef621c8285cd9ea2f81324f9f52f6fb6292d3ddb87387dbdcaeaa8dc1b"},
 ]
 
 [package.dependencies]
@@ -2859,4 +2859,4 @@ reference = "tsinghua"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "8da002cf5e52c14dfe17a90f415392b277bf56d82f7f2897c3bda6cf882057db"
+content-hash = "a87b915101841828f3267f05526524e3f06b78a7ba328591649542d58870c32f"

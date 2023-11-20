@@ -537,12 +537,12 @@ nepattern==0.5.15 ; python_version >= "3.10" and python_version < "4.0" \
 nonebot-adapter-onebot==2.3.1 ; python_version >= "3.10" and python_version < "4.0" \
     --hash=sha256:10cec3aee454700e6d2144748bd898772db7bd95247d51d3ccd3b31919e24689 \
     --hash=sha256:c4085f1fc1a62e46c737452b9ce3d6eb374812c78a419bb4fa378f48bd8e4088
-nonebot-adapter-qq==1.1.1 ; python_version >= "3.10" and python_version < "4.0" \
-    --hash=sha256:45014d435ee56cd2a0885bcbdec12b00fd2a2267205d5452de4e9cbcfb584edb \
-    --hash=sha256:d452d5a7046c4021e18bbdc6a27fb0880e3911844d0bfba3e2bd08042ae5c671
-nonebot-plugin-alconna==0.33.5 ; python_version >= "3.10" and python_version < "4.0" \
-    --hash=sha256:57414d52fbe586479c6a372a58213346ceeccf7aeec261a18df5351f9a489069 \
-    --hash=sha256:ecb5213402cff4cd93a04e7a8c618d434972ca144eb2a6010df6e85b47f520fa
+nonebot-adapter-qq==1.1.2 ; python_version >= "3.10" and python_version < "4.0" \
+    --hash=sha256:39e6ab0fffce12476e89713faf598f15d703c12970ebf908d285b756eb481258 \
+    --hash=sha256:7780158228000d44d462009653ef71f2486474b416e92f51487f26d7b952bd61
+nonebot-plugin-alconna==0.33.6 ; python_version >= "3.10" and python_version < "4.0" \
+    --hash=sha256:54e761ef621c8285cd9ea2f81324f9f52f6fb6292d3ddb87387dbdcaeaa8dc1b \
+    --hash=sha256:89989dd6dc1bccd8a1603159b57e9e96da438eb0bbbdbbcd2bfcf747594e12c3
 nonebot-plugin-animeres==1.0.4 ; python_version >= "3.10" and python_version < "4.0" \
     --hash=sha256:3d8d3526f920650e561df6843b0fe14fc0e91fdbe0e0baa208790f7c242ebba1 \
     --hash=sha256:5f16c9bd263a5ebf8a4869eb927fc202aae12159fe3d623c19d86e1a4af775f9

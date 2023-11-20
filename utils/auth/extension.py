@@ -52,21 +52,22 @@ class BaseAuthExtension(DefaultExtension):
         """
         super().__init__()
         self.user_only: bool = user_only
-        self.params: dict[str, UserModel] = {}
 
     @property
     def priority(self) -> int:
         return 100
 
     def before_catch(self, name: str, annotation: Any, default: Any):
-        return name in ([UserType.USER, UserType.ADMIN] + (self.before or []))
+        return name in UserType.__members__.values()
 
     async def catch(self, interface: Interface) -> UserModel | None:
+        interface.state.update(self.params)
         return self.params.get(interface.name)
 
     async def permission_check(
         self, bot: BaseBot, event: BaseEvent, command: Alconna
     ) -> bool:
+        self.params: dict[str, UserModel] = {}
         return False
 
     async def _permission_check(self) -> bool:

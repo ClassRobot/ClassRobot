@@ -1,8 +1,8 @@
 from utils.typings import UserType
 from sqlalchemy.orm import selectinload
 from nonebot_plugin_orm import get_session
-from utils.models import Bind, User, Teacher
 from sqlalchemy import delete, select, update
+from utils.models import Bind, User, Major, College, Teacher, ClassTable
 
 
 async def get_user(
@@ -172,3 +172,39 @@ async def remove_teacher(user: User):
             update(User).where(User.id == user.id).values(user_type=UserType.USER)
         )
         await session.commit()
+
+
+async def add_college(college_name: str, user: User):
+    async with get_session() as session:
+        college = College(college=college_name, creator=user.id)
+        session.add(college)
+        await session.commit()
+        await session.refresh(college)
+        return college
+
+
+async def get_college(college_name: str) -> College | None:
+    async with get_session() as session:
+        return await session.scalar(
+            select(College).where(College.college == college_name)
+        )
+
+
+async def get_college_list() -> list[College]:
+    async with get_session() as session:
+        colleges = await session.scalars(select(College))
+        return list(colleges.all())
+
+
+async def delete_college(college_name: str | int):
+    async with get_session() as session:
+        if isinstance(college_name, int):
+            result = await session.execute(
+                delete(College).where(College.id == college_name)
+            )
+        else:
+            result = await session.execute(
+                delete(College).where(College.college == college_name)
+            )
+        await session.commit()
+        return result.rowcount
