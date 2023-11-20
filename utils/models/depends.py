@@ -135,3 +135,40 @@ async def get_student(platform_id: int, account_id: str):
     if user := await get_user(platform_id, account_id, UserType.STUDENT):
         if user.student:
             return user.teacher[0]
+
+
+async def set_teacher(
+    name: str, phone: int, creator: User, user: User, email: str | None = None
+) -> Teacher:
+    """将普通用户设置为教师
+
+    Args:
+        name (str): 教师姓名
+        phone (int): 教师联系方式
+        creator (User): 添加教师的用户
+        user (User): 教师用户
+        email (str | None, optional): 教师的邮箱. Defaults to None.
+
+    Returns:
+        Teacher: 教师模型
+    """
+    async with get_session() as session:
+        teacher = Teacher(
+            user_id=user.id, creator=creator.id, phone=phone, name=name, email=email
+        )
+        session.add(teacher)
+        await session.execute(
+            update(User).where(User.id == user.id).values(user_type=UserType.TEACHER)
+        )
+        await session.commit()
+        await session.refresh(teacher)
+        return teacher
+
+
+async def remove_teacher(user: User):
+    async with get_session() as session:
+        await session.execute(delete(Teacher).where(Teacher.user_id == user.id))
+        await session.execute(
+            update(User).where(User.id == user.id).values(user_type=UserType.USER)
+        )
+        await session.commit()

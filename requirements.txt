@@ -15,9 +15,9 @@ apscheduler==3.10.4 ; python_version >= "3.10" and python_version < "4.0" \
 arclet-alconna-tools==0.6.8 ; python_version >= "3.10" and python_version < "4.0" \
     --hash=sha256:a36ddc9c311cae3e1d9df0d6b11eb8d69c57304bbca744dc2c9532e53093cc6f \
     --hash=sha256:eff5254e19b3fb24222164f419302f5f8849b8c14ddf8d96199747adc1916a13
-arclet-alconna==1.7.36 ; python_version >= "3.10" and python_version < "4.0" \
-    --hash=sha256:680ea48485db0dbed32083a6a1160e5520d8acec0425e8f423d999c0f27bf0ab \
-    --hash=sha256:9bfe081f1bfa9883c28cd242c1587c9ea9cd0abd2b13c84ce26270cdbb0f4374
+arclet-alconna==1.7.37 ; python_version >= "3.10" and python_version < "4.0" \
+    --hash=sha256:2a680acefdb63b3995c53ab0fdf70fa82d3a410705ff3993740554b73f5ce67f \
+    --hash=sha256:ad54c297c1c76f4fe5741303ddcf0c2a7c9ecb3a14465103f42f1da4b23e6081
 async-timeout==4.0.3 ; python_version >= "3.10" and python_full_version <= "3.11.2" \
     --hash=sha256:4640d96be84d82d02ed59ea2b7105a0f7b33abe8703703cd0ab0bf87c427522f \
     --hash=sha256:7405140ff1230c310e51dc27b3145b9092d659ce68ff733fb0cefe3ee42be028

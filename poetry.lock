@@ -108,13 +108,13 @@ reference = "tsinghua"
 
 [[package]]
 name = "arclet-alconna"
-version = "1.7.36"
+version = "1.7.37"
 description = "A High-performance, Generality, Humane Command Line Arguments Parser Library."
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "arclet_alconna-1.7.36-py3-none-any.whl", hash = "sha256:9bfe081f1bfa9883c28cd242c1587c9ea9cd0abd2b13c84ce26270cdbb0f4374"},
-    {file = "arclet_alconna-1.7.36.tar.gz", hash = "sha256:680ea48485db0dbed32083a6a1160e5520d8acec0425e8f423d999c0f27bf0ab"},
+    {file = "arclet_alconna-1.7.37-py3-none-any.whl", hash = "sha256:2a680acefdb63b3995c53ab0fdf70fa82d3a410705ff3993740554b73f5ce67f"},
+    {file = "arclet_alconna-1.7.37.tar.gz", hash = "sha256:ad54c297c1c76f4fe5741303ddcf0c2a7c9ecb3a14465103f42f1da4b23e6081"},
 ]
 
 [package.dependencies]
@@ -729,13 +729,13 @@ reference = "tsinghua"
 
 [[package]]
 name = "identify"
-version = "2.5.31"
+version = "2.5.32"
 description = "File identification library for Python"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "identify-2.5.31-py2.py3-none-any.whl", hash = "sha256:90199cb9e7bd3c5407a9b7e81b4abec4bb9d249991c79439ec8af740afc6293d"},
-    {file = "identify-2.5.31.tar.gz", hash = "sha256:7736b3c7a28233637e3c36550646fc6389bedd74ae84cb788200cc8e2dd60b75"},
+    {file = "identify-2.5.32-py2.py3-none-any.whl", hash = "sha256:0b7656ef6cba81664b783352c73f8c24b39cf82f926f78f4550eda928e5e0545"},
+    {file = "identify-2.5.32.tar.gz", hash = "sha256:5d9979348ec1a21c768ae07e0a652924538e8bce67313a73cb0f681cf08ba407"},
 ]
 
 [package.extras]
