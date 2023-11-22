@@ -208,3 +208,34 @@ async def delete_college(college_name: str | int):
             )
         await session.commit()
         return result.rowcount
+
+
+async def get_major(major_name: str, college: College) -> Major | None:
+    async with get_session() as session:
+        return await session.scalar(
+            select(Major)
+            .where(Major.major == major_name)
+            .where(Major.college == college.id)
+        )
+
+
+async def add_major(major_name: str, college: College, creator: User):
+    async with get_session() as session:
+        major = Major(major=major_name, college=college.id, creator=creator.id)
+        session.add(major)
+        await session.commit()
+        await session.refresh(major)
+        return major
+
+
+async def get_major_list(college: College) -> list[Major]:
+    async with get_session() as session:
+        majors = await session.scalars(select(Major).where(Major.college == college.id))
+        return list(majors.all())
+
+
+async def delete_major(major_name: str):
+    async with get_session() as session:
+        result = await session.execute(delete(Major).where(Major.major == major_name))
+        await session.commit()
+        return result.rowcount
