@@ -2,7 +2,7 @@ from utils.typings import UserType
 from sqlalchemy.orm import selectinload
 from nonebot_plugin_orm import get_session
 from sqlalchemy import delete, select, update
-from utils.models import Bind, User, Major, College, Teacher, ClassTable
+from utils.models import Bind, User, Major, College, Teacher, BindGroup, ClassTable
 
 
 async def get_user(
@@ -210,18 +210,16 @@ async def delete_college(college_name: str | int):
         return result.rowcount
 
 
-async def get_major(major_name: str, college: College) -> Major | None:
+async def get_major(major_name: str | int) -> Major | None:
     async with get_session() as session:
-        return await session.scalar(
-            select(Major)
-            .where(Major.major == major_name)
-            .where(Major.college == college.id)
-        )
+        if isinstance(major_name, int):
+            return await session.get(Major, major_name)
+        return await session.scalar(select(Major).where(Major.major == major_name))
 
 
 async def add_major(major_name: str, college: College, creator: User):
     async with get_session() as session:
-        major = Major(major=major_name, college=college.id, creator=creator.id)
+        major = Major(major=major_name, college=college, creator=creator.id)
         session.add(major)
         await session.commit()
         await session.refresh(major)
@@ -230,7 +228,7 @@ async def add_major(major_name: str, college: College, creator: User):
 
 async def get_major_list(college: College) -> list[Major]:
     async with get_session() as session:
-        majors = await session.scalars(select(Major).where(Major.college == college.id))
+        majors = await session.scalars(select(Major).where(Major.college == college))
         return list(majors.all())
 
 
@@ -239,3 +237,41 @@ async def delete_major(major_name: str):
         result = await session.execute(delete(Major).where(Major.major == major_name))
         await session.commit()
         return result.rowcount
+
+
+async def add_class_table(
+    name: str, teacher: Teacher, major: Major, group_id: str, platform_id: int
+) -> ClassTable:
+    async with get_session() as session:
+        class_table = ClassTable(
+            name=name,
+            teacher=teacher,
+            major=major,
+        )
+        session.add(class_table)
+        session.add(
+            BindGroup(
+                group_id=group_id,
+                platform_id=platform_id,
+                creator=teacher.user_id,
+                class_table=class_table,
+            )
+        )
+        await session.commit()
+        await session.refresh(class_table)
+        return class_table
+
+
+async def add_bind_group(
+    group_id: str, platform_id: int, class_table: ClassTable, user: User
+) -> BindGroup:
+    async with get_session() as session:
+        bind = BindGroup(
+            group_id=group_id,
+            platform_id=platform_id,
+            creator=user.id,
+            class_table=class_table,
+        )
+        session.add(bind)
+        await session.commit()
+        return bind

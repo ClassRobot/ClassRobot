@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from tarina import lang
 from nonebot_plugin_alconna.model import CompConfig
 
@@ -9,3 +11,4 @@ comp_config = CompConfig(
     hides={"exit"},
     disables={"tab", "enter"},
 )
+template_path = Path.cwd() / "templates"

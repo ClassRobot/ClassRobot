@@ -1,12 +1,12 @@
 from typing import List
 
 from sqlalchemy.orm.base import Mapped
-from nonebot_plugin_orm import Model as Base
-from sqlalchemy.orm import Mapped, relationship, mapped_column
+from sqlalchemy.orm import Mapped, relationship, mapped_column, declarative_base
 from sqlalchemy import (
     TIMESTAMP,
     Text,
     Index,
+    Column,
     Double,
     String,
     Integer,
@@ -14,6 +14,8 @@ from sqlalchemy import (
     ForeignKeyConstraint,
     text,
 )
+
+Base = declarative_base()
 
 
 class User(Base):
@@ -37,9 +39,6 @@ class User(Base):
     bind: Mapped[List["Bind"]] = relationship(
         "Bind", uselist=True, back_populates="user"
     )
-    bind_group: Mapped[List["BindGroup"]] = relationship(
-        "BindGroup", uselist=True, back_populates="user"
-    )
     college: Mapped[List["College"]] = relationship(
         "College", uselist=True, back_populates="user"
     )
@@ -57,6 +56,9 @@ class User(Base):
     )
     major: Mapped[List["Major"]] = relationship(
         "Major", uselist=True, back_populates="user"
+    )
+    bind_group: Mapped[List["BindGroup"]] = relationship(
+        "BindGroup", uselist=True, back_populates="user"
     )
     class_funds: Mapped[List["ClassFunds"]] = relationship(
         "ClassFunds", uselist=True, back_populates="user"
@@ -100,36 +102,6 @@ class Bind(Base):
     user: Mapped["User"] = relationship("User", back_populates="bind")
 
 
-class BindGroup(Base):
-    __tablename__ = "bind_group"
-    __table_args__ = (
-        ForeignKeyConstraint(["creator"], ["user.id"], name="bind_group_ibfk_1"),
-        Index("creator", "creator"),
-        Index("group_id", "group_id", unique=True),
-        Index("id", "id", unique=True),
-        Index("platform_id", "platform_id", unique=True),
-        {"comment": "绑定群表"},
-    )
-
-    id = mapped_column(Integer, primary_key=True, comment="绑定群id")
-    group_id = mapped_column(BigInteger, nullable=False, comment="群号")
-    platform_id = mapped_column(
-        String(100, "utf8mb4_unicode_ci"), nullable=False, comment="平台id"
-    )
-    creator = mapped_column(Integer, nullable=False, comment="绑定人")
-    create_at = mapped_column(
-        TIMESTAMP,
-        nullable=False,
-        server_default=text("CURRENT_TIMESTAMP"),
-        comment="绑定时间",
-    )
-
-    user: Mapped["User"] = relationship("User", back_populates="bind_group")
-    class_table: Mapped[List["ClassTable"]] = relationship(
-        "ClassTable", uselist=True, back_populates="bind_group"
-    )
-
-
 class College(Base):
     __tablename__ = "college"
     __table_args__ = (
@@ -148,7 +120,7 @@ class College(Base):
 
     user: Mapped["User"] = relationship("User", back_populates="college")
     major: Mapped[List["Major"]] = relationship(
-        "Major", uselist=True, back_populates="college_"
+        "Major", uselist=True, back_populates="college"
     )
 
 
@@ -216,9 +188,9 @@ class Teacher(Base):
 class Major(Base):
     __tablename__ = "major"
     __table_args__ = (
-        ForeignKeyConstraint(["college"], ["college.id"], name="major_ibfk_1"),
+        ForeignKeyConstraint(["college_id"], ["college.id"], name="major_ibfk_1"),
         ForeignKeyConstraint(["creator"], ["user.id"], name="major_ibfk_2"),
-        Index("college", "college"),
+        Index("college_id", "college_id"),
         Index("creator", "creator"),
         Index("id", "id", unique=True),
         Index("major", "major", unique=True),
@@ -226,13 +198,13 @@ class Major(Base):
     )
 
     id = mapped_column(Integer, primary_key=True, comment="专业id")
-    college = mapped_column(Integer, nullable=False, comment="学院id")
+    college_id = mapped_column(Integer, nullable=False, comment="学院id")
     major = mapped_column(
         String(100, "utf8mb4_unicode_ci"), nullable=False, comment="专业名称"
     )
     creator = mapped_column(Integer, nullable=False, comment="添加人")
 
-    college_: Mapped["College"] = relationship("College", back_populates="major")
+    college: Mapped["College"] = relationship("College", back_populates="major")
     user: Mapped["User"] = relationship("User", back_populates="major")
     class_table: Mapped[List["ClassTable"]] = relationship(
         "ClassTable", uselist=True, back_populates="major"
@@ -242,12 +214,8 @@ class Major(Base):
 class ClassTable(Base):
     __tablename__ = "class_table"
     __table_args__ = (
-        ForeignKeyConstraint(
-            ["bind_group_id"], ["bind_group.id"], name="class_table_ibfk_3"
-        ),
         ForeignKeyConstraint(["major_id"], ["major.id"], name="class_table_ibfk_2"),
         ForeignKeyConstraint(["teacher_id"], ["teacher.id"], name="class_table_ibfk_1"),
-        Index("bind_group_id", "bind_group_id", unique=True),
         Index("id", "id", unique=True),
         Index("major_id", "major_id"),
         Index("name", "name", unique=True),
@@ -256,18 +224,17 @@ class ClassTable(Base):
     )
 
     id = mapped_column(Integer, primary_key=True, comment="班级id")
-    bind_group_id = mapped_column(Integer, nullable=False, comment="绑定的群组")
     name = mapped_column(
         String(100, "utf8mb4_unicode_ci"), nullable=False, comment="班级群名"
     )
     teacher_id = mapped_column(Integer, nullable=False, comment="教师id")
     major_id = mapped_column(Integer, nullable=False, comment="专业id")
 
-    bind_group: Mapped["BindGroup"] = relationship(
-        "BindGroup", back_populates="class_table"
-    )
     major: Mapped["Major"] = relationship("Major", back_populates="class_table")
     teacher: Mapped["Teacher"] = relationship("Teacher", back_populates="class_table")
+    bind_group: Mapped[List["BindGroup"]] = relationship(
+        "BindGroup", uselist=True, back_populates="class_table"
+    )
     class_funds: Mapped[List["ClassFunds"]] = relationship(
         "ClassFunds", uselist=True, back_populates="class_table"
     )
@@ -283,6 +250,41 @@ class ClassTable(Base):
     moral_education: Mapped[List["MoralEducation"]] = relationship(
         "MoralEducation", uselist=True, back_populates="class_table"
     )
+
+
+class BindGroup(Base):
+    __tablename__ = "bind_group"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["class_table_id"], ["class_table.id"], name="bind_group_ibfk_2"
+        ),
+        ForeignKeyConstraint(["creator"], ["user.id"], name="bind_group_ibfk_1"),
+        Index("class_table_id", "class_table_id"),
+        Index("creator", "creator"),
+        Index("id", "id", unique=True),
+        {"comment": "绑定群表"},
+    )
+
+    id = mapped_column(Integer, primary_key=True, comment="绑定群id")
+    group_id = mapped_column(
+        String(100, "utf8mb4_unicode_ci"), nullable=False, comment="群号"
+    )
+    platform_id = mapped_column(
+        String(100, "utf8mb4_unicode_ci"), nullable=False, comment="平台id"
+    )
+    creator = mapped_column(Integer, nullable=False, comment="绑定人")
+    create_at = mapped_column(
+        TIMESTAMP,
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
+        comment="绑定时间",
+    )
+    class_table_id = mapped_column(Integer, nullable=False, comment="绑定的班级")
+
+    class_table: Mapped["ClassTable"] = relationship(
+        "ClassTable", back_populates="bind_group"
+    )
+    user: Mapped["User"] = relationship("User", back_populates="bind_group")
 
 
 class ClassFunds(Base):

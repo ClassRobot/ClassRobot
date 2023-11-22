@@ -1,5 +1,3 @@
-from pydoc import isdata
-
 from utils.models.models import User
 from nonebot_plugin_alconna import AlconnaMatcher
 from utils.models.depends import (
