@@ -108,13 +108,13 @@ reference = "tsinghua"
 
 [[package]]
 name = "arclet-alconna"
-version = "1.7.37"
+version = "1.7.38"
 description = "A High-performance, Generality, Humane Command Line Arguments Parser Library."
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "arclet_alconna-1.7.37-py3-none-any.whl", hash = "sha256:2a680acefdb63b3995c53ab0fdf70fa82d3a410705ff3993740554b73f5ce67f"},
-    {file = "arclet_alconna-1.7.37.tar.gz", hash = "sha256:ad54c297c1c76f4fe5741303ddcf0c2a7c9ecb3a14465103f42f1da4b23e6081"},
+    {file = "arclet_alconna-1.7.38-py3-none-any.whl", hash = "sha256:e2248605bb7425c69a9cbe1e5f797d50945f30f054aaa9af73a237d8307d3432"},
+    {file = "arclet_alconna-1.7.38.tar.gz", hash = "sha256:90af6498993e7bc21223259758a021d811329b341a9add7868b9497705af050b"},
 ]
 
 [package.dependencies]
@@ -1459,13 +1459,13 @@ reference = "tsinghua"
 
 [[package]]
 name = "nonebot-adapter-qq"
-version = "1.1.2"
+version = "1.3.0"
 description = "QQ adapter for nonebot2"
 optional = false
 python-versions = ">=3.8,<4.0"
 files = [
-    {file = "nonebot_adapter_qq-1.1.2-py3-none-any.whl", hash = "sha256:39e6ab0fffce12476e89713faf598f15d703c12970ebf908d285b756eb481258"},
-    {file = "nonebot_adapter_qq-1.1.2.tar.gz", hash = "sha256:7780158228000d44d462009653ef71f2486474b416e92f51487f26d7b952bd61"},
+    {file = "nonebot_adapter_qq-1.3.0-py3-none-any.whl", hash = "sha256:f2e5117fc2451f4054699a797b6df7eae19e8b105b277f5b87bc1a0c4e189cab"},
+    {file = "nonebot_adapter_qq-1.3.0.tar.gz", hash = "sha256:625009e440cda7a994df71ac946f748dc620a6f79f6435e1c66bc0d0dca13029"},
 ]
 
 [package.dependencies]
@@ -1481,17 +1481,17 @@ reference = "tsinghua"
 
 [[package]]
 name = "nonebot-plugin-alconna"
-version = "0.33.6"
+version = "0.33.8"
 description = "Alconna Adapter for Nonebot"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "nonebot_plugin_alconna-0.33.6-py3-none-any.whl", hash = "sha256:89989dd6dc1bccd8a1603159b57e9e96da438eb0bbbdbbcd2bfcf747594e12c3"},
-    {file = "nonebot_plugin_alconna-0.33.6.tar.gz", hash = "sha256:54e761ef621c8285cd9ea2f81324f9f52f6fb6292d3ddb87387dbdcaeaa8dc1b"},
+    {file = "nonebot_plugin_alconna-0.33.8-py3-none-any.whl", hash = "sha256:e33e75a4c534810756e7d743ae6a16c1996af8f6f5bc51ba8fa8ab8618ca3b55"},
+    {file = "nonebot_plugin_alconna-0.33.8.tar.gz", hash = "sha256:27ebdd8309db9d934ef703f3a0f6c8608e773cb2435cba0da29ac4936c105e19"},
 ]
 
 [package.dependencies]
-arclet-alconna = ">=1.7.31,<2.0.0"
+arclet-alconna = ">=1.7.38,<2.0.0"
 arclet-alconna-tools = ">=0.6.7,<0.7.0"
 fleep = ">=1.0.1"
 nepattern = ">=0.5.14,<0.6.0"
@@ -1812,13 +1812,13 @@ reference = "tsinghua"
 
 [[package]]
 name = "platformdirs"
-version = "3.11.0"
+version = "4.0.0"
 description = "A small Python package for determining appropriate platform-specific dirs, e.g. a \"user data dir\"."
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "platformdirs-3.11.0-py3-none-any.whl", hash = "sha256:e9d171d00af68be50e9202731309c4e658fd8bc76f55c11c7dd760d023bda68e"},
-    {file = "platformdirs-3.11.0.tar.gz", hash = "sha256:cf8ee52a3afdb965072dcc652433e0c7e3e40cf5ea1477cd4b3b1d2eb75495b3"},
+    {file = "platformdirs-4.0.0-py3-none-any.whl", hash = "sha256:118c954d7e949b35437270383a3f2531e99dd93cf7ce4dc8340d3356d30f173b"},
+    {file = "platformdirs-4.0.0.tar.gz", hash = "sha256:cb633b2bcf10c51af60beb0ab06d2f1d69064b43abf4c185ca6b28865f3f9731"},
 ]
 
 [package.extras]
@@ -2217,13 +2217,13 @@ reference = "tsinghua"
 
 [[package]]
 name = "setuptools"
-version = "69.0.0"
+version = "69.0.2"
 description = "Easily download, build, install, upgrade, and uninstall Python packages"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "setuptools-69.0.0-py3-none-any.whl", hash = "sha256:eb03b43f23910c5fd0909cb677ad017cd9531f493d27f8b3f5316ff1fb07390e"},
-    {file = "setuptools-69.0.0.tar.gz", hash = "sha256:4c65d4f7891e5b046e9146913b87098144de2ca2128fbc10135b8556a6ddd946"},
+    {file = "setuptools-69.0.2-py3-none-any.whl", hash = "sha256:1e8fdff6797d3865f37397be788a4e3cba233608e9b509382a2777d25ebde7f2"},
+    {file = "setuptools-69.0.2.tar.gz", hash = "sha256:735896e78a4742605974de002ac60562d286fa8051a7e2299445e8e8fbb01aa6"},
 ]
 
 [package.extras]
@@ -2693,19 +2693,19 @@ reference = "tsinghua"
 
 [[package]]
 name = "virtualenv"
-version = "20.24.6"
+version = "20.24.7"
 description = "Virtual Python Environment builder"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "virtualenv-20.24.6-py3-none-any.whl", hash = "sha256:520d056652454c5098a00c0f073611ccbea4c79089331f60bf9d7ba247bb7381"},
-    {file = "virtualenv-20.24.6.tar.gz", hash = "sha256:02ece4f56fbf939dbbc33c0715159951d6bf14aaf5457b092e4548e1382455af"},
+    {file = "virtualenv-20.24.7-py3-none-any.whl", hash = "sha256:a18b3fd0314ca59a2e9f4b556819ed07183b3e9a3702ecfe213f593d44f7b3fd"},
+    {file = "virtualenv-20.24.7.tar.gz", hash = "sha256:69050ffb42419c91f6c1284a7b24e0475d793447e35929b488bf6a0aade39353"},
 ]
 
 [package.dependencies]
 distlib = ">=0.3.7,<1"
 filelock = ">=3.12.2,<4"
-platformdirs = ">=3.9.1,<4"
+platformdirs = ">=3.9.1,<5"
 
 [package.extras]
 docs = ["furo (>=2023.7.26)", "proselint (>=0.13)", "sphinx (>=7.1.2)", "sphinx-argparse (>=0.4)", "sphinxcontrib-towncrier (>=0.2.1a0)", "towncrier (>=23.6)"]
@@ -2914,6 +2914,27 @@ url = "https://pypi.tuna.tsinghua.edu.cn/simple"
 reference = "tsinghua"
 
 [[package]]
+name = "xlrd"
+version = "2.0.1"
+description = "Library for developers to extract data from Microsoft Excel (tm) .xls spreadsheet files"
+optional = false
+python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, !=3.5.*"
+files = [
+    {file = "xlrd-2.0.1-py2.py3-none-any.whl", hash = "sha256:6a33ee89877bd9abc1158129f6e94be74e2679636b8a205b43b85206c3f0bbdd"},
+    {file = "xlrd-2.0.1.tar.gz", hash = "sha256:f72f148f54442c6b056bf931dbc34f986fd0c3b0b6b5a58d013c9aef274d0c88"},
+]
+
+[package.extras]
+build = ["twine", "wheel"]
+docs = ["sphinx"]
+test = ["pytest", "pytest-cov"]
+
+[package.source]
+type = "legacy"
+url = "https://pypi.tuna.tsinghua.edu.cn/simple"
+reference = "tsinghua"
+
+[[package]]
 name = "xmltodict"
 version = "0.13.0"
 description = "Makes working with XML feel like you are working with JSON"
@@ -3040,4 +3061,4 @@ reference = "tsinghua"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "1bbdb57b988f18f6cc3ee27067c72fc1e33f0693bb3266e4751b96b6b27f5b7d"
+content-hash = "9acae0954eb38a62b90c64d3c9a24d3c7e011cf7b99a1b6386c9b229752ee18b"

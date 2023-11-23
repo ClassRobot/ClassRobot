@@ -2,11 +2,11 @@ from typing import Any
 
 from arclet.alconna import Alconna
 from utils.typings import UserType
-from utils.models.depends import get_user
 from utils.session import get_platform_id
 from nonebot.adapters import Bot as BaseBot
 from nonebot.adapters import Event as BaseEvent
 from utils.models import User, Student, Teacher, UserModel
+from utils.models.depends import get_user, get_student, get_teacher
 from nonebot_plugin_alconna.extension import Interface, DefaultExtension
 
 from .config import ClassCadre
@@ -83,9 +83,10 @@ class UserExtension(BaseAuthExtension):
         await super().permission_check(bot, event, command)
         platform_id = get_platform_id(bot, event)
         account_id = event.get_user_id()
-        if user := await get_user(platform_id, account_id, self.role):
+        if user := await get_user(platform_id, account_id):
             self.current_user = user
             self.params[UserType.USER] = user
+            self.params[self.role] = user
             return (await self._permission_check()) or (
                 self.user_only is False and self.is_admin()
             )
@@ -112,9 +113,10 @@ class TeacherExtension(UserExtension):
     before = [UserType.TEACHER]
 
     async def _permission_check(self) -> bool:
-        if self.is_teacher():
-            self.user = self.current_user.teacher[0]
-            return True
+        if self.is_teacher() or self.is_admin():
+            if teacher := await get_teacher(self.current_user.id):
+                self.user = teacher
+                return True
         return False
 
 
@@ -126,9 +128,10 @@ class StudentExtension(UserExtension):
     before = [UserType.STUDENT]
 
     async def _permission_check(self) -> bool:
-        if self.is_student():
-            self.user = self.current_user.student[0]
-            return True
+        if self.is_student() or self.is_admin():
+            if student := await get_student(self.current_user.id):
+                self.user = student
+                return True
         return False
 
 
@@ -139,7 +142,4 @@ class ClassCadreExtension(StudentExtension):
         return self.user.position in ClassCadre.__members__.values()
 
     async def _permission_check(self) -> bool:
-        if (await super()._permission_check()) and self.is_class_cadre():
-            self.user = self.current_user.student[0]
-            return True
-        return False
+        return (await super()._permission_check()) and self.is_class_cadre()

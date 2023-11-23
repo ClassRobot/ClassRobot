@@ -27,6 +27,7 @@ strenum = "^0.4.15"
 redis = "^5.0.1"
 cos-python-sdk-v5 = "^1.9.26"
 anyio = ">=3.7,<4.0"
+xlrd = "^2.0.1"
 
 [tool.poetry.group.dev.dependencies]
 pycln = "^2.3.0"

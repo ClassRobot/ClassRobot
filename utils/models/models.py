@@ -1,12 +1,12 @@
 from typing import List
 
 from sqlalchemy.orm.base import Mapped
-from sqlalchemy.orm import Mapped, relationship, mapped_column, declarative_base
+from nonebot_plugin_orm import Model as Base
+from sqlalchemy.orm import Mapped, relationship, mapped_column
 from sqlalchemy import (
     TIMESTAMP,
     Text,
     Index,
-    Column,
     Double,
     String,
     Integer,
@@ -14,8 +14,6 @@ from sqlalchemy import (
     ForeignKeyConstraint,
     text,
 )
-
-Base = declarative_base()
 
 
 class User(Base):
@@ -80,7 +78,9 @@ class User(Base):
 class Bind(Base):
     __tablename__ = "bind"
     __table_args__ = (
-        ForeignKeyConstraint(["user_id"], ["user.id"], name="bind_ibfk_1"),
+        ForeignKeyConstraint(
+            ["user_id"], ["user.id"], ondelete="CASCADE", name="bind_ibfk_1"
+        ),
         Index("id", "id", unique=True),
         Index("user_id", "user_id"),
         {"comment": "绑定表"},
@@ -153,7 +153,9 @@ class Teacher(Base):
     __tablename__ = "teacher"
     __table_args__ = (
         ForeignKeyConstraint(["creator"], ["user.id"], name="teacher_ibfk_2"),
-        ForeignKeyConstraint(["user_id"], ["user.id"], name="teacher_ibfk_1"),
+        ForeignKeyConstraint(
+            ["user_id"], ["user.id"], ondelete="CASCADE", name="teacher_ibfk_1"
+        ),
         Index("creator", "creator"),
         Index("email", "email", unique=True),
         Index("id", "id", unique=True),
@@ -256,7 +258,10 @@ class BindGroup(Base):
     __tablename__ = "bind_group"
     __table_args__ = (
         ForeignKeyConstraint(
-            ["class_table_id"], ["class_table.id"], name="bind_group_ibfk_2"
+            ["class_table_id"],
+            ["class_table.id"],
+            ondelete="CASCADE",
+            name="bind_group_ibfk_2",
         ),
         ForeignKeyConstraint(["creator"], ["user.id"], name="bind_group_ibfk_1"),
         Index("class_table_id", "class_table_id"),
@@ -291,9 +296,14 @@ class ClassFunds(Base):
     __tablename__ = "class_funds"
     __table_args__ = (
         ForeignKeyConstraint(
-            ["class_table_id"], ["class_table.id"], name="class_funds_ibfk_1"
+            ["class_table_id"],
+            ["class_table.id"],
+            ondelete="CASCADE",
+            name="class_funds_ibfk_1",
         ),
-        ForeignKeyConstraint(["user_id"], ["user.id"], name="class_funds_ibfk_2"),
+        ForeignKeyConstraint(
+            ["user_id"], ["user.id"], ondelete="CASCADE", name="class_funds_ibfk_2"
+        ),
         Index("class_table_id", "class_table_id"),
         Index("id", "id", unique=True),
         Index("user_id", "user_id"),
@@ -324,9 +334,14 @@ class ClassTasks(Base):
     __tablename__ = "class_tasks"
     __table_args__ = (
         ForeignKeyConstraint(
-            ["class_table_id"], ["class_table.id"], name="class_tasks_ibfk_1"
+            ["class_table_id"],
+            ["class_table.id"],
+            ondelete="CASCADE",
+            name="class_tasks_ibfk_1",
         ),
-        ForeignKeyConstraint(["creator"], ["user.id"], name="class_tasks_ibfk_2"),
+        ForeignKeyConstraint(
+            ["creator"], ["user.id"], ondelete="CASCADE", name="class_tasks_ibfk_2"
+        ),
         Index("class_table_id", "class_table_id"),
         Index("creator", "creator"),
         Index("id", "id", unique=True),
@@ -365,9 +380,14 @@ class Notice(Base):
     __tablename__ = "notice"
     __table_args__ = (
         ForeignKeyConstraint(
-            ["class_table_id"], ["class_table.id"], name="notice_ibfk_1"
+            ["class_table_id"],
+            ["class_table.id"],
+            ondelete="CASCADE",
+            name="notice_ibfk_1",
         ),
-        ForeignKeyConstraint(["user_id"], ["user.id"], name="notice_ibfk_2"),
+        ForeignKeyConstraint(
+            ["user_id"], ["user.id"], ondelete="CASCADE", name="notice_ibfk_2"
+        ),
         Index("class_table_id", "class_table_id"),
         Index("id", "id", unique=True),
         Index("user_id", "user_id"),
@@ -404,10 +424,15 @@ class Student(Base):
     __tablename__ = "student"
     __table_args__ = (
         ForeignKeyConstraint(
-            ["class_table_id"], ["class_table.id"], name="student_ibfk_1"
+            ["class_table_id"],
+            ["class_table.id"],
+            ondelete="CASCADE",
+            name="student_ibfk_1",
         ),
         ForeignKeyConstraint(["teacher_id"], ["teacher.id"], name="student_ibfk_2"),
-        ForeignKeyConstraint(["user_id"], ["user.id"], name="student_ibfk_3"),
+        ForeignKeyConstraint(
+            ["user_id"], ["user.id"], ondelete="CASCADE", name="student_ibfk_3"
+        ),
         Index("class_table_id", "class_table_id"),
         Index("email", "email", unique=True),
         Index("id", "id", unique=True),
@@ -465,10 +490,16 @@ class MoralEducation(Base):
     __tablename__ = "moral_education"
     __table_args__ = (
         ForeignKeyConstraint(
-            ["class_table_id"], ["class_table.id"], name="moral_education_ibfk_1"
+            ["class_table_id"],
+            ["class_table.id"],
+            ondelete="CASCADE",
+            name="moral_education_ibfk_1",
         ),
         ForeignKeyConstraint(
-            ["student_id"], ["student.id"], name="moral_education_ibfk_2"
+            ["student_id"],
+            ["student.id"],
+            ondelete="CASCADE",
+            name="moral_education_ibfk_2",
         ),
         Index("class_table_id", "class_table_id"),
         Index("id", "id", unique=True),
@@ -506,7 +537,10 @@ class StudentCouncil(Base):
     __tablename__ = "student_council"
     __table_args__ = (
         ForeignKeyConstraint(
-            ["student_id"], ["student.id"], name="student_council_ibfk_1"
+            ["student_id"],
+            ["student.id"],
+            ondelete="CASCADE",
+            name="student_council_ibfk_1",
         ),
         Index("id", "id", unique=True),
         Index("student_id", "student_id"),
@@ -531,9 +565,14 @@ class TaskFiles(Base):
     __tablename__ = "task_files"
     __table_args__ = (
         ForeignKeyConstraint(
-            ["class_tasks_id"], ["class_tasks.id"], name="task_files_ibfk_1"
+            ["class_tasks_id"],
+            ["class_tasks.id"],
+            ondelete="CASCADE",
+            name="task_files_ibfk_1",
         ),
-        ForeignKeyConstraint(["user_id"], ["user.id"], name="task_files_ibfk_2"),
+        ForeignKeyConstraint(
+            ["user_id"], ["user.id"], ondelete="CASCADE", name="task_files_ibfk_2"
+        ),
         Index("class_tasks_id", "class_tasks_id"),
         Index("id", "id", unique=True),
         Index("user_id", "user_id"),

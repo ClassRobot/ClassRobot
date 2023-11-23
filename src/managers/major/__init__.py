@@ -14,7 +14,7 @@ from .commands import add_major_cmd, del_major_cmd, show_major_cmd
 @add_major_cmd.handle()
 async def _(matcher: AlconnaMatcher, name: str, college_name: str, user: User):
     if college := await get_college(college_name):
-        if await get_major(name, college):
+        if await get_major(name):
             await matcher.finish(f"专业 {name} 已存在")
         else:
             await add_major(name, college, user)

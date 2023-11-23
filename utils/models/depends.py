@@ -1,28 +1,21 @@
 from utils.typings import UserType
 from sqlalchemy.orm import selectinload
+from utils.models.models import Student
 from nonebot_plugin_orm import get_session
 from sqlalchemy import delete, select, update
 from utils.models import Bind, User, Major, College, Teacher, BindGroup, ClassTable
 
 
-async def get_user(
-    platform_id: int, account_id: str | None = None, user_type: UserType = UserType.USER
-) -> User | None:
+async def get_user(platform_id: int, account_id: str | None = None) -> User | None:
     """获取用户
 
     Args:
         platform_id (int): 平台id, 但如果 account_id 为空时 platform_id 会作为 user_id 进行查找
         account_id (str | None, optional): 平台的账户id. Defaults to None.
-        user_type (UserType, optional): 用户的类型, 用于关联查询. Defaults to UserType.USER.
 
     Returns:
         User | None: 用户模型
     """
-    in_load = selectinload(Bind.user)
-    if user_type == UserType.TEACHER:
-        in_load = in_load.selectinload(User.teacher)
-    elif user_type == UserType.STUDENT:
-        in_load = in_load.selectinload(User.student)
     async with get_session() as session:
         if account_id is None:
             # 当account_id为None时, 将platform_id作为user_id进行查找
@@ -32,7 +25,7 @@ async def get_user(
                 select(Bind)
                 .where(Bind.platform_id == platform_id)
                 .where(Bind.account_id == account_id)
-                .options(in_load)
+                .options(selectinload(Bind.user))
             )
             if bind := bind.one_or_none():
                 return bind.user
@@ -107,7 +100,7 @@ async def rebind_user(
 
 
 async def get_or_create_user(user_type: UserType, platform_id: int, account_id: str):
-    if user := await get_user(platform_id, account_id, user_type):
+    if user := await get_user(platform_id, account_id):
         return user
     return await create_user(platform_id, account_id, user_type)
 
@@ -125,16 +118,48 @@ async def create_teacher(
         return teacher
 
 
-async def get_teacher(platform_id: int, account_id: str):
-    if user := await get_user(platform_id, account_id, UserType.TEACHER):
-        if user.teacher:
-            return user.teacher[0]
+async def get_teacher(
+    platform_id: int, account_id: str | None = None
+) -> Teacher | None:
+    """获取教师
+
+    当account_id为None时, 会将platform_id作为user_id进行查询;
+
+    Args:
+        platform_id (int): 平台id
+        account_id (str | None, optional): 平台账号. Defaults to None.
+
+    Returns:
+        Teacher | None: 教师模型
+    """
+    async with get_session() as session:
+        if account_id is None:
+            return await session.scalar(
+                select(Teacher).where(Teacher.user_id == platform_id)
+            )
+        elif user := await get_user(platform_id, account_id):
+            return await get_teacher(user.id)
 
 
-async def get_student(platform_id: int, account_id: str):
-    if user := await get_user(platform_id, account_id, UserType.STUDENT):
-        if user.student:
-            return user.teacher[0]
+async def get_student(platform_id: int, account_id: str | None = None):
+    """获取学生
+
+    当account_id为None时, 会将platform_id作为user_id进行查询;
+
+    Args:
+        platform_id (int): 平台id
+        account_id (str | None, optional): 平台账号. Defaults to None.
+
+    Returns:
+        Student | None: 学生模型
+    """
+    async with get_session() as session:
+        if account_id is None:
+            return await session.scalar(
+                select(Student).where(Student.user_id == platform_id)
+            )
+        elif user := await get_user(platform_id, account_id):
+            return await get_student(user.id)
 
 
 async def set_teacher(
@@ -262,9 +287,10 @@ async def add_class_table(
         return class_table
 
 
-async def add_bind_group(
+async def add_bind_class_table(
     group_id: str, platform_id: int, class_table: ClassTable, user: User
 ) -> BindGroup:
+    """将班级表绑定到该群"""
     async with get_session() as session:
         bind = BindGroup(
             group_id=group_id,
@@ -274,4 +300,58 @@ async def add_bind_group(
         )
         session.add(bind)
         await session.commit()
+        await session.refresh(bind)
+        await session.refresh(class_table)
         return bind
+
+
+async def get_class_table(
+    group_id: str, *, platform_id: int | None = None, teacher: Teacher | None = None
+) -> ClassTable | None:
+    """获取班级表
+
+    - 当platform_id不为空时, 会根据platform_id和group_id进行查询;
+    - 当platform_id为空时, 会根据teacher和group_id视为name进行查询;
+
+    Args:
+        - group_id (str): 群id或者班级名称
+        - platform_id (int | None, optional): 平台id. Defaults to None.
+        - teacher (Teacher | None, optional): 教师. Defaults to None.
+
+    Returns:
+        ClassTable | None: 班级表
+    """
+    async with get_session() as session:
+        if platform_id is None and teacher is not None:
+            return await session.scalar(
+                select(ClassTable)
+                .where(ClassTable.name == group_id)
+                .where(ClassTable.teacher == teacher)
+            )
+        elif bind_group := await session.scalar(
+            select(BindGroup)
+            .where(BindGroup.group_id == group_id)
+            .where(BindGroup.platform_id == platform_id)
+            .options(selectinload(BindGroup.class_table))
+        ):
+            return bind_group.class_table
+
+
+async def get_class_table_list(teacher: Teacher) -> list[ClassTable]:
+    async with get_session() as session:
+        return list(
+            await session.scalars(
+                select(ClassTable).where(ClassTable.teacher == teacher)
+            )
+        )
+
+
+async def delete_class_table(name: str, teacher: Teacher) -> int:
+    async with get_session() as session:
+        result = await session.execute(
+            delete(ClassTable)
+            .where(ClassTable.name == name)
+            .where(ClassTable.teacher == teacher)
+        )
+        await session.commit()
+        return result.rowcount
