@@ -1,9 +1,23 @@
+from pandas import DataFrame
 from utils.typings import UserType
 from sqlalchemy.orm import selectinload
 from utils.models.models import Student
 from nonebot_plugin_orm import get_session
 from sqlalchemy import delete, select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 from utils.models import Bind, User, Major, College, Teacher, BindGroup, ClassTable
+
+# --------------------------------- 用户部分 ---------------------------------
+
+
+async def update_user_type(
+    user: User, user_type: UserType, session: AsyncSession, ignore_admin: bool = True
+):
+    """设置用户身份"""
+    if not (ignore_admin and user.user_type == UserType.ADMIN):
+        await session.execute(
+            update(User).where(User.id == user.id).values(user_type=user_type)
+        )
 
 
 async def get_user(platform_id: int, account_id: str | None = None) -> User | None:
@@ -32,7 +46,9 @@ async def get_user(platform_id: int, account_id: str | None = None) -> User | No
 
 
 async def no_bind_user(user_id: int) -> bool:
-    """查看用户是否有绑定平台, 用于排除存在但是没有做任何绑定的用户
+    """没有绑定平台的用户
+
+    查看用户是否有绑定平台, 用于排除存在但是没有做任何绑定的用户
 
     Args:
         user_id (int): 用户id
@@ -46,6 +62,16 @@ async def no_bind_user(user_id: int) -> bool:
 
 
 async def create_user(platform_id: int, account_id: str, user_type: UserType) -> User:
+    """创建用户
+
+    Args:
+        platform_id (int): 平台id
+        account_id (str): 用户id
+        user_type (UserType): 用户类型
+
+    Returns:
+        User: 用户模型
+    """
     async with get_session() as session:
         user = User(user_type=user_type)
         session.add(user)
@@ -56,6 +82,13 @@ async def create_user(platform_id: int, account_id: str, user_type: UserType) ->
 
 
 async def add_user_bind(platform_id: int, account_id: str, user: User):
+    """平台账户与用户绑定
+
+    Args:
+        platform_id (int): 平台id
+        account_id (str): 账户id
+        user (User): 用户模型
+    """
     async with get_session() as session:
         session.add(
             Bind(platform_id=platform_id, account_id=account_id, user_id=user.id)
@@ -63,7 +96,7 @@ async def add_user_bind(platform_id: int, account_id: str, user: User):
         await session.commit()
 
 
-async def remove_user_bind(platform_id: int, account_id: str):
+async def delete_user_bind(platform_id: int, account_id: str):
     """删除用户绑定的平台
 
     Args:
@@ -82,11 +115,13 @@ async def remove_user_bind(platform_id: int, account_id: str):
 async def rebind_user(
     platform_id: int, account_id: str, old_user: User, new_user: User
 ):
-    """重新绑定用户
+    """将平台账户绑定到新用户
 
     Args:
         platform_id (int): 平台id
         account_id (str): 平台账户id
+        old_user (User): 旧用户
+        new_user (User): 新用户
     """
     async with get_session() as session:
         await session.execute(
@@ -105,14 +140,28 @@ async def get_or_create_user(user_type: UserType, platform_id: int, account_id: 
     return await create_user(platform_id, account_id, user_type)
 
 
+# --------------------------------- 教师部分 ---------------------------------
 async def create_teacher(
     name: str, phone: int, user: User, creator: User, email: str | None = None
 ):
+    """将普通用户添加为教师
+
+    Args:
+        name (str): 教师姓名
+        phone (int): 教师联系方式
+        creator (User): 添加教师的用户
+        user (User): 教师用户
+        email (str | None, optional): 教师的邮箱. Defaults to None.
+
+    Returns:
+        Teacher: 教师模型
+    """
     async with get_session() as session:
         teacher = Teacher(
-            name=name, phone=phone, creator=creator.id, email=email, user=user.id
+            user_id=user.id, creator=creator.id, phone=phone, name=name, email=email
         )
         session.add(teacher)
+        await update_user_type(user, UserType.TEACHER, session)
         await session.commit()
         await session.refresh(teacher)
         return teacher
@@ -141,64 +190,14 @@ async def get_teacher(
             return await get_teacher(user.id)
 
 
-async def get_student(platform_id: int, account_id: str | None = None):
-    """获取学生
-
-    当account_id为None时, 会将platform_id作为user_id进行查询;
-
-    Args:
-        platform_id (int): 平台id
-        account_id (str | None, optional): 平台账号. Defaults to None.
-
-    Returns:
-        Student | None: 学生模型
-    """
-    async with get_session() as session:
-        if account_id is None:
-            return await session.scalar(
-                select(Student).where(Student.user_id == platform_id)
-            )
-        elif user := await get_user(platform_id, account_id):
-            return await get_student(user.id)
-
-
-async def set_teacher(
-    name: str, phone: int, creator: User, user: User, email: str | None = None
-) -> Teacher:
-    """将普通用户设置为教师
-
-    Args:
-        name (str): 教师姓名
-        phone (int): 教师联系方式
-        creator (User): 添加教师的用户
-        user (User): 教师用户
-        email (str | None, optional): 教师的邮箱. Defaults to None.
-
-    Returns:
-        Teacher: 教师模型
-    """
-    async with get_session() as session:
-        teacher = Teacher(
-            user_id=user.id, creator=creator.id, phone=phone, name=name, email=email
-        )
-        session.add(teacher)
-        await session.execute(
-            update(User).where(User.id == user.id).values(user_type=UserType.TEACHER)
-        )
-        await session.commit()
-        await session.refresh(teacher)
-        return teacher
-
-
-async def remove_teacher(user: User):
+async def delete_teacher(user: User):
     async with get_session() as session:
         await session.execute(delete(Teacher).where(Teacher.user_id == user.id))
-        await session.execute(
-            update(User).where(User.id == user.id).values(user_type=UserType.USER)
-        )
+        await update_user_type(user, UserType.USER, session)
         await session.commit()
 
 
+# --------------------------------- 院系部分 ---------------------------------
 async def add_college(college_name: str, user: User):
     async with get_session() as session:
         college = College(college=college_name, creator=user.id)
@@ -235,6 +234,7 @@ async def delete_college(college_name: str | int):
         return result.rowcount
 
 
+# --------------------------------- 专业部分 ---------------------------------
 async def get_major(major_name: str | int) -> Major | None:
     async with get_session() as session:
         if isinstance(major_name, int):
@@ -264,6 +264,7 @@ async def delete_major(major_name: str):
         return result.rowcount
 
 
+# --------------------------------- 班级部分 ---------------------------------
 async def add_class_table(
     name: str, teacher: Teacher, major: Major, group_id: str, platform_id: int
 ) -> ClassTable:
@@ -355,3 +356,88 @@ async def delete_class_table(name: str, teacher: Teacher) -> int:
         )
         await session.commit()
         return result.rowcount
+
+
+# --------------------------------- 学生部分 ---------------------------------
+async def get_student(
+    platform_id: int, account_id: str | None = None
+) -> Student | None:
+    """获取学生
+
+    当account_id为None时, 会将platform_id作为user_id进行查询;
+
+    Args:
+        platform_id (int): 平台id
+        account_id (str | None, optional): 平台账号. Defaults to None.
+
+    Returns:
+        Student | None: 学生模型
+    """
+    async with get_session() as session:
+        if account_id is None:
+            return await session.scalar(
+                select(Student).where(Student.user_id == platform_id)
+            )
+        elif user := await get_user(platform_id, account_id):
+            return await get_student(user.id)
+
+
+async def create_student(
+    name: str,
+    class_table: ClassTable,
+    teacher: Teacher,
+    student_user: User,
+):
+    async with get_session() as session:
+        student = Student(
+            name=name, class_table=class_table, teacher=teacher, user=student_user
+        )
+        await update_user_type(student_user, UserType.STUDENT, session)
+        await session.commit()
+        await session.refresh(student)
+        return student
+
+
+async def get_student_list(class_table: ClassTable) -> list[Student]:
+    async with get_session() as session:
+        return list(
+            await session.scalars(
+                select(Student).where(Student.class_table == class_table)
+            )
+        )
+
+
+async def delete_student(student_id: int | User) -> int:
+    """删除学生
+
+    Args:
+        student_id (int | User): 删除学生所用的是student_id而不是user_id或者传入user模型
+
+    Returns:
+        int: 删除的学生数量
+    """
+
+    async with get_session() as session:
+        if isinstance(student_id, int):
+            result = await session.execute(
+                delete(Student).where(Student.id == student_id)
+            )
+        else:
+            result = await session.execute(
+                delete(Student).where(Student.user == student_id)
+            )
+        await session.commit()
+        return result.rowcount
+
+
+async def query_student(
+    class_table: ClassTable,
+) -> DataFrame:
+    async with get_session() as session:
+        result = await session.scalars(
+            select(Student).where(Student.class_table == class_table)
+        )
+        return DataFrame(
+            result.fetchall(),
+            columns=[column.name for column in Student.__table__.columns],
+        )

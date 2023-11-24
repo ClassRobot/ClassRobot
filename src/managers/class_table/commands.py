@@ -13,7 +13,7 @@ add_class_table_cmd = on_alconna(
     ),
     block=True,
     comp_config=comp_config,
-    extensions=[TeacherExtension(True)],
+    extensions=[TeacherExtension],
 )
 
 del_class_table_cmd = on_alconna(
@@ -23,7 +23,7 @@ del_class_table_cmd = on_alconna(
     ),
     block=True,
     comp_config=comp_config,
-    extensions=[TeacherExtension(True)],
+    extensions=[TeacherExtension],
 )
 
 bind_class_table_cmd = on_alconna(
@@ -34,7 +34,7 @@ bind_class_table_cmd = on_alconna(
     aliases={"绑定班级群"},
     block=True,
     comp_config=comp_config,
-    extensions=[TeacherExtension(True)],
+    extensions=[TeacherExtension],
 )
 
 show_class_table_cmd = on_alconna(
@@ -42,13 +42,13 @@ show_class_table_cmd = on_alconna(
     aliases={"查看班级"},
     block=True,
     comp_config=comp_config,
-    extensions=[TeacherExtension(True)],
+    extensions=[TeacherExtension],
 )
 
 add_help(
     Helper(
         command="添加班级",
-        description="用于添加班级",
+        description="教师身份来添加班级，默认会将命令执行的群作为班级群",
         usage="添加班级 [班级名称] [专业名称]",
         example=[
             ExampleMessage(user_type=UserType.USER, message="添加班级 人工智能 信息工程"),
@@ -58,7 +58,7 @@ add_help(
     ),
     Helper(
         command="删除班级",
-        description="用于删除班级",
+        description="删除教师自己创建的班级",
         usage="删除班级 [班级名称]",
         example=[
             ExampleMessage(user_type=UserType.USER, message="删除班级 人工智能"),
@@ -68,7 +68,7 @@ add_help(
     ),
     Helper(
         command="绑定班级",
-        description="用于将当前的群与班级进行绑定",
+        description="将当前的群与班级进行绑定",
         usage="绑定班级 [班级名称]",
         example=[
             ExampleMessage(user_type=UserType.USER, message="绑定班级 人工智能"),
@@ -79,7 +79,7 @@ add_help(
     ),
     Helper(
         command="查询班级",
-        description="用于查询自己所添加的班级",
+        description="用于插件教师自己添加的班级",
         usage="查询班级",
         example=[
             ExampleMessage(user_type=UserType.USER, message="查询班级"),

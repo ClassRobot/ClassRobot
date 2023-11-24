@@ -5,32 +5,32 @@ from src.others.helper import add_help
 from nonebot_plugin_alconna import on_alconna
 from src.others.helper.typings import Helper, ExampleMessage
 
-create_user_cmd = on_command("创建用户", aliases={"成为用户"}, block=True)
+create_user_cmd = on_command("成为用户", aliases={"创建用户"}, block=True)
 show_user_cmd = on_command("用户信息", aliases={"我的信息"}, block=True)
 bind_token_cmd = on_command("bind_token=", block=True)
 bind_user_cmd = on_alconna(
     "绑定用户",
     aliases={"绑定我的信息", "绑定信息", "绑定平台"},
     block=True,
-    extensions=[UserExtension(True)],
+    extensions=[UserExtension],
 )
 
 
 add_help(
     Helper(
-        command="创建用户",
-        description="用于创建用户",
+        command="成为用户",
+        description="成为机器人的普通用户",
         usage="创建用户",
         example=[
             ExampleMessage(user_type=UserType.USER, message="创建用户"),
             ExampleMessage(user_type="bot", message="创建用户成功"),
         ],
-        aliases={"成为用户"},
+        aliases={"创建用户"},
         category={"用户"},
     ),
     Helper(
         command="用户信息",
-        description="用于查询用户信息",
+        description="查询您的身份权限和用户id",
         usage="用户信息",
         example=[
             ExampleMessage(user_type=UserType.USER, message="用户信息"),
@@ -41,7 +41,7 @@ add_help(
     ),
     Helper(
         command="绑定用户",
-        description="用于绑定用户信息",
+        description="用于在其他平台绑定用户",
         usage="绑定用户 [用户id或@用户]",
         example=[
             ExampleMessage(user_type=UserType.USER, message="绑定用户"),

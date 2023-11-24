@@ -10,9 +10,9 @@ class BaseRender(ABC):
     def to_string(self) -> str:
         ...
 
-    @abstractmethod
-    def to_image(self) -> bytes:
-        ...
+    # @abstractmethod
+    # def to_image(self) -> bytes:
+    #     ...
 
 
 class ExampleMessage(BaseModel):
@@ -26,15 +26,16 @@ class ExampleMessage(BaseModel):
         return self.__repr__()
 
 
-class Helper(BaseModel):
+class Helper(BaseModel, BaseRender):
     command: str  # 命令名称
     description: str  # 命令说明
     usage: str  # 使用方式
     example: list[ExampleMessage]  # 使用示例
     category: set[str]  # 命令类别
+    allowed_user_types: set[UserType] | None = None  # 允许使用的用户类型
     aliases: set[str] = set()  # 命令别名
 
-    def __repr__(self) -> str:
+    def to_string(self) -> str:
         return """# {command}
 
 {description}
@@ -58,16 +59,13 @@ class Helper(BaseModel):
             aliases=", ".join(f"`{i}`" for i in self.aliases),
         )
 
-    def to_string(self) -> str:
-        return self.__repr__()
 
-
-class HelperCategory(BaseModel):
+class HelperCategory(BaseModel, BaseRender):
     category: str  # 类别名称
     commands: list[Helper] = []  # 类别下的命令
 
     def add(self, helper: Helper):
         self.commands.append(helper)
 
-    def __repr__(self) -> str:
+    def to_string(self) -> str:
         ...

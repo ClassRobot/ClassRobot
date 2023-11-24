@@ -15,7 +15,6 @@ add_major_cmd = on_alconna(
     block=True,
     extensions=[AdminExtension],
 )
-
 show_major_cmd = on_alconna(
     Alconna(
         "查询专业",
@@ -26,8 +25,6 @@ show_major_cmd = on_alconna(
     block=True,
     extensions=[UserExtension],
 )
-
-
 del_major_cmd = on_alconna(
     Alconna(
         "删除专业",

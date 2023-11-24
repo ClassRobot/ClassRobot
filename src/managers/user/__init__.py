@@ -1,14 +1,13 @@
 from utils.models import User
 from utils.params import UserId
 from nonebot.typing import T_State
-from nonebot.adapters import Message
+from nonebot.params import ArgPlainText
 from utils.session import SessionPlatform
 from nonebot.internal.matcher import Matcher
-from nonebot.params import CommandArg, ArgPlainText
 from utils.typings import UserType, UserTypeChinese
 from utils.models.depends import get_user, create_user, rebind_user, add_user_bind
 
-from .bind_token import get_bind_data, get_bind_token
+from .bind_token import BindUser, get_bind_token
 from .commands import bind_user_cmd, show_user_cmd, bind_token_cmd, create_user_cmd
 
 
@@ -53,17 +52,9 @@ async def _(
     state: T_State,
     matcher: Matcher,
     session: SessionPlatform,
-    token: Message = CommandArg(),
+    bind_user: User = BindUser,
     user_id: str = UserId,
 ):
-    # 查看token是否正确
-    bind_user_id = get_bind_data(token.extract_plain_text().strip())
-    if bind_user_id is None:
-        await matcher.finish()
-    # 查看绑定用户是否存在
-    bind_user = await get_user(bind_user_id)
-    if bind_user is None:
-        await matcher.finish("该用户已不存在!")
     # 查看该平台是否已经绑定了某个用户
     if old_user := await get_user(session.id, user_id):
         # 当此平台已经绑定了该用户时查看是否与将要绑定的用户相同
@@ -83,6 +74,7 @@ async def _(
 @bind_token_cmd.got("is_ok")
 async def _(
     state: T_State,
+    matcher: Matcher,
     session: SessionPlatform,
     user_id: str = UserId,
     is_ok: str = ArgPlainText(),
@@ -91,4 +83,5 @@ async def _(
         bind_user: User = state["bind_user"]
         old_user: User = state["old_user"]
         await rebind_user(session.id, user_id, old_user, bind_user)
-        await bind_token_cmd.finish(f"已将您绑定到用户[{bind_user.id}]")
+        await matcher.finish(f"已将您绑定到用户[{bind_user.id}]")
+    await matcher.finish(f"已取消绑定")

@@ -18,7 +18,7 @@ add_teacher_cmd = on_alconna(
     extensions=[TeacherExtension],
 )
 
-remove_teacher_cmd = on_alconna(
+del_teacher_cmd = on_alconna(
     Alconna(
         "删除教师",
         Args["user_id", [int, At], Field(completion=lambda: "输入用户id或@教师")],
@@ -33,7 +33,7 @@ remove_teacher_cmd = on_alconna(
 add_help(
     Helper(
         command="添加教师",
-        description="用于添加教师",
+        description="教师或管理员来添加教师",
         usage="添加教师 [教师姓名] [教师手机号码] [用户id或@教师]",
         example=[
             ExampleMessage(
@@ -46,7 +46,7 @@ add_help(
     ),
     Helper(
         command="删除教师",
-        description="用于删除教师",
+        description="管理员删除教师",
         usage="删除教师 [用户id或@教师]",
         example=[
             ExampleMessage(user_type=UserType.USER, message="删除教师 123456"),

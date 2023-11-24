@@ -3,9 +3,9 @@ from utils.typings import UserType
 from nonebot_plugin_alconna import At
 from utils.session import SessionPlatform
 from nonebot.internal.matcher import Matcher
-from utils.models.depends import get_user, create_user, set_teacher, remove_teacher
+from utils.models.depends import get_user, create_user, create_teacher, delete_teacher
 
-from .commands import add_teacher_cmd, remove_teacher_cmd
+from .commands import add_teacher_cmd, del_teacher_cmd
 
 
 @add_teacher_cmd.handle()
@@ -31,11 +31,11 @@ async def _(
         case UserType.ADMIN:
             await matcher.finish(f"用户[{set_user.id}]是管理员，不能设置为教师")
         case UserType.USER:
-            await set_teacher(name, phone, user, set_user)
+            await create_teacher(name, phone, user, set_user)
             await matcher.finish(f"成功将[{set_user.id}]设置为教师")
 
 
-@remove_teacher_cmd.handle()
+@del_teacher_cmd.handle()
 async def _(matcher: Matcher, platform: SessionPlatform, user_id: At | int):
     if set_user := (
         await get_user(user_id)
@@ -43,9 +43,9 @@ async def _(matcher: Matcher, platform: SessionPlatform, user_id: At | int):
         else await get_user(platform.id, user_id.target)
     ):
         if set_user.user_type == UserType.TEACHER:
-            await remove_teacher(set_user)
+            await delete_teacher(set_user)
             await matcher.finish(f"成功将[{set_user.id}]移除教师")
         else:
             await matcher.finish(f"用户[{set_user.id}]不是教师")
     else:
-        await matcher.finish("用户不存在")
+        await matcher.finish("用户不存在或者还不是用户")
