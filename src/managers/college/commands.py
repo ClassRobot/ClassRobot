@@ -40,7 +40,7 @@ add_help(
         description="用于添加院系，添加过后可以添加具体的专业",
         usage="添加院系 [院系名称]",
         example=[
-            ExampleMessage(user_type=UserType.USER, message="添加院系 信息工程"),
+            ExampleMessage(user_type=UserType.ADMIN, message="添加院系 信息工程"),
             ExampleMessage(user_type="bot", message="信息工程 添加成功"),
         ],
         aliases={"添加学院"},
@@ -51,7 +51,7 @@ add_help(
         description="用于删除院系，删除过后该院系的专业也会被删除",
         usage="删除院系 [院系名称或id]",
         example=[
-            ExampleMessage(user_type=UserType.USER, message="删除院系 信息工程"),
+            ExampleMessage(user_type=UserType.ADMIN, message="删除院系 信息工程"),
             ExampleMessage(user_type="bot", message="信息工程 删除成功"),
         ],
         aliases={"删除院系"},

@@ -1,18 +1,7 @@
 from typing import Literal
-from abc import ABC, abstractmethod
 
 from pydantic import BaseModel
 from utils.typings import UserType
-
-
-class BaseRender(ABC):
-    @abstractmethod
-    def to_string(self) -> str:
-        ...
-
-    # @abstractmethod
-    # def to_image(self) -> bytes:
-    #     ...
 
 
 class ExampleMessage(BaseModel):
@@ -26,7 +15,7 @@ class ExampleMessage(BaseModel):
         return self.__repr__()
 
 
-class Helper(BaseModel, BaseRender):
+class Helper(BaseModel):
     command: str  # 命令名称
     description: str  # 命令说明
     usage: str  # 使用方式
@@ -60,7 +49,7 @@ class Helper(BaseModel, BaseRender):
         )
 
 
-class HelperCategory(BaseModel, BaseRender):
+class HelperCategory(BaseModel):
     category: str  # 类别名称
     commands: list[Helper] = []  # 类别下的命令
 
@@ -68,4 +57,6 @@ class HelperCategory(BaseModel, BaseRender):
         self.commands.append(helper)
 
     def to_string(self) -> str:
-        ...
+        return f"`[{self.category}]`类型的命令: \n" + "\n".join(
+            f"- `{i.command}` | {i.description}" for i in self.commands
+        )

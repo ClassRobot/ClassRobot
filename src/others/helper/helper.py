@@ -1,5 +1,3 @@
-from utils.typings import UserType
-
 from .typings import Helper, HelperCategory
 
 
@@ -40,6 +38,6 @@ class HelperMenu:
         return False
 
     def to_string(self):
-        return "命令菜单：\n" + "\n".join(
+        return "命令菜单: \n" + "\n".join(
             f"- `{i.command}` | {i.description}" for i in self.commands.values()
         )

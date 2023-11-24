@@ -42,7 +42,7 @@ add_help(
         description="用于添加专业",
         usage="添加专业 [专业名称] [院系名称]",
         example=[
-            ExampleMessage(user_type=UserType.USER, message="添加专业 人工智能 信息工程"),
+            ExampleMessage(user_type=UserType.ADMIN, message="添加专业 人工智能 信息工程"),
             ExampleMessage(user_type="bot", message="人工智能 添加成功"),
         ],
         aliases={"添加专业"},
@@ -53,7 +53,7 @@ add_help(
         description="用于删除专业",
         usage="删除专业 [专业名称]",
         example=[
-            ExampleMessage(user_type=UserType.USER, message="删除专业 人工智能"),
+            ExampleMessage(user_type=UserType.ADMIN, message="删除专业 人工智能"),
             ExampleMessage(user_type="bot", message="人工智能 删除成功"),
         ],
         aliases={"删除专业"},

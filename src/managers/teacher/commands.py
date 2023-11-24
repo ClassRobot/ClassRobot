@@ -37,7 +37,7 @@ add_help(
         usage="添加教师 [教师姓名] [教师手机号码] [用户id或@教师]",
         example=[
             ExampleMessage(
-                user_type=UserType.USER, message="添加教师 张三 12345678901 123456"
+                user_type=UserType.TEACHER, message="添加教师 张三 12345678901 123456"
             ),
             ExampleMessage(user_type="bot", message="张三 添加成功"),
         ],
@@ -49,7 +49,7 @@ add_help(
         description="管理员删除教师",
         usage="删除教师 [用户id或@教师]",
         example=[
-            ExampleMessage(user_type=UserType.USER, message="删除教师 123456"),
+            ExampleMessage(user_type=UserType.ADMIN, message="删除教师 123456"),
             ExampleMessage(user_type="bot", message="123456 删除成功"),
         ],
         aliases={"删除老师"},

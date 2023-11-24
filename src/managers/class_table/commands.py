@@ -51,7 +51,7 @@ add_help(
         description="教师身份来添加班级，默认会将命令执行的群作为班级群",
         usage="添加班级 [班级名称] [专业名称]",
         example=[
-            ExampleMessage(user_type=UserType.USER, message="添加班级 人工智能 信息工程"),
+            ExampleMessage(user_type=UserType.TEACHER, message="添加班级 人工智能 信息工程"),
             ExampleMessage(user_type="bot", message="[人工智能] 添加成功"),
         ],
         category={"添加", "班级"},
@@ -61,7 +61,7 @@ add_help(
         description="删除教师自己创建的班级",
         usage="删除班级 [班级名称]",
         example=[
-            ExampleMessage(user_type=UserType.USER, message="删除班级 人工智能"),
+            ExampleMessage(user_type=UserType.TEACHER, message="删除班级 人工智能"),
             ExampleMessage(user_type="bot", message="[人工智能] 删除成功"),
         ],
         category={"删除", "班级"},
@@ -71,7 +71,7 @@ add_help(
         description="将当前的群与班级进行绑定",
         usage="绑定班级 [班级名称]",
         example=[
-            ExampleMessage(user_type=UserType.USER, message="绑定班级 人工智能"),
+            ExampleMessage(user_type=UserType.TEACHER, message="绑定班级 人工智能"),
             ExampleMessage(user_type="bot", message="[人工智能] 绑定成功"),
         ],
         aliases={"绑定班级群"},

@@ -26,7 +26,7 @@ async def _(matcher: Matcher, msg: Message = CommandArg()):
     if not command:
         await matcher.finish(helper_menu.to_string())
     elif help_info := helper_menu.get(msg.extract_plain_text()):
-        await matcher.finish(str(help_info))
+        await matcher.finish(help_info.to_string())
     await matcher.finish("没有找到这个命令！")
 
 
