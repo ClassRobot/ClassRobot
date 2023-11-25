@@ -2,7 +2,7 @@ from utils.params import GroupId
 from utils.session import SessionPlatform
 from utils.models.models import User, Teacher
 from nonebot_plugin_alconna import AlconnaMatcher
-from nonebot_plugin_alconna.uniseg import Target, MsgTarget, MessageTarget
+from utils.formant import select_list, select_formant
 from utils.models.depends import (
     get_major,
     add_class_table,
@@ -41,8 +41,10 @@ async def _(
 async def _(matcher: AlconnaMatcher, teacher: Teacher):
     if class_table_list := await get_class_table_list(teacher):
         await matcher.finish(
-            "您所创建的班级如下：\n\t- "
-            + "\n\t- ".join(f"{i.id}.{i.name}" for i in class_table_list)
+            select_list(
+                "您所创建的班级如下",
+                (select_formant(i.id, i.name) for i in class_table_list),
+            )
         )
     await matcher.finish("您还没有创建班级噢！")
 

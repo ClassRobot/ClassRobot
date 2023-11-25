@@ -1,5 +1,6 @@
 from utils.models.models import User
 from nonebot_plugin_alconna import AlconnaMatcher
+from utils.formant import select_list, select_formant
 from utils.models.depends import (
     add_major,
     get_major,
@@ -27,7 +28,9 @@ async def _(matcher: AlconnaMatcher, name: str, college_name: str, user: User):
 async def _(matcher: AlconnaMatcher, college_name: str):
     if college := await get_college(college_name):
         if major := await get_major_list(college):
-            await matcher.finish("已经存在的专业如下\n" + "\n".join(m.major for m in major))
+            await matcher.finish(
+                select_list("存在的专业如下", (select_formant(m.id, m.major) for m in major))
+            )
         else:
             await matcher.finish("没有这个学院吧！")
     await matcher.finish("没有这个学院吧！")
