@@ -23,9 +23,12 @@ async def update_user_type(
 async def get_user(platform_id: int, account_id: str | None = None) -> User | None:
     """获取用户
 
+    - 当只传入platform_id时, 会将platform_id作为user_id进行查找;
+    - 当同时传入platform_id和account_id时, 会根据绑定平台进行查找;
+
     Args:
-        platform_id (int): 平台id, 但如果 account_id 为空时 platform_id 会作为 user_id 进行查找
-        account_id (str | None, optional): 平台的账户id. Defaults to None.
+        - platform_id (int): 平台id或者用户id
+        - account_id (str | None, optional): 平台账户. Defaults to None.
 
     Returns:
         User | None: 用户模型
@@ -311,11 +314,12 @@ async def get_class_table(
 ) -> ClassTable | None:
     """获取班级表
 
-    - 当platform_id不为空时, 会根据platform_id和group_id进行查询;
-    - 当platform_id为空时, 会根据teacher和group_id视为name进行查询;
+    - 输入group_id和platform_id时会根据群绑定来查找;
+    - 输入group_id和teacher时候会根据班级名称与教师进行查找;
+    - 只输入group_id时会根据班级id进行查找;
 
     Args:
-        - group_id (str): 群id或者班级名称
+        - group_id (str): 群id或者班级名称或者班级id
         - platform_id (int | None, optional): 平台id. Defaults to None.
         - teacher (Teacher | None, optional): 教师. Defaults to None.
 
@@ -329,6 +333,8 @@ async def get_class_table(
                 .where(ClassTable.name == group_id)
                 .where(ClassTable.teacher == teacher)
             )
+        elif platform_id is None and teacher is None and group_id.isdigit():
+            return await session.get(ClassTable, int(group_id))
         elif bind_group := await session.scalar(
             select(BindGroup)
             .where(BindGroup.group_id == group_id)
@@ -360,26 +366,30 @@ async def delete_class_table(name: str, teacher: Teacher) -> int:
 
 # --------------------------------- 学生部分 ---------------------------------
 async def get_student(
-    platform_id: int, account_id: str | None = None
+    platform_id: int | User, account_id: str | None = None
 ) -> Student | None:
     """获取学生
 
-    当account_id为None时, 会将platform_id作为user_id进行查询;
+    - 当platform_id为User模型时, 会根据user进行查找;
+    - 当只传入platform_id时, 会根据student.id进行查找;
+    - 当同时传入platform_id和account_id时, 会根据platform_id和account_id进行;
 
     Args:
-        platform_id (int): 平台id
-        account_id (str | None, optional): 平台账号. Defaults to None.
+        - platform_id (int | User): 平台id
+        - account_id (str | None, optional): 平台账号. Defaults to None.
 
     Returns:
         Student | None: 学生模型
     """
     async with get_session() as session:
-        if account_id is None:
+        if isinstance(platform_id, User):
             return await session.scalar(
-                select(Student).where(Student.user_id == platform_id)
+                select(Student).where(Student.user == platform_id)
             )
+        elif account_id is None:
+            return await session.get(Student, platform_id)
         elif user := await get_user(platform_id, account_id):
-            return await get_student(user.id)
+            return await get_student(user)
 
 
 async def create_student(
@@ -393,8 +403,12 @@ async def create_student(
             name=name, class_table=class_table, teacher=teacher, user=student_user
         )
         await update_user_type(student_user, UserType.STUDENT, session)
+        session.add(student)
         await session.commit()
         await session.refresh(student)
+        await session.refresh(teacher)
+        await session.refresh(class_table)
+        await session.refresh(student_user)
         return student
 
 
@@ -407,27 +421,43 @@ async def get_student_list(class_table: ClassTable) -> list[Student]:
         )
 
 
-async def delete_student(student_id: int | User) -> int:
+async def delete_student(
+    student_id: int | User | Student, teacher: Teacher | None = None
+) -> int:
     """删除学生
 
+    - `student_id`是学生模型时直接删除;
+    - `student_id`是用户模型时, 会根据`user`进行查找，如果携带`teacher`则会判断该学生是否是该教师的学生;
+    - `student_id`是数字时, 会根据`student.id`进行查找，如果携带`teacher`则会判断该学生是否是该教师的学生;
+
     Args:
-        student_id (int | User): 删除学生所用的是student_id而不是user_id或者传入user模型
+        - `student_id` (`int` | `User` | `Student`): 学生id或者用户模型或者学生模型
+        - `teacher` (`Teacher` | `None`): 教师模型
 
     Returns:
         int: 删除的学生数量
     """
 
     async with get_session() as session:
-        if isinstance(student_id, int):
-            result = await session.execute(
-                delete(Student).where(Student.id == student_id)
-            )
+        if isinstance(student_id, Student):  # 如果是学生模型，则直接删除
+            if user := await session.get(User, student_id.user_id):
+                await update_user_type(user, UserType.USER, session)
+            student = student_id
         else:
-            result = await session.execute(
-                delete(Student).where(Student.user == student_id)
+            sql = (
+                select(Student).where(Student.user == student_id)
+                if isinstance(student_id, User)  # 如果是用户模型则通过用户模型查找，如果是数字则根据学生id查找
+                else select(Student).where(Student.id == student_id)
             )
-        await session.commit()
-        return result.rowcount
+            if teacher is not None:  # 如果存在教师模型，则判断该学生是否是教师的学生
+                sql = sql.where(Student.teacher == teacher)
+            if student := await session.scalar(sql.options(selectinload(Student.user))):
+                await update_user_type(student.user, UserType.USER, session)
+        if student is not None:
+            await session.delete(student)
+            await session.commit()
+            return 1
+        return 0
 
 
 async def query_student(

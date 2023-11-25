@@ -29,7 +29,9 @@ async def _(
     session: SessionPlatform,
     group_id: str = GroupId,
 ):
-    if (major := await get_major(major_name)) is None:  # 获取专业
+    if name.isdigit():  # 判断班级名是否为数字
+        await matcher.finish("班级名不能为纯数字！")
+    elif (major := await get_major(major_name)) is None:  # 获取专业
         await matcher.finish(f"[{major_name}]专业不存在")
     elif None is not await get_class_table(name, teacher=teacher):  # 查看班级表是否存在
         await matcher.finish(f"[{name}]班级已存在！")
