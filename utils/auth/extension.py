@@ -2,6 +2,7 @@ from typing import Any
 
 from arclet.alconna import Alconna
 from utils.typings import UserType
+from utils.params import get_group_id
 from utils.models import Base as ORMModel
 from nonebot.adapters import Bot as BaseBot
 from nonebot.adapters import Event as BaseEvent
@@ -45,7 +46,6 @@ class BaseAuthExtension(Extension):
         for i in (i for i in dirs if i.endswith("_permission_check")):
             check: bool = await getattr(self, i)()
             print("check", i, check)
-            print(self.params)
             if not check:
                 return False
         return True
@@ -78,6 +78,22 @@ class UserExtension(BaseAuthExtension):
             self.params[UserType.USER] = user
             self.params[self.role] = user
             self.user = user
+            return True
+        return False
+
+
+class GroupExtension(BaseAuthExtension):
+    """群认证扩展"""
+
+    group_id: str
+
+    @property
+    def id(self) -> str:
+        return "group"
+
+    async def group_permission_check(self) -> bool:
+        if group_id := get_group_id(self.target):
+            self.group_id = group_id
             return True
         return False
 
@@ -148,7 +164,7 @@ class ClassCadreExtension(StudentExtension):
         return self.is_class_cadre()
 
 
-class ClassTableExtension(BaseAuthExtension):
+class ClassTableExtension(GroupExtension):
     """班级群认证扩展"""
 
     before = ["class_table"]
@@ -157,21 +173,13 @@ class ClassTableExtension(BaseAuthExtension):
     def id(self) -> str:
         return "class_table"
 
-    def is_group(self) -> bool:
-        return not (self.target.private or self.target.channel)
-
-    @property
-    def group_id(self) -> str:
-        return self.target.id
-
     async def class_table_permission_check(self) -> bool:
-        if self.is_group():
-            if class_table := await get_class_table(
-                self.group_id, platform_id=self.platform.id
-            ):
-                self.class_table = class_table
-                self.params["class_table"] = class_table
-                return True
+        if class_table := await get_class_table(
+            self.group_id, platform_id=self.platform.id
+        ):
+            self.class_table = class_table
+            self.params["class_table"] = class_table
+            return True
         return False
 
 
