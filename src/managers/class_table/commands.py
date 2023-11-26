@@ -1,8 +1,8 @@
 from utils.typings import UserType
 from utils.config import comp_config
 from src.others.helper import add_help
-from utils.auth.extension import TeacherExtension
 from src.others.helper.typings import Helper, ExampleMessage
+from utils.auth.extension import UserExtension, TeacherExtension
 from nonebot_plugin_alconna import At, Args, Field, Alconna, on_alconna
 
 add_class_table_cmd = on_alconna(
@@ -14,6 +14,18 @@ add_class_table_cmd = on_alconna(
     block=True,
     comp_config=comp_config,
     extensions=[TeacherExtension],
+)
+
+join_class_table_cmd = on_alconna(
+    Alconna(
+        "加入班级",
+        Args["student_name", str, Field(completion=lambda: "请输入您的姓名（班级学生名字）")],
+        Args["class_name_or_id", str | int, Field(completion=lambda: "请输入班级名称或班级id")],
+    ),
+    aliases={"成为班级学生"},
+    block=True,
+    comp_config=comp_config,
+    extensions=[UserExtension],
 )
 
 del_class_table_cmd = on_alconna(
