@@ -1,3 +1,5 @@
+from typing import overload
+
 from pandas import DataFrame
 from utils.typings import UserType
 from sqlalchemy.orm import selectinload
@@ -18,6 +20,16 @@ async def update_user_type(
         await session.execute(
             update(User).where(User.id == user.id).values(user_type=user_type)
         )
+
+
+@overload
+async def get_user(platform_id: int) -> User | None:
+    ...
+
+
+@overload
+async def get_user(platform_id: int, account_id: str) -> User | None:
+    ...
 
 
 async def get_user(platform_id: int, account_id: str | None = None) -> User | None:
@@ -64,7 +76,9 @@ async def no_bind_user(user_id: int) -> bool:
         return not bind.first()
 
 
-async def create_user(platform_id: int, account_id: str, user_type: UserType) -> User:
+async def create_user(
+    platform_id: int, account_id: str, user_type: UserType = UserType.USER
+) -> User:
     """创建用户
 
     Args:
@@ -170,27 +184,46 @@ async def create_teacher(
         return teacher
 
 
+@overload
+async def get_teacher(platform_id: User) -> Teacher | None:
+    ...
+
+
+@overload
+async def get_teacher(platform_id: int) -> Teacher | None:
+    ...
+
+
+@overload
+async def get_teacher(platform_id: int, account_id: str) -> Teacher | None:
+    ...
+
+
 async def get_teacher(
-    platform_id: int, account_id: str | None = None
+    platform_id: int | User, account_id: str | None = None
 ) -> Teacher | None:
     """获取教师
 
-    当account_id为None时, 会将platform_id作为user_id进行查询;
+    - 当传入的是User模型时, 会根据user进行查找;
+    - 当只传入platform_id时, 会根据teacher.id进行查找;
+    - 当同时传入platform_id和account_id时, 会根据platform_id和account_id进行查找;
 
     Args:
-        platform_id (int): 平台id
-        account_id (str | None, optional): 平台账号. Defaults to None.
+        - platform_id (int): 平台id
+        - account_id (str | None, optional): 平台账号. Defaults to None.
 
     Returns:
         Teacher | None: 教师模型
     """
     async with get_session() as session:
-        if account_id is None:
+        if isinstance(platform_id, User):
             return await session.scalar(
-                select(Teacher).where(Teacher.user_id == platform_id)
+                select(Teacher).where(Teacher.user_id == platform_id.id)
             )
+        elif account_id is None:
+            return await session.get(Teacher, platform_id)
         elif user := await get_user(platform_id, account_id):
-            return await get_teacher(user.id)
+            return await get_teacher(user)
 
 
 async def delete_teacher(user: User):
@@ -309,14 +342,31 @@ async def add_bind_class_table(
         return bind
 
 
+@overload
 async def get_class_table(
-    group_id: str, *, platform_id: int | None = None, teacher: Teacher | None = None
+    group_id: str | int, *, teacher: Teacher | None = None
+) -> ClassTable | None:
+    """如果group_id是str则根据班级名称获取班级表, 如果是int则根据班级id获取班级表"""
+
+
+@overload
+async def get_class_table(
+    group_id: str, *, platform_id: int, teacher: Teacher | None = None
+) -> ClassTable | None:
+    """根据平台群号与平台id获取班级表"""
+
+
+async def get_class_table(
+    group_id: str | int,
+    *,
+    platform_id: int | None = None,
+    teacher: Teacher | None = None,
 ) -> ClassTable | None:
     """获取班级表
 
     - 输入group_id和platform_id时会根据群绑定来查找;
-    - 输入group_id和teacher时候会根据班级名称与教师进行查找;
-    - 只输入group_id时会根据班级id进行查找;
+    - 只输入group_id会判断group_id类型，str通过班级名称查找，int根据班级id查找;
+    - 以上中携带teacher则会判断该班级是否是该教师的班级;
 
     Args:
         - group_id (str): 群id或者班级名称或者班级id
@@ -327,25 +377,30 @@ async def get_class_table(
         ClassTable | None: 班级表
     """
     async with get_session() as session:
-        if platform_id is None and teacher is not None:
-            return await session.scalar(
-                select(ClassTable)
-                .where(ClassTable.name == group_id)
-                .where(ClassTable.teacher == teacher)
+        if platform_id is None:
+            sql = (
+                select(ClassTable).where(ClassTable.name == group_id)
+                if isinstance(group_id, str)
+                else select(ClassTable).where(ClassTable.id == group_id)
             )
-        elif platform_id is None and teacher is None and group_id.isdigit():
-            return await session.get(ClassTable, int(group_id))
+            if teacher is not None:
+                sql = sql.where(ClassTable.teacher == teacher)
+            return await session.scalar(sql)
         elif bind_group := await session.scalar(
             select(BindGroup)
             .where(BindGroup.group_id == group_id)
             .where(BindGroup.platform_id == platform_id)
             .options(selectinload(BindGroup.class_table))
         ):
-            return bind_group.class_table
+            if teacher is None or bind_group.class_table.teacher_id == teacher.id:
+                return bind_group.class_table
+            return None
 
 
-async def get_class_table_list(teacher: Teacher) -> list[ClassTable]:
+async def get_class_table_list(teacher: Teacher | None) -> list[ClassTable]:
     async with get_session() as session:
+        if teacher is None:
+            return list(await session.scalars(select(ClassTable)))
         return list(
             await session.scalars(
                 select(ClassTable).where(ClassTable.teacher == teacher)
@@ -353,18 +408,64 @@ async def get_class_table_list(teacher: Teacher) -> list[ClassTable]:
         )
 
 
-async def delete_class_table(name: str, teacher: Teacher) -> int:
+async def delete_class_table(
+    name: str | int | ClassTable, teacher: Teacher | None = None
+) -> int:
+    class_table: ClassTable | None = None
     async with get_session() as session:
-        result = await session.execute(
-            delete(ClassTable)
-            .where(ClassTable.name == name)
-            .where(ClassTable.teacher == teacher)
+        if isinstance(name, ClassTable) and (
+            teacher is None or name.teacher_id == teacher.id
+        ):
+            class_table = name
+        elif isinstance(name, (int, str)):
+            class_table = await get_class_table(name, teacher=teacher)
+        if class_table is not None:
+            await session.execute(
+                update(User)
+                .where(Student.class_table == class_table)
+                .where(Student.user_id == User.id)
+                .values(user_type=UserType.USER)
+            )
+            await session.execute(
+                delete(ClassTable).where(ClassTable.id == class_table.id)
+            )
+            await session.commit()
+            return 1
+        return 0
+
+
+async def transfer_class_table(class_table: ClassTable, new_teacher: Teacher):
+    async with get_session() as session:
+        await session.execute(
+            update(Student)
+            .where(Student.class_table == class_table)
+            .values(teacher_id=new_teacher.id)
         )
+        await session.execute(
+            update(ClassTable)
+            .where(ClassTable.id == class_table.id)
+            .values(teacher_id=new_teacher.id)
+        )
+
         await session.commit()
-        return result.rowcount
 
 
 # --------------------------------- 学生部分 ---------------------------------
+@overload
+async def get_student(platform_id: User) -> Student | None:
+    "根据用户模型获取学生模型"
+
+
+@overload
+async def get_student(platform_id: int) -> Student | None:
+    "根据学生id获取学生模型"
+
+
+@overload
+async def get_student(platform_id: int, account_id: str) -> Student | None:
+    "根据平台id和平台账号获取学生模型"
+
+
 async def get_student(
     platform_id: int | User, account_id: str | None = None
 ) -> Student | None:

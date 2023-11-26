@@ -16,8 +16,6 @@ from .config import ClassCadre
 
 
 class BaseAuthExtension(Extension):
-    before: list[UserType | str] | None = None
-
     @property
     def id(self) -> str:
         return "auth"
@@ -26,12 +24,16 @@ class BaseAuthExtension(Extension):
     def priority(self) -> int:
         return 100
 
+    @property
+    def before(self) -> list[UserType | str]:
+        return []
+
     async def catch(self, interface: Interface) -> ORMModel | None:
         interface.state.update(self.params)
         return self.params.get(interface.name)
 
     def before_catch(self, name: str, annotation: Any, default: Any):
-        if self.before is not None:
+        if self.before:
             return name in self.before
 
     async def permission_check(
@@ -48,14 +50,16 @@ class BaseAuthExtension(Extension):
             print("check", i, check)
             if not check:
                 return False
+        print(self.before)
         return True
 
 
 class UserExtension(BaseAuthExtension):
     """基本用户认证扩展"""
 
-    role: UserType = UserType.USER  # 用户类型
-    before = [role]
+    @property
+    def before(self) -> list[UserType | str]:
+        return super().before + [UserType.USER, UserType.ADMIN]
 
     @property
     def id(self) -> str:
@@ -75,9 +79,10 @@ class UserExtension(BaseAuthExtension):
 
     async def user_permission_check(self) -> bool:
         if user := await get_user(self.platform.id, self.account_id):
-            self.params[UserType.USER] = user
-            self.params[self.role] = user
             self.user = user
+            self.params[UserType.USER] = user
+            if user.user_type == UserType.ADMIN:
+                self.params[UserType.ADMIN] = user
             return True
         return False
 
@@ -101,9 +106,6 @@ class GroupExtension(BaseAuthExtension):
 class AdminExtension(UserExtension):
     """管理员认证扩展"""
 
-    role = UserType.ADMIN
-    before = [UserType.USER, role]
-
     @property
     def id(self) -> str:
         return str(UserType.ADMIN)
@@ -115,17 +117,20 @@ class AdminExtension(UserExtension):
 class TeacherExtension(UserExtension):
     """教师认证扩展"""
 
-    role = UserType.TEACHER
-    before = [UserType.USER, UserType.ADMIN, role]
-
     @property
     def id(self) -> str:
         return str(UserType.TEACHER)
 
+    @property
+    def before(self) -> list[UserType | str]:
+        return super().before + [self.id]
+
     async def teacher_permission_check(self) -> bool:
+        print(self.before)
+        print(await get_teacher(self.user))
         if self.is_teacher() or self.is_admin():
-            if teacher := await get_teacher(self.user.id):
-                self.params[UserType.TEACHER] = teacher
+            if teacher := await get_teacher(self.user):
+                self.params[self.id] = teacher
                 self.teacher = teacher
                 return True
         return False
@@ -134,19 +139,43 @@ class TeacherExtension(UserExtension):
 class StudentExtension(UserExtension):
     """学生认证扩展"""
 
-    role = UserType.STUDENT
-    before = [UserType.USER, UserType.ADMIN, role]
-
     @property
     def id(self) -> str:
         return str(UserType.STUDENT)
 
+    @property
+    def before(self) -> list[UserType | str]:
+        return super().before + [self.id]
+
     async def student_permission_check(self) -> bool:
         if self.is_student() or self.is_admin():
-            if student := await get_student(self.user.id):
-                self.params[UserType.STUDENT] = student
+            if student := await get_student(self.user):
+                self.params[self.id] = student
                 self.student = student
                 return True
+        return False
+
+
+class TeacherOrStudentExtension(UserExtension):
+    """教师或学生认证扩展"""
+
+    @property
+    def id(self) -> str:
+        return "teacher_or_student"
+
+    @property
+    def before(self) -> list[UserType | str]:
+        return super().before + [self.id]
+
+    async def teacher_or_student_permission_check(self) -> bool:
+        user: Student | Teacher | None = None
+        if self.is_teacher() or self.is_admin():
+            user = await get_student(self.user.id)
+        elif self.is_student() or self.is_admin():
+            user = await get_teacher(self.user.id)
+        if user:
+            self.params[self.id] = user
+            return True
         return False
 
 
@@ -167,7 +196,9 @@ class ClassCadreExtension(StudentExtension):
 class ClassTableExtension(GroupExtension):
     """班级群认证扩展"""
 
-    before = ["class_table"]
+    @property
+    def before(self) -> list[UserType | str]:
+        return super().before + [self.id]
 
     @property
     def id(self) -> str:
@@ -178,15 +209,13 @@ class ClassTableExtension(GroupExtension):
             self.group_id, platform_id=self.platform.id
         ):
             self.class_table = class_table
-            self.params["class_table"] = class_table
+            self.params[self.id] = class_table
             return True
         return False
 
 
 class StudentClassTableExtension(StudentExtension, ClassTableExtension):
     """学生班级群认证扩展"""
-
-    before = [UserType.USER, UserType.ADMIN, UserType.STUDENT, "class_table"]
 
     @property
     def id(self) -> str:
@@ -198,8 +227,6 @@ class StudentClassTableExtension(StudentExtension, ClassTableExtension):
 
 class TeacherClassTableExtension(TeacherExtension, ClassTableExtension):
     """教师班级群认证扩展"""
-
-    before = [UserType.USER, UserType.ADMIN, UserType.TEACHER, "class_table"]
 
     @property
     def id(self) -> str:

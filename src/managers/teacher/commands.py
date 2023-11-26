@@ -10,7 +10,7 @@ add_teacher_cmd = on_alconna(
         "添加教师",
         Args["name", str, Field(completion=lambda: "请输入教师姓名")],
         Args["phone", int, Field(completion=lambda: "请输入教师手机号码")],
-        Args["user_id", [int, At], Field(completion=lambda: "输入用户id或@教师")],
+        Args["user_id_or_at", [int, At], Field(completion=lambda: "输入用户id或@教师")],
     ),
     aliases={"添加老师"},
     block=True,

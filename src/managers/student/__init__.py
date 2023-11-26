@@ -1,15 +1,9 @@
 from utils.typings import UserType
 from nonebot.matcher import Matcher
 from utils.models.models import Teacher
-from utils.models.depends import (
-    get_user,
-    get_student,
-    create_student,
-    delete_student,
-    get_class_table,
-)
+from utils.params import TeacherClassTableDepends
+from utils.models.depends import get_user, get_student, create_student, delete_student
 
-from .params import ClassTableDepends
 from .commands import add_student_cmd, del_student_cmd
 
 
@@ -19,7 +13,7 @@ async def _(
     user_id: int,
     matcher: Matcher,
     teacher: Teacher,
-    class_table: ClassTableDepends,
+    class_table: TeacherClassTableDepends,
 ):
     if name.isdigit():  # 名称不能是数字
         await matcher.finish("姓名不能为纯数字！")
@@ -27,6 +21,8 @@ async def _(
         await matcher.finish(f"[{user_id}]用户不存在！")
     elif user.user_type == UserType.STUDENT or await get_student(user):  # 用户是否已经是学生
         await matcher.finish(f"[{user_id}]用户已经是学生了！")
+    elif user.user_type == UserType.TEACHER:
+        await matcher.finish(f"[{user_id}]用户是教师，不能设置为学生！")
 
     student = await create_student(name, class_table, teacher, user)
     await matcher.finish(

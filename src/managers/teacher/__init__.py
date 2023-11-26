@@ -1,9 +1,11 @@
 from utils.models import User
 from utils.typings import UserType
 from nonebot_plugin_alconna import At
+from sqlalchemy.exc import IntegrityError
+from utils.params import UserIdOrAtParams
 from utils.session import SessionPlatform
 from nonebot.internal.matcher import Matcher
-from utils.models.depends import get_user, create_user, create_teacher, delete_teacher
+from utils.models.depends import get_user, get_teacher, create_teacher, delete_teacher
 
 from .commands import add_teacher_cmd, del_teacher_cmd
 
@@ -11,28 +13,24 @@ from .commands import add_teacher_cmd, del_teacher_cmd
 @add_teacher_cmd.handle()
 async def _(
     matcher: Matcher,
-    platform: SessionPlatform,
     name: str,
     phone: int,
-    user_id: At | int,
     user: User,
+    set_user: User = UserIdOrAtParams(True),
 ):
-    if isinstance(user_id, At):  # 如果是at添加教师，先查看用户是否存在，如果不存在则创建用户后添加为教师
-        if (set_user := await get_user(platform.id, user_id.target)) is None:
-            set_user = await create_user(platform.id, user_id.target, UserType.USER)
-    elif (set_user := await get_user(user_id)) is None:  # 如果是输入用户id，当用户id不存在则告知用户
-        await matcher.finish("用户不存在")
-
     match set_user.user_type:
-        case UserType.TEACHER:
-            await matcher.finish(f"用户[{set_user.id}]已经是教师")
+        case UserType.TEACHER | UserType.ADMIN:  # 查看是否是管理员或教师
+            if (
+                set_user.user_type == UserType.ADMIN and await get_teacher(set_user)
+            ) or True:  # 如果是管理员则查询数据库查看是否有教师身份
+                await matcher.finish(f"用户[{set_user.id}]已经是教师")
         case UserType.STUDENT:
             await matcher.finish(f"用户[{set_user.id}]是学生，不能设置为教师")
-        case UserType.ADMIN:
-            await matcher.finish(f"用户[{set_user.id}]是管理员，不能设置为教师")
-        case UserType.USER:
-            await create_teacher(name, phone, user, set_user)
-            await matcher.finish(f"成功将[{set_user.id}]设置为教师")
+    try:
+        await create_teacher(name, phone, user=set_user, creator=user)
+        await matcher.finish(f"成功将[{set_user.id}]设置为教师")
+    except IntegrityError:
+        await matcher.finish(f"教师联系方式可能已存在")
 
 
 @del_teacher_cmd.handle()
