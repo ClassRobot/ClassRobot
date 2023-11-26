@@ -1,18 +1,16 @@
 from typing import Any
 
 from arclet.alconna import Alconna
-from utils.typings import UserType
 from utils.params import get_group_id
 from utils.models import Base as ORMModel
+from utils.models import Student, Teacher
 from nonebot.adapters import Bot as BaseBot
 from nonebot.adapters import Event as BaseEvent
+from utils.typings import UserType, class_cadres
 from utils.session.platform import Platform, get_platform
-from utils.models import User, Student, Teacher, UserModel
 from nonebot_plugin_alconna.uniseg import Target, UniMessage
 from nonebot_plugin_alconna.extension import Extension, Interface
 from utils.models.depends import get_user, get_student, get_teacher, get_class_table
-
-from .config import ClassCadre
 
 
 class BaseAuthExtension(Extension):
@@ -50,7 +48,6 @@ class BaseAuthExtension(Extension):
             print("check", i, check)
             if not check:
                 return False
-        print(self.before)
         return True
 
 
@@ -126,8 +123,6 @@ class TeacherExtension(UserExtension):
         return super().before + [self.id]
 
     async def teacher_permission_check(self) -> bool:
-        print(self.before)
-        print(await get_teacher(self.user))
         if self.is_teacher() or self.is_admin():
             if teacher := await get_teacher(self.user):
                 self.params[self.id] = teacher
@@ -187,7 +182,7 @@ class ClassCadreExtension(StudentExtension):
         return "class_cadre"
 
     def is_class_cadre(self) -> bool:
-        return self.student.position in ClassCadre.__members__.values()
+        return self.student.position in class_cadres
 
     async def class_cadre_permission_check(self) -> bool:
         return self.is_class_cadre()

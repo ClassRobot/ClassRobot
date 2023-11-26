@@ -1,8 +1,10 @@
-from utils.typings import UserType
 from utils.config import comp_config
+from utils.typings import UserType, class_cadres
 from src.others.helper import Helper, ExampleMessage, add_help
 from utils.auth.extension import StudentExtension, TeacherExtension
-from nonebot_plugin_alconna import Args, Field, Alconna, MultiVar, on_alconna
+from nonebot_plugin_alconna import At, Args, Field, Alconna, MultiVar, on_alconna
+
+class_cadre_select = "选择职位:\n" + "\n".join(f"● {i}" for i in class_cadres)
 
 add_student_cmd = on_alconna(
     Alconna(
@@ -32,6 +34,17 @@ search_student_cmd = on_alconna(
     extensions=[StudentExtension],
 )
 
+set_class_cadre_cmd = on_alconna(
+    Alconna(
+        "设置班干",
+        Args["user_id_or_at", int | At, Field(completion=lambda: "请输入学生的用户id或at")],
+        Args["class_cadre", str, Field(completion=lambda: class_cadre_select)],
+    ),
+    aliases={"设置班干部", "设置班委", "添加班委", "修改班委"},
+    block=True,
+    comp_config=comp_config,
+    extensions=[TeacherExtension],
+)
 
 del_student_cmd = on_alconna(
     Alconna(

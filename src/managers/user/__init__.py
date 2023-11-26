@@ -1,11 +1,19 @@
 from utils.models import User
+from utils.formant import line
 from utils.params import UserId
 from nonebot.typing import T_State
 from nonebot.params import ArgPlainText
 from utils.session import SessionPlatform
 from nonebot.internal.matcher import Matcher
 from utils.typings import UserType, UserTypeChinese
-from utils.models.depends import get_user, create_user, rebind_user, add_user_bind
+from utils.models.depends import (
+    get_user,
+    create_user,
+    get_student,
+    get_teacher,
+    rebind_user,
+    add_user_bind,
+)
 
 from .bind_token import BindUser, get_bind_token
 from .commands import bind_user_cmd, show_user_cmd, bind_token_cmd, create_user_cmd
@@ -29,14 +37,19 @@ async def _(
 async def _(
     matcher: Matcher,
     session: SessionPlatform,
-    user_id: str = UserId,
+    user: User,
 ):
-    if user := await get_user(session.id, user_id):
-        await matcher.finish(
-            f"用户ID: {user.id}\n用户类型: {UserTypeChinese[user.user_type]}"
-        )
-    else:
-        await matcher.finish(f"您还不是用户哦, 请先发送[成为用户]命令")
+    reply = (
+        f"您的用户信息\n{line}\n● 用户id:\t{user.id}\n● 身份:\t{UserTypeChinese[user.user_type]}"
+    )
+    match user.user_type:
+        case UserType.ADMIN | UserType.TEACHER:
+            if teacher := await get_teacher(user):
+                reply += f"\n{line}\n● 教师id:\t{teacher.id}\n● 姓名:\t{teacher.name}\n● 电话:\t{teacher.phone}"
+        case UserType.ADMIN | UserType.STUDENT:
+            if student := await get_student(user):
+                reply += f"\n{line}\n● 学生id:\t{student.id}\n● 姓名:\t{student.name}"
+    await matcher.finish(reply)
 
 
 # --------------------------------- 绑定指定平台 ---------------------------------

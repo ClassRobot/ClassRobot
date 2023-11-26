@@ -6,8 +6,10 @@ from nonebot_plugin_alconna import on_alconna
 from src.others.helper.typings import Helper, ExampleMessage
 
 create_user_cmd = on_command("成为用户", aliases={"创建用户"}, block=True)
-show_user_cmd = on_command("用户信息", aliases={"我的信息"}, block=True)
 bind_token_cmd = on_command("bind_token=", block=True)
+show_user_cmd = on_alconna(
+    "用户信息", aliases={"我的信息", "我的身份"}, block=True, extensions=[UserExtension]
+)
 bind_user_cmd = on_alconna(
     "绑定用户",
     aliases={"绑定我的信息", "绑定信息", "绑定平台"},

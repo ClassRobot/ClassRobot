@@ -1,10 +1,10 @@
-from utils.typings import UserType
 from nonebot.matcher import Matcher
-from utils.models.models import Teacher
-from utils.params import TeacherClassTableDepends
+from utils.models.models import User, Teacher
+from utils.typings import UserType, class_cadres
+from utils.params import UserIdOrAtParams, TeacherClassTableDepends
 from utils.models.depends import get_user, get_student, create_student, delete_student
 
-from .commands import add_student_cmd, del_student_cmd
+from .commands import add_student_cmd, del_student_cmd, set_class_cadre_cmd
 
 
 @add_student_cmd.handle()
@@ -39,3 +39,18 @@ async def _(matcher: Matcher, user_ids: set[str], teacher: Teacher):
     if delete_list:
         await matcher.finish(f"成功将id为{delete_list}的学生移除！")
     await matcher.finish("您似乎没有这些学生哦！")
+
+
+@set_class_cadre_cmd.handle()
+async def _(
+    matcher: Matcher,
+    class_cadre: str,
+    teacher: Teacher,
+    student_user: User = UserIdOrAtParams(),
+):
+    if class_cadre not in class_cadres:
+        await matcher.finish(f"没有[{class_cadre}]这个班干部哦！")
+    elif (
+        student := await get_student(student_user)
+    ) is None or student.teacher_id == teacher.id:
+        await matcher.finish("您似乎没有这位学生哦！")

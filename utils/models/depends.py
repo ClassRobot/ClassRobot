@@ -1,12 +1,12 @@
 from typing import overload
 
 from pandas import DataFrame
-from utils.typings import UserType
 from sqlalchemy.orm import selectinload
 from utils.models.models import Student
 from nonebot_plugin_orm import get_session
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from utils.typings import UserType, ClassCadre, default_student_position
 from utils.models import Bind, User, Major, College, Teacher, BindGroup, ClassTable
 
 # --------------------------------- 用户部分 ---------------------------------
@@ -572,3 +572,19 @@ async def query_student(
             result.fetchall(),
             columns=[column.name for column in Student.__table__.columns],
         )
+
+
+async def update_student_class_cadre(student: Student, class_cadre: ClassCadre):
+    async with get_session() as session:
+        await session.execute(
+            update(Student)
+            .where(Student.position == class_cadre)
+            .values(position=default_student_position)
+        )
+        await session.execute(
+            update(Student)
+            .where(Student.id == student.id)
+            .values(class_cadre=class_cadre)
+        )
+        await session.commit()
+        await session.refresh(student)
