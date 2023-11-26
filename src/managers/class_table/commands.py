@@ -81,6 +81,17 @@ add_help(
         category={"添加", "班级"},
     ),
     Helper(
+        command="加入班级",
+        description="普通用户加入班级成为学生",
+        usage="加入班级 [您的姓名] [班级名称或班级id]",
+        example=[
+            ExampleMessage(user_type=UserType.USER, message="加入班级 张三 人工智能"),
+            ExampleMessage(user_type="bot", message="张三 成功加入人工智能"),
+        ],
+        aliases={"成为班级学生"},
+        category={"加入", "班级"},
+    ),
+    Helper(
         command="删除班级",
         description="删除教师自己创建的班级",
         usage="删除班级 [班级名称或班级id]",
