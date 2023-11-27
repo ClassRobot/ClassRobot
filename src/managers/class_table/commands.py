@@ -2,8 +2,8 @@ from utils.typings import UserType
 from utils.config import comp_config
 from src.others.helper import add_help
 from src.others.helper.typings import Helper, ExampleMessage
-from utils.auth.extension import UserExtension, TeacherExtension
 from nonebot_plugin_alconna import At, Args, Field, Alconna, on_alconna
+from utils.auth.extension import UserExtension, TeacherExtension, ClassTableExtension
 
 add_class_table_cmd = on_alconna(
     Alconna(
@@ -40,13 +40,22 @@ del_class_table_cmd = on_alconna(
 
 bind_class_table_cmd = on_alconna(
     Alconna(
-        "绑定班级",
+        "绑定班级群",
         Args["class_name_or_id", str, Field(completion=lambda: "请输入班级名称或班级id")],
     ),
-    aliases={"绑定班级群"},
+    aliases={"绑定班级"},
     block=True,
     comp_config=comp_config,
     extensions=[TeacherExtension],
+)
+
+unbind_class_table_cmd = on_alconna(
+    Alconna(
+        "解绑班级群",
+    ),
+    block=True,
+    comp_config=comp_config,
+    extensions=[ClassTableExtension, TeacherExtension],
 )
 
 show_class_table_cmd = on_alconna(
@@ -67,6 +76,17 @@ transfer_class_table_cmd = on_alconna(
     block=True,
     comp_config=comp_config,
     extensions=[TeacherExtension],
+)
+
+view_class_table_in_group_cmd = on_alconna(
+    Alconna(
+        "查看本群班级",
+        Args["class_name_or_id", int | str, Field(completion=lambda: "请输入班级名称或班级id")],
+    ),
+    aliases={"查看此群班级", "查看本群"},
+    block=True,
+    comp_config=comp_config,
+    extensions=[UserExtension],
 )
 
 add_help(
@@ -102,15 +122,25 @@ add_help(
         category={"删除", "班级"},
     ),
     Helper(
-        command="绑定班级",
+        command="绑定班级群",
         description="将当前的群与班级进行绑定",
         usage="绑定班级 [班级名称或班级id]",
         example=[
             ExampleMessage(user_type=UserType.TEACHER, message="绑定班级 人工智能"),
             ExampleMessage(user_type="bot", message="[人工智能] 绑定成功"),
         ],
-        aliases={"绑定班级群"},
+        aliases={"绑定班级"},
         category={"绑定", "班级"},
+    ),
+    Helper(
+        command="解绑班级群",
+        description="解绑当前群与班级的绑定",
+        usage="解绑班级群",
+        example=[
+            ExampleMessage(user_type=UserType.TEACHER, message="解绑班级群"),
+            ExampleMessage(user_type="bot", message="解绑成功"),
+        ],
+        category={"解绑", "班级"},
     ),
     Helper(
         command="转让班级",

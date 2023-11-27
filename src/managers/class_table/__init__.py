@@ -1,9 +1,9 @@
 from utils.typings import UserType
 from nonebot.matcher import Matcher
 from utils.session import SessionPlatform
-from utils.models.models import User, Teacher
 from nonebot_plugin_alconna import AlconnaMatcher
 from utils.formant import select_list, select_formant
+from utils.models.models import User, Teacher, ClassTable
 from utils.params import (
     GroupId,
     UserIdOrAtParams,
@@ -17,6 +17,7 @@ from utils.models.depends import (
     create_student,
     add_class_table,
     get_class_table,
+    delete_group_bind,
     delete_class_table,
     add_bind_class_table,
     get_class_table_list,
@@ -29,7 +30,9 @@ from .commands import (
     bind_class_table_cmd,
     join_class_table_cmd,
     show_class_table_cmd,
+    unbind_class_table_cmd,
     transfer_class_table_cmd,
+    view_class_table_in_group_cmd,
 )
 
 
@@ -123,3 +126,24 @@ async def _(
         await matcher.finish(f"此群已绑定了[{class_table.name}]班级！]")
     await add_bind_class_table(group_id, session.id, teacher_class_table, user)
     await matcher.finish(f"[{teacher_class_table.name}]班级群绑定成功！")
+
+
+@unbind_class_table_cmd.handle()
+async def _(
+    matcher: Matcher,
+    class_table: ClassTable,
+    teacher: Teacher,
+    session: SessionPlatform,
+    group_id: str = GroupId,
+):
+    if class_table.teacher_id != teacher.id:
+        await matcher.finish("这不是您的班级哦！")
+    await delete_group_bind(session.id, group_id)
+    await matcher.finish(f"[{class_table.name}]班级群解绑成功！")
+
+
+@view_class_table_in_group_cmd.handle()
+async def _(matcher: Matcher, session: SessionPlatform, group_id: str = GroupId):
+    if class_table := await get_class_table(group_id, platform_id=session.id):
+        await matcher.finish(f"此群是[{class_table.name}]班级群！")
+    await matcher.finish(f"此群没有绑定班级哦！")

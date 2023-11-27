@@ -327,6 +327,17 @@ async def add_class_table(
         return class_table
 
 
+async def delete_group_bind(platform_id: int, group_id: str) -> int:
+    async with get_session() as session:
+        result = await session.execute(
+            delete(BindGroup)
+            .where(BindGroup.platform_id == platform_id)
+            .where(BindGroup.group_id == group_id)
+        )
+        await session.commit()
+        return result.rowcount
+
+
 async def add_bind_class_table(
     group_id: str, platform_id: int, class_table: ClassTable, user: User
 ) -> BindGroup:
