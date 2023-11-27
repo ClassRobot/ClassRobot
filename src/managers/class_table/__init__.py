@@ -3,6 +3,7 @@ from nonebot.matcher import Matcher
 from utils.session import SessionPlatform
 from nonebot_plugin_alconna import AlconnaMatcher
 from utils.formant import select_list, select_formant
+from utils.params.notes import ValidateNameNotNumeric
 from utils.models.models import User, Teacher, ClassTable
 from utils.params import (
     GroupId,
@@ -74,16 +75,14 @@ async def _(
 
 @add_class_table_cmd.handle()
 async def _(
-    name: str,
     major_name: str,
     teacher: Teacher,
     matcher: AlconnaMatcher,
     session: SessionPlatform,
+    name: ValidateNameNotNumeric,
     group_id: str = GroupId,
 ):
-    if name.isdigit():  # 判断班级名是否为数字
-        await matcher.finish("班级名不能为纯数字！")
-    elif (major := await get_major(major_name)) is None:  # 获取专业
+    if (major := await get_major(major_name)) is None:  # 获取专业
         await matcher.finish(f"[{major_name}]专业不存在")
     elif None is not await get_class_table(name):  # 查看班级表是否存在
         await matcher.finish(f"[{name}]班级已存在！")

@@ -1,6 +1,7 @@
 from utils.models.models import User
 from nonebot_plugin_alconna import AlconnaMatcher
 from utils.formant import select_list, select_formant
+from utils.params.notes import ValidateNameNotNumeric
 from utils.models.depends import (
     add_college,
     get_college,
@@ -12,7 +13,7 @@ from .commands import add_college_cmd, del_college_cmd, show_college_cmd
 
 
 @add_college_cmd.handle()
-async def handle(matcher: AlconnaMatcher, name: str, user: User):
+async def handle(matcher: AlconnaMatcher, name: ValidateNameNotNumeric, user: User):
     name = name.strip()
     if college := await get_college(name):
         await matcher.finish(f"院系 {college.college} 已存在")

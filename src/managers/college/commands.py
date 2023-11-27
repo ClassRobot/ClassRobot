@@ -8,7 +8,7 @@ from nonebot_plugin_alconna import Args, Field, Alconna, on_alconna
 add_college_cmd = on_alconna(
     Alconna(
         "添加院系",
-        Args["name", str, Field(completion=lambda: "请输入院系名称")],
+        Args["validate_name", str, Field(completion=lambda: "请输入院系名称")],
     ),
     aliases={"添加学院"},
     block=True,

@@ -8,7 +8,7 @@ from utils.auth.extension import UserExtension, TeacherExtension, ClassTableExte
 add_class_table_cmd = on_alconna(
     Alconna(
         "添加班级",
-        Args["name", str, Field(completion=lambda: "请输入班级名称")],
+        Args["validate_name", str, Field(completion=lambda: "请输入班级名称")],
         Args["major_name", str, Field(completion=lambda: "请输入专业名称")],
     ),
     block=True,

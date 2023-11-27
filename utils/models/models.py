@@ -166,7 +166,7 @@ class Teacher(Base):
 
     id = mapped_column(Integer, primary_key=True, comment="教师id")
     name = mapped_column(
-        String(20, "utf8mb4_unicode_ci"), nullable=False, comment="教师姓名"
+        String(20, "utf8mb4_unicode_ci"), nullable=False, comment="教师昵称"
     )
     user_id = mapped_column(Integer, nullable=False, comment="用户id")
     creator = mapped_column(Integer, nullable=False, comment="谁邀请的")

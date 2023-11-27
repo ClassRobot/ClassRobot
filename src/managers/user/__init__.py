@@ -55,10 +55,10 @@ async def _(
     match user.user_type:
         case UserType.ADMIN | UserType.TEACHER:
             if teacher := await get_teacher(user):
-                reply += f"\n{line}\n● 教师id:\t{teacher.id}\n● 姓名:\t{teacher.name}\n● 电话:\t{teacher.phone}"
+                reply += f"\n{line}\n● 教师id:\t{teacher.id}\n● 昵称:\t{teacher.name}\n● 电话:\t{teacher.phone}"
         case UserType.ADMIN | UserType.STUDENT:
             if student := await get_student(user):
-                reply += f"\n{line}\n● 学生id:\t{student.id}\n● 姓名:\t{student.name}"
+                reply += f"\n{line}\n● 学生id:\t{student.id}\n● 昵称:\t{student.name}"
     await matcher.finish(reply)
 
 

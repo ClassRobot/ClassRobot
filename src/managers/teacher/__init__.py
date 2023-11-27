@@ -5,6 +5,7 @@ from sqlalchemy.exc import IntegrityError
 from utils.params import UserIdOrAtParams
 from utils.session import SessionPlatform
 from nonebot.internal.matcher import Matcher
+from utils.params.notes import ValidateNameNotNumeric
 from utils.models.depends import get_user, get_teacher, create_teacher, delete_teacher
 
 from .commands import add_teacher_cmd, del_teacher_cmd, become_teacher_cmd
@@ -13,9 +14,9 @@ from .commands import add_teacher_cmd, del_teacher_cmd, become_teacher_cmd
 @add_teacher_cmd.handle()
 async def _(
     matcher: Matcher,
-    name: str,
     phone: int,
     user: User,
+    name: ValidateNameNotNumeric,
     set_user: User = UserIdOrAtParams(True),
 ):
     match set_user.user_type:
@@ -51,10 +52,10 @@ async def _(matcher: Matcher, platform: SessionPlatform, user_id: At | int):
 
 @become_teacher_cmd.handle()
 async def _(
-    matcher: Matcher,
-    name: str,
     phone: int,
     user: User,
+    matcher: Matcher,
+    name: ValidateNameNotNumeric,
 ):
     if teacher := await get_teacher(user):
         await matcher.finish(f"您已经是教师了, 您的教师id为[{teacher.id}]")

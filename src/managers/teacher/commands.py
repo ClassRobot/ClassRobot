@@ -9,7 +9,7 @@ from nonebot_plugin_alconna import At, Args, Field, Alconna, on_alconna
 become_teacher_cmd = on_alconna(
     Alconna(
         "成为教师",
-        Args["name", str, Field(completion=lambda: "请输入教师姓名")],
+        Args["validate_name", str, Field(completion=lambda: "请输入教师姓名")],
         Args["phone", int, Field(completion=lambda: "请输入教师手机号码")],
     ),
     aliases={"成为老师"},
@@ -21,7 +21,7 @@ become_teacher_cmd = on_alconna(
 add_teacher_cmd = on_alconna(
     Alconna(
         "添加教师",
-        Args["name", str, Field(completion=lambda: "请输入教师姓名")],
+        Args["validate_name", str, Field(completion=lambda: "请输入教师姓名")],
         Args["phone", int, Field(completion=lambda: "请输入教师手机号码")],
         Args["user_id_or_at", [int, At], Field(completion=lambda: "输入用户id或@教师")],
     ),

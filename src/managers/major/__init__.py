@@ -1,6 +1,7 @@
 from utils.models.models import User
 from nonebot_plugin_alconna import AlconnaMatcher
 from utils.formant import select_list, select_formant
+from utils.params.notes import ValidateNameNotNumeric
 from utils.models.depends import (
     add_major,
     get_major,
@@ -13,7 +14,9 @@ from .commands import add_major_cmd, del_major_cmd, show_major_cmd
 
 
 @add_major_cmd.handle()
-async def _(matcher: AlconnaMatcher, name: str, college_name: str, user: User):
+async def _(
+    matcher: AlconnaMatcher, name: ValidateNameNotNumeric, college_name: str, user: User
+):
     if college := await get_college(college_name):
         if await get_major(name):
             await matcher.finish(f"专业 {name} 已存在")

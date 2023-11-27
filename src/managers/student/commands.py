@@ -9,7 +9,7 @@ class_cadre_select = "选择职位:\n" + "\n".join(f"● {i}" for i in class_cad
 add_student_cmd = on_alconna(
     Alconna(
         "添加学生",
-        Args["name", str, Field(completion=lambda: "请输入学生姓名")],
+        Args["validate_name", str, Field(completion=lambda: "请输入学生姓名")],
         Args["class_name_or_id", str, Field(completion=lambda: "请输入添加到的班级名称或班级id")],
         Args["user_id", int, Field(completion=lambda: "请输入这位学生的用户id")],
     ),

@@ -1,6 +1,7 @@
 from nonebot.matcher import Matcher
 from utils.models.models import User, Teacher
 from utils.typings import UserType, class_cadres
+from utils.params.notes import ValidateNameNotNumeric
 from utils.params import UserIdOrAtParams, TeacherClassTableDepends
 from utils.models.depends import get_user, get_student, create_student, delete_student
 
@@ -9,10 +10,10 @@ from .commands import add_student_cmd, del_student_cmd, set_class_cadre_cmd
 
 @add_student_cmd.handle()
 async def _(
-    name: str,
     user_id: int,
     matcher: Matcher,
     teacher: Teacher,
+    name: ValidateNameNotNumeric,
     class_table: TeacherClassTableDepends,
 ):
     if name.isdigit():  # 名称不能是数字
