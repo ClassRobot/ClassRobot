@@ -28,6 +28,7 @@ redis = "^5.0.1"
 cos-python-sdk-v5 = "^1.9.26"
 anyio = ">=3.7,<4.0"
 xlrd = "^2.0.1"
+nonebot-plugin-htmlrender = "^0.2.2"
 
 [tool.poetry.group.dev.dependencies]
 pycln = "^2.3.0"
@@ -35,6 +36,11 @@ black = "^23.10.1"
 isort = "^5.12.0"
 pre-commit = "^3.5.0"
 autoflake = "^2.2.0"
+
+
+[tool.poetry.group.test.dependencies]
+pytest-asyncio = "^0.21.1"
+nonebug = "^0.3.5"
 
 [[tool.poetry.source]]
 name = "tsinghua"
