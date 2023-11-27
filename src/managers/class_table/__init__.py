@@ -12,6 +12,7 @@ from utils.params import (
 )
 from utils.models.depends import (
     get_major,
+    get_student,
     get_teacher,
     create_student,
     add_class_table,
@@ -41,14 +42,19 @@ async def _(
 ):
     if student_name.isdigit():
         await matcher.finish("姓名不能为纯数字！")
-    elif user.user_type == UserType.TEACHER:
-        await matcher.finish("教师不能加入班级，只能创建您自己的班级！")
-    elif (
-        user.user_type == UserType.USER
-        and (teacher := await get_teacher(class_table.teacher_id)) is not None
-    ):
+    match user.user_type:
+        case UserType.TEACHER:
+            await matcher.finish("教师不能加入班级，只能创建您自己的班级！")
+        case UserType.STUDENT:
+            await matcher.finish("您已经是学生了，不能加入班级只能切换班级！")
+        case UserType.ADMIN:
+            if await get_student(user):
+                await matcher.finish(f"您已经是学生了，不能加入班级只能切换班级！")
+
+    if teacher := await get_teacher(class_table.teacher_id):
         student = await create_student(student_name, class_table, teacher, user)
-        await matcher.finish(f"成功加入到【{class_table.name}】您的学生id为【{student.id}】")
+        await matcher.finish(f"成功加入到[{class_table.name}]您的学生id为【{student.id}】")
+    await matcher.finish(f"班级[{class_table.name}]不存在！")
 
 
 @transfer_class_table_cmd.handle()

@@ -5,6 +5,7 @@ from nonebot.typing import T_State
 from nonebot.params import ArgPlainText
 from utils.session import SessionPlatform
 from nonebot.internal.matcher import Matcher
+from nonebot_plugin_orm import async_scoped_session
 from utils.typings import UserType, UserTypeChinese
 from utils.models.depends import (
     get_user,
@@ -13,10 +14,19 @@ from utils.models.depends import (
     get_teacher,
     rebind_user,
     add_user_bind,
+    update_user_type,
 )
 
 from .bind_token import BindUser, get_bind_token
-from .commands import bind_user_cmd, show_user_cmd, bind_token_cmd, create_user_cmd
+from .commands import (
+    bind_user_cmd,
+    show_user_cmd,
+    bind_token_cmd,
+    create_user_cmd,
+    become_admin_cmd,
+)
+
+admin_codes = ["test"]
 
 
 # --------------------------------- 创建用户 ---------------------------------
@@ -50,6 +60,16 @@ async def _(
             if student := await get_student(user):
                 reply += f"\n{line}\n● 学生id:\t{student.id}\n● 姓名:\t{student.name}"
     await matcher.finish(reply)
+
+
+# --------------------------------- 成为管理员 ---------------------------------
+@become_admin_cmd.handle()
+async def _(matcher: Matcher, user: User, code: str, session_orm: async_scoped_session):
+    if code in admin_codes:
+        await update_user_type(user, UserType.ADMIN, session_orm)
+        await session_orm.commit()
+        await become_admin_cmd.finish(f"成功将您设置为管理员")
+    await matcher.finish("管理员邀请码错误")
 
 
 # --------------------------------- 绑定指定平台 ---------------------------------

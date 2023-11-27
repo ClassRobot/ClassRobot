@@ -2,8 +2,21 @@ from utils.typings import UserType
 from utils.config import comp_config
 from src.others.helper import add_help
 from utils.auth import TeacherExtension
+from utils.auth.extension import AdminExtension
 from src.others.helper.typings import Helper, ExampleMessage
 from nonebot_plugin_alconna import At, Args, Field, Alconna, on_alconna
+
+become_teacher_cmd = on_alconna(
+    Alconna(
+        "成为教师",
+        Args["name", str, Field(completion=lambda: "请输入教师姓名")],
+        Args["phone", int, Field(completion=lambda: "请输入教师手机号码")],
+    ),
+    aliases={"成为老师"},
+    block=True,
+    comp_config=comp_config,
+    extensions=[AdminExtension],
+)
 
 add_teacher_cmd = on_alconna(
     Alconna(
@@ -31,6 +44,17 @@ del_teacher_cmd = on_alconna(
 
 
 add_help(
+    Helper(
+        command="成为教师",
+        description="成为机器人的教师",
+        usage="成为教师 [教师姓名] [教师手机号码]",
+        example=[
+            ExampleMessage(user_type=UserType.TEACHER, message="成为教师 张三 12345678901"),
+            ExampleMessage(user_type="bot", message="张三 成功成为教师"),
+        ],
+        aliases={"成为老师"},
+        category={"成为", "教师", "老师"},
+    ),
     Helper(
         command="添加教师",
         description="教师或管理员来添加教师",

@@ -1,9 +1,10 @@
 from nonebot import on_command
 from utils.typings import UserType
 from utils.auth import UserExtension
+from utils.config import comp_config
 from src.others.helper import add_help
-from nonebot_plugin_alconna import on_alconna
 from src.others.helper.typings import Helper, ExampleMessage
+from nonebot_plugin_alconna import Args, Field, Alconna, on_alconna
 
 create_user_cmd = on_command("成为用户", aliases={"创建用户"}, block=True)
 bind_token_cmd = on_command("bind_token=", block=True)
@@ -14,6 +15,13 @@ bind_user_cmd = on_alconna(
     "绑定用户",
     aliases={"绑定我的信息", "绑定信息", "绑定平台"},
     block=True,
+    extensions=[UserExtension],
+)
+become_admin_cmd = on_alconna(
+    Alconna("成为管理员", Args["code", str, Field(completion=lambda: "请发送管理员邀请码")]),
+    aliases={"创建管理员"},
+    block=True,
+    comp_config=comp_config,
     extensions=[UserExtension],
 )
 

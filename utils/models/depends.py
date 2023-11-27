@@ -5,7 +5,7 @@ from sqlalchemy.orm import selectinload
 from utils.models.models import Student
 from nonebot_plugin_orm import get_session
 from sqlalchemy import delete, select, update
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_scoped_session
 from utils.typings import UserType, ClassCadre, default_student_position
 from utils.models import Bind, User, Major, College, Teacher, BindGroup, ClassTable
 
@@ -13,7 +13,10 @@ from utils.models import Bind, User, Major, College, Teacher, BindGroup, ClassTa
 
 
 async def update_user_type(
-    user: User, user_type: UserType, session: AsyncSession, ignore_admin: bool = True
+    user: User,
+    user_type: UserType,
+    session: AsyncSession | async_scoped_session[AsyncSession],
+    ignore_admin: bool = True,
 ):
     """设置用户身份"""
     if not (ignore_admin and user.user_type == UserType.ADMIN):
@@ -424,6 +427,7 @@ async def delete_class_table(
                 update(User)
                 .where(Student.class_table == class_table)
                 .where(Student.user_id == User.id)
+                .where(User.user_type != UserType.ADMIN)
                 .values(user_type=UserType.USER)
             )
             await session.execute(

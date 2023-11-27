@@ -7,7 +7,7 @@ from utils.session import SessionPlatform
 from nonebot.internal.matcher import Matcher
 from utils.models.depends import get_user, get_teacher, create_teacher, delete_teacher
 
-from .commands import add_teacher_cmd, del_teacher_cmd
+from .commands import add_teacher_cmd, del_teacher_cmd, become_teacher_cmd
 
 
 @add_teacher_cmd.handle()
@@ -47,3 +47,16 @@ async def _(matcher: Matcher, platform: SessionPlatform, user_id: At | int):
             await matcher.finish(f"用户[{set_user.id}]不是教师")
     else:
         await matcher.finish("用户不存在或者还不是用户")
+
+
+@become_teacher_cmd.handle()
+async def _(
+    matcher: Matcher,
+    name: str,
+    phone: int,
+    user: User,
+):
+    if teacher := await get_teacher(user):
+        await matcher.finish(f"您已经是教师了, 您的教师id为[{teacher.id}]")
+    teacher = await create_teacher(name, phone, user=user, creator=user)
+    await matcher.finish(f"已将您设置为教师, 您的教师id为[{teacher.id}]")
