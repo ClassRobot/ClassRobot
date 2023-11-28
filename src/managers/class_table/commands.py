@@ -81,7 +81,6 @@ transfer_class_table_cmd = on_alconna(
 view_class_table_in_group_cmd = on_alconna(
     Alconna(
         "查看本群班级",
-        Args["class_name_or_id", int | str, Field(completion=lambda: "请输入班级名称或班级id")],
     ),
     aliases={"查看此群班级", "查看本群"},
     block=True,

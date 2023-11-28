@@ -46,12 +46,12 @@ async def _(
 @show_user_cmd.handle()
 async def _(
     matcher: Matcher,
-    session: SessionPlatform,
     user: User,
 ):
     reply = (
         f"您的用户信息\n{line}\n● 用户id:\t{user.id}\n● 身份:\t{UserTypeChinese[user.user_type]}"
     )
+
     match user.user_type:
         case UserType.ADMIN | UserType.TEACHER:
             if teacher := await get_teacher(user):

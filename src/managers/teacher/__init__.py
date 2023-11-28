@@ -19,14 +19,13 @@ async def _(
     name: ValidateNameNotNumeric,
     set_user: User = UserIdOrAtParams(True),
 ):
-    match set_user.user_type:
-        case UserType.TEACHER | UserType.ADMIN:  # 查看是否是管理员或教师
-            if (
-                set_user.user_type == UserType.ADMIN and await get_teacher(set_user)
-            ) or True:  # 如果是管理员则查询数据库查看是否有教师身份
-                await matcher.finish(f"用户[{set_user.id}]已经是教师")
-        case UserType.STUDENT:
-            await matcher.finish(f"用户[{set_user.id}]是学生，不能设置为教师")
+    if set_user.user_type == UserType.STUDENT:
+        await matcher.finish(f"用户[{set_user.id}]是学生，不能设置为教师")
+    elif set_user.user_type == UserType.TEACHER or (
+        set_user.user_type == UserType.ADMIN and await get_teacher(set_user)
+    ):  # 如果是管理员则查询数据库查看是否有教师身份
+        await matcher.finish(f"用户[{set_user.id}]已经是教师")
+
     try:
         await create_teacher(name, phone, user=set_user, creator=user)
         await matcher.finish(f"成功将[{set_user.id}]设置为教师")
@@ -41,11 +40,13 @@ async def _(matcher: Matcher, platform: SessionPlatform, user_id: At | int):
         if isinstance(user_id, int)
         else await get_user(platform.id, user_id.target)
     ):
-        if set_user.user_type == UserType.TEACHER:
-            await delete_teacher(set_user)
-            await matcher.finish(f"成功将[{set_user.id}]移除教师")
-        else:
-            await matcher.finish(f"用户[{set_user.id}]不是教师")
+        try:
+            if await delete_teacher(set_user):
+                await matcher.finish(f"成功将[{set_user.id}]移除教师")
+            else:
+                await matcher.finish(f"用户[{set_user.id}]不是教师")
+        except IntegrityError:
+            await matcher.finish(f"教师还存在班级，无法删除！")
     else:
         await matcher.finish("用户不存在或者还不是用户")
 

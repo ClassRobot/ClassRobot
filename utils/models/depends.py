@@ -229,11 +229,14 @@ async def get_teacher(
             return await get_teacher(user)
 
 
-async def delete_teacher(user: User):
+async def delete_teacher(user: User) -> int:
     async with get_session() as session:
-        await session.execute(delete(Teacher).where(Teacher.user_id == user.id))
+        result = await session.execute(
+            delete(Teacher).where(Teacher.user_id == user.id)
+        )
         await update_user_type(user, UserType.USER, session)
         await session.commit()
+        return result.rowcount
 
 
 # --------------------------------- 院系部分 ---------------------------------
