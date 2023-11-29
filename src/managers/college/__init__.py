@@ -16,10 +16,10 @@ from .commands import add_college_cmd, del_college_cmd, show_college_cmd
 async def handle(matcher: AlconnaMatcher, name: ValidateNameNotNumeric, user: User):
     name = name.strip()
     if college := await get_college(name):
-        await matcher.finish(f"院系 {college.college} 已存在")
+        await matcher.finish(f"院系[{college.college}]已存在")
     else:
         await add_college(name, user)
-        await matcher.finish(f"院系 {name} 添加成功")
+        await matcher.finish(f"院系[{name}]添加成功")
 
 
 @show_college_cmd.handle()
@@ -31,8 +31,7 @@ async def _(matcher: AlconnaMatcher):
                 (select_formant(college.id, college.college) for college in colleges),
             )
         )
-    else:
-        await matcher.finish("还没有添加过院系呢！")
+    await matcher.finish("目前还没有添加过院系！")
 
 
 @del_college_cmd.handle()

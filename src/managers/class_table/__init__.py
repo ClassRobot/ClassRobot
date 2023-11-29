@@ -44,8 +44,6 @@ async def _(
     class_table: ClassTableDepends,
     student_name: str,
 ):
-    if student_name.isdigit():
-        await matcher.finish("姓名不能为纯数字！")
     match user.user_type:
         case UserType.TEACHER:
             await matcher.finish("教师不能加入班级，只能创建您自己的班级！")
@@ -58,7 +56,7 @@ async def _(
     if teacher := await get_teacher(class_table.teacher_id):
         student = await create_student(student_name, class_table, teacher, user)
         await matcher.finish(f"成功加入到[{class_table.name}]您的学生id为【{student.id}】")
-    await matcher.finish(f"班级[{class_table.name}]不存在！")
+    await matcher.finish(f"班级[{class_table.name}]不存在！请检查班级名称是否正确，或者联系教师！")
 
 
 @transfer_class_table_cmd.handle()
@@ -75,18 +73,22 @@ async def _(
 
 @add_class_table_cmd.handle()
 async def _(
-    major_name: str,
+    class_name: str,
     teacher: Teacher,
     matcher: AlconnaMatcher,
     session: SessionPlatform,
-    name: ValidateNameNotNumeric,
+    major_name_or_id: int | str,
     group_id: str = GroupId,
 ):
-    if (major := await get_major(major_name)) is None:  # 获取专业
-        await matcher.finish(f"[{major_name}]专业不存在")
-    elif None is not await get_class_table(name):  # 查看班级表是否存在
-        await matcher.finish(f"[{name}]班级已存在！")
-    class_table = await add_class_table(name, teacher, major, group_id, session.id)
+    if (major := await get_major(major_name_or_id)) is None:  # 获取专业
+        await matcher.finish(
+            f"专业[{major_name_or_id}]名称或id不存在，请输入`查询专业`命令来查看具体有哪些专业吧！\n(例如: 查询专业 信息工程)"
+        )
+    elif None is not await get_class_table(class_name):  # 查看班级表是否存在
+        await matcher.finish(f"[{class_name}]班级已存在，您不能重复添加！")
+    class_table = await add_class_table(
+        class_name, teacher, major, group_id, session.id
+    )
     await matcher.finish(f"[{class_table.name}]班级添加成功！")
 
 
@@ -99,7 +101,7 @@ async def _(matcher: AlconnaMatcher, teacher: Teacher):
                 (select_formant(i.id, i.name) for i in class_table_list),
             )
         )
-    await matcher.finish("您还没有创建班级噢！")
+    await matcher.finish("您还没有添加过班级噢！请使用添加班级命令来添加班级吧！\n(例如: 添加班级 软件1 软件技术)")
 
 
 @del_class_table_cmd.handle()

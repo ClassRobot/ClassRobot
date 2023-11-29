@@ -249,8 +249,10 @@ async def add_college(college_name: str, user: User):
         return college
 
 
-async def get_college(college_name: str) -> College | None:
+async def get_college(college_name: int | str) -> College | None:
     async with get_session() as session:
+        if isinstance(college_name, int):
+            return await session.get(College, college_name)
         return await session.scalar(
             select(College).where(College.college == college_name)
         )

@@ -3,13 +3,14 @@ from utils.config import comp_config
 from src.others.helper import add_help
 from src.others.helper.typings import Helper, ExampleMessage
 from nonebot_plugin_alconna import At, Args, Field, Alconna, on_alconna
+from utils.params.args import NameOrId, NameNotNumeric, name_not_numeric_args
 from utils.auth.extension import UserExtension, TeacherExtension, ClassTableExtension
 
 add_class_table_cmd = on_alconna(
     Alconna(
         "添加班级",
-        Args["validate_name", str, Field(completion=lambda: "请输入班级名称")],
-        Args["major_name", str, Field(completion=lambda: "请输入专业名称")],
+        NameNotNumeric.class_name(),
+        NameOrId.major_name(),
     ),
     block=True,
     comp_config=comp_config,
@@ -19,8 +20,8 @@ add_class_table_cmd = on_alconna(
 join_class_table_cmd = on_alconna(
     Alconna(
         "加入班级",
-        Args["student_name", str, Field(completion=lambda: "请输入您的姓名（班级学生名字）")],
-        Args["class_name_or_id", str | int, Field(completion=lambda: "请输入班级名称或班级id")],
+        NameNotNumeric.student_name(),
+        NameOrId.class_name(),
     ),
     aliases={"成为班级学生"},
     block=True,
@@ -94,8 +95,8 @@ add_help(
         description="教师身份来添加班级，默认会将命令执行的群作为班级群",
         usage="添加班级 [班级名称] [专业名称]",
         example=[
-            ExampleMessage(user_type=UserType.TEACHER, message="添加班级 人工智能 信息工程"),
-            ExampleMessage(user_type="bot", message="[人工智能] 添加成功"),
+            ExampleMessage(user_type=UserType.TEACHER, message="添加班级 人工智能001 人工智能"),
+            ExampleMessage(user_type="bot", message="[人工智能001]班添加成功"),
         ],
         category={"添加", "班级"},
     ),
@@ -104,8 +105,8 @@ add_help(
         description="普通用户加入班级成为学生",
         usage="加入班级 [您的姓名] [班级名称或班级id]",
         example=[
-            ExampleMessage(user_type=UserType.USER, message="加入班级 张三 人工智能"),
-            ExampleMessage(user_type="bot", message="张三 成功加入人工智能"),
+            ExampleMessage(user_type=UserType.USER, message="加入班级 张三 人工智能001"),
+            ExampleMessage(user_type="bot", message="[张三]成功加入[人工智能]"),
         ],
         aliases={"成为班级学生"},
         category={"加入", "班级"},

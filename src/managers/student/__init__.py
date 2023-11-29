@@ -16,14 +16,12 @@ async def _(
     name: ValidateNameNotNumeric,
     class_table: TeacherClassTableDepends,
 ):
-    if name.isdigit():  # 名称不能是数字
-        await matcher.finish("姓名不能为纯数字！")
-    elif (user := await get_user(user_id)) is None:  # 用户是否存在
+    if (user := await get_user(user_id)) is None:  # 用户是否存在
         await matcher.finish(f"[{user_id}]用户不存在！")
-    elif user.user_type == UserType.STUDENT or await get_student(user):  # 用户是否已经是学生
-        await matcher.finish(f"[{user_id}]用户已经是学生了！")
     elif user.user_type == UserType.TEACHER:
         await matcher.finish(f"[{user_id}]用户是教师，不能设置为学生！")
+    elif user.user_type == UserType.STUDENT or await get_student(user):  # 用户是否已经是学生
+        await matcher.finish(f"[{user_id}]用户已经是学生了！")
 
     student = await create_student(name, class_table, teacher, user)
     await matcher.finish(

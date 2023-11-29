@@ -1,6 +1,7 @@
 from utils.typings import UserType
 from utils.config import comp_config
 from src.others.helper import add_help
+from utils.params.args import NameOrId, NameNotNumeric
 from src.others.helper.typings import Helper, ExampleMessage
 from utils.auth.extension import UserExtension, AdminExtension
 from nonebot_plugin_alconna import Args, Field, Alconna, on_alconna
@@ -8,8 +9,8 @@ from nonebot_plugin_alconna import Args, Field, Alconna, on_alconna
 add_major_cmd = on_alconna(
     Alconna(
         "添加专业",
-        Args["validate_name", str, Field(completion=lambda: "请输入专业名称")],
-        Args["college_name", str, Field(completion=lambda: "请输入院系名称")],
+        NameNotNumeric.major_name(),
+        NameOrId.college_name(),
     ),
     comp_config=comp_config,
     block=True,
@@ -18,7 +19,7 @@ add_major_cmd = on_alconna(
 show_major_cmd = on_alconna(
     Alconna(
         "查询专业",
-        Args["college_name", str, Field(completion=lambda: "请输入院系名称")],
+        Args["college_name", str, Field(completion=lambda: "请输入院系名称\n例如: 信息工程")],
     ),
     aliases={"查看专业"},
     comp_config=comp_config,
