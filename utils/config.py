@@ -12,3 +12,4 @@ comp_config = CompConfig(
     disables={"tab", "enter"},
 )
 template_path = Path.cwd() / "templates"
+priority = 100
