@@ -34,7 +34,7 @@ admin_codes = ["test"]
 async def _(
     matcher: Matcher,
     session: SessionPlatform,
-    user_id: str = UserId,
+    user_id: UserId,
 ):
     if await get_user(session.id, user_id):
         await matcher.finish(f"您已经是用户了, 不要重复创建哦")
@@ -84,9 +84,9 @@ async def _(matcher: Matcher, user: User):
 async def _(
     state: T_State,
     matcher: Matcher,
+    user_id: UserId,
     session: SessionPlatform,
     bind_user: User = BindUser,
-    user_id: str = UserId,
 ):
     # 查看该平台是否已经绑定了某个用户
     if old_user := await get_user(session.id, user_id):
@@ -109,7 +109,7 @@ async def _(
     state: T_State,
     matcher: Matcher,
     session: SessionPlatform,
-    user_id: str = UserId,
+    user_id: UserId,
     is_ok: str = ArgPlainText(),
 ):
     if is_ok == "是":

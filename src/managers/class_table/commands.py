@@ -2,8 +2,8 @@ from utils.typings import UserType
 from utils.config import comp_config
 from src.others.helper import add_help
 from src.others.helper.typings import Helper, ExampleMessage
+from utils.params.args import NameNotNumeric, name_not_numeric_args
 from nonebot_plugin_alconna import At, Args, Field, Alconna, on_alconna
-from utils.params.args import NameOrId, NameNotNumeric, name_not_numeric_args
 from utils.auth.extension import UserExtension, TeacherExtension, ClassTableExtension
 
 add_class_table_cmd = on_alconna(
@@ -11,6 +11,7 @@ add_class_table_cmd = on_alconna(
         "添加班级",
         NameNotNumeric.class_name(),
     ),
+    aliases={"创建班级"},
     block=True,
     comp_config=comp_config,
     extensions=[TeacherExtension],
@@ -20,12 +21,11 @@ join_class_table_cmd = on_alconna(
     Alconna(
         "加入班级",
         NameNotNumeric.student_name(),
-        NameOrId.class_name(),
+        Args["class_id", int, Field(completion=lambda: "请输入班级id")],
     ),
     aliases={"成为班级学生"},
     block=True,
     comp_config=comp_config,
-    extensions=[UserExtension],
 )
 
 del_class_table_cmd = on_alconna(
@@ -85,7 +85,6 @@ view_class_table_in_group_cmd = on_alconna(
     aliases={"查看此群班级", "查看本群"},
     block=True,
     comp_config=comp_config,
-    extensions=[UserExtension],
 )
 
 add_help(
@@ -97,6 +96,7 @@ add_help(
             ExampleMessage(user_type=UserType.TEACHER, message="添加班级 人工智能001 人工智能"),
             ExampleMessage(user_type="bot", message="[人工智能001]班添加成功"),
         ],
+        aliases={"创建班级"},
         category={"添加", "班级"},
     ),
     Helper(

@@ -8,29 +8,7 @@ from nonebot.internal.matcher import Matcher
 from utils.params.notes import ValidateNameNotNumeric
 from utils.models.depends import get_user, get_teacher, create_teacher, delete_teacher
 
-from .commands import add_teacher_cmd, del_teacher_cmd, become_teacher_cmd
-
-
-@add_teacher_cmd.handle()
-async def _(
-    matcher: Matcher,
-    phone: int,
-    user: User,
-    name: ValidateNameNotNumeric,
-    set_user: User = UserIdOrAtParams(True),
-):
-    if set_user.user_type == UserType.STUDENT:
-        await matcher.finish(f"用户[{set_user.id}]是学生，不能设置为教师")
-    elif set_user.user_type == UserType.TEACHER or (
-        set_user.user_type == UserType.ADMIN and await get_teacher(set_user)
-    ):  # 如果是管理员则查询数据库查看是否有教师身份
-        await matcher.finish(f"用户[{set_user.id}]已经是教师")
-
-    try:
-        await create_teacher(name, phone, user=set_user, creator=user)
-        await matcher.finish(f"成功将[{set_user.id}]设置为教师")
-    except IntegrityError:
-        await matcher.finish(f"教师联系方式可能已存在")
+from .commands import del_teacher_cmd, become_teacher_cmd
 
 
 @del_teacher_cmd.handle()

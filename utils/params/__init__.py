@@ -1,13 +1,22 @@
 from typing import Annotated
 
 from nonebot.params import Depends
+from utils.typings import UserType
 from nonebot.matcher import Matcher
 from nonebot_plugin_alconna import At, Target
 from nonebot.adapters import Event as BaseEvent
 from utils.session.platform import SessionPlatform
 from nonebot_plugin_alconna.uniseg import MsgTarget
 from utils.models.models import User, Teacher, ClassTable
-from utils.models.depends import get_user, create_user, get_class_table
+from utils.models.depends import (
+    get_user,
+    create_user,
+    get_student,
+    get_teacher,
+    create_teacher,
+    get_class_table,
+    get_or_create_user,
+)
 
 
 def get_user_id(event: BaseEvent) -> str:
@@ -62,8 +71,17 @@ def _get_at_or_id_user(at_auto_create_user: bool = False):
     return Depends(_)
 
 
-UserId: str = Depends(get_user_id)
+async def get_or_create_user_depends(
+    event: BaseEvent, platform: SessionPlatform
+) -> User:
+    return await get_or_create_user(
+        user_type=UserType.USER, platform_id=platform.id, account_id=event.get_user_id()
+    )
+
+
 GroupId: str = Depends(_get_group_id)
 UserIdOrAtParams = _get_at_or_id_user
+UserId = Annotated[str, Depends(get_user_id)]
 ClassTableDepends = Annotated[ClassTable, Depends(_class_table)]
 TeacherClassTableDepends = Annotated[ClassTable, Depends(_teacher_class_table)]
+GetOrCreateUser = Annotated[User, Depends(get_or_create_user_depends)]
