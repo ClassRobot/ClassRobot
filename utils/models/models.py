@@ -37,9 +37,6 @@ class User(Base):
     bind: Mapped[List["Bind"]] = relationship(
         "Bind", uselist=True, back_populates="user"
     )
-    college: Mapped[List["College"]] = relationship(
-        "College", uselist=True, back_populates="user"
-    )
     feedback: Mapped[List["Feedback"]] = relationship(
         "Feedback", uselist=True, back_populates="user"
     )
@@ -51,9 +48,6 @@ class User(Base):
         uselist=True,
         foreign_keys="[Teacher.user_id]",
         back_populates="user_",
-    )
-    major: Mapped[List["Major"]] = relationship(
-        "Major", uselist=True, back_populates="user"
     )
     bind_group: Mapped[List["BindGroup"]] = relationship(
         "BindGroup", uselist=True, back_populates="user"
@@ -100,28 +94,6 @@ class Bind(Base):
     )
 
     user: Mapped["User"] = relationship("User", back_populates="bind")
-
-
-class College(Base):
-    __tablename__ = "college"
-    __table_args__ = (
-        ForeignKeyConstraint(["creator"], ["user.id"], name="college_ibfk_1"),
-        Index("college", "college", unique=True),
-        Index("creator", "creator"),
-        Index("id", "id", unique=True),
-        {"comment": "学院表"},
-    )
-
-    id = mapped_column(Integer, primary_key=True, comment="学院id")
-    college = mapped_column(
-        String(100, "utf8mb4_unicode_ci"), nullable=False, comment="院系名称"
-    )
-    creator = mapped_column(Integer, nullable=False, comment="添加人")
-
-    user: Mapped["User"] = relationship("User", back_populates="college")
-    major: Mapped[List["Major"]] = relationship(
-        "Major", uselist=True, back_populates="college"
-    )
 
 
 class Feedback(Base):
@@ -187,39 +159,11 @@ class Teacher(Base):
     )
 
 
-class Major(Base):
-    __tablename__ = "major"
-    __table_args__ = (
-        ForeignKeyConstraint(["college_id"], ["college.id"], name="major_ibfk_1"),
-        ForeignKeyConstraint(["creator"], ["user.id"], name="major_ibfk_2"),
-        Index("college_id", "college_id"),
-        Index("creator", "creator"),
-        Index("id", "id", unique=True),
-        Index("major", "major", unique=True),
-        {"comment": "专业表"},
-    )
-
-    id = mapped_column(Integer, primary_key=True, comment="专业id")
-    college_id = mapped_column(Integer, nullable=False, comment="学院id")
-    major = mapped_column(
-        String(100, "utf8mb4_unicode_ci"), nullable=False, comment="专业名称"
-    )
-    creator = mapped_column(Integer, nullable=False, comment="添加人")
-
-    college: Mapped["College"] = relationship("College", back_populates="major")
-    user: Mapped["User"] = relationship("User", back_populates="major")
-    class_table: Mapped[List["ClassTable"]] = relationship(
-        "ClassTable", uselist=True, back_populates="major"
-    )
-
-
 class ClassTable(Base):
     __tablename__ = "class_table"
     __table_args__ = (
-        ForeignKeyConstraint(["major_id"], ["major.id"], name="class_table_ibfk_2"),
         ForeignKeyConstraint(["teacher_id"], ["teacher.id"], name="class_table_ibfk_1"),
         Index("id", "id", unique=True),
-        Index("major_id", "major_id"),
         Index("name", "name", unique=True),
         Index("teacher_id", "teacher_id"),
         {"comment": "班级表"},
@@ -230,9 +174,7 @@ class ClassTable(Base):
         String(100, "utf8mb4_unicode_ci"), nullable=False, comment="班级群名"
     )
     teacher_id = mapped_column(Integer, nullable=False, comment="教师id")
-    major_id = mapped_column(Integer, nullable=False, comment="专业id")
 
-    major: Mapped["Major"] = relationship("Major", back_populates="class_table")
     teacher: Mapped["Teacher"] = relationship("Teacher", back_populates="class_table")
     bind_group: Mapped[List["BindGroup"]] = relationship(
         "BindGroup", uselist=True, back_populates="class_table"

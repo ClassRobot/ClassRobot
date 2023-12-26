@@ -5,9 +5,9 @@ from sqlalchemy.orm import selectinload
 from utils.models.models import Student
 from nonebot_plugin_orm import get_session
 from sqlalchemy import delete, select, update
+from utils.models import Bind, User, Teacher, BindGroup, ClassTable
 from sqlalchemy.ext.asyncio import AsyncSession, async_scoped_session
 from utils.typings import UserType, ClassCadre, default_student_position
-from utils.models import Bind, User, Major, College, Teacher, BindGroup, ClassTable
 
 # --------------------------------- 用户部分 ---------------------------------
 
@@ -239,85 +239,12 @@ async def delete_teacher(user: User) -> int:
         return result.rowcount
 
 
-# --------------------------------- 院系部分 ---------------------------------
-async def add_college(college_name: str, user: User):
-    async with get_session() as session:
-        college = College(college=college_name, creator=user.id)
-        session.add(college)
-        await session.commit()
-        await session.refresh(college)
-        return college
-
-
-async def get_college(college_name: int | str) -> College | None:
-    async with get_session() as session:
-        if isinstance(college_name, int):
-            return await session.get(College, college_name)
-        return await session.scalar(
-            select(College).where(College.college == college_name)
-        )
-
-
-async def get_college_list() -> list[College]:
-    async with get_session() as session:
-        colleges = await session.scalars(select(College))
-        return list(colleges.all())
-
-
-async def delete_college(college_name: str | int):
-    async with get_session() as session:
-        if isinstance(college_name, int):
-            result = await session.execute(
-                delete(College).where(College.id == college_name)
-            )
-        else:
-            result = await session.execute(
-                delete(College).where(College.college == college_name)
-            )
-        await session.commit()
-        return result.rowcount
-
-
-# --------------------------------- 专业部分 ---------------------------------
-async def get_major(major_name: str | int) -> Major | None:
-    async with get_session() as session:
-        if isinstance(major_name, int):
-            return await session.get(Major, major_name)
-        return await session.scalar(select(Major).where(Major.major == major_name))
-
-
-async def add_major(major_name: str, college: College, creator: User):
-    async with get_session() as session:
-        major = Major(major=major_name, college=college, creator=creator.id)
-        session.add(major)
-        await session.commit()
-        await session.refresh(major)
-        return major
-
-
-async def get_major_list(college: College) -> list[Major]:
-    async with get_session() as session:
-        majors = await session.scalars(select(Major).where(Major.college == college))
-        return list(majors.all())
-
-
-async def delete_major(major_name: str):
-    async with get_session() as session:
-        result = await session.execute(delete(Major).where(Major.major == major_name))
-        await session.commit()
-        return result.rowcount
-
-
 # --------------------------------- 班级部分 ---------------------------------
 async def add_class_table(
-    name: str, teacher: Teacher, major: Major, group_id: str, platform_id: int
+    name: str, teacher: Teacher, group_id: str, platform_id: int
 ) -> ClassTable:
     async with get_session() as session:
-        class_table = ClassTable(
-            name=name,
-            teacher=teacher,
-            major=major,
-        )
+        class_table = ClassTable(name=name, teacher=teacher)
         session.add(class_table)
         session.add(
             BindGroup(

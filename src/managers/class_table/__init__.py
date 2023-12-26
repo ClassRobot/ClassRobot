@@ -3,7 +3,6 @@ from nonebot.matcher import Matcher
 from utils.session import SessionPlatform
 from nonebot_plugin_alconna import AlconnaMatcher
 from utils.formant import select_list, select_formant
-from utils.params.notes import ValidateNameNotNumeric
 from utils.models.models import User, Teacher, ClassTable
 from utils.params import (
     GroupId,
@@ -12,7 +11,6 @@ from utils.params import (
     TeacherClassTableDepends,
 )
 from utils.models.depends import (
-    get_major,
     get_student,
     get_teacher,
     create_student,
@@ -77,18 +75,11 @@ async def _(
     teacher: Teacher,
     matcher: AlconnaMatcher,
     session: SessionPlatform,
-    major_name_or_id: int | str,
     group_id: str = GroupId,
 ):
-    if (major := await get_major(major_name_or_id)) is None:  # 获取专业
-        await matcher.finish(
-            f"专业[{major_name_or_id}]名称或id不存在，请输入`查询专业`命令来查看具体有哪些专业吧！\n(例如: 查询专业 信息工程)"
-        )
-    elif None is not await get_class_table(class_name):  # 查看班级表是否存在
+    if None is not await get_class_table(class_name):  # 查看班级表是否存在
         await matcher.finish(f"[{class_name}]班级已存在，您不能重复添加！")
-    class_table = await add_class_table(
-        class_name, teacher, major, group_id, session.id
-    )
+    class_table = await add_class_table(class_name, teacher, group_id, session.id)
     await matcher.finish(f"[{class_table.name}]班级添加成功！")
 
 

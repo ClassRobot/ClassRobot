@@ -10,7 +10,6 @@ add_class_table_cmd = on_alconna(
     Alconna(
         "添加班级",
         NameNotNumeric.class_name(),
-        NameOrId.major_name(),
     ),
     block=True,
     comp_config=comp_config,
