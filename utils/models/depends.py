@@ -1,6 +1,7 @@
 from typing import overload
 
 from pandas import DataFrame
+from nonebot.log import logger
 from sqlalchemy.orm import selectinload
 from utils.models.models import Student
 from nonebot_plugin_orm import get_session
@@ -19,10 +20,16 @@ async def update_user_type(
     ignore_admin: bool = True,
 ):
     """设置用户身份"""
+    if (user.user_type == UserType.STUDENT and user_type == UserType.TEACHER) or (
+        user.user_type == UserType.TEACHER and user_type == UserType.STUDENT
+    ):  # 学生不能设置为教师，教师不能设置为学生
+        logger.warning(f"用户[{user.id}={user.user_type}]不能在学生和教师之间切换身份")
+        return False
     if not (ignore_admin and user.user_type == UserType.ADMIN):
         await session.execute(
             update(User).where(User.id == user.id).values(user_type=user_type)
         )
+    return True
 
 
 @overload

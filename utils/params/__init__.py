@@ -44,10 +44,10 @@ async def _teacher_class_table(
     await matcher.finish(f"[{class_name_or_id}]班级不存在！")
 
 
-async def _class_table(matcher: Matcher, class_name_or_id: int | str) -> ClassTable:
-    if class_table := await get_class_table(class_name_or_id):  # 输入的班级是否存在
+async def _class_table(matcher: Matcher, class_id: int | str) -> ClassTable:
+    if class_table := await get_class_table(class_id):  # 输入的班级是否存在
         return class_table
-    await matcher.finish(f"[{class_name_or_id}]班级不存在！")
+    await matcher.finish(f"[{class_id}]班级不存在！")
 
 
 def _get_at_or_id_user(at_auto_create_user: bool = False):

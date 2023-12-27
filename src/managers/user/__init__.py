@@ -49,16 +49,13 @@ async def _(
     user: User,
 ):
     reply = (
-        f"您的用户信息\n{line}\n● 用户id:\t{user.id}\n● 身份:\t{UserTypeChinese[user.user_type]}"
+        f"您的用户信息\n{line}\n● 用户ID:\t{user.id}\n● 身份:\t{UserTypeChinese[user.user_type]}"
     )
 
-    match user.user_type:
-        case UserType.ADMIN | UserType.TEACHER:
-            if teacher := await get_teacher(user):
-                reply += f"\n{line}\n● 教师id:\t{teacher.id}\n● 昵称:\t{teacher.name}\n● 电话:\t{teacher.phone}"
-        case UserType.ADMIN | UserType.STUDENT:
-            if student := await get_student(user):
-                reply += f"\n{line}\n● 学生id:\t{student.id}\n● 昵称:\t{student.name}"
+    if teacher := await get_teacher(user):
+        reply += f"\n{line}\n● 教师ID:\t{teacher.id}\n● 昵称:\t{teacher.name}\n● 电话:\t{teacher.phone}"
+    if student := await get_student(user):
+        reply += f"\n{line}\n● 学生ID:\t{student.id}\n● 昵称:\t{student.name}\n● 班级ID:\t{student.class_table_id}"
     await matcher.finish(reply)
 
 
