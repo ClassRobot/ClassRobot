@@ -1,10 +1,10 @@
 from utils.models import User
 from utils.formant import line
-from utils.params import UserId
 from nonebot.typing import T_State
 from nonebot.params import ArgPlainText
 from utils.session import SessionPlatform
 from nonebot.internal.matcher import Matcher
+from utils.params import UserId, GetOrCreateUser
 from nonebot_plugin_orm import async_scoped_session
 from utils.typings import UserType, UserTypeChinese
 from utils.models.depends import (
@@ -46,7 +46,7 @@ async def _(
 @show_user_cmd.handle()
 async def _(
     matcher: Matcher,
-    user: User,
+    user: GetOrCreateUser,
 ):
     reply = (
         f"您的用户信息\n{line}\n● 用户ID:\t{user.id}\n● 身份:\t{UserTypeChinese[user.user_type]}"

@@ -2,7 +2,7 @@ from utils.typings import UserType
 from utils.config import comp_config
 from src.others.helper import add_help
 from utils.auth import TeacherExtension
-from utils.auth.extension import AdminExtension
+from utils.auth.extension import UserExtension
 from src.others.helper.typings import Helper, ExampleMessage
 from nonebot_plugin_alconna import At, Args, Field, Alconna, on_alconna
 
@@ -15,7 +15,7 @@ become_teacher_cmd = on_alconna(
     aliases={"成为老师"},
     block=True,
     comp_config=comp_config,
-    extensions=[AdminExtension],
+    extensions=[UserExtension],
 )
 
 
