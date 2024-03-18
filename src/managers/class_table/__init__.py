@@ -68,8 +68,12 @@ async def _(
 
     if class_teacher := await get_teacher(class_table.teacher_id):  # 获取该班级的教师
         student = await create_student(student_name, class_table, class_teacher, user)
-        await matcher.finish(f"成功加入到[{class_table.name}]您的学生id为【{student.id}】")
-    await matcher.finish(f"班级[{class_table.name}]不存在！请检查班级名称是否正确，或者联系教师！")
+        await matcher.finish(
+            f"成功加入到[{class_table.name}]您的学生id为【{student.id}】"
+        )
+    await matcher.finish(
+        f"班级[{class_table.name}]不存在！请检查班级名称是否正确，或者联系教师！"
+    )
 
 
 @transfer_class_table_cmd.handle()
@@ -93,7 +97,9 @@ async def _(matcher: AlconnaMatcher, teacher: Teacher):
                 (select_formant(i.id, i.name) for i in class_table_list),
             )
         )
-    await matcher.finish("您还没有添加过班级噢！请使用添加班级命令来添加班级吧！\n(例如: 添加班级 软件1)")
+    await matcher.finish(
+        "您还没有添加过班级噢！请使用添加班级命令来添加班级吧！\n(例如: 添加班级 软件1)"
+    )
 
 
 @del_class_table_cmd.handle()
