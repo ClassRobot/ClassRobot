@@ -57,7 +57,9 @@ def _get_at_or_id_user(at_auto_create_user: bool = False):
         matcher: Matcher, user_id_or_at: int | At, platform: SessionPlatform
     ) -> User:
         user: User | None = None
-        if isinstance(user_id_or_at, At):  # 如果是at添加教师，先查看用户是否存在，如果不存在则创建用户后添加为教师
+        if isinstance(
+            user_id_or_at, At
+        ):  # 如果是at添加教师，先查看用户是否存在，如果不存在则创建用户后添加为教师
             if (
                 user := await get_user(platform.id, user_id_or_at.target)
             ) is None and at_auto_create_user:

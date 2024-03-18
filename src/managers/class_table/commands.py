@@ -31,7 +31,11 @@ join_class_table_cmd = on_alconna(
 del_class_table_cmd = on_alconna(
     Alconna(
         "删除班级",
-        Args["class_name_or_id", str | int, Field(completion=lambda: "请输入班级名称或班级id")],
+        Args[
+            "class_name_or_id",
+            str | int,
+            Field(completion=lambda: "请输入班级名称或班级id"),
+        ],
     ),
     block=True,
     comp_config=comp_config,
@@ -41,7 +45,9 @@ del_class_table_cmd = on_alconna(
 bind_class_table_cmd = on_alconna(
     Alconna(
         "绑定班级群",
-        Args["class_name_or_id", str, Field(completion=lambda: "请输入班级名称或班级id")],
+        Args[
+            "class_name_or_id", str, Field(completion=lambda: "请输入班级名称或班级id")
+        ],
     ),
     aliases={"绑定班级"},
     block=True,
@@ -69,8 +75,16 @@ show_class_table_cmd = on_alconna(
 transfer_class_table_cmd = on_alconna(
     Alconna(
         "转让班级",
-        Args["class_name_or_id", int | str, Field(completion=lambda: "请输入班级名称或班级id")],
-        Args["user_id_or_at", int | At, Field(completion=lambda: "请输入教师用户id或at教师")],
+        Args[
+            "class_name_or_id",
+            int | str,
+            Field(completion=lambda: "请输入班级名称或班级id"),
+        ],
+        Args[
+            "user_id_or_at",
+            int | At,
+            Field(completion=lambda: "请输入教师用户id或at教师"),
+        ],
     ),
     aliases={"移交班级"},
     block=True,
@@ -93,7 +107,9 @@ add_help(
         description="教师身份来添加班级，默认会将命令执行的群作为班级群",
         usage="添加班级 [班级名称] [专业名称]",
         example=[
-            ExampleMessage(user_type=UserType.TEACHER, message="添加班级 人工智能001 人工智能"),
+            ExampleMessage(
+                user_type=UserType.TEACHER, message="添加班级 人工智能001 人工智能"
+            ),
             ExampleMessage(user_type="bot", message="[人工智能001]班添加成功"),
         ],
         aliases={"创建班级"},
@@ -104,7 +120,9 @@ add_help(
         description="普通用户加入班级成为学生",
         usage="加入班级 [您的姓名] [班级名称或班级id]",
         example=[
-            ExampleMessage(user_type=UserType.USER, message="加入班级 张三 人工智能001"),
+            ExampleMessage(
+                user_type=UserType.USER, message="加入班级 张三 人工智能001"
+            ),
             ExampleMessage(user_type="bot", message="[张三]成功加入[人工智能]"),
         ],
         aliases={"成为班级学生"},
@@ -146,7 +164,9 @@ add_help(
         description="转让班级给其他教师",
         usage="转让班级 [班级名称或班级id] [教师用户id或at教师]",
         example=[
-            ExampleMessage(user_type=UserType.TEACHER, message="转让班级 人工智能 123456"),
+            ExampleMessage(
+                user_type=UserType.TEACHER, message="转让班级 人工智能 123456"
+            ),
             ExampleMessage(user_type="bot", message="[人工智能] 转让成功"),
         ],
         aliases={"移交班级"},
