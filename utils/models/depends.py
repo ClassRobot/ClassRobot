@@ -33,13 +33,11 @@ async def update_user_type(
 
 
 @overload
-async def get_user(platform_id: int) -> User | None:
-    ...
+async def get_user(platform_id: int) -> User | None: ...
 
 
 @overload
-async def get_user(platform_id: int, account_id: str) -> User | None:
-    ...
+async def get_user(platform_id: int, account_id: str) -> User | None: ...
 
 
 async def get_user(platform_id: int, account_id: str | None = None) -> User | None:
@@ -195,18 +193,15 @@ async def create_teacher(
 
 
 @overload
-async def get_teacher(platform_id: User) -> Teacher | None:
-    ...
+async def get_teacher(platform_id: User) -> Teacher | None: ...
 
 
 @overload
-async def get_teacher(platform_id: int) -> Teacher | None:
-    ...
+async def get_teacher(platform_id: int) -> Teacher | None: ...
 
 
 @overload
-async def get_teacher(platform_id: int, account_id: str) -> Teacher | None:
-    ...
+async def get_teacher(platform_id: int, account_id: str) -> Teacher | None: ...
 
 
 async def get_teacher(
@@ -501,7 +496,9 @@ async def delete_student(
         else:
             sql = (
                 select(Student).where(Student.user == student_id)
-                if isinstance(student_id, User)  # 如果是用户模型则通过用户模型查找，如果是数字则根据学生id查找
+                if isinstance(
+                    student_id, User
+                )  # 如果是用户模型则通过用户模型查找，如果是数字则根据学生id查找
                 else select(Student).where(Student.id == student_id)
             )
             if teacher is not None:  # 如果存在教师模型，则判断该学生是否是教师的学生

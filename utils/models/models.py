@@ -255,7 +255,9 @@ class ClassFunds(Base):
     id = mapped_column(Integer, primary_key=True, comment="班费id")
     class_table_id = mapped_column(Integer, nullable=False, comment="班级id")
     description = mapped_column(
-        Text(collation="utf8mb4_unicode_ci"), nullable=False, comment="费用所花费在某件事情"
+        Text(collation="utf8mb4_unicode_ci"),
+        nullable=False,
+        comment="费用所花费在某件事情",
     )
     money = mapped_column(Double(asdecimal=True), nullable=False, comment="花费金额")
     create_at = mapped_column(
