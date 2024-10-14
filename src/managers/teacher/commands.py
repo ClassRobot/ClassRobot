@@ -37,7 +37,9 @@ add_help(
         description="成为机器人的教师",
         usage="成为教师 [教师姓名] [教师手机号码]",
         example=[
-            ExampleMessage(user_type=UserType.TEACHER, message="成为教师 张三 12345678901"),
+            ExampleMessage(
+                user_type=UserType.TEACHER, message="成为教师 张三 12345678901"
+            ),
             ExampleMessage(user_type="bot", message="张三 成功成为教师"),
         ],
         aliases={"成为老师"},
