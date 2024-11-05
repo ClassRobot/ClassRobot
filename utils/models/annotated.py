@@ -1,0 +1,1 @@
+from nonebot.params import Depends

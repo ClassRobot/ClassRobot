@@ -8,27 +8,28 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = "^3.10"
 nonebot2 = {extras = ["fastapi"], version = "^2.0.0"}
-pandas = "^2.0.2"
-httpx = "^0.24.1"
+pandas = "^1.0.0"
+httpx = "^0.27.2"
 aiomysql = "^0.2.0"
-fastapi = "^0.97.0"
+fastapi = "^0.115.4"
 imgkit = "^1.2.3"
-jinja2 = "^3.1.2"
-markdown2 = "^2.4.9"
-cryptography = "^41.0.1"
-nonebot-adapter-qq = "^1.1.2"
-nonebot-plugin-orm = "^0.5.0"
-nonebot-plugin-alconna = "^0.34.1"
-nonebot-plugin-animeres = "^1.0.3"
-nonebot-plugin-localstore = "^0.5.1"
+jinja2 = "^3.1.4"
+markdown2 = "^2.5.1"
+cryptography = "^43.0.3"
+nonebot-adapter-qq = "^1.5.3"
+nonebot-plugin-orm = "^0.7.6"
+nonebot-plugin-alconna = "^0.53.1"
+nonebot-plugin-animeres = "^1.0.4"
+nonebot-plugin-localstore = "^0.7.1"
 nonebot-plugin-blockwords = "^0.2.1"
-nonebot-plugin-apscheduler = "^0.3.0"
+nonebot-plugin-apscheduler = "^0.5.0"
 strenum = "^0.4.15"
-redis = "^5.0.1"
 cos-python-sdk-v5 = "^1.9.26"
 anyio = ">=3.7,<4.0"
 xlrd = "^2.0.1"
 nonebot-plugin-htmlrender = "^0.2.2"
+aiosqlite = "^0.20.0"
+pydantic = "^1.10.0"
 
 [tool.poetry.group.dev.dependencies]
 pycln = "^2.3.0"
@@ -43,9 +44,9 @@ pytest-asyncio = "^0.21.1"
 nonebug = "^0.3.5"
 
 [[tool.poetry.source]]
-name = "tsinghua"
-url = "https://pypi.tuna.tsinghua.edu.cn/simple"
-priority = "default"
+name = "tencent"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+priority = "primary"
 
 [tool.nonebot]
 plugins = [
@@ -55,7 +56,7 @@ plugins = [
     # "nonebot_plugin_blockwords",
     "nonebot_plugin_localstore",
     "nonebot_plugin_apscheduler",
-    "utils.models",
+    # "utils.models",
 ]
 plugin_dirs = [
     "src/managers",

@@ -1,0 +1,3 @@
+from nonebot_plugin_alconna import on_alconna
+
+
