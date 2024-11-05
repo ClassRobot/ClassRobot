@@ -10,7 +10,11 @@ add_student_cmd = on_alconna(
     Alconna(
         "添加学生",
         Args["validate_name", str, Field(completion=lambda: "请输入学生姓名")],
-        Args["class_name_or_id", str, Field(completion=lambda: "请输入添加到的班级名称或班级id")],
+        Args[
+            "class_name_or_id",
+            str,
+            Field(completion=lambda: "请输入添加到的班级名称或班级id"),
+        ],
         Args["user_id", int, Field(completion=lambda: "请输入这位学生的用户id")],
     ),
     aliases={"增加学生"},
@@ -37,7 +41,11 @@ search_student_cmd = on_alconna(
 set_class_cadre_cmd = on_alconna(
     Alconna(
         "设置班干",
-        Args["user_id_or_at", int | At, Field(completion=lambda: "请输入学生的用户id或at")],
+        Args[
+            "user_id_or_at",
+            int | At,
+            Field(completion=lambda: "请输入学生的用户id或at"),
+        ],
         Args["class_cadre", str, Field(completion=lambda: class_cadre_select)],
     ),
     aliases={"设置班干部", "设置班委", "添加班委", "修改班委"},
@@ -68,7 +76,9 @@ add_help(
         description="教师身份来添加学生",
         usage="添加学生 [学生姓名] [班级名称或班级id] [用户id]",
         example=[
-            ExampleMessage(user_type=UserType.TEACHER, message="添加学生 张三 人工智能 123456"),
+            ExampleMessage(
+                user_type=UserType.TEACHER, message="添加学生 张三 人工智能 123456"
+            ),
             ExampleMessage(user_type="bot", message="张三 添加成功"),
         ],
         aliases={"增加学生"},

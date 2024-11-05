@@ -20,7 +20,9 @@ async def _(
         await matcher.finish(f"[{user_id}]用户不存在！")
     elif user.user_type == UserType.TEACHER:
         await matcher.finish(f"[{user_id}]用户是教师，不能设置为学生！")
-    elif user.user_type == UserType.STUDENT or await get_student(user):  # 用户是否已经是学生
+    elif user.user_type == UserType.STUDENT or await get_student(
+        user
+    ):  # 用户是否已经是学生
         await matcher.finish(f"[{user_id}]用户已经是学生了！")
 
     student = await create_student(name, class_table, teacher, user)

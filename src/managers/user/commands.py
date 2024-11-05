@@ -16,7 +16,9 @@ bind_user_cmd = on_alconna(
     extensions=[UserExtension],
 )
 become_admin_cmd = on_alconna(
-    Alconna("成为管理员", Args["code", str, Field(completion=lambda: "请发送管理员邀请码")]),
+    Alconna(
+        "成为管理员", Args["code", str, Field(completion=lambda: "请发送管理员邀请码")]
+    ),
     aliases={"创建管理员"},
     block=True,
     comp_config=comp_config,
@@ -54,7 +56,8 @@ add_help(
         example=[
             ExampleMessage(user_type=UserType.USER, message="绑定用户"),
             ExampleMessage(
-                user_type="bot", message="将以下信息复制到需要绑定的平台\nbind_token=123456"
+                user_type="bot",
+                message="将以下信息复制到需要绑定的平台\nbind_token=123456",
             ),
         ],
         aliases={"绑定我的信息", "绑定信息", "绑定平台"},

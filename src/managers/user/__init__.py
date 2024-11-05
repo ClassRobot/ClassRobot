@@ -48,9 +48,7 @@ async def _(
     matcher: Matcher,
     user: GetOrCreateUser,
 ):
-    reply = (
-        f"您的用户信息\n{line}\n● 用户ID:\t{user.id}\n● 身份:\t{UserTypeChinese[user.user_type]}"
-    )
+    reply = f"您的用户信息\n{line}\n● 用户ID:\t{user.id}\n● 身份:\t{UserTypeChinese[user.user_type]}"
 
     if teacher := await get_teacher(user):
         reply += f"\n{line}\n● 教师ID:\t{teacher.id}\n● 昵称:\t{teacher.name}\n● 电话:\t{teacher.phone}"
@@ -73,7 +71,9 @@ async def _(matcher: Matcher, user: User, code: str, session_orm: async_scoped_s
 @bind_user_cmd.handle()
 async def _(matcher: Matcher, user: User):
     token = get_bind_token(user.id)
-    await matcher.finish(f"请复制以下内容发送到您需要绑定的平台的本机器人(5分钟内有效):\nbind_token={token}")
+    await matcher.finish(
+        f"请复制以下内容发送到您需要绑定的平台的本机器人(5分钟内有效):\nbind_token={token}"
+    )
 
 
 # --------------------------------- 绑定的token ---------------------------------
