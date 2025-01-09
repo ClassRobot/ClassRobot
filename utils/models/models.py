@@ -34,6 +34,7 @@ class User(Model):
     """邮箱"""
     avatar: Mapped[str] = mapped_column(String(255), nullable=True)
     """头像"""
+    phone: Mapped[str] = mapped_column(String(11), nullable=True)
     created_at: Mapped[CreateAt]
     updated_at: Mapped[UpdateAt]
 
@@ -253,6 +254,23 @@ class Group(Model):
     )
     """组与班级一对一关系"""
 
+    @classmethod
+    async def create_group(cls, creator: User) -> "Group":
+        """创建群组
+
+        Args:
+            creator (User): 创建者信息
+
+        Returns:
+            Group: 群组信息
+        """
+        group = cls(creator=creator)
+        session = get_scoped_session()
+        session.add(group)
+        await session.commit()
+        await session.refresh(group)
+        return group
+
 
 class GroupBind(Model):
     """群组绑定表
@@ -264,11 +282,11 @@ class GroupBind(Model):
     id: Mapped[PrimaryKeyInteger]
     platform_id: Mapped[str] = mapped_column(String(32), index=True, nullable=False)
     channel_id: Mapped[str] = mapped_column(
-        String(64), index=True, nullable=True, default=None
+        String(64), index=True, nullable=False, default=None
     )
+    """频道中的子频道ID或群ID"""
+    guild_id: Mapped[str] = mapped_column(String(64), index=True, nullable=True)
     """频道ID"""
-    guild_id: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
-    """平台的群组ID"""
     group_id = mapped_column(
         Integer, ForeignKey(Group.id, ondelete="CASCADE"), nullable=False
     )
@@ -280,6 +298,33 @@ class GroupBind(Model):
     )
     """群组信息,一个平台绑定一个群组"""
 
+    @classmethod
+    async def bind_group(
+        cls, platform_id: str, channel_id: str, guild_id: Optional[str], group: Group
+    ) -> "GroupBind":
+        """平台与群组之间的绑定
+
+        Args:
+            platform_id (str): 平台ID
+            channel_id (str): 频道ID或群ID
+            guild_id (Optional[str]): 群组ID
+            group (Group): 绑定的群组
+
+        Returns:
+            GroupBind: 绑定信息
+        """
+        session = get_scoped_session()
+        group_bind = cls(
+            platform_id=platform_id,
+            channel_id=channel_id,
+            guild_id=guild_id,
+            group_id=group.id,
+        )
+        session.add(group_bind)
+        await session.commit()
+        await session.refresh(group_bind)
+        return group_bind
+
 
 class Teacher(Model):
     """教师表
@@ -288,6 +333,7 @@ class Teacher(Model):
     - 教师与班级是多对多关系
     """
 
+    __tablename__ = "teacher"
     id: Mapped[PrimaryKeyInteger]
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     """教师姓名"""
@@ -300,6 +346,87 @@ class Teacher(Model):
 
     user: Mapped[User] = relationship("User", lazy=False, back_populates="teacher")
 
+    classes: Mapped[List["Classes"]] = relationship(
+        "Classes",
+        secondary="teacher_classes",
+        lazy="selectin",
+        back_populates="teacher",
+    )
+    """教师与班级多对多关系"""
+
+    @classmethod
+    async def create_teacher(cls, name: str, user: User) -> "Teacher":
+        """创建教师
+
+        Args:
+            name (str): 教师姓名
+            user (User): 用户信息
+
+        Returns:
+            Teacher: 教师信息
+        """
+        teacher = cls(name=name, user=user)
+        session = get_scoped_session()
+        session.add(teacher)
+        await session.commit()
+        await session.refresh(user)
+        return teacher
+
+    @classmethod
+    async def get_teacher(cls, user: User) -> Optional["Teacher"]:
+        """获取教师信息
+
+        Args:
+            user (User): 用户信息
+
+        Returns:
+            Optional[Teacher]: 教师信息
+        """
+        session = get_scoped_session()
+        return await session.scalar(select(cls).where(cls.user_id == user.id))
+
+    @classmethod
+    async def get_or_create_teacher(cls, name: str, user: User) -> "Teacher":
+        """获取或创建教师信息
+
+        Args:
+            user (User): 用户信息
+            name (str): 教师姓名
+
+        Returns:
+            Teacher: 教师信息
+        """
+        if teacher := await cls.get_teacher(user):
+            return teacher
+        return await cls.create_teacher(name, user)
+
+    async def get_classes(self, platform_id: str | int, channel_id: str | None = None, guild_id: str | None = None) -> Optional["Classes"]:
+        """查找教师所在的班级
+
+        Args:
+            platform_id (str | int): 平台id
+                当为int时为classes.id
+                当为str时判断channel_id
+                    None时表示classes.name搜索
+            channel_id (str | None, optional): 群或子频道id. Defaults to None.
+            guild_id (str | None, optional): 群组id. Defaults to None.
+
+        Returns:
+            Optional["Classes"]: 班级信息
+        """
+        session = get_scoped_session()
+        condition = [TeacherClasses.teacher_id == self.id]
+        if isinstance(platform_id, int):
+            condition.append(TeacherClasses.classes_id == platform_id)
+        else:
+            condition.append(Classes.name == platform_id)
+            if channel_id:
+                condition.append(GroupBind.channel_id == channel_id)
+            if guild_id:
+                condition.append(GroupBind.guild_id == guild_id)
+        return await session.scalar(
+            select(Classes).join(TeacherClasses).join(Group).join(GroupBind).where(and_(*condition))
+        )
 
 class Classes(Model):
     """班级表
@@ -308,6 +435,7 @@ class Classes(Model):
     - 班级与群组是一对一关系
     """
 
+    __tablename__ = "classes"
     id: Mapped[PrimaryKeyInteger]
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     """班级名称"""
@@ -319,3 +447,105 @@ class Classes(Model):
     updated_at: Mapped[UpdateAt]
 
     group: Mapped[Group] = relationship(lazy=False, back_populates="classes")
+    """班级与群组一对一关系"""
+    teacher: Mapped[List[Teacher]] = relationship(
+        "Teacher",
+        secondary="teacher_classes",
+        lazy="selectin",
+        back_populates="classes",
+    )
+    """班级与教师多对多关系"""
+
+    @classmethod
+    async def get_classes(
+        cls, platform_id: str, channel_id: str, guild_id: str | None = None
+    ) -> Optional["Classes"]:
+        """获取班级信息
+
+        Args:
+            platform_id (str): 平台ID
+            channel_id (str): 频道ID
+            guild_id (str | None, optional): 群组ID. Defaults to None.
+
+        Returns:
+            Optional[Classes]: 班级信息
+        """
+        session = get_scoped_session()
+        condition = [
+            GroupBind.platform_id == platform_id,
+            GroupBind.channel_id == channel_id,
+        ]
+        if guild_id:
+            condition.append(GroupBind.guild_id == guild_id)
+        if group_bind := await session.scalar(
+            select(GroupBind).where(and_(*condition))
+        ):
+            return group_bind.group.classes
+
+    @classmethod
+    async def create_classes(
+        cls,
+        name: str,
+        platform_id: str,
+        channel_id: str,
+        guild_id: str | None,
+        user: User,
+    ) -> "Classes":
+        """创建班级
+        
+        先创建组然后将组与平台绑定，最后创建班级
+
+        Args:
+            name (str): 班级名称
+            platform_id (str): 平台ID
+            channel_id (str): 频道ID
+            guild_id (str | None): 群组ID
+            user (User): 用户信息
+
+        Returns:
+            Classes: 班级信息
+        """
+        group = await Group.create_group(user)  # 创建群组
+        await GroupBind.bind_group(platform_id, channel_id, guild_id, group)    # 绑定群组
+        session = get_scoped_session()
+        classes = cls(name=name, group=group)   # 创建班级
+        session.add(classes)
+        await session.commit()
+        await session.refresh(classes)
+        return classes
+
+
+# 教师与班级多对多关系
+class TeacherClasses(Model):
+    """教师与班级关联表"""
+
+    __tablename__ = "teacher_classes"
+    id: Mapped[PrimaryKeyInteger]
+    teacher_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey(Teacher.id, ondelete="CASCADE"), nullable=False
+    )
+    """教师ID"""
+    classes_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey(Classes.id, ondelete="CASCADE"), nullable=False
+    )
+    """班级ID"""
+    created_at: Mapped[CreateAt]
+    updated_at: Mapped[UpdateAt]
+
+    @classmethod
+    async def association(
+        cls,
+        teacher: Teacher,
+        classes: Classes,
+    ):
+        """教师与班级关联
+
+        Args:
+            teacher (Teacher): 教师
+            classes (Classes): 班级
+        """
+        session = get_scoped_session()
+        teacher_classes = cls(teacher_id=teacher.id, classes_id=classes.id)
+        session.add(teacher_classes)
+        await session.commit()
+        await session.refresh(teacher_classes)

@@ -1,7 +1,7 @@
-from typing import TypeVar, Callable
+from typing import Any, TypeVar, Callable
 
 T = TypeVar("T")
 
 
-def tip(msg: T) -> Callable[[], T]:
-    return lambda: msg
+def tip(msg: T) -> Callable[..., T]:
+    return lambda *_: msg

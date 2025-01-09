@@ -111,13 +111,13 @@ reference = "tencent"
 
 [[package]]
 name = "anyio"
-version = "4.7.0"
+version = "4.8.0"
 description = "High level compatibility layer for multiple asynchronous event loop implementations"
 optional = false
 python-versions = ">=3.9"
 files = [
-    {file = "anyio-4.7.0-py3-none-any.whl", hash = "sha256:ea60c3723ab42ba6fff7e8ccb0488c898ec538ff4df1f1d5e642c3601d07e352"},
-    {file = "anyio-4.7.0.tar.gz", hash = "sha256:2f834749c602966b7d456a7567cafcb309f96482b5081d14ac93ccd457f9dd48"},
+    {file = "anyio-4.8.0-py3-none-any.whl", hash = "sha256:b5011f270ab5eb0abf13385f851315585cc37ef330dd88e27ec3d34d651fd47a"},
+    {file = "anyio-4.8.0.tar.gz", hash = "sha256:1d9fe889df5212298c0c0723fa20479d1b94883a2df44bd3897aa91083316f7a"},
 ]
 
 [package.dependencies]
@@ -128,7 +128,7 @@ typing_extensions = {version = ">=4.5", markers = "python_version < \"3.13\""}
 
 [package.extras]
 doc = ["Sphinx (>=7.4,<8.0)", "packaging", "sphinx-autodoc-typehints (>=1.2.0)", "sphinx_rtd_theme"]
-test = ["anyio[trio]", "coverage[toml] (>=7)", "exceptiongroup (>=1.2.0)", "hypothesis (>=4.0)", "psutil (>=5.9)", "pytest (>=7.0)", "pytest-mock (>=3.6.1)", "trustme", "truststore (>=0.9.1)", "uvloop (>=0.21)"]
+test = ["anyio[trio]", "coverage[toml] (>=7)", "exceptiongroup (>=1.2.0)", "hypothesis (>=4.0)", "psutil (>=5.9)", "pytest (>=7.0)", "trustme", "truststore (>=0.9.1)", "uvloop (>=0.21)"]
 trio = ["trio (>=0.26.1)"]
 
 [package.source]
@@ -1027,13 +1027,13 @@ reference = "tencent"
 
 [[package]]
 name = "identify"
-version = "2.6.4"
+version = "2.6.5"
 description = "File identification library for Python"
 optional = false
 python-versions = ">=3.9"
 files = [
-    {file = "identify-2.6.4-py2.py3-none-any.whl", hash = "sha256:993b0f01b97e0568c179bb9196391ff391bfb88a99099dbf5ce392b68f42d0af"},
-    {file = "identify-2.6.4.tar.gz", hash = "sha256:285a7d27e397652e8cafe537a6cc97dd470a970f48fb2e9d979aa38eae5513ac"},
+    {file = "identify-2.6.5-py2.py3-none-any.whl", hash = "sha256:14181a47091eb75b337af4c23078c9d09225cd4c48929f521f3bf16b09d02566"},
+    {file = "identify-2.6.5.tar.gz", hash = "sha256:c10b33f250e5bba374fae86fb57f3adcebf1161bce7cdf92031915fd480c13bc"},
 ]
 
 [package.extras]
@@ -2638,13 +2638,13 @@ reference = "tencent"
 
 [[package]]
 name = "pycln"
-version = "2.4.0"
+version = "2.5.0"
 description = "A formatter for finding and removing unused import statements."
 optional = false
-python-versions = ">=3.7.0,<4"
+python-versions = ">=3.8,<4"
 files = [
-    {file = "pycln-2.4.0-py3-none-any.whl", hash = "sha256:d1bf648df17077306100815d255d45430035b36f66bac635df04a323c61ba126"},
-    {file = "pycln-2.4.0.tar.gz", hash = "sha256:1f3eefb7be18a9ee06c3bdd0ba2e91218cd39317e20130325f107e96eb84b9f6"},
+    {file = "pycln-2.5.0-py3-none-any.whl", hash = "sha256:6aec7a5b8df47e23399842b1f8470da4164956e26391f9b86c5edced5344da92"},
+    {file = "pycln-2.5.0.tar.gz", hash = "sha256:f3a64486f813cd29da07940c4c2bb412080a23b9b0df9b0b1576c8e39ac79c44"},
 ]
 
 [package.dependencies]
@@ -2825,14 +2825,17 @@ reference = "tencent"
 
 [[package]]
 name = "pygments"
-version = "2.18.0"
-description = ""
+version = "2.19.1"
+description = "Pygments is a syntax highlighting package written in Python."
 optional = false
-python-versions = "*"
+python-versions = ">=3.8"
 files = [
-    {file = "pygments-2.18.0-py3-none-any.whl", hash = "sha256:b8e6aca0523f3ab76fee51799c488e38782ac06eafcf95e7ba832985c8e7b13a"},
-    {file = "pygments-2.18.0.tar.gz", hash = "sha256:786ff802f32e91311bff3889f6e9a86e81505fe99f2735bb6d60ae0c5004f199"},
+    {file = "pygments-2.19.1-py3-none-any.whl", hash = "sha256:9ea1544ad55cecf4b8242fab6dd35a93bbce657034b0611ee383099054ab6d8c"},
+    {file = "pygments-2.19.1.tar.gz", hash = "sha256:61c16d2a8576dc0649d9f39e089b5f02bcd27fba10d8fb4dcc28173f7a45151f"},
 ]
+
+[package.extras]
+windows-terminal = ["colorama (>=0.4.6)"]
 
 [package.source]
 type = "legacy"
