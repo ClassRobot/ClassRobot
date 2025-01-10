@@ -1,5 +1,5 @@
 from nonebot_plugin_alconna import on_alconna, Alconna, Args, Field
-from typing import Annotated
+from typing import Annotated, Optional
 from utils.config import comp_config
 from utils import tip
 
@@ -25,5 +25,6 @@ add_classes_cmd = on_alconna(
 query_classes_cmd = on_alconna(Alconna("查询班级"), aliases={"班级列表", "我的班级"})
 
 join_classes_cmd = on_alconna(
-    Alconna("加入班级", Args["class_id", int | None, Field()]),
+    Alconna("加入班级", Args["classes_id?", Optional[int]]),
+    comp_config=comp_config,
 )

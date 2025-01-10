@@ -1,15 +1,14 @@
-from nonebot_plugin_alconna import AlconnaMatcher
-from nonebot_plugin_orm import async_scoped_session
-from utils.session import EventSession
+from nonebot.params import ArgPlainText
+from nonebot_plugin_alconna import AlconnaMatcher, UniMessage
 
-from utils.models import Classes, TeacherClasses, GroupBind
+from utils.session import EventSession
+from utils.models import Classes, GroupBind, Student
 from utils.models.annotated import (
+    TeacherDepends,
     UserOrCreatedDepends,
     TeacherOrCreatedDepends,
-    ClassesDepends,
-    TeacherDepends,
 )
-from .commands import add_classes_cmd, query_classes_cmd
+from .commands import add_classes_cmd, query_classes_cmd, join_classes_cmd
 
 
 @add_classes_cmd.handle()
@@ -37,7 +36,7 @@ async def _(
             **platform.group_params,
             user=teacher.user,
         )
-        await TeacherClasses.association(teacher, classes)
+        await classes.bind_teacher(teacher)
         await matcher.finish(
             f"✅️班级ID: {classes.id}\n✅️名称:{class_name}\n🥳创建成功!🎉"
         )
@@ -57,3 +56,52 @@ async def _(
             for classes in teacher.classes
         )
     )
+
+
+@join_classes_cmd.handle()
+async def _(
+    platform: EventSession,
+    matcher: AlconnaMatcher,
+    user: UserOrCreatedDepends,
+    classes_id: int | None,
+):
+    if classes_id:  # 如果有班级ID则查询班级信息
+        if (classes := await Classes.get_classes(classes_id)) is None:
+            await matcher.finish(f"❌️班级[{classes_id}]不存在！！")
+    elif platform.is_group():  # 如果是群聊则查询群是否是班级群
+        if (classes := await Classes.get_classes(**platform.group_params)) is None:
+            await matcher.finish("❌️该群不是班级群！！")
+    else:  # 如果不是群聊则提示需要班级ID
+        await matcher.finish(
+            "❌️请在群聊中使用该命令或命令后面携带班级ID，例如:\n添加班级 1！！"
+        )
+
+    if user.student is not None:  # 已经是学生说明已经加入过班级
+        if user.student.classes_id == classes.id:
+            await matcher.finish("❌️您已经该班级中的一员！！")
+    else:  # 未加入班级则不询问是否需要修改班级
+        matcher.state["is_join"] = UniMessage("yes")
+
+    matcher.state["classes"] = classes
+
+
+@join_classes_cmd.got(
+    "is_join", prompt="您已经加入过其它班级，是否需要修改您的班级？(yes/no)"
+)
+async def _(
+    matcher: AlconnaMatcher,
+    user: UserOrCreatedDepends,
+    is_join: str = ArgPlainText(),
+):
+    if is_join.strip() != "yes":
+        await matcher.finish("❌️已取消操作！！")
+
+    if (classes := matcher.state.get("classes")) is None:
+        await matcher.finish("❌️[异常]未找到班级！！")
+
+    if user.student is None:  # 创建学生
+        await Student.create_student(user.nickname, classes, user)
+    else:  # 如果已经是学生则更新班级
+        await user.student.update_classes(classes)
+
+    await matcher.finish(f"✅️成功加入班级[{classes.id}: {classes.name}]！！")

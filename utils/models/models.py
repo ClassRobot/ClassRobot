@@ -41,6 +41,10 @@ class User(Model):
     teacher: Mapped["Teacher"] = relationship(
         "Teacher", lazy="selectin", back_populates="user"
     )
+    student: Mapped["Student"] = relationship(
+        "Student", lazy="selectin", back_populates="user"
+    )
+    """一个用户绑定一个学生"""
     binds: Mapped[List["Bind"]] = relationship(
         "Bind", lazy="selectin", back_populates="user"
     )
@@ -427,6 +431,17 @@ class Teacher(Model):
         return await session.scalar(
             select(Classes).join(TeacherClasses).join(Group).join(GroupBind).where(and_(*condition))
         )
+    
+    async def bind_classes(self, classes: "Classes"):
+        """绑定班级
+
+        Args:
+            classes (Classes): 班级信息
+        """
+        session = get_scoped_session()
+        self.classes.append(classes)
+        await session.commit()
+        await session.refresh(self)
 
 class Classes(Model):
     """班级表
@@ -455,15 +470,21 @@ class Classes(Model):
         back_populates="classes",
     )
     """班级与教师多对多关系"""
+    students: Mapped[List["Student"]] = relationship(
+        "Student", lazy="selectin", back_populates="classes"
+    )
+    """班级与学生一对多关系"""
 
     @classmethod
     async def get_classes(
-        cls, platform_id: str, channel_id: str, guild_id: str | None = None
+        cls, platform_id: str | int, channel_id: str | None = None, guild_id: str | None = None
     ) -> Optional["Classes"]:
         """获取班级信息
+        
+        这种获取方式为全局查询,无法使用班级名称来查询
 
         Args:
-            platform_id (str): 平台ID
+            platform_id (str): 平台ID 或 classes.id
             channel_id (str): 频道ID
             guild_id (str | None, optional): 群组ID. Defaults to None.
 
@@ -471,6 +492,11 @@ class Classes(Model):
             Optional[Classes]: 班级信息
         """
         session = get_scoped_session()
+        if isinstance(platform_id, int):
+            return await session.scalar(select(cls).where(cls.id == platform_id))
+
+        assert channel_id is not None, "channel_id is None"
+
         condition = [
             GroupBind.platform_id == platform_id,
             GroupBind.channel_id == channel_id,
@@ -514,6 +540,16 @@ class Classes(Model):
         await session.refresh(classes)
         return classes
 
+    async def bind_teacher(self, teacher: Teacher):
+        """绑定教师
+
+        Args:
+            teacher (Teacher): 教师信息
+        """
+        session = get_scoped_session()
+        self.teacher.append(teacher)
+        await session.commit()
+        await session.refresh(self)
 
 # 教师与班级多对多关系
 class TeacherClasses(Model):
@@ -549,3 +585,56 @@ class TeacherClasses(Model):
         session.add(teacher_classes)
         await session.commit()
         await session.refresh(teacher_classes)
+
+
+class Student(Model):
+    """学生表"""
+
+    __tablename__ = "student"
+    id: Mapped[PrimaryKeyInteger]
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    """学生姓名"""
+    classes_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey(Classes.id, ondelete="CASCADE"), nullable=False
+    )
+    user_id = mapped_column(
+        Integer, ForeignKey(User.id, ondelete="CASCADE"), nullable=False
+    )
+    """班级ID"""
+    created_at: Mapped[CreateAt]
+    updated_at: Mapped[UpdateAt]
+
+    classes: Mapped[Classes] = relationship(lazy=False, back_populates="students")
+    """学生与班级一对多关系"""
+    user: Mapped[User] = relationship(lazy=False, back_populates="student")
+    """学生与用户一对一关系"""
+
+    @classmethod
+    async def create_student(cls, name: str, classes: Classes, user: User) -> "Student":
+        """创建学生
+
+        Args:
+            name (str): 学生姓名
+            classes (Classes): 班级信息
+            user (User): 用户信息
+
+        Returns:
+            Student: 学生信息
+        """
+        student = cls(name=name, classes=classes, user=user)
+        session = get_scoped_session()
+        session.add(student)
+        await session.commit()
+        await session.refresh(student)
+        return student
+
+    async def update_classes(self, classes: Classes):
+        """更新班级信息
+
+        Args:
+            classes (Classes): 班级信息
+        """
+        session = get_scoped_session()
+        self.classes = classes
+        await session.commit()
+        await session.refresh(self)
