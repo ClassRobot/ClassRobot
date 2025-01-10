@@ -9,7 +9,7 @@ client = AsyncOpenAI(
     api_key=plugin_config.auto_gpt_key, base_url=plugin_config.auto_gpt_url
 )
 # response = client.chat.completions.create(
-#     model="deepseek-chat",
+#     model=plugin_config.auto_gpt_model,
 #     messages=[
 #         {"role": "system", "content": prompt},
 #         {"role": "user", "content": "我想知道这么创建班级"},
