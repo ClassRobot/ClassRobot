@@ -22,18 +22,24 @@ UserDepends = Annotated[User | None, Depends(get_user_depends)]
 
 async def get_user_or_create_depends(
     platform: EventSession,
-    user_info: UserInfo = EventUserInfo(),
+    user_info: UserInfo | None = EventUserInfo(),
 ) -> User:
     """通过平台与用户信息获取用户，若不存在则创建"""
     if user := await Bind.get_user(platform.platform, platform.user_id):
         return user
     else:
-        avatar = user_info.user_avatar
-        user = await User.create_user(
-            nickname=user_info.user_name.strip() or default_nickname,
-            username=user_info.user_id,
-            avatar=avatar.get_url() if avatar else None,
-        )
+        if user_info:
+            avatar = user_info.user_avatar
+            user = await User.create_user(
+                nickname=user_info.user_name.strip() or default_nickname,
+                username=user_info.user_id,
+                avatar=avatar.get_url() if avatar else None,
+            )
+        else:
+            user = await User.create_user(
+                nickname=default_nickname,
+                username=platform.user_id,
+            )
         await Bind.bind_user(platform.platform, platform.user_id, user)
         return user
 

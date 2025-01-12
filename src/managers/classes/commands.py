@@ -15,7 +15,7 @@ add_classes_cmd = on_alconna(
             "class_name",
             NameNotNumeric,
             Field(
-                completion=tip("请输入名称"),
+                completion=tip("请输入班级名称"),
                 unmatch_tips=tip("名称不能为纯数字"),
             ),
         ],

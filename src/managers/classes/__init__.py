@@ -18,7 +18,7 @@ async def _(
     class_name: str,
     platform: EventSession,
 ):
-    if not platform.is_group():
+    if not platform.is_group:
         await matcher.finish("❌️请在群聊中使用该命令！！")
     elif classes := await Classes.get_classes(**platform.group_params):
         await matcher.finish(
@@ -68,7 +68,7 @@ async def _(
     if classes_id:  # 如果有班级ID则查询班级信息
         if (classes := await Classes.get_classes(classes_id)) is None:
             await matcher.finish(f"❌️班级[{classes_id}]不存在！！")
-    elif platform.is_group():  # 如果是群聊则查询群是否是班级群
+    elif platform.is_group:  # 如果是群聊则查询群是否是班级群
         if (classes := await Classes.get_classes(**platform.group_params)) is None:
             await matcher.finish("❌️该群不是班级群！！")
     else:  # 如果不是群聊则提示需要班级ID

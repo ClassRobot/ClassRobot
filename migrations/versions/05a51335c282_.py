@@ -1,8 +1,8 @@
 """empty message
 
-迁移 ID: 3a0e30e24cb5
+迁移 ID: 05a51335c282
 父迁移: 
-创建时间: 2025-01-06 16:37:16.824230
+创建时间: 2025-01-12 14:15:15.991242
 
 """
 from __future__ import annotations
@@ -12,7 +12,7 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "3a0e30e24cb5"
+revision: str = "05a51335c282"
 down_revision: str | Sequence[str] | None = None
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
@@ -30,6 +30,7 @@ def upgrade(name: str = "") -> None:
         sa.Column("password", sa.String(length=255), nullable=True),
         sa.Column("email", sa.String(length=255), nullable=True),
         sa.Column("avatar", sa.String(length=255), nullable=True),
+        sa.Column("phone", sa.String(length=11), nullable=True),
         sa.Column(
             "created_at",
             sa.DateTime(),
@@ -104,7 +105,7 @@ def upgrade(name: str = "") -> None:
         info={"bind_key": "models"},
     )
     op.create_table(
-        "models_teacher",
+        "teacher",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
         sa.Column("name", sa.String(length=255), nullable=False),
         sa.Column("user_id", sa.Integer(), nullable=False),
@@ -123,19 +124,46 @@ def upgrade(name: str = "") -> None:
         sa.ForeignKeyConstraint(
             ["user_id"],
             ["user.id"],
-            name=op.f("fk_models_teacher_user_id_user"),
+            name=op.f("fk_teacher_user_id_user"),
             ondelete="CASCADE",
         ),
-        sa.PrimaryKeyConstraint("id", name=op.f("pk_models_teacher")),
+        sa.PrimaryKeyConstraint("id", name=op.f("pk_teacher")),
         sa.UniqueConstraint("user_id"),
+        info={"bind_key": "models"},
+    )
+    op.create_table(
+        "classes",
+        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
+        sa.Column("name", sa.String(length=255), nullable=False),
+        sa.Column("group_id", sa.Integer(), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(),
+            server_default=sa.text("(CURRENT_TIMESTAMP)"),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(),
+            server_default=sa.text("(CURRENT_TIMESTAMP)"),
+            nullable=False,
+        ),
+        sa.ForeignKeyConstraint(
+            ["group_id"],
+            ["group.id"],
+            name=op.f("fk_classes_group_id_group"),
+            ondelete="CASCADE",
+        ),
+        sa.PrimaryKeyConstraint("id", name=op.f("pk_classes")),
+        sa.UniqueConstraint("group_id"),
         info={"bind_key": "models"},
     )
     op.create_table(
         "group_bind",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
         sa.Column("platform_id", sa.String(length=32), nullable=False),
-        sa.Column("channel_id", sa.String(length=64), nullable=True),
-        sa.Column("guild_id", sa.String(length=64), nullable=False),
+        sa.Column("channel_id", sa.String(length=64), nullable=False),
+        sa.Column("guild_id", sa.String(length=64), nullable=True),
         sa.Column(
             "created_at",
             sa.DateTime(),
@@ -170,10 +198,11 @@ def upgrade(name: str = "") -> None:
         )
 
     op.create_table(
-        "models_classes",
+        "student",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
         sa.Column("name", sa.String(length=255), nullable=False),
-        sa.Column("group_id", sa.Integer(), nullable=False),
+        sa.Column("classes_id", sa.Integer(), nullable=False),
+        sa.Column("user_id", sa.Integer(), nullable=False),
         sa.Column(
             "created_at",
             sa.DateTime(),
@@ -187,13 +216,50 @@ def upgrade(name: str = "") -> None:
             nullable=False,
         ),
         sa.ForeignKeyConstraint(
-            ["group_id"],
-            ["group.id"],
-            name=op.f("fk_models_classes_group_id_group"),
+            ["classes_id"],
+            ["classes.id"],
+            name=op.f("fk_student_classes_id_classes"),
             ondelete="CASCADE",
         ),
-        sa.PrimaryKeyConstraint("id", name=op.f("pk_models_classes")),
-        sa.UniqueConstraint("group_id"),
+        sa.ForeignKeyConstraint(
+            ["user_id"],
+            ["user.id"],
+            name=op.f("fk_student_user_id_user"),
+            ondelete="CASCADE",
+        ),
+        sa.PrimaryKeyConstraint("id", name=op.f("pk_student")),
+        info={"bind_key": "models"},
+    )
+    op.create_table(
+        "teacher_classes",
+        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
+        sa.Column("teacher_id", sa.Integer(), nullable=False),
+        sa.Column("classes_id", sa.Integer(), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(),
+            server_default=sa.text("(CURRENT_TIMESTAMP)"),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(),
+            server_default=sa.text("(CURRENT_TIMESTAMP)"),
+            nullable=False,
+        ),
+        sa.ForeignKeyConstraint(
+            ["classes_id"],
+            ["classes.id"],
+            name=op.f("fk_teacher_classes_classes_id_classes"),
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["teacher_id"],
+            ["teacher.id"],
+            name=op.f("fk_teacher_classes_teacher_id_teacher"),
+            ondelete="CASCADE",
+        ),
+        sa.PrimaryKeyConstraint("id", name=op.f("pk_teacher_classes")),
         info={"bind_key": "models"},
     )
     # ### end Alembic commands ###
@@ -203,14 +269,16 @@ def downgrade(name: str = "") -> None:
     if name:
         return
     # ### commands auto generated by Alembic - please adjust! ###
-    op.drop_table("models_classes")
+    op.drop_table("teacher_classes")
+    op.drop_table("student")
     with op.batch_alter_table("group_bind", schema=None) as batch_op:
         batch_op.drop_index(batch_op.f("ix_group_bind_platform_id"))
         batch_op.drop_index(batch_op.f("ix_group_bind_guild_id"))
         batch_op.drop_index(batch_op.f("ix_group_bind_channel_id"))
 
     op.drop_table("group_bind")
-    op.drop_table("models_teacher")
+    op.drop_table("classes")
+    op.drop_table("teacher")
     op.drop_table("group")
     with op.batch_alter_table("bind", schema=None) as batch_op:
         batch_op.drop_index(batch_op.f("ix_bind_platform_id"))

@@ -49,12 +49,21 @@ class Helper(BaseModel):
         return command == self.command or command in self.aliases
 
     def to_string(self) -> str:
+        """详细描述"""
         return (
             f"命令 | {self.command}\n"
             f"参数 | {', '.join(map(str, self.params)) or '无'}\n"
             f"别名 | {', '.join(self.aliases) or '无'}\n"
             f"描述 | {self.description}\n"
             f"示例 | \n{self.example_text() or '无'}"
+        )
+
+    def overview(self) -> str:
+        """简要概述"""
+        return (
+            f"命令 | {self.command}\n"
+            f"别名 | {', '.join(self.aliases) or '无'}\n"
+            f"描述 | {self.description}\n"
         )
 
     def example_text(self) -> str:
@@ -68,6 +77,9 @@ class HelperMenu:
         self.helper_search: dict[str, Helper] = {}
         self.helpers: list[Helper] = []
         self.add_helper(*helpers)
+
+    def to_string(self):
+        return "\n".join(helper.overview() for helper in self.helpers)
 
     def add_helper(self, *helpers: Helper):
         for helper in helpers:

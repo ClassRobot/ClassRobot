@@ -2,12 +2,11 @@ from uuid import uuid4
 from nonebot.matcher import Matcher
 from nonebot.params import EventPlainText, ArgPlainText
 from nonebot_plugin_alconna import AlconnaMatcher, UniMessage
-from nonebot_plugin_session import EventSession
-from nonebot_plugin_userinfo import EventUserInfo, UserInfo
 
 from utils.cache import get_cache
 from utils.models.annotated import UserOrCreatedDepends, UserDepends
 from utils.models import User, Bind
+from utils.session import EventSession
 
 from .commands import self_info_cmd, bind_user_cmd, token_cmd
 
@@ -73,7 +72,6 @@ async def _(
     matcher: Matcher,
     platform: EventSession,
     confirm: str = ArgPlainText(),
-    user_info: UserInfo = EventUserInfo(),
 ):
     if confirm.lower() != "yes":
         await matcher.finish("已取消绑定")
@@ -84,12 +82,12 @@ async def _(
         await matcher.finish("绑定用户不存在,可能已经被删除！")
 
     # 获取旧的绑定信息并删除
-    if bind := await Bind.get_bind(platform.platform, user_info.user_id):
+    if bind := await Bind.get_bind(platform.platform, platform.user_id):
         await bind.delete()
 
     await Bind.bind_user(
         platform.platform,
-        user_info.user_id,
+        platform.user_id,
         bind_user,
     )
     await matcher.finish("绑定成功")
