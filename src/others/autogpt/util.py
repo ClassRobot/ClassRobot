@@ -1,9 +1,10 @@
 import json
-from pprint import pprint
+
+from utils.AutoGPT import client_create
 from utils.AutoGPT.schema import Role, Context, Messages
-from utils.AutoGPT import client_create, client
-from .prompt import get_prompt_system
+
 from .schemas import AutoTaskList
+from .prompt import get_prompt_system
 
 
 class ChatSession:

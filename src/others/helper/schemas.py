@@ -1,5 +1,5 @@
-from pydantic import BaseModel
 from nonebot.log import logger
+from pydantic import BaseModel
 
 
 class Context(BaseModel):
@@ -29,6 +29,7 @@ class Helper(BaseModel):
     command: str
     description: str
     params: list[Param] = []
+    tags: set[str] = set()
     aliases: set[str] = set()
     example: list[Context] | str = []
 

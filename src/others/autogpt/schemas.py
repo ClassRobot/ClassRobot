@@ -1,6 +1,6 @@
-from pydantic import BaseModel
-from nonebot_plugin_alconna import UniMessage
 from typing import Literal
+
+from pydantic import BaseModel
 
 
 class Param(BaseModel):

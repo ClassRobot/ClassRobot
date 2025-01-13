@@ -1,21 +1,10 @@
-from typing import List, Optional, Tuple
-from nonebot_plugin_orm import Model, get_scoped_session
+from typing import List, Optional
+
 from sqlalchemy.sql import and_
-from sqlalchemy import (
-    ForeignKey,
-    Integer,
-    ScalarResult,
-    String,
-    select,
-    update,
-    delete,
-    insert,
-    Select,
-    Update,
-    Delete,
-    Insert,
-)
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from nonebot_plugin_orm import Model, get_scoped_session
+from sqlalchemy.orm import Mapped, relationship, mapped_column
+from sqlalchemy import String, Integer, ForeignKey, select, update
+
 from .columns import CreateAt, UpdateAt, PrimaryKeyInteger
 
 
@@ -404,7 +393,12 @@ class Teacher(Model):
             return teacher
         return await cls.create_teacher(name, user)
 
-    async def get_classes(self, platform_id: str | int, channel_id: str | None = None, guild_id: str | None = None) -> Optional["Classes"]:
+    async def get_classes(
+        self,
+        platform_id: str | int,
+        channel_id: str | None = None,
+        guild_id: str | None = None,
+    ) -> Optional["Classes"]:
         """查找教师所在的班级
 
         Args:
@@ -429,9 +423,13 @@ class Teacher(Model):
             if guild_id:
                 condition.append(GroupBind.guild_id == guild_id)
         return await session.scalar(
-            select(Classes).join(TeacherClasses).join(Group).join(GroupBind).where(and_(*condition))
+            select(Classes)
+            .join(TeacherClasses)
+            .join(Group)
+            .join(GroupBind)
+            .where(and_(*condition))
         )
-    
+
     async def bind_classes(self, classes: "Classes"):
         """绑定班级
 
@@ -442,6 +440,7 @@ class Teacher(Model):
         self.classes.append(classes)
         await session.commit()
         await session.refresh(self)
+
 
 class Classes(Model):
     """班级表
@@ -477,10 +476,13 @@ class Classes(Model):
 
     @classmethod
     async def get_classes(
-        cls, platform_id: str | int, channel_id: str | None = None, guild_id: str | None = None
+        cls,
+        platform_id: str | int,
+        channel_id: str | None = None,
+        guild_id: str | None = None,
     ) -> Optional["Classes"]:
         """获取班级信息
-        
+
         这种获取方式为全局查询,无法使用班级名称来查询
 
         Args:
@@ -518,7 +520,7 @@ class Classes(Model):
         user: User,
     ) -> "Classes":
         """创建班级
-        
+
         先创建组然后将组与平台绑定，最后创建班级
 
         Args:
@@ -532,9 +534,9 @@ class Classes(Model):
             Classes: 班级信息
         """
         group = await Group.create_group(user)  # 创建群组
-        await GroupBind.bind_group(platform_id, channel_id, guild_id, group)    # 绑定群组
+        await GroupBind.bind_group(platform_id, channel_id, guild_id, group)  # 绑定群组
         session = get_scoped_session()
-        classes = cls(name=name, group=group)   # 创建班级
+        classes = cls(name=name, group=group)  # 创建班级
         session.add(classes)
         await session.commit()
         await session.refresh(classes)
@@ -550,6 +552,7 @@ class Classes(Model):
         self.teacher.append(teacher)
         await session.commit()
         await session.refresh(self)
+
 
 # 教师与班级多对多关系
 class TeacherClasses(Model):

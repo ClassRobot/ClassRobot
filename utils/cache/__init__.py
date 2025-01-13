@@ -1,8 +1,7 @@
 from aioredis import Redis
-from nonebot import get_driver
-from .config import CacheConfig
 
-plugin_config = CacheConfig.parse_obj(get_driver().config.dict())
+from .config import plugin_config
+
 redis_db: dict[int, Redis] = {}
 
 

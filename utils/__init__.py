@@ -1,4 +1,4 @@
-from typing import Any, TypeVar, Callable
+from typing import TypeVar, Callable
 
 T = TypeVar("T")
 

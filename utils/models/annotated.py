@@ -1,11 +1,9 @@
-from pprint import pprint
 from typing import Annotated
 
 from nonebot.params import Depends
-from nonebot_plugin_userinfo import UserInfo, EventUserInfo
-from nonebot_plugin_alconna.uniseg import MessageTarget, Target
-from utils.models.models import Classes, Teacher, User, Bind
 from utils.session import EventSession, GroupEventSession
+from nonebot_plugin_userinfo import UserInfo, EventUserInfo
+from utils.models.models import Bind, User, Classes, Teacher
 
 default_nickname = "user"
 
