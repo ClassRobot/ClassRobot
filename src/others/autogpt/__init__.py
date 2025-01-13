@@ -46,18 +46,3 @@ async def _(
             for auto_task in auto_task.tasks:
                 event.get_message = update_message(auto_task)  # type: ignore
                 await handle_event(bot, event)
-    #     if auto_task.reply:
-    #         await matcher.send(auto_task.reply)
-    # print(auto_task)
-    # # await matcher.finish(text)
-    # # def _get_message():
-    # #     return message.__class__("清除聊天")
-    #     if auto_task.need_confirm
-    # event.get_message = _get_message  # type: ignore
-    # await handle_event(bot, event)
-
-
-# @break_message.handle()
-# async def _(matcher: Matcher, message: UniMessage = CommandArg()):
-#     # print("Break", event.get_message())
-#     await matcher.finish(message)  # type: ignore

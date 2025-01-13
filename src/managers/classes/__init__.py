@@ -13,10 +13,10 @@ from .commands import add_classes_cmd, query_classes_cmd, join_classes_cmd
 
 @add_classes_cmd.handle()
 async def _(
-    matcher: AlconnaMatcher,
-    teacher: TeacherOrCreatedDepends,
     class_name: str,
     platform: EventSession,
+    matcher: AlconnaMatcher,
+    teacher: TeacherOrCreatedDepends,
 ):
     if not platform.is_group:
         await matcher.finish("❌️请在群聊中使用该命令！！")
@@ -52,7 +52,7 @@ async def _(
     await matcher.finish(
         "您所创建班级如下:\n"
         + "\n-----".join(
-            f"| 班级ID: {classes.id}\n| 班级名称: {classes.name}"
+            f"| 班级ID: {classes.id}\n| 班级名称: {classes.name}\n| 成员数量: {len(classes.students)}"
             for classes in teacher.classes
         )
     )
@@ -60,10 +60,10 @@ async def _(
 
 @join_classes_cmd.handle()
 async def _(
+    classes_id: int | None,
     platform: EventSession,
     matcher: AlconnaMatcher,
     user: UserOrCreatedDepends,
-    classes_id: int | None,
 ):
     if classes_id:  # 如果有班级ID则查询班级信息
         if (classes := await Classes.get_classes(classes_id)) is None:
