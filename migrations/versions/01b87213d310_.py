@@ -1,8 +1,8 @@
 """empty message
 
-迁移 ID: 05a51335c282
+迁移 ID: 01b87213d310
 父迁移: 
-创建时间: 2025-01-12 14:15:15.991242
+创建时间: 2025-01-14 12:55:29.814870
 
 """
 from __future__ import annotations
@@ -12,7 +12,7 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "05a51335c282"
+revision: str = "01b87213d310"
 down_revision: str | Sequence[str] | None = None
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
@@ -204,6 +204,9 @@ def upgrade(name: str = "") -> None:
         sa.Column("classes_id", sa.Integer(), nullable=False),
         sa.Column("user_id", sa.Integer(), nullable=False),
         sa.Column(
+            "role", sa.String(length=32), server_default="student", nullable=False
+        ),
+        sa.Column(
             "created_at",
             sa.DateTime(),
             server_default=sa.text("(CURRENT_TIMESTAMP)"),
@@ -235,6 +238,9 @@ def upgrade(name: str = "") -> None:
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
         sa.Column("teacher_id", sa.Integer(), nullable=False),
         sa.Column("classes_id", sa.Integer(), nullable=False),
+        sa.Column(
+            "role", sa.String(length=32), server_default="teacher", nullable=False
+        ),
         sa.Column(
             "created_at",
             sa.DateTime(),

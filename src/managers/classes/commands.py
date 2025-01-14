@@ -36,6 +36,14 @@ join_classes_cmd = on_alconna(
     block=True,
 )
 
+# 退出班级
+exit_classes_cmd = on_alconna(
+    Alconna("退出班级"),
+    comp_config=comp_config,
+    priority=100,
+    block=True,
+)
+
 __helper__ = [
     Helper(
         command="添加班级",

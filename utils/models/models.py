@@ -5,6 +5,7 @@ from nonebot_plugin_orm import Model, get_scoped_session
 from sqlalchemy.orm import Mapped, relationship, mapped_column
 from sqlalchemy import String, Integer, ForeignKey, select, update
 
+from .role import StudentRole, TeacherRole
 from .columns import CreateAt, UpdateAt, PrimaryKeyInteger
 
 
@@ -542,7 +543,7 @@ class Classes(Model):
         await session.refresh(classes)
         return classes
 
-    async def bind_teacher(self, teacher: Teacher):
+    async def bind_teacher(self, teacher: Teacher, role: TeacherRole | None = None):
         """绑定教师
 
         Args:
@@ -552,6 +553,28 @@ class Classes(Model):
         self.teacher.append(teacher)
         await session.commit()
         await session.refresh(self)
+
+    async def update_teacher_role(self, teacher: Teacher, role: TeacherRole):
+        """更新教师角色
+
+        Args:
+            teacher (Teacher): 教师信息
+            role (TeacherRole): 教师角色
+        """
+        session = get_scoped_session()
+        if teacher_classes := await session.scalar(
+            select(TeacherClasses).where(
+                and_(
+                    TeacherClasses.teacher_id == teacher.id,
+                    TeacherClasses.classes_id == self.id,
+                )
+            )
+        ):
+            teacher_classes.role = role
+            await session.commit()
+            await session.refresh(teacher_classes)
+            await session.refresh(teacher)
+            await session.refresh(self)
 
 
 # 教师与班级多对多关系
@@ -568,6 +591,10 @@ class TeacherClasses(Model):
         Integer, ForeignKey(Classes.id, ondelete="CASCADE"), nullable=False
     )
     """班级ID"""
+    role: Mapped[TeacherRole] = mapped_column(
+        String(32), nullable=False, server_default=TeacherRole.teacher
+    )
+    """教师角色"""
     created_at: Mapped[CreateAt]
     updated_at: Mapped[UpdateAt]
 
@@ -602,6 +629,9 @@ class Student(Model):
     )
     user_id = mapped_column(
         Integer, ForeignKey(User.id, ondelete="CASCADE"), nullable=False
+    )
+    role: Mapped[StudentRole] = mapped_column(
+        String(32), nullable=False, server_default=StudentRole.student
     )
     """班级ID"""
     created_at: Mapped[CreateAt]
@@ -639,5 +669,6 @@ class Student(Model):
         """
         session = get_scoped_session()
         self.classes = classes
+        self.role = StudentRole.student
         await session.commit()
         await session.refresh(self)
