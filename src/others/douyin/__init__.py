@@ -1,11 +1,12 @@
 import re
+
 from nonebot.matcher import Matcher
 from nonebot import logger, on_regex
 from nonebot.params import EventPlainText
 from nonebot.adapters import Event, ntchat
 from nonebot_plugin_htmlrender import get_new_page
 from nonebot_plugin_localstore import get_cache_dir
-from nonebot_plugin_alconna import UniMessage, MsgTarget
+from nonebot_plugin_alconna import MsgTarget, UniMessage
 
 template_dir = get_cache_dir("douyin")
 
@@ -24,7 +25,9 @@ async def _(
     matches = pattern.findall(text)
     async with get_new_page() as new_page:
         for match in matches:
-            await new_page.goto(download_url)
+            await new_page.goto(
+                download_url, timeout=120000, wait_until="domcontentloaded"
+            )
             if (input_url := await new_page.query_selector("#url")) is None:
                 return
             await input_url.fill(match)

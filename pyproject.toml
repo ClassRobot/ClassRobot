@@ -16,7 +16,7 @@ imgkit = "^1.2.3"
 markdown2 = "^2.5.2"
 cryptography = "^44.0.0"
 nonebot-adapter-qq = "^1.6.1"
-nonebot-plugin-orm = "^0.7.6"
+nonebot-plugin-orm = {extras = ["postgresql", "asyncpg"], version = "^0.7.6"}
 nonebot-plugin-alconna = "^0.54.2"
 nonebot-plugin-animeres = "^1.0.5"
 nonebot-plugin-localstore = "^0.7.3"

@@ -1,4 +1,5 @@
 import json
+from pprint import pprint
 
 from utils.AutoGPT import client_create
 from utils.AutoGPT.schema import Role, Context, Messages
@@ -30,7 +31,8 @@ class ChatSession:
             print(content)
             auto_tasks = AutoTaskList.parse_obj(json.loads(content))
             if auto_tasks.reply:
-                self.messages.assistant_message(auto_tasks.reply)
+                self.messages.assistant_message(auto_tasks.json(ensure_ascii=False))
+            pprint(self.messages.dict())
             return auto_tasks
         return content
 
