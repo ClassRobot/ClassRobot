@@ -1,15 +1,15 @@
+from nonebot.rule import to_me
+from nonebot.matcher import Matcher
+from nonebot.adapters import Bot, Event
+from utils.AutoGPT import client_create
+from nonebot.message import handle_event
 from nonebot import on_command, on_message
 from nonebot_plugin_alconna import UniMessage
-from nonebot.rule import to_me
-from nonebot.adapters import Bot, Event
-from nonebot.params import EventMessage, CommandArg
-from nonebot.message import handle_event
-from nonebot.matcher import Matcher
-
-from utils.AutoGPT import client_create
+from nonebot.params import CommandArg, EventMessage
 from utils.models.annotated import UserOrCreatedDepends
-from .schemas import AutoTaskList, AutoTask
+
 from .util import chat_session_manager
+from .schemas import AutoTask, AutoTaskList
 
 auto_gpt = on_message(priority=1000, block=True, rule=to_me())
 clear_message = on_command("清除聊天", priority=100, block=True)
@@ -42,6 +42,7 @@ async def _(
     if isinstance(auto_task, AutoTaskList):
         if auto_task.reply:
             await matcher.send(auto_task.reply)
+            print(chat.messages.char_length())
         if not auto_task.need_confirm:
             for auto_task in auto_task.tasks:
                 event.get_message = update_message(auto_task)  # type: ignore

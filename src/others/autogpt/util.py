@@ -2,10 +2,11 @@ import json
 from pprint import pprint
 
 from utils.AutoGPT import client_create
+from nonebot_plugin_alconna import UniMessage
 from utils.AutoGPT.schema import Role, Context, Messages
 
-from .schemas import AutoTaskList
 from .prompt import get_prompt_system
+from .schemas import ChatMessage, AutoTaskList
 
 
 class ChatSession:
@@ -14,8 +15,8 @@ class ChatSession:
             messages=[Context(role=Role.system, content=get_prompt_system())]
         )
 
-    async def send_message(self, message: str):
-        self.messages.user_message(message)
+    async def send_message(self, message: str | UniMessage):
+        self.messages.user_message(ChatMessage().extend(message).to_string())
         response = await client_create(**self.messages.dict())
         # 可能会存在```json和```这种情况，需要删除
         content = response.choices[0].message.content  # type: ignore

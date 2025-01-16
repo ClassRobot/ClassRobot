@@ -1,6 +1,6 @@
 from utils.session import EventSession
 from nonebot.params import ArgPlainText
-from utils.models.role import TeacherRole
+from utils.models.enums import TeacherRole
 from utils.models import Classes, Student, GroupBind
 from nonebot_plugin_alconna import UniMessage, AlconnaMatcher
 from utils.models.annotated import (

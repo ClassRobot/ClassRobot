@@ -49,3 +49,16 @@ class StudentRole(StrEnum):
 
     student = "student"
     """学生"""
+
+
+class JoinMethod(StrEnum):
+    """加入方式"""
+
+    invite = "invite"
+    """邀请"""
+
+    apply = "apply"
+    """申请"""
+
+    direct = "direct"
+    """直接通过"""

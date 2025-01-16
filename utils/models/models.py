@@ -5,7 +5,7 @@ from nonebot_plugin_orm import Model, get_scoped_session
 from sqlalchemy.orm import Mapped, relationship, mapped_column
 from sqlalchemy import String, Integer, ForeignKey, select, update
 
-from .role import StudentRole, TeacherRole
+from .enums import JoinMethod, StudentRole, TeacherRole
 from .columns import CreateAt, UpdateAt, PrimaryKeyInteger
 
 
@@ -457,6 +457,9 @@ class Classes(Model):
     group_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("group.id", ondelete="CASCADE"), nullable=False, unique=True
     )
+    join_method: Mapped[JoinMethod] = mapped_column(
+        String(32), nullable=True, server_default=JoinMethod.direct
+    )
     """群组ID"""
     created_at: Mapped[CreateAt]
     updated_at: Mapped[UpdateAt]
@@ -575,6 +578,19 @@ class Classes(Model):
             await session.refresh(teacher_classes)
             await session.refresh(teacher)
             await session.refresh(self)
+
+
+class ClassesJoinRequest(Model):
+    id: Mapped[PrimaryKeyInteger]
+    classes_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey(Classes.id, ondelete="CASCADE"), nullable=False
+    )
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey(User.id, ondelete="CASCADE"), nullable=False
+    )
+    join_method: Mapped[JoinMethod] = mapped_column(String(32), nullable=False)
+    describe: Mapped[str] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[CreateAt]
 
 
 # 教师与班级多对多关系

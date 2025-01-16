@@ -1,10 +1,13 @@
 from typing import Literal
 
 from pydantic import BaseModel
+from nonebot_plugin_alconna import Text, Image, UniMessage
 
 
 class Param(BaseModel):
     type: Literal["text", "image"]
+    separate: bool = False
+    "命令是否需要和参数分两次发送，假设`/search`命令的某个参数需要和命令需要分开发送时`separate`为`True`时自动化程序会将`/search`和`参数`分两次执行"
     value: str
     "参数值，当如果是image则为图片的url"
 
@@ -13,11 +16,11 @@ class AutoTask(BaseModel):
     "AI帮助用户自动执行任务"
 
     command: str
-    "触发的命令"
+    "用户的话语中可能想要执行的命令"
     params: list[Param] = []
     "命令的参数"
-    query_command_help: bool = False
-    "机器人如果不确定命令的使用方式是否正确时该参数为True会查询命令详细帮助"
+    help: bool = False
+    "对于命令的作用不是非常明确，或者命令的参数不是很清楚时，可以设置为True，机器人会查询命令的详细帮助"
 
 
 class AutoTaskList(BaseModel):
@@ -28,4 +31,31 @@ class AutoTaskList(BaseModel):
     need_confirm: bool = True
     "True表示必须要询问用户是否要执行，但机器人如果非常确定用户的意图则可以不需要用户确认"
     reply: str | None = None
-    "回复给用户的消息，如果tasks里面有任务的话则告知用户机器人接下来会帮助用户做什么，如果need_confirm为True则必须要询问用户是否要执行，为False时reply可以为空，具体情况由机器人自己去分析。"
+    "回复给用户的消息，如果`tasks`里面有任务的话则告知用户机器人接下来会帮助用户做什么，如果`need_confirm`为`True`则必须要询问用户是否要执行，为`False`时`reply`可以为空，具体情况由机器人自己去分析用户意图。"
+
+
+class ChatMessage(BaseModel):
+    "聊天消息"
+
+    role: Literal["user", "help"] = "user"
+    user_id: int | None = None
+    "用户ID"
+    message: list[Param] = []
+    "消息内容"
+
+    def extend(self, message: UniMessage | str):
+        if isinstance(message, str):
+            self.message.append(Param(type="text", value=message))
+        else:
+            for msg in message:
+                if isinstance(msg, Text):
+                    self.message.append(Param(type="text", value=msg.text))
+                elif isinstance(msg, Image) and msg.url:
+                    self.message.append(Param(type="image", value=msg.url))
+        return self
+
+    def to_string(self):
+        return self.json(ensure_ascii=False)
+
+    def __str__(self) -> str:
+        return self.to_string()
