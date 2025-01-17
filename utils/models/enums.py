@@ -1,6 +1,15 @@
 from strenum import StrEnum
 
 
+class UserRole(StrEnum):
+    """用户角色"""
+
+    user = "user"
+    """普通用户"""
+    admin = "admin"
+    """管理员"""
+
+
 class TeacherRole(StrEnum):
     """教师角色"""
 
@@ -62,3 +71,19 @@ class JoinMethod(StrEnum):
 
     direct = "direct"
     """直接通过"""
+
+
+class PoliticalStatus(StrEnum):
+    """政治面貌"""
+
+    party_member = "PartyMember"
+    """党员"""
+
+    league_member = "LeagueMember"
+    """团员"""
+
+    mass = "mass"
+    """群众"""
+
+    other = "other"
+    """其他"""

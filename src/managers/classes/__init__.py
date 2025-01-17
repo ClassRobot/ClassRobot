@@ -1,7 +1,7 @@
 from utils.session import EventSession
 from nonebot.params import ArgPlainText
-from utils.models.enums import TeacherRole
 from utils.models import Classes, Student, GroupBind
+from utils.models.enums import JoinMethod, TeacherRole
 from nonebot_plugin_alconna import UniMessage, AlconnaMatcher
 from utils.models.annotated import (
     TeacherDepends,
@@ -56,6 +56,9 @@ async def _(
     )
 
 
+# --------------------------------- 加入班级 ---------------------------------
+
+
 @join_classes_cmd.handle()
 async def _(
     classes_id: int | None,
@@ -87,15 +90,17 @@ async def _(
     user: UserOrCreatedDepends,
     is_join: str = ArgPlainText(),
 ):
+    classes: Classes | None
     if is_join.strip() != "yes":
         await matcher.finish("❌️已取消操作！！")
 
     if (classes := matcher.state.get("classes")) is None:
         await matcher.finish("❌️[异常]未找到班级！！")
 
-    if user.student is None:  # 创建学生
-        await Student.create_student(user.nickname, classes, user)
-    else:  # 如果已经是学生则更新班级
-        await user.student.update_classes(classes)
+    if classes.join_method == JoinMethod.direct:
+        if user.student is None:  # 创建学生
+            await Student.create_student(user.nickname, classes, user)
+        else:  # 如果已经是学生则更新班级
+            await user.student.update_classes(classes)
 
-    await matcher.finish(f"✅️成功加入班级[{classes.id}: {classes.name}]！！")
+        await matcher.finish(f"✅️成功加入班级[{classes.id}: {classes.name}]！！")

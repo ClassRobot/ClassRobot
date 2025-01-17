@@ -5,8 +5,8 @@ from nonebot_plugin_orm import Model, get_scoped_session
 from sqlalchemy.orm import Mapped, relationship, mapped_column
 from sqlalchemy import String, Integer, ForeignKey, select, update
 
-from .enums import JoinMethod, StudentRole, TeacherRole
 from .columns import CreateAt, UpdateAt, PrimaryKeyInteger
+from .enums import UserRole, JoinMethod, StudentRole, TeacherRole, PoliticalStatus
 
 
 class User(Model):
@@ -25,6 +25,11 @@ class User(Model):
     avatar: Mapped[str] = mapped_column(String(255), nullable=True)
     """头像"""
     phone: Mapped[str] = mapped_column(String(11), nullable=True)
+    """手机号"""
+    role: Mapped[UserRole] = mapped_column(
+        String(32), nullable=False, server_default=UserRole.user
+    )
+    """用户角色"""
     created_at: Mapped[CreateAt]
     updated_at: Mapped[UpdateAt]
 
@@ -43,6 +48,16 @@ class User(Model):
         "Group", lazy="selectin", back_populates="creator"
     )
     """一个用户可以创建多个群组"""
+
+    join_requests: Mapped[List["ClassesJoinRequest"]] = relationship(
+        "ClassesJoinRequest", lazy="selectin", back_populates="user"
+    )
+    """用户与加入请求一对多关系"""
+
+    @property
+    def is_admin(self) -> bool:
+        """是否是管理员"""
+        return self.role == UserRole.admin
 
     def check_password(self, password: str) -> bool:
         """检查密码
@@ -477,6 +492,10 @@ class Classes(Model):
         "Student", lazy="selectin", back_populates="classes"
     )
     """班级与学生一对多关系"""
+    join_requests: Mapped[List["ClassesJoinRequest"]] = relationship(
+        "ClassesJoinRequest", lazy="selectin", back_populates="classes"
+    )
+    """班级与加入请求一对多关系"""
 
     @classmethod
     async def get_classes(
@@ -592,6 +611,9 @@ class ClassesJoinRequest(Model):
     describe: Mapped[str] = mapped_column(String(255), nullable=True)
     created_at: Mapped[CreateAt]
 
+    classes: Mapped[Classes] = relationship(lazy=False, back_populates="join_requests")
+    user: Mapped[User] = relationship(lazy=False, back_populates="join_requests")
+
 
 # 教师与班级多对多关系
 class TeacherClasses(Model):
@@ -657,6 +679,10 @@ class Student(Model):
     """学生与班级一对多关系"""
     user: Mapped[User] = relationship(lazy=False, back_populates="student")
     """学生与用户一对一关系"""
+    extra: Mapped["StudentExtra"] = relationship(
+        lazy=False, back_populates="student", uselist=False
+    )
+    """学生额外信息"""
 
     @classmethod
     async def create_student(cls, name: str, classes: Classes, user: User) -> "Student":
@@ -688,3 +714,25 @@ class Student(Model):
         self.role = StudentRole.student
         await session.commit()
         await session.refresh(self)
+
+
+class StudentExtra(Model):
+    """学生额外信息表"""
+
+    __tablename__ = "student_extra"
+    id: Mapped[PrimaryKeyInteger]
+    student_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey(Student.id, ondelete="CASCADE"), nullable=False
+    )
+    sex: Mapped[str] = mapped_column(String(32), nullable=True)
+    student_code: Mapped[str] = mapped_column(String(32), index=True, nullable=True)
+    """学号"""
+    dormitory: Mapped[str] = mapped_column(String(32), nullable=True)
+    """寝室号"""
+    political_status: Mapped[PoliticalStatus] = mapped_column(String(32), nullable=True)
+    """政治面貌"""
+    family_contact: Mapped[str] = mapped_column(String(11), nullable=True)
+    """家庭联系方式"""
+    updated_at: Mapped[UpdateAt]
+
+    student: Mapped[Student] = relationship(lazy=False, back_populates="extra")
