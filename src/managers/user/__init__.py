@@ -1,28 +1,50 @@
 from uuid import uuid4
-from nonebot.matcher import Matcher
-from nonebot.params import EventPlainText, ArgPlainText
-from nonebot_plugin_alconna import AlconnaMatcher, UniMessage
 
 from utils.cache import get_cache
-from utils.models.annotated import UserOrCreatedDepends, UserDepends
-from utils.models import User, Bind
+from utils.tools import StringCard
+from nonebot.matcher import Matcher
+from utils.models import Bind, User
 from utils.session import EventSession
+from nonebot.params import ArgPlainText, EventPlainText
+from nonebot_plugin_alconna import UniMessage, AlconnaMatcher
+from utils.models.annotated import UserDepends, UserOrCreatedDepends
 
-from .commands import self_info_cmd, bind_user_cmd, token_cmd
+from .commands import token_cmd, bind_user_cmd, self_info_cmd
 
 
 @self_info_cmd.handle()
 async def _(matcher: AlconnaMatcher, user: UserOrCreatedDepends):
-    await matcher.finish(
-        UniMessage.image(url=user.avatar)
-        + UniMessage(
-            f"用户信息：\n"
-            f"ID：{user.id}\n"
-            f"昵称：{user.nickname}\n"
-            f"用户名：{user.username}\n"
-            f"邮箱：{user.email}"
-        )
+    card = StringCard()
+    (
+        card.hr("用户信息")
+        .text(f"ID: {user.id}")
+        .text(f"昵称: {user.nickname}")
+        .text(f"账号: {user.username}")
+        .text(f"邮箱: {user.email}")
+        .text(f"电话: {user.phone}")
+        .text(f"创建日期: {user.created_at.strftime('%Y-%m-%d')}")
     )
+    if user.teacher is not None:
+        (
+            card.hr("教师信息")
+            .text(f"教师ID: {user.teacher.id}")
+            .text(f"教师昵称: {user.teacher.name}")
+            .text(f"班级数量: {len(user.teacher.classes)}")
+            .text(f"创建日期: {user.teacher.created_at.strftime('%Y-%m-%d')}")
+        )
+    if user.student is not None:
+        (
+            card.hr("学生信息")
+            .text(f"学生ID: {user.student.id}")
+            .text(f"学生昵称: {user.student.name}")
+            .text(f"学生职位: {user.student.role}")
+            .text(f"所在班级: {user.student.classes.name}")
+            .text(f"创建日期: {user.student.created_at.strftime('%Y-%m-%d')}")
+        )
+
+    if user.avatar:
+        await matcher.finish(UniMessage.image(url=user.avatar) + card.render())
+    await matcher.finish(card.render())
 
 
 @bind_user_cmd.handle()
@@ -32,12 +54,7 @@ async def _(matcher: AlconnaMatcher, user: UserOrCreatedDepends):
     token = str(uuid4())
     await cache.set(token, user.id, ex=300)
     await matcher.finish(
-        UniMessage(
-            (
-                f"需要绑定平台请在5分钟内将以下token粘贴到指定平台发送:\n"
-                f"token={token}"
-            )
-        )
+        UniMessage((f"需要绑定平台请在5分钟内将以下token粘贴到指定平台发送:\n" f"token={token}"))
     )
 
 
@@ -62,9 +79,7 @@ async def _(
     if user is None:
         matcher.state["confirm"] = UniMessage("yes")
     else:
-        await matcher.send(
-            f'您已经在该平台绑定过id为"{user.id}"的账号，是否要重新绑定？(yes/no)'
-        )
+        await matcher.send(f"您已经在该平台绑定过[{user.id}:{user.username}]的账号，是否要重新绑定？(yes/no)")
 
 
 @token_cmd.got("confirm")
@@ -73,7 +88,7 @@ async def _(
     platform: EventSession,
     confirm: str = ArgPlainText(),
 ):
-    if confirm.lower() != "yes":
+    if confirm.strip().lower() != "yes":
         await matcher.finish("已取消绑定")
 
     # 当前需要绑定的用户是否存在（一般都存在，除非某些不可抗力）

@@ -1,3 +1,4 @@
+from utils.tools import StringCard
 from utils.session import EventSession
 from nonebot.params import ArgPlainText
 from utils.models import Classes, Student, GroupBind
@@ -53,13 +54,15 @@ async def _(
 ):
     if teacher is None or not teacher.classes:
         await matcher.finish("❌️您还未创建班级！！")
-    await matcher.finish(
-        "您所创建班级如下:\n"
-        + "\n-----".join(
-            f"| 班级ID: {classes.id}\n| 班级名称: {classes.name}\n| 成员数量: {len(classes.students)}"
-            for classes in teacher.classes
+    card = StringCard("您所创建班级如下")
+    for classes in teacher.classes:
+        (
+            card.hr()
+            .text(f"班级ID: {classes.id}")
+            .text(f"班级名称: {classes.name}")
+            .text(f"学生数量: {len(classes.students)}")
         )
-    )
+    await matcher.finish(card.render())
 
 
 # --------------------------------- 加入班级 ---------------------------------
