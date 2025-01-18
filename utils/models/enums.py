@@ -64,10 +64,10 @@ class JoinMethod(StrEnum):
     """加入方式"""
 
     invite = "invite"
-    """邀请"""
+    """邀请加入"""
 
     apply = "apply"
-    """申请"""
+    """申请加入"""
 
     direct = "direct"
     """直接通过"""

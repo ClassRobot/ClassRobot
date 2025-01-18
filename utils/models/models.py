@@ -497,6 +497,35 @@ class Classes(Model):
     )
     """班级与加入请求一对多关系"""
 
+    async def user_join_classes(self, user: User):
+        """用户加入班级
+
+        Args:
+            user (User): 用户信息
+        """
+        if user.student is None:  # 创建学生
+            await Student.create_student(user.nickname, self, user)
+        else:  # 如果已经是学生则更新班级
+            await user.student.update_classes(self)
+
+    async def apply_join_classes(self, user: User, describe: str | None = None):
+        """申请加入班级
+
+        Args:
+            user (User): 用户信息
+            describe (str): 申请描述
+        """
+        session = get_scoped_session()
+        classes_join_request = ClassesJoinRequest(
+            classes_id=self.id,
+            user_id=user.id,
+            join_method=JoinMethod.apply,
+            describe=describe,
+        )
+        session.add(classes_join_request)
+        await session.commit()
+        await session.refresh(classes_join_request)
+
     @classmethod
     async def get_classes(
         cls,

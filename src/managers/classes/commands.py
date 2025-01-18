@@ -30,7 +30,21 @@ query_classes_cmd = on_alconna(
 )
 
 join_classes_cmd = on_alconna(
-    Alconna("加入班级", Args["classes_id?", Optional[int]]),
+    Alconna(
+        "加入班级", Args["classes_id?", Optional[int]], Args["describe?", Optional[str]]
+    ),
+    comp_config=comp_config,
+    priority=100,
+    block=True,
+)
+
+# 修改加入班级方式
+set_join_classes_cmd = on_alconna(
+    Alconna(
+        "修改班级加入方式",
+        Args["classes_id?", Optional[str]],
+        Args["join_method?", Optional[str]],
+    ),
     comp_config=comp_config,
     priority=100,
     block=True,

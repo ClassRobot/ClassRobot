@@ -9,7 +9,13 @@ from utils.models.annotated import (
     TeacherOrCreatedDepends,
 )
 
-from .commands import add_classes_cmd, join_classes_cmd, query_classes_cmd
+from .util import join_method_dict
+from .commands import (
+    add_classes_cmd,
+    join_classes_cmd,
+    query_classes_cmd,
+    set_join_classes_cmd,
+)
 
 
 @add_classes_cmd.handle()
@@ -61,11 +67,14 @@ async def _(
 
 @join_classes_cmd.handle()
 async def _(
+    describe: str | None,
     classes_id: int | None,
     platform: EventSession,
     matcher: AlconnaMatcher,
     user: UserOrCreatedDepends,
 ):
+    matcher.state["describe"] = describe
+
     if classes_id:  # 如果有班级ID则查询班级信息
         if (classes := await Classes.get_classes(classes_id)) is None:
             await matcher.finish(f"❌️班级[{classes_id}]不存在！！")
@@ -97,10 +106,53 @@ async def _(
     if (classes := matcher.state.get("classes")) is None:
         await matcher.finish("❌️[异常]未找到班级！！")
 
-    if classes.join_method == JoinMethod.direct:
-        if user.student is None:  # 创建学生
-            await Student.create_student(user.nickname, classes, user)
-        else:  # 如果已经是学生则更新班级
-            await user.student.update_classes(classes)
+    match classes.join_method:
+        case JoinMethod.direct:
+            await classes.user_join_classes(user)
+            await matcher.finish(f"✅️成功加入班级[{classes.id}: {classes.name}]！！")
+        case JoinMethod.apply:
+            await classes.apply_join_classes(user, matcher.state.get("describe"))
+            await matcher.finish(f"✅️申请成功，请等待班主任审核！！")
+        case JoinMethod.invite:
+            await matcher.finish("❌️该班级只能通过邀请加入！！")
+    await matcher.finish("❌️[异常]加入班级失败！！")
 
-        await matcher.finish(f"✅️成功加入班级[{classes.id}: {classes.name}]！！")
+
+# --------------------------------- 修改加入班级方式 ---------------------------------
+
+
+@set_join_classes_cmd.handle()
+async def _(
+    matcher: AlconnaMatcher,
+    teacher: TeacherDepends,
+    classes_id: str | None,
+    join_method: str | None,
+    platform: EventSession,
+):
+    # 纠正classes_id和join_method
+    if join_method is not None and join_method.isdigit():
+        ...
+    # if classes_id is not None and join_method is not None:
+    #     if classes_id.isdigit():    # 当classes_id为数字时
+    #         if join_method.isdigit():   # 当join_method也为数字时
+    #             await matcher.finish("❌️加入班级方式不能为数字！！")
+    #         elif join_method_dict.get(join_method) is None:
+    #             await matcher.finish("❌️加入班级方式不存在！！\n只支持设置为：" + "、".join(join_method_dict.keys()))
+
+    # if teacher is None or not teacher.classes:
+    #     await matcher.finish("❌️您还未创建班级！！")
+    # elif (
+    #     classes_id is None and platform.is_private
+    # ):  # 如果未携带班级ID且是私聊则提示需要班级ID
+    #     await matcher.finish(
+    #         "❌️请在群聊中使用该命令或命令后面携带班级ID与加入方式，例如:\n修改班级加入方式 1 申请加入！！"
+    #     )
+    # elif (
+    #     platform.is_group
+    #     and classes_id is None
+    #     and (classes := await teacher.get_classes(**platform.group_params)) is None
+    # ):  # 如果是群聊则查询群是否是班级群
+    #     await matcher.finish("❌️该群不是您管辖的班级群！！")
+
+    # if classes_id is not None and not classes_id.isdigit():
+    #     await matcher.finish("❌️班级ID必须为数字！！")

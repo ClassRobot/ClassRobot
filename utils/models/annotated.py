@@ -69,3 +69,18 @@ async def get_classes(
 
 
 ClassesDepends = Annotated[Classes | None, Depends(get_classes)]
+
+
+async def teacher_classes(
+    teacher: TeacherDepends,
+    platform: EventSession,
+) -> Classes | None:
+    """查看当前群是否是教师的班级"""
+    if teacher:
+        return await teacher.get_classes(
+            platform.platform, platform.channel_id, platform.guild_id
+        )
+    return None
+
+
+TeacherClassesDepends = Annotated[Classes | None, Depends(teacher_classes)]
