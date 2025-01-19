@@ -1,4 +1,4 @@
-from src.others.helper import helper_menu
+from src.plugins.helper import helper_menu
 
 prompt_system = f"""
 <classbot_thinking_protocol>

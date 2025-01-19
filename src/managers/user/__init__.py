@@ -14,9 +14,9 @@ from .commands import token_cmd, bind_user_cmd, self_info_cmd
 
 @self_info_cmd.handle()
 async def _(matcher: AlconnaMatcher, user: UserOrCreatedDepends):
-    card = StringCard()
-    (
-        card.hr("用户信息")
+    card = (
+        StringCard()
+        .hr("用户信息")
         .text(f"ID: {user.id}")
         .text(f"昵称: {user.nickname}")
         .text(f"账号: {user.username}")

@@ -2,7 +2,7 @@ from typing import Optional
 
 from utils import tip
 from utils.config import comp_config
-from src.others.helper.schemas import Param, Helper
+from src.plugins.helper.schemas import Param, Helper
 from nonebot_plugin_alconna import Args, Field, Alconna, on_alconna
 
 NameNotNumeric = lambda name: None if name.strip().isdigit() else name

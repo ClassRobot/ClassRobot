@@ -1,6 +1,6 @@
 from nonebot import on_command
-from nonebot_plugin_alconna import on_alconna, Alconna
-from src.others.helper.schemas import Helper, Context
+from nonebot_plugin_alconna import Alconna, on_alconna
+from src.plugins.helper.schemas import Helper, Context
 
 self_info_cmd = on_alconna(
     Alconna("我的信息"), aliases={"个人信息", "用户信息"}, priority=100, block=True
