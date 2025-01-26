@@ -1,12 +1,12 @@
 from nonebot.rule import to_me
 from nonebot.matcher import Matcher
 from nonebot.adapters import Bot, Event
-from utils.AutoGPT import client_create
 from nonebot.message import handle_event
 from nonebot import on_command, on_message
 from nonebot_plugin_alconna import UniMessage
 from nonebot.params import CommandArg, EventMessage
 from utils.models.annotated import UserOrCreatedDepends
+from nonebot.adapters.ntchat import MessageEvent as NTChatMessageEvent
 
 from .util import chat_session_manager
 from .schemas import AutoTask, AutoTaskList
@@ -37,9 +37,13 @@ async def _(
     user: UserOrCreatedDepends,
     message: UniMessage = EventMessage(),
 ):
+    if isinstance(event, NTChatMessageEvent):
+        await matcher.finish()
     chat = chat_session_manager.get_chat_session(user.id)
     auto_task = await chat.send_message(message.extract_plain_text())
     if isinstance(auto_task, AutoTaskList):
+        if auto_task.is_violation:
+            await matcher.finish("您发送的内容包含违规信息，已经被屏蔽")
         if auto_task.reply:
             await matcher.send(auto_task.reply)
             print(chat.messages.char_length())

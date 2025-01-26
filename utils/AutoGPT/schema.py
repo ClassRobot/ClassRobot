@@ -16,6 +16,10 @@ class Context(BaseModel):
 class Messages(BaseModel):
     messages: list[Context]
 
+    @property
+    def max_length(self) -> int:
+        return 20480
+
     def char_length(self) -> int:
         return sum(len(message.content) for message in self.messages)
 
@@ -43,6 +47,14 @@ class Messages(BaseModel):
         self.messages.pop(index)
 
     def add_message(self, role: Role, content: str):
+        char_length = self.char_length()
+        if char_length > self.max_length:
+            # 超出限制，删除一半的消息
+            cl = char_length // 2
+            for i, message in enumerate(self.messages):
+                if (cl := cl - len(message.content)) <= 0:
+                    self.messages = self.messages[i:]
+                    break
         self.messages.append(Context(role=role, content=content))
 
     def user_message(self, content: str):

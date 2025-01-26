@@ -1,7 +1,7 @@
 import re
 
+from nonebot import on_regex
 from nonebot.matcher import Matcher
-from nonebot import logger, on_regex
 from nonebot.params import EventPlainText
 from nonebot.adapters import Event, ntchat
 from nonebot_plugin_htmlrender import get_new_page
@@ -22,6 +22,7 @@ async def _(
     matcher: Matcher, target: MsgTarget, event: Event, text: str = EventPlainText()
 ):
     # 匹配链接
+    print(target.adapter, target.platform, target.scope)
     video_url, img_url = None, None
     matches = pattern.findall(text)
     for match in matches:
@@ -39,13 +40,12 @@ async def _(
                 elif img := await new_page.query_selector(".img-rounded"):
                     img_url = await img.get_attribute("src")
         if video_url:
-            try:
-                if isinstance(event, ntchat.MessageEvent):
-                    await matcher.send(ntchat.MessageSegment.file(video_url))
-                else:
-                    await target.send(UniMessage.video(url=video_url))
-            except Exception as e:
-                logger.exception(e)
-                await matcher.finish(video_url)
+            if isinstance(event, ntchat.MessageEvent):
+                await matcher.send(ntchat.MessageSegment.file(video_url))
+            else:
+                await target.send(UniMessage.video(url=video_url))
         elif img_url:
-            await target.send(UniMessage.image(url=img_url))
+            if isinstance(event, ntchat.MessageEvent):
+                await matcher.send(ntchat.MessageSegment.image(img_url))
+            else:
+                await target.send(UniMessage.image(url=img_url))

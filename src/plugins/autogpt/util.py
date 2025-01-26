@@ -1,5 +1,4 @@
 import json
-from pprint import pprint
 
 from utils.AutoGPT import client_create
 from nonebot_plugin_alconna import UniMessage
@@ -33,7 +32,6 @@ class ChatSession:
             auto_tasks = AutoTaskList.parse_obj(json.loads(content))
             if auto_tasks.reply:
                 self.messages.assistant_message(auto_tasks.json(ensure_ascii=False))
-            pprint(self.messages.dict())
             return auto_tasks
         return content
 
