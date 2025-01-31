@@ -1,6 +1,8 @@
-from nonebot_plugin_alconna.model import CompConfig
 from tarina import lang
+from nonebot_plugin_alconna.model import CompConfig
+from nonebot_plugin_localstore import get_data_dir, get_cache_dir, get_config_dir
 
+dirname = "classbot"
 # lang.set("completion", "node", "")
 # lang.set("completion", "prompt_select", "")
 lang.load_data(
@@ -20,5 +22,7 @@ comp_config = CompConfig(
     hides={"exit"},
     disables={"tab", "enter"},
 )
-
+data_dir = get_data_dir(dirname)
+cache_dir = get_cache_dir(dirname)
+config_dir = get_config_dir(dirname)
 priority = 100

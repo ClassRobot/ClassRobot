@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from sqlalchemy.sql import and_
 from nonebot_plugin_orm import Model, get_scoped_session
@@ -765,3 +765,102 @@ class StudentExtra(Model):
     updated_at: Mapped[UpdateAt]
 
     student: Mapped[Student] = relationship(lazy=False, back_populates="extra")
+
+
+class Tasks(Model):
+    """任务表"""
+
+    __tablename__ = "tasks"
+    id: Mapped[PrimaryKeyInteger]
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    """任务名称"""
+    classes_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey(Classes.id, ondelete="CASCADE"), nullable=False
+    )
+    """班级ID"""
+    creator_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey(User.id, ondelete="CASCADE"), nullable=False
+    )
+    """创建者ID"""
+    creator_role: Mapped[TeacherRole] = mapped_column(
+        String(32), nullable=False, server_default=TeacherRole.teacher
+    )
+    """创建者角色"""
+    created_at: Mapped[CreateAt]
+    updated_at: Mapped[UpdateAt]
+
+    commits: Mapped[List["TaskCommits"]] = relationship(
+        "TaskCommits", lazy="selectin", back_populates="task"
+    )
+    """任务与提交文件一对多关系"""
+
+    @classmethod
+    async def create_task(
+        cls,
+        name: str,
+        classes: Classes,
+        creator: User,
+        creator_role: Literal["teacher", "student"],
+    ) -> "Tasks":
+        """创建任务
+
+        Args:
+            name (str): 任务名称
+            classes (Classes): 班级信息
+            creator (User): 创建者信息
+            creator_role (Literal["teacher", "student"]): 创建者角色
+
+        Returns:
+            Tasks: 任务信息
+        """
+        task = cls(
+            name=name, classes=classes, creator=creator, creator_role=creator_role
+        )
+        session = get_scoped_session()
+        session.add(task)
+        await session.commit()
+        await session.refresh(task)
+        return task
+
+
+class TaskCommits(Model):
+    """任务文件表"""
+
+    __tablename__ = "task_files"
+    id: Mapped[PrimaryKeyInteger]
+    task_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey(Tasks.id, ondelete="CASCADE"), nullable=False
+    )
+    """任务ID"""
+    file_path: Mapped[str] = mapped_column(String(255), nullable=False)
+    """文件ID"""
+    student_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey(Student.id, ondelete="CASCADE"), nullable=False
+    )
+    """学生ID"""
+    created_at: Mapped[CreateAt]
+    updated_at: Mapped[UpdateAt]
+
+    task: Mapped[Tasks] = relationship(lazy=False, back_populates="commits")
+    """任务信息"""
+
+    def save_data(self, data: bytes):
+        """保存文件
+
+        Args:
+            data (bytes): 文件数据
+        """
+        from src.plugins.tasks.config import task_dir
+
+        self.read_path.write_bytes(data)
+
+    def read_data(self) -> bytes:
+        """读取文件"""
+        return self.read_path.read_bytes()
+
+    @property
+    def read_path(self):
+        """文件路径"""
+        from src.plugins.tasks.config import task_dir
+
+        return task_dir / self.file_path

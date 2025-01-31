@@ -1,31 +1,36 @@
 from typing import Annotated
 
 from nonebot.params import Depends
+from nonebot.typing import T_State
 from utils.session import EventSession, GroupEventSession
 from nonebot_plugin_userinfo import UserInfo, EventUserInfo
-from utils.models.models import Bind, User, Classes, Teacher
+from utils.models.models import Bind, User, Classes, Student, Teacher
 
 default_nickname = "user"
 
 
 async def get_user_depends(
     platform: EventSession,
+    state: T_State,
 ) -> User | None:
     """通过平台与用户信息获取用户"""
-    return await Bind.get_user(platform.platform, platform.user_id)
+    if user := state.get("user_model"):
+        return user
+    elif user := await Bind.get_user(platform.platform, platform.user_id):
+        state["user_model"] = user
+        return user
 
 
 UserDepends = Annotated[User | None, Depends(get_user_depends)]
 
 
 async def get_user_or_create_depends(
+    user: UserDepends,
     platform: EventSession,
     user_info: UserInfo | None = EventUserInfo(),
 ) -> User:
     """通过平台与用户信息获取用户，若不存在则创建"""
-    if user := await Bind.get_user(platform.platform, platform.user_id):
-        return user
-    else:
+    if user is None:
         if user_info:
             avatar = user_info.user_avatar
             user = await User.create_user(
@@ -39,7 +44,7 @@ async def get_user_or_create_depends(
                 username=platform.user_id,
             )
         await Bind.bind_user(platform.platform, platform.user_id, user)
-        return user
+    return user
 
 
 UserOrCreatedDepends = Annotated[User, Depends(get_user_or_create_depends)]
@@ -84,3 +89,15 @@ async def teacher_classes(
 
 
 TeacherClassesDepends = Annotated[Classes | None, Depends(teacher_classes)]
+
+
+async def student_depends(
+    user: UserOrCreatedDepends,
+) -> Student | None:
+    """查看是否是班级学生"""
+    if user.student:
+        return user.student
+    return None
+
+
+StudentDepends = Annotated[Student | None, Depends(student_depends)]

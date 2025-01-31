@@ -1,5 +1,5 @@
-from utils import ValidateName, alias_product
 from utils.config import priority, comp_config
+from utils import ValidateName, tip, alias_product
 from nonebot_plugin_alconna import Args, File, Field, Image, Other, Alconna, on_alconna
 
 push_task_alias = alias_product(["上传", "提交"], ["作业", "任务"])
@@ -17,7 +17,14 @@ create_task_alias = alias_product(["创建", "发布"], ["作业", "任务"])
 create_task_cmd = on_alconna(
     Alconna(
         "创建任务",
-        Args["task_name", ValidateName, Field(completion=lambda: "请输入任务名称")],
+        Args[
+            "task_name",
+            ValidateName,
+            Field(
+                completion=lambda: "请输入任务名称",
+                unmatch_tips=tip("名称不能为纯数字"),
+            ),
+        ],
     ),
     aliases=create_task_alias,
     priority=priority,
