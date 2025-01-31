@@ -1,19 +1,20 @@
 from nonebot import on_command
+from utils.config import priority
 from nonebot_plugin_alconna import Alconna, on_alconna
 from src.plugins.helper.schemas import Helper, Context
 
 self_info_cmd = on_alconna(
-    Alconna("我的信息"), aliases={"个人信息", "用户信息"}, priority=100, block=True
+    Alconna("我的信息"), aliases={"个人信息", "用户信息"}, priority=priority, block=True
 )
 
 bind_user_cmd = on_alconna(
     Alconna("绑定用户"),
     aliases={"绑定平台", "绑定", "换绑平台", "关联平台"},
-    priority=100,
+    priority=priority,
     block=True,
 )
 
-token_cmd = on_command("token", priority=100, block=True)
+token_cmd = on_command("token", priority=priority, block=True)
 
 
 __helper__ = [

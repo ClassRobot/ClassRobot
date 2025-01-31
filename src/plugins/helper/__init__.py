@@ -1,10 +1,11 @@
 from nonebot import on_command
+from utils.config import priority
 from nonebot.matcher import Matcher
 from utils.params import CommandArgStr
 
 from .schemas import helper_menu as helper_menu
 
-help_cmd = on_command("help", aliases={"帮助"}, priority=100, block=True)
+help_cmd = on_command("help", aliases={"帮助"}, priority=priority, block=True)
 
 
 @help_cmd.handle()

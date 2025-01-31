@@ -1,10 +1,11 @@
 from nonebot.rule import to_me
+from utils.config import priority
 from nonebot.matcher import Matcher
 from nonebot.adapters import Bot, Event
+from nonebot.params import EventMessage
 from nonebot.message import handle_event
 from nonebot import on_command, on_message
 from nonebot_plugin_alconna import UniMessage
-from nonebot.params import CommandArg, EventMessage
 from utils.models.annotated import UserOrCreatedDepends
 from nonebot.adapters.ntchat import MessageEvent as NTChatMessageEvent
 
@@ -12,7 +13,7 @@ from .util import chat_session_manager
 from .schemas import AutoTask, AutoTaskList
 
 auto_gpt = on_message(priority=1000, block=True, rule=to_me())
-clear_message = on_command("清除聊天", priority=100, block=True)
+clear_message = on_command("清除聊天", priority=priority, block=True)
 
 
 def update_message(task: AutoTask):

@@ -1,6 +1,7 @@
 import re
 
 from nonebot import on_regex
+from utils.config import priority
 from nonebot.matcher import Matcher
 from nonebot.params import EventPlainText
 from nonebot.adapters import Event, ntchat
@@ -14,7 +15,7 @@ template_dir = get_cache_dir("douyin")
 download_url = "https://douyinxz.com/"
 pattern_str = r"https://(?:www\.iesdouyin\.com/share/video/\d+|v\.douyin\.com/\w+)/?"
 pattern = re.compile(pattern_str)
-douyin_url_cmd = on_regex(pattern_str, priority=100)
+douyin_url_cmd = on_regex(pattern_str, priority=priority)
 
 
 @douyin_url_cmd.handle()

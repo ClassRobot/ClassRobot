@@ -1,7 +1,7 @@
 from typing import Optional
 
 from utils import tip
-from utils.config import comp_config
+from utils.config import priority, comp_config
 from src.plugins.helper.schemas import Param, Helper
 from nonebot_plugin_alconna import Args, Field, Alconna, on_alconna
 
@@ -19,14 +19,14 @@ add_classes_cmd = on_alconna(
             ),
         ],
     ),
-    priority=100,
+    priority=priority,
     aliases={"创建班级", "绑定班级"},
     comp_config=comp_config,
     block=True,
 )
 
 query_classes_cmd = on_alconna(
-    Alconna("查询班级"), aliases={"班级列表", "我的班级"}, priority=100, block=True
+    Alconna("查询班级"), aliases={"班级列表", "我的班级"}, priority=priority, block=True
 )
 
 join_classes_cmd = on_alconna(
@@ -34,7 +34,7 @@ join_classes_cmd = on_alconna(
         "加入班级", Args["classes_id?", Optional[int]], Args["describe?", Optional[str]]
     ),
     comp_config=comp_config,
-    priority=100,
+    priority=priority,
     block=True,
 )
 
@@ -46,7 +46,7 @@ set_join_classes_cmd = on_alconna(
         Args["join_method?", Optional[str]],
     ),
     comp_config=comp_config,
-    priority=100,
+    priority=priority,
     block=True,
 )
 
@@ -54,7 +54,7 @@ set_join_classes_cmd = on_alconna(
 exit_classes_cmd = on_alconna(
     Alconna("退出班级"),
     comp_config=comp_config,
-    priority=100,
+    priority=priority,
     block=True,
 )
 
