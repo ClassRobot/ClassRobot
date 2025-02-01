@@ -23,8 +23,8 @@ class StringCard:
         if title:
             self.card.append(title)
 
-    def text(self, text: str):
-        self.card.append(f"{self.v} {text}")
+    def text(self, *text: str, sep: str = " "):
+        self.card.append(f"{self.v} {sep.join(text)}")
         return self
 
     def hr(self, text: str | None = None):
@@ -46,3 +46,6 @@ class StringCard:
 
     def __repr__(self) -> str:
         return self.render()
+
+    def __bool__(self) -> bool:
+        return bool(self.card)

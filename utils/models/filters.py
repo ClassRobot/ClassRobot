@@ -1,36 +1,44 @@
-from typing import Any, Type, Tuple, Generic, TypeVar, Optional
+from typing import Any, Type, Generic, TypeVar, Optional
 
 from nonebot_plugin_orm import get_scoped_session
-from sqlalchemy import Select, ScalarResult, ColumnExpressionArgument, select
+from sqlalchemy import ScalarResult, ColumnExpressionArgument, delete, select
 
 T = TypeVar("T")
 
 
 class Filter(Generic[T]):
     def __init__(
-        self, model: Type[T], session=None, where: Optional[Select[Tuple[T]]] = None
+        self,
+        model: Type[T],
+        session=None,
+        options: Optional[list[ColumnExpressionArgument[bool]]] = None,
     ) -> None:
         self.model: type[T] = model
         self.session = get_scoped_session() if session is None else session
-        self.where: Select[Tuple[T]] = select(model) if where is None else where
+        self.options: list[ColumnExpressionArgument[bool]] = (options or []).copy()
 
     def filter(
         self, *where_clause: ColumnExpressionArgument[bool], **kwargs: Any
     ) -> "Filter[T]":
+        self.options.extend(where_clause)
         select_option = None
         for key in kwargs:
             option = getattr(self.model, key) == kwargs[key]
             select_option = option if select_option is None else select_option & option
-        self.where = self.where.where(*where_clause)
         if select_option is not None:
-            self.where = self.where.where(select_option)
-        return Filter[self.model](self.model, self.session, self.where)
+            self.options.append(select_option)
+        return Filter[self.model](self.model, self.session, self.options)
 
     async def first(self) -> Optional[T]:
-        return await self.session.scalar(self.where)
+        return await self.session.scalar(select(self.model).where(*self.options))
 
     async def scalars(self) -> ScalarResult[T]:
-        return await self.session.scalars(self.where)
+        return await self.session.scalars(select(self.model).where(*self.options))
+
+    async def delete(self):
+        result = await self.session.execute(delete(self.model).where(*self.options))
+        await self.session.commit()
+        return result
 
 
 class FilterModel:

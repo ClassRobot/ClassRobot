@@ -629,16 +629,10 @@ class Classes(Model, FilterModel):
         Returns:
             Optional["Tasks"]: 任务信息
         """
-        session = get_scoped_session()
+
         if isinstance(task_id, str):
-            return await session.scalar(
-                select(Tasks).where(
-                    (Tasks.name == task_id) & (Tasks.classes_id == self.id)
-                )
-            )
-        return await session.scalar(
-            select(Tasks).where((Tasks.id == task_id) & (Tasks.classes_id == self.id))
-        )
+            return await Tasks.filter(classes=self, name=task_id).first()
+        return await Tasks.filter(classes=self, id=task_id).first()
 
 
 class ClassesJoinRequest(Model, FilterModel):
@@ -860,6 +854,8 @@ class TaskCommits(Model, FilterModel):
 
     task: Mapped[Tasks] = relationship(lazy=False, back_populates="commits")
     """任务信息"""
+    student: Mapped[Student] = relationship(lazy=False)
+    """学生信息"""
 
     def save_data(self, data: bytes):
         """保存文件
