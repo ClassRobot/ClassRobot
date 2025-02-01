@@ -1,15 +1,15 @@
 from typing import List, Literal, Optional
 
-from sqlalchemy.sql import and_
 from nonebot_plugin_orm import Model, get_scoped_session
 from sqlalchemy.orm import Mapped, relationship, mapped_column
 from sqlalchemy import String, Integer, ForeignKey, select, update
 
+from .filters import FilterModel
 from .columns import CreateAt, UpdateAt, PrimaryKeyInteger
 from .enums import UserRole, JoinMethod, StudentRole, TeacherRole, PoliticalStatus
 
 
-class User(Model):
+class User(Model, FilterModel):
     """用户表"""
 
     __tablename__ = "user"
@@ -81,8 +81,7 @@ class User(Model):
         Returns:
             Optional[User]: 用户信息
         """
-        session = get_scoped_session()
-        if user := await session.scalar(select(cls).where(cls.username == username)):
+        if user := await cls.filter(username=username).first():
             if user.check_password(password):
                 return user
 
@@ -133,7 +132,7 @@ class User(Model):
         return await session.scalar(select(cls).where(cls.id == user_id))
 
 
-class Bind(Model):
+class Bind(Model, FilterModel):
     """用户与平台绑定表
 
     - 用户与平台是一对多关系
@@ -169,12 +168,7 @@ class Bind(Model):
         Returns:
             Optional[Bind]: 绑定信息
         """
-        session = get_scoped_session()
-        return await session.scalar(
-            select(Bind).where(
-                and_(Bind.platform_id == platform_id, Bind.account_id == account_id)
-            )
-        )
+        return await cls.filter(platform_id=platform_id, account_id=account_id).first()
 
     @classmethod
     async def get_user(
@@ -212,7 +206,7 @@ class Bind(Model):
             Bind: 绑定信息
         """
         session = get_scoped_session()
-        where_and = and_(Bind.platform_id == platform_id, Bind.account_id == account_id)
+        where_and = (Bind.platform_id == platform_id) & (Bind.account_id == account_id)
         if bind := await session.scalar(select(Bind).where(where_and)):
             # 查看之前绑定的用户是否是当前用户
             if bind.user_id == user.id:
@@ -239,7 +233,7 @@ class Bind(Model):
         await session.commit()
 
 
-class Group(Model):
+class Group(Model, FilterModel):
     """群组表"""
 
     __tablename__ = "group"
@@ -281,7 +275,7 @@ class Group(Model):
         return group
 
 
-class GroupBind(Model):
+class GroupBind(Model, FilterModel):
     """群组绑定表
 
     - 群组与平台是一对多关系
@@ -335,7 +329,7 @@ class GroupBind(Model):
         return group_bind
 
 
-class Teacher(Model):
+class Teacher(Model, FilterModel):
     """教师表
 
     - 教师与用户是一对一关系
@@ -429,21 +423,21 @@ class Teacher(Model):
             Optional["Classes"]: 班级信息
         """
         session = get_scoped_session()
-        condition = [TeacherClasses.teacher_id == self.id]
+        condition = TeacherClasses.teacher_id == self.id
         if isinstance(platform_id, int):
-            condition.append(TeacherClasses.classes_id == platform_id)
+            condition &= TeacherClasses.classes_id == platform_id
         else:
-            condition.append(Classes.name == platform_id)
+            condition &= Classes.name == platform_id
             if channel_id:
-                condition.append(GroupBind.channel_id == channel_id)
+                condition &= GroupBind.channel_id == channel_id
             if guild_id:
-                condition.append(GroupBind.guild_id == guild_id)
+                condition &= GroupBind.guild_id == guild_id
         return await session.scalar(
             select(Classes)
             .join(TeacherClasses)
             .join(Group)
             .join(GroupBind)
-            .where(and_(*condition))
+            .where(condition)
         )
 
     async def bind_classes(self, classes: "Classes"):
@@ -458,7 +452,7 @@ class Teacher(Model):
         await session.refresh(self)
 
 
-class Classes(Model):
+class Classes(Model, FilterModel):
     """班级表
 
     - 班级与教师是多对多关系
@@ -496,6 +490,10 @@ class Classes(Model):
         "ClassesJoinRequest", lazy="selectin", back_populates="classes"
     )
     """班级与加入请求一对多关系"""
+    tasks: Mapped[List["Tasks"]] = relationship(
+        "Tasks", lazy="selectin", back_populates="classes"
+    )
+    """班级与任务一对多关系"""
 
     async def user_join_classes(self, user: User):
         """用户加入班级
@@ -551,15 +549,12 @@ class Classes(Model):
 
         assert channel_id is not None, "channel_id is None"
 
-        condition = [
-            GroupBind.platform_id == platform_id,
-            GroupBind.channel_id == channel_id,
-        ]
+        condition = (GroupBind.platform_id == platform_id) & (
+            GroupBind.channel_id == channel_id
+        )
         if guild_id:
-            condition.append(GroupBind.guild_id == guild_id)
-        if group_bind := await session.scalar(
-            select(GroupBind).where(and_(*condition))
-        ):
+            condition &= GroupBind.guild_id == guild_id
+        if group_bind := await session.scalar(select(GroupBind).where(condition)):
             return group_bind.group.classes
 
     @classmethod
@@ -615,10 +610,8 @@ class Classes(Model):
         session = get_scoped_session()
         if teacher_classes := await session.scalar(
             select(TeacherClasses).where(
-                and_(
-                    TeacherClasses.teacher_id == teacher.id,
-                    TeacherClasses.classes_id == self.id,
-                )
+                (TeacherClasses.teacher_id == teacher.id)
+                & (TeacherClasses.classes_id == self.id)
             )
         ):
             teacher_classes.role = role
@@ -627,8 +620,28 @@ class Classes(Model):
             await session.refresh(teacher)
             await session.refresh(self)
 
+    async def get_task(self, task_id: int | str) -> Optional["Tasks"]:
+        """获取任务信息
 
-class ClassesJoinRequest(Model):
+        Args:
+            task_id (int | str): 任务ID或任务名称
+
+        Returns:
+            Optional["Tasks"]: 任务信息
+        """
+        session = get_scoped_session()
+        if isinstance(task_id, str):
+            return await session.scalar(
+                select(Tasks).where(
+                    (Tasks.name == task_id) & (Tasks.classes_id == self.id)
+                )
+            )
+        return await session.scalar(
+            select(Tasks).where((Tasks.id == task_id) & (Tasks.classes_id == self.id))
+        )
+
+
+class ClassesJoinRequest(Model, FilterModel):
     id: Mapped[PrimaryKeyInteger]
     classes_id: Mapped[int] = mapped_column(
         Integer, ForeignKey(Classes.id, ondelete="CASCADE"), nullable=False
@@ -645,7 +658,7 @@ class ClassesJoinRequest(Model):
 
 
 # 教师与班级多对多关系
-class TeacherClasses(Model):
+class TeacherClasses(Model, FilterModel):
     """教师与班级关联表"""
 
     __tablename__ = "teacher_classes"
@@ -684,7 +697,7 @@ class TeacherClasses(Model):
         await session.refresh(teacher_classes)
 
 
-class Student(Model):
+class Student(Model, FilterModel):
     """学生表"""
 
     __tablename__ = "student"
@@ -745,7 +758,7 @@ class Student(Model):
         await session.refresh(self)
 
 
-class StudentExtra(Model):
+class StudentExtra(Model, FilterModel):
     """学生额外信息表"""
 
     __tablename__ = "student_extra"
@@ -767,7 +780,7 @@ class StudentExtra(Model):
     student: Mapped[Student] = relationship(lazy=False, back_populates="extra")
 
 
-class Tasks(Model):
+class Tasks(Model, FilterModel):
     """任务表"""
 
     __tablename__ = "tasks"
@@ -793,6 +806,7 @@ class Tasks(Model):
         "TaskCommits", lazy="selectin", back_populates="task"
     )
     """任务与提交文件一对多关系"""
+    classes: Mapped[Classes] = relationship(lazy=False, back_populates="tasks")
 
     @classmethod
     async def create_task(
@@ -814,7 +828,10 @@ class Tasks(Model):
             Tasks: 任务信息
         """
         task = cls(
-            name=name, classes=classes, creator=creator, creator_role=creator_role
+            name=name,
+            classes_id=classes.id,
+            creator_id=creator.id,
+            creator_role=creator_role,
         )
         session = get_scoped_session()
         session.add(task)
@@ -823,7 +840,7 @@ class Tasks(Model):
         return task
 
 
-class TaskCommits(Model):
+class TaskCommits(Model, FilterModel):
     """任务文件表"""
 
     __tablename__ = "task_files"
