@@ -6,6 +6,7 @@ from openai import AsyncOpenAI
 from .config import AutoGPTConfig
 
 plugin_config = AutoGPTConfig.parse_obj(get_driver().config.dict())
+print(plugin_config.auto_gpt)
 client = AsyncOpenAI(
     api_key=plugin_config.auto_gpt_key, base_url=plugin_config.auto_gpt_url
 )

@@ -27,8 +27,8 @@ class ChatSession:
                     start = i + 1
                 if v.endswith("```"):
                     end = i
-            content = "\n".join(contents[start:end]).strip()
             print(content)
+            content = "\n".join(contents[start:end]).strip()
             auto_tasks = AutoTaskList.parse_obj(json.loads(content))
             if auto_tasks.reply:
                 self.messages.assistant_message(auto_tasks.json(ensure_ascii=False))

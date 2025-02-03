@@ -44,15 +44,14 @@ class User(Model, FilterModel):
         "Bind", lazy="selectin", back_populates="user"
     )
     """一个用户可以绑定多个表"""
-    groups: Mapped[List["Group"]] = relationship(
-        "Group", lazy="selectin", back_populates="creator"
-    )
-    """一个用户可以创建多个群组"""
 
-    join_requests: Mapped[List["ClassesJoinRequest"]] = relationship(
-        "ClassesJoinRequest", lazy="selectin", back_populates="user"
-    )
-    """用户与加入请求一对多关系"""
+    async def get_join_requests(self) -> List["ClassesJoinRequest"]:
+        """获取到用户的所有申请加入班级的请求"""
+        return await ClassesJoinRequest.filter(user_id=self.id).all()
+
+    async def get_groups(self) -> List["Group"]:
+        """获取到用户创建的所有群组"""
+        return await Group.filter(creator_id=self.id).all()
 
     @property
     def is_admin(self) -> bool:
@@ -245,7 +244,7 @@ class Group(Model, FilterModel):
     created_at: Mapped[CreateAt]
     updated_at: Mapped[UpdateAt]
 
-    creator: Mapped[User] = relationship(lazy=False, back_populates="groups")
+    creator: Mapped[User] = relationship(lazy="selectin")
     """创建者信息"""
     group_binds: Mapped[List["GroupBind"]] = relationship(
         "GroupBind", lazy="selectin", back_populates="group"
@@ -297,7 +296,7 @@ class GroupBind(Model, FilterModel):
     updated_at: Mapped[UpdateAt]
 
     group: Mapped[Group] = relationship(
-        "Group", lazy=False, back_populates="group_binds"
+        "Group", lazy="selectin", back_populates="group_binds"
     )
     """群组信息,一个平台绑定一个群组"""
 
@@ -473,7 +472,7 @@ class Classes(Model, FilterModel):
     created_at: Mapped[CreateAt]
     updated_at: Mapped[UpdateAt]
 
-    group: Mapped[Group] = relationship(lazy=False, back_populates="classes")
+    group: Mapped[Group] = relationship(lazy="selectin", back_populates="classes")
     """班级与群组一对一关系"""
     teacher: Mapped[List[Teacher]] = relationship(
         "Teacher",
@@ -482,18 +481,29 @@ class Classes(Model, FilterModel):
         back_populates="classes",
     )
     """班级与教师多对多关系"""
-    students: Mapped[List["Student"]] = relationship(
-        "Student", lazy="selectin", back_populates="classes"
-    )
-    """班级与学生一对多关系"""
-    join_requests: Mapped[List["ClassesJoinRequest"]] = relationship(
-        "ClassesJoinRequest", lazy="selectin", back_populates="classes"
-    )
-    """班级与加入请求一对多关系"""
-    tasks: Mapped[List["Tasks"]] = relationship(
-        "Tasks", lazy="selectin", back_populates="classes"
-    )
-    """班级与任务一对多关系"""
+
+    async def get_task(self, task_id: int | str) -> Optional["Tasks"]:
+        """获取任务信息
+
+        Args:
+            task_id (int | str): 任务ID或任务名称
+
+        Returns:
+            Optional["Tasks"]: 任务信息
+        """
+
+        if isinstance(task_id, str):
+            return await Tasks.filter(classes=self, name=task_id).first()
+        return await Tasks.filter(classes=self, id=task_id).first()
+
+    async def get_tasks(self) -> List["Tasks"]:
+        return await Tasks.filter(classes=self).all()
+
+    async def get_join_requests(self) -> List["ClassesJoinRequest"]:
+        return await ClassesJoinRequest.filter(classes_id=self.id).all()
+
+    async def get_students(self) -> List["Student"]:
+        return await Student.filter(classes_id=self.id).all()
 
     async def user_join_classes(self, user: User):
         """用户加入班级
@@ -620,20 +630,6 @@ class Classes(Model, FilterModel):
             await session.refresh(teacher)
             await session.refresh(self)
 
-    async def get_task(self, task_id: int | str) -> Optional["Tasks"]:
-        """获取任务信息
-
-        Args:
-            task_id (int | str): 任务ID或任务名称
-
-        Returns:
-            Optional["Tasks"]: 任务信息
-        """
-
-        if isinstance(task_id, str):
-            return await Tasks.filter(classes=self, name=task_id).first()
-        return await Tasks.filter(classes=self, id=task_id).first()
-
 
 class ClassesJoinRequest(Model, FilterModel):
     id: Mapped[PrimaryKeyInteger]
@@ -647,8 +643,8 @@ class ClassesJoinRequest(Model, FilterModel):
     describe: Mapped[str] = mapped_column(String(255), nullable=True)
     created_at: Mapped[CreateAt]
 
-    classes: Mapped[Classes] = relationship(lazy=False, back_populates="join_requests")
-    user: Mapped[User] = relationship(lazy=False, back_populates="join_requests")
+    classes: Mapped[Classes] = relationship(lazy="selectin")
+    user: Mapped[User] = relationship(lazy="selectin")
 
 
 # 教师与班级多对多关系
@@ -711,12 +707,12 @@ class Student(Model, FilterModel):
     created_at: Mapped[CreateAt]
     updated_at: Mapped[UpdateAt]
 
-    classes: Mapped[Classes] = relationship(lazy=False, back_populates="students")
+    classes: Mapped[Classes] = relationship(lazy="selectin")
     """学生与班级一对多关系"""
-    user: Mapped[User] = relationship(lazy=False, back_populates="student")
+    user: Mapped[User] = relationship(lazy="selectin", back_populates="student")
     """学生与用户一对一关系"""
     extra: Mapped["StudentExtra"] = relationship(
-        lazy=False, back_populates="student", uselist=False
+        lazy="selectin", back_populates="student", uselist=False
     )
     """学生额外信息"""
 
@@ -771,7 +767,7 @@ class StudentExtra(Model, FilterModel):
     """家庭联系方式"""
     updated_at: Mapped[UpdateAt]
 
-    student: Mapped[Student] = relationship(lazy=False, back_populates="extra")
+    student: Mapped[Student] = relationship(lazy="selectin", back_populates="extra")
 
 
 class Tasks(Model, FilterModel):
@@ -796,11 +792,13 @@ class Tasks(Model, FilterModel):
     created_at: Mapped[CreateAt]
     updated_at: Mapped[UpdateAt]
 
-    commits: Mapped[List["TaskCommits"]] = relationship(
-        "TaskCommits", lazy="selectin", back_populates="task"
-    )
-    """任务与提交文件一对多关系"""
-    classes: Mapped[Classes] = relationship(lazy=False, back_populates="tasks")
+    classes: Mapped[Classes] = relationship(lazy="selectin")
+    """任务与班级一对多关系"""
+    creator: Mapped[User] = relationship(lazy=False)
+
+    async def get_commits(self) -> List["TaskCommits"]:
+        """获取任务提交信息"""
+        return await TaskCommits.filter(task_id=self.id).all()
 
     @classmethod
     async def create_task(
@@ -852,9 +850,9 @@ class TaskCommits(Model, FilterModel):
     created_at: Mapped[CreateAt]
     updated_at: Mapped[UpdateAt]
 
-    task: Mapped[Tasks] = relationship(lazy=False, back_populates="commits")
+    task: Mapped[Tasks] = relationship(lazy="selectin")
     """任务信息"""
-    student: Mapped[Student] = relationship(lazy=False)
+    student: Mapped[Student] = relationship(lazy="selectin")
     """学生信息"""
 
     def save_data(self, data: bytes):

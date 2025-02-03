@@ -33,12 +33,16 @@ class Filter(Generic[T]):
         return await self.session.scalar(select(self.model).where(*self.options))
 
     async def scalars(self) -> ScalarResult[T]:
+        print(select(self.model).where(*self.options))
         return await self.session.scalars(select(self.model).where(*self.options))
 
     async def delete(self):
         result = await self.session.execute(delete(self.model).where(*self.options))
         await self.session.commit()
         return result
+
+    async def all(self) -> list[T]:
+        return list(await self.scalars())
 
 
 class FilterModel:

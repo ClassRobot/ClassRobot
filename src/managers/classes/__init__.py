@@ -1,7 +1,8 @@
+from utils import Emoji
 from utils.tools import StringCard
 from utils.session import EventSession
 from nonebot.params import ArgPlainText
-from utils.models import Classes, Student, GroupBind
+from utils.models import Classes, GroupBind
 from utils.models.enums import JoinMethod, TeacherRole
 from nonebot_plugin_alconna import UniMessage, AlconnaMatcher
 from utils.models.annotated import (
@@ -10,7 +11,6 @@ from utils.models.annotated import (
     TeacherOrCreatedDepends,
 )
 
-from .util import join_method_dict
 from .commands import (
     add_classes_cmd,
     join_classes_cmd,
@@ -27,15 +27,17 @@ async def _(
     teacher: TeacherOrCreatedDepends,
 ):
     if not platform.is_group:
-        await matcher.finish("❌️请在群聊中使用该命令！！")
+        await matcher.finish(Emoji.error + "请在群聊中使用该命令！！")
     elif classes := await Classes.get_classes(**platform.group_params):
         await matcher.finish(
-            f"❌️这个群已经是班级群了！！\n> 班级ID: {classes.id}\n> 名称: {classes.name}"
+            Emoji.error + f"这个群已经是班级群了！！\n> 班级ID: {classes.id}\n> 名称: {classes.name}"
         )
     if classes := await teacher.get_classes(class_name):
         # 如果教师班级已存在并且该群未绑定班级就按照名字绑定班级
         await GroupBind.bind_group(**platform.group_params, group=classes.group)
-        await matcher.finish(f"✅️班级ID: {classes.id}\n✅️名称:{class_name}\n🥳与本群绑定成功!🎉")
+        await matcher.finish(
+            f"{Emoji.info}班级ID: {classes.id}\n{Emoji.info}名称:{class_name}\n{Emoji.success}与本群绑定成功!{Emoji.win}"
+        )
     else:
         classes = await Classes.create_classes(
             class_name,
@@ -44,7 +46,9 @@ async def _(
         )
         await classes.bind_teacher(teacher)
         await classes.update_teacher_role(teacher, TeacherRole.counselor)
-        await matcher.finish(f"✅️班级ID: {classes.id}\n✅️名称:{class_name}\n🥳创建成功!🎉")
+        await matcher.finish(
+            f"{Emoji.info}班级ID: {classes.id}\n{Emoji.info}名称:{class_name}\n{Emoji.success}创建成功!{Emoji.win}"
+        )
 
 
 @query_classes_cmd.handle()
@@ -53,14 +57,14 @@ async def _(
     matcher: AlconnaMatcher,
 ):
     if teacher is None or not teacher.classes:
-        await matcher.finish("❌️您还未创建班级！！")
+        await matcher.finish(Emoji.warning + "您还未创建班级！！")
     card = StringCard("您所创建班级如下")
     for classes in teacher.classes:
         (
             card.hr()
             .text(f"班级ID: {classes.id}")
             .text(f"班级名称: {classes.name}")
-            .text(f"学生数量: {len(classes.students)}")
+            .text(f"学生数量: {len(await classes.get_students())}")
         )
     await matcher.finish(card.render())
 

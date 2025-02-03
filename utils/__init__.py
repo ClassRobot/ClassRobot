@@ -1,8 +1,20 @@
 import itertools
 from typing import TypeVar, Callable
 
+from strenum import StrEnum
+
 T = TypeVar("T")
 ValidateName = lambda name: None if name.strip().isdigit() else name
+
+
+class Emoji(StrEnum):
+    win = "🎉"
+    error = "❌"
+    success = "✅"
+    warning = "⚠️"
+    info = "ℹ️"
+    question = "❓"
+    loading = "⏳"
 
 
 def tip(msg: T) -> Callable[..., T]:
