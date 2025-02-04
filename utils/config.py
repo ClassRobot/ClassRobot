@@ -1,5 +1,6 @@
 from tarina import lang
 from nonebot_plugin_alconna.model import CompConfig
+from arclet.alconna.config import config as alc_config
 from nonebot_plugin_localstore import get_data_dir, get_cache_dir, get_config_dir
 
 dirname = "classbot"
@@ -22,6 +23,7 @@ comp_config = CompConfig(
     hides={"exit"},
     disables={"tab", "enter"},
 )
+alc_config.default_namespace.compact = True
 data_dir = get_data_dir(dirname)
 cache_dir = get_cache_dir(dirname)
 config_dir = get_config_dir(dirname)

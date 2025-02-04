@@ -1,15 +1,26 @@
-from functools import partial
-
-from nonebot import get_driver
-from openai import AsyncOpenAI
+from nonebot import logger, get_driver
+from openai import APIError, AsyncOpenAI
+from openai.types.chat.chat_completion import ChatCompletion
+from openai.types.chat.chat_completion_message_param import ChatCompletionMessageParam
 
 from .config import AutoGPTConfig
 
 plugin_config = AutoGPTConfig.parse_obj(get_driver().config.dict())
-print(plugin_config.auto_gpt)
-client = AsyncOpenAI(
-    api_key=plugin_config.auto_gpt_key, base_url=plugin_config.auto_gpt_url
-)
-client_create = partial(
-    client.chat.completions.create, model=plugin_config.auto_gpt_model, stream=False
-)
+
+clients: dict[str, AsyncOpenAI] = {}
+
+for gpt_config in plugin_config.auto_gpt:
+    client = AsyncOpenAI(api_key=gpt_config.key, base_url=gpt_config.url)
+    clients[gpt_config.name] = client
+
+
+async def client_create(messages: list[ChatCompletionMessageParam]) -> ChatCompletion:
+    for gpt_config in plugin_config.auto_gpt:
+        try:
+            return await clients[gpt_config.name].chat.completions.create(
+                model=gpt_config.model, stream=False, messages=messages
+            )
+        except APIError as e:
+            logger.error(f"AutoGPT {gpt_config.name} error {e}")
+            continue
+    raise Exception("AutoGPT error")

@@ -30,9 +30,9 @@ class AutoTaskList(BaseModel):
     tasks: list[AutoTask] = []
     "自动任务列表，如果存在的话，回复用户内容后会开始执行tasks中的任务"
     need_confirm: bool = True
-    "True表示必须要询问用户是否要执行，但机器人如果非常确定用户的意图则可以不需要用户确认"
+    "`True`表示必须要询问用户是否要执行，但机器人如果非常确定用户的意图则可以不需要用户确认"
     reply: str | None = None
-    "回复给用户的消息，如果`tasks`里面有任务的话则告知用户机器人接下来会帮助用户做什么，如果`need_confirm`为`True`则必须要询问用户是否要执行，为`False`时`reply`可以为空，具体情况由机器人自己去分析用户意图。"
+    "回复给用户的消息，如果`tasks`里面有任务的话则告知用户机器人接下来会帮助用户做什么，如果`need_confirm`为`True`则必须要询问用户是否要执行，具体情况由机器人自己去分析用户意图。"
     is_violation: bool = False
     "结合历史聊天内容判断用户是否在发送一些无意义、重复、反动、色情、暴力等不良信息，如果是则不做回复"
 
@@ -60,8 +60,29 @@ class ChatMessage(BaseModel):
                     self.message.append(Param(type="image", value=msg.url))
         return self
 
+    def have_image(self):
+        for msg in self.message:
+            if msg.type == "image":
+                return True
+        return False
+
     def to_string(self):
+        if self.have_image():
+            data = [
+                {"type": "text", "text": self.json(ensure_ascii=False)},
+                *(
+                    {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": msg.value,
+                        },
+                    }
+                    for msg in self.message
+                    if msg.type == "image"
+                ),
+            ]
+            return data
         return self.json(ensure_ascii=False)
 
     def __str__(self) -> str:
-        return self.to_string()
+        return str(self.to_string())

@@ -7,15 +7,15 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.10"
-nonebot2 = {extras = ["fastapi"], version = "^2.0.0"}
+nonebot2 = {extras = ["fastapi"], version = "^2.4.1"}
 pandas = "^2.2.3"
 httpx = "^0.28.1"
 aiomysql = "^0.2.0"
-fastapi = "^0.115.6"
+fastapi = "^0.115.8"
 imgkit = "^1.2.3"
-markdown2 = "^2.5.2"
+markdown2 = "^2.5.3"
 cryptography = "^44.0.0"
-nonebot-adapter-qq = "^1.6.1"
+nonebot-adapter-qq = "^1.6.2"
 nonebot-plugin-orm = {extras = ["postgresql", "asyncpg"], version = "^0.7.6"}
 nonebot-plugin-alconna = "^0.54.2"
 nonebot-plugin-animeres = "^1.0.5"
@@ -25,13 +25,14 @@ nonebot-plugin-apscheduler = "^0.5.0"
 strenum = "^0.4.15"
 cos-python-sdk-v5 = "^1.9.33"
 xlrd = "^2.0.1"
-aiosqlite = "^0.20.0"
+aiosqlite = "^0.21.0"
 pydantic = "^1.10.0"
 nonebot-adapter-onebot = "^2.4.6"
 nonebot-plugin-htmlrender = "^0.5.1"
-openai = "^1.59.8"
+openai = "^1.61.0"
 aioredis = "^2.0.1"
 nonebot-plugin-status = "^0.9.0"
+nonebot-plugin-waiter = "^0.8.1"
 
 [tool.poetry.group.dev.dependencies]
 pycln = "^2.4.0"
@@ -52,17 +53,18 @@ priority = "primary"
 
 [tool.nonebot]
 plugins = [
-    "nonebot_plugin_orm",
     "nonebot_plugin_alconna",
+    "nonebot_plugin_orm",
+    "nonebot_plugin_htmlrender",
     "nonebot_plugin_animeres",
-    # "nonebot_plugin_blockwords",
     "nonebot_plugin_localstore",
     "nonebot_plugin_apscheduler",
-    "nonebot_plugin_htmlrender",
     "nonebot_plugin_status",
+    "nonebot_plugin_waiter",
     "utils.models",
 ]
 plugin_dirs = [
+    "src/dist",
     "src/managers",
     "src/plugins",
     "src/others",

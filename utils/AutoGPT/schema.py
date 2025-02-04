@@ -10,7 +10,7 @@ class Role(StrEnum):
 
 class Context(BaseModel):
     role: Role
-    content: str
+    content: str | list
 
 
 class Messages(BaseModel):
@@ -46,7 +46,7 @@ class Messages(BaseModel):
                 self.messages.pop(index - 1)
         self.messages.pop(index)
 
-    def add_message(self, role: Role, content: str):
+    def add_message(self, role: Role, content: str | list):
         char_length = self.char_length()
         if char_length > self.max_length:
             # 超出限制，删除一半的消息
@@ -57,12 +57,12 @@ class Messages(BaseModel):
                     break
         self.messages.append(Context(role=role, content=content))
 
-    def user_message(self, content: str):
+    def user_message(self, content: str | list):
         self.add_message(role=Role.user, content=content)
 
-    def system_message(self, content: str):
+    def system_message(self, content: str | list):
         self.add_message(role=Role.system, content=content)
 
-    def assistant_message(self, content: str):
+    def assistant_message(self, content: str | list):
         self.add_message(role=Role.assistant, content=content)
         print(self.char_length())

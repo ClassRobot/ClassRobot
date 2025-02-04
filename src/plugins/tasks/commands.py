@@ -11,6 +11,7 @@ push_task_cmd = on_alconna(
     aliases=push_task_alias,
     priority=priority,
     block=True,
+    skip_for_unmatch=False,
     comp_config=comp_config,
 )
 create_task_alias = alias_product(["创建", "发布"], ["作业", "任务"])
@@ -29,6 +30,7 @@ create_task_cmd = on_alconna(
     aliases=create_task_alias,
     priority=priority,
     block=True,
+    skip_for_unmatch=False,
     comp_config=comp_config,
 )
 delete_task_alias = alias_product(["删除", "撤销"], ["作业", "任务"])
@@ -40,6 +42,7 @@ delete_task_cmd = on_alconna(
     aliases=delete_task_alias,
     priority=priority,
     block=True,
+    skip_for_unmatch=False,
     comp_config=comp_config,
 )
 export_task_alias = alias_product(["导出", "下载"], ["作业", "任务"])
@@ -51,6 +54,7 @@ export_task_cmd = on_alconna(
     aliases=export_task_alias,
     priority=priority,
     block=True,
+    skip_for_unmatch=False,
     comp_config=comp_config,
 )
 query_task_alias = alias_product(["查询", "查看"], ["作业", "任务"])
@@ -62,6 +66,7 @@ query_task_cmd = on_alconna(
     aliases=query_task_alias,
     priority=priority,
     block=True,
+    skip_for_unmatch=False,
     comp_config=comp_config,
 )
 

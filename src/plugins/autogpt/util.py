@@ -14,8 +14,10 @@ class ChatSession:
             messages=[Context(role=Role.system, content=get_prompt_system())]
         )
 
-    async def send_message(self, message: str | UniMessage):
-        self.messages.user_message(ChatMessage().extend(message).to_string())
+    async def send_message(self, message: str | UniMessage, user_id: int):
+        self.messages.user_message(
+            ChatMessage(user_id=user_id).extend(message).to_string()
+        )
         response = await client_create(**self.messages.dict())
         # 可能会存在```json和```这种情况，需要删除
         content = response.choices[0].message.content  # type: ignore

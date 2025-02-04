@@ -2,12 +2,10 @@ from nonebot.rule import to_me
 from utils.config import priority
 from nonebot.matcher import Matcher
 from nonebot.adapters import Bot, Event
-from nonebot.params import EventMessage
 from nonebot.message import handle_event
 from nonebot import on_command, on_message
-from nonebot_plugin_alconna import UniMessage
 from utils.models.annotated import UserOrCreatedDepends
-from nonebot.adapters.ntchat import MessageEvent as NTChatMessageEvent
+from nonebot_plugin_alconna import UniMsg, MsgTarget, UniMessage, SupportScope
 
 from .util import chat_session_manager
 from .schemas import AutoTask, AutoTaskList
@@ -36,12 +34,13 @@ async def _(
     event: Event,
     matcher: Matcher,
     user: UserOrCreatedDepends,
-    message: UniMessage = EventMessage(),
+    message: UniMsg,
+    target: MsgTarget,
 ):
-    if isinstance(event, NTChatMessageEvent):
+    if target.scope == SupportScope.wechat:
         await matcher.finish()
     chat = chat_session_manager.get_chat_session(user.id)
-    auto_task = await chat.send_message(message.extract_plain_text())
+    auto_task = await chat.send_message(message, user.id)
     if isinstance(auto_task, AutoTaskList):
         if auto_task.is_violation:
             await matcher.finish("您发送的内容包含违规信息，已经被屏蔽")

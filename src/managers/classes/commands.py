@@ -19,6 +19,7 @@ add_classes_cmd = on_alconna(
             ),
         ],
     ),
+    skip_for_unmatch=False,
     priority=priority,
     aliases={"创建班级", "绑定班级"},
     comp_config=comp_config,
@@ -33,6 +34,7 @@ join_classes_cmd = on_alconna(
     Alconna(
         "加入班级", Args["classes_id?", Optional[int]], Args["describe?", Optional[str]]
     ),
+    skip_for_unmatch=False,
     comp_config=comp_config,
     priority=priority,
     block=True,
@@ -45,6 +47,7 @@ set_join_classes_cmd = on_alconna(
         Args["classes_id?", Optional[str]],
         Args["join_method?", Optional[str]],
     ),
+    skip_for_unmatch=False,
     comp_config=comp_config,
     priority=priority,
     block=True,
@@ -53,6 +56,7 @@ set_join_classes_cmd = on_alconna(
 # 退出班级
 exit_classes_cmd = on_alconna(
     Alconna("退出班级"),
+    skip_for_unmatch=False,
     comp_config=comp_config,
     priority=priority,
     block=True,
@@ -61,7 +65,7 @@ exit_classes_cmd = on_alconna(
 __helper__ = [
     Helper(
         command="添加班级",
-        description="创建一个自己的班级，创建后默认会成为该班级教师，同时也可以将已有班级与群进行绑定",
+        description="创建一个自己的班级，创建后默认会成为该班级教师，同时也可以将已有班级与群进行绑定，一条命令只能创建一个班级！",
         aliases={"创建班级", "绑定班级"},
         params=[Param(name="班级名称")],
     ),
