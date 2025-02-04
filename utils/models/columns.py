@@ -1,8 +1,8 @@
 from typing import Annotated
 from datetime import datetime
-from sqlalchemy import DateTime, func, Integer
-from sqlalchemy.orm import mapped_column
 
+from sqlalchemy.orm import mapped_column
+from sqlalchemy import Integer, DateTime, func
 
 CreateAt = Annotated[
     datetime, mapped_column(DateTime, server_default=func.now(), nullable=False)

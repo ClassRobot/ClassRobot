@@ -1,8 +1,9 @@
 from typing import Annotated
+
 from pydantic import BaseModel
 from nonebot.params import Depends
 from nonebot.adapters import Event as BaseEvent
-from nonebot_plugin_alconna import MsgTarget, SupportAdapter, SupportScope
+from nonebot_plugin_alconna import MsgTarget, SupportScope, SupportAdapter
 
 
 class BaseSession(BaseModel):

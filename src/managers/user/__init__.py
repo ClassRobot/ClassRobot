@@ -54,7 +54,12 @@ async def _(matcher: AlconnaMatcher, user: UserOrCreatedDepends):
     token = str(uuid4())
     await cache.set(token, user.id, ex=300)
     await matcher.finish(
-        UniMessage((f"需要绑定平台请在5分钟内将以下token粘贴到指定平台发送:\n" f"token={token}"))
+        UniMessage(
+            (
+                f"需要绑定平台请在5分钟内将以下token粘贴到指定平台发送:\n"
+                f"token={token}"
+            )
+        )
     )
 
 
@@ -79,7 +84,9 @@ async def _(
     if user is None:
         matcher.state["confirm"] = UniMessage("yes")
     else:
-        await matcher.send(f"您已经在该平台绑定过[{user.id}:{user.username}]的账号，是否要重新绑定？(yes/no)")
+        await matcher.send(
+            f"您已经在该平台绑定过[{user.id}:{user.username}]的账号，是否要重新绑定？(yes/no)"
+        )
 
 
 @token_cmd.got("confirm")

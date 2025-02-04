@@ -100,7 +100,8 @@ class ChatMessage(BaseModel):
 
 
 def get_prompt_system():
-    bot_command = "<classbot_command>\n你所具备的功能命令如下:\n%s</classbot_command>" % (
-        prompt_system + helper_menu.to_string()
+    bot_command = (
+        "<classbot_command>\n你所具备的功能命令如下:\n%s</classbot_command>"
+        % (prompt_system + helper_menu.to_string())
     )
     return bot_command

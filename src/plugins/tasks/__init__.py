@@ -29,7 +29,9 @@ async def _(matcher: AlconnaMatcher, task_name: str, user: UserOrCreatedDepends)
     classes = matcher.state.get("classes")
     if isinstance(classes, Classes):
         if await classes.get_task(task_name):
-            await matcher.finish(Emoji.warning + f"“{task_name}”任务已存在，请勿重复创建！")
+            await matcher.finish(
+                Emoji.warning + f"“{task_name}”任务已存在，请勿重复创建！"
+            )
         await Tasks.create_task(task_name, classes, user, matcher.state["role"])
         await matcher.finish(Emoji.success + f"“{task_name}”任务创建成功")
 

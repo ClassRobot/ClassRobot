@@ -1,6 +1,7 @@
 from typing import Any
-from nonebot.params import CommandArg, Depends
+
 from nonebot_plugin_alconna import UniMessage
+from nonebot.params import Depends, CommandArg
 
 
 def _command_arg_str(message: UniMessage = CommandArg()) -> str | None:
