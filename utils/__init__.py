@@ -16,6 +16,9 @@ class Emoji(StrEnum):
     question = "❓"
     loading = "⏳"
 
+    def __call__(self, *msg: str, sep: str = "") -> str:
+        return self + sep + sep.join(msg)
+
 
 def tip(msg: T) -> Callable[..., T]:
     return lambda *_: msg

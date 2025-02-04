@@ -831,6 +831,10 @@ class Tasks(Model, FilterModel):
         await session.refresh(task)
         return task
 
+    async def delete(self):
+        """删除任务"""
+        return await self.filter(id=self.id).delete()
+
 
 class TaskCommits(Model, FilterModel):
     """任务文件表"""

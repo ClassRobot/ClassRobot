@@ -15,6 +15,8 @@ class StringCard:
     v = vertical
     lv = left_vertical
 
+    hr_len: int = 10
+
     def __init__(self, title: str | None = None, hr_len: int = 10) -> None:
         self.hr_len: int = hr_len
         self.head_corner: str = self.lt + self.h * self.hr_len

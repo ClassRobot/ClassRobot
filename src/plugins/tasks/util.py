@@ -11,8 +11,8 @@ class TaskList(list[Tasks]):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    async def to_card(self):
-        card = StringCard()
+    async def to_card(self, title: str | None = None):
+        card = StringCard(title)
         for task in self:
             creator = task.creator
             if task.creator_role == "student":
@@ -47,9 +47,18 @@ class TaskManager:
     def __init__(self, user: User):
         self.user: User = user
         self.select_name: str | None = None  # 选择的任务名称
-        self.select_task: Tasks | None = None
+        self._select_task: Tasks | None = None
         self.submit_tasks: TaskList = TaskList()  # 可提交任务
         self.not_submit_tasks: TaskList = TaskList()  # 不可提交任务
+
+    @property
+    def select_task(self) -> Tasks:
+        assert self._select_task, "未选择任务"
+        return self._select_task
+
+    @select_task.setter
+    def select_task(self, task: Tasks | None):
+        self._select_task = task
 
     @property
     def tasks(self) -> TaskList:
@@ -86,7 +95,7 @@ class TaskManager:
     @property
     def is_select(self) -> bool:
         """是否选择了任务"""
-        return self.select_task is not None
+        return self._select_task is not None
 
     async def commits(
         self, task: Tasks | None = None
@@ -100,7 +109,6 @@ class TaskManager:
             tuple[tuple[Student, ...], tuple[Student, ...]]: 已提交, 未提交
         """
         task = task or self.select_task
-        assert task, "未选择任务"
         students = tuple(await task.classes.get_students())
         if not students:  # 如果没有学生则直接返回
             return tuple(), tuple()
@@ -110,6 +118,11 @@ class TaskManager:
             student for student in students if student.name not in submitted_names
         )
         return submitted, not_submitted
+
+    async def delete(self, task: Tasks | None = None):
+        """删除任务"""
+        task = task or self.select_task
+        return await task.delete()
 
     def __bool__(self) -> bool:
         return any((self.submit_tasks, self.not_submit_tasks))

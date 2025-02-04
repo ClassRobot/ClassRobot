@@ -64,3 +64,12 @@ query_task_cmd = on_alconna(
     block=True,
     comp_config=comp_config,
 )
+
+
+__all__ = [
+    "push_task_cmd",
+    "create_task_cmd",
+    "delete_task_cmd",
+    "export_task_cmd",
+    "query_task_cmd",
+]
