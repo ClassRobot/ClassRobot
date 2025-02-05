@@ -18,7 +18,7 @@ class Messages(BaseModel):
 
     @property
     def max_length(self) -> int:
-        return 20480
+        return 12 * 1024
 
     def char_length(self) -> int:
         return sum(len(message.content) for message in self.messages)

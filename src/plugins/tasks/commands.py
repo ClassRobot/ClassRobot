@@ -1,13 +1,19 @@
 from utils.config import priority, comp_config
 from utils import ValidateName, tip, alias_product
-from nonebot_plugin_alconna import Args, File, Field, Image, Other, Alconna, on_alconna
+from nonebot_plugin_alconna import (
+    Args,
+    File,
+    Field,
+    Image,
+    Other,
+    Alconna,
+    MultiVar,
+    on_alconna,
+)
 
 push_task_alias = alias_product(["上传", "提交"], ["作业", "任务"])
 push_task_cmd = on_alconna(
-    Alconna(
-        "提交任务",
-        Args["file", Image | File | Other, Field(completion=lambda: "发送文件给我吧")],
-    ),
+    Alconna("提交任务", Args["task_arg", MultiVar(str | File | Image | Other, "*")]),
     aliases=push_task_alias,
     priority=priority,
     block=True,

@@ -64,7 +64,6 @@ plugins = [
     "utils.models",
 ]
 plugin_dirs = [
-    "src/dist",
     "src/managers",
     "src/plugins",
     "src/others",

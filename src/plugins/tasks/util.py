@@ -1,10 +1,52 @@
-from typing import Annotated
+import shutil
+from hashlib import md5
+from pathlib import Path
+from typing import Literal, Annotated
 
-from nonebot.params import Depends
+from pydantic import BaseModel
 from utils.tools import StringCard
 from nonebot.matcher import Matcher
-from utils.models import User, Tasks, Student
+from nonebot.adapters import Message
+from nonebot.params import Arg, Depends
+from nonebot.adapters import Bot as BaseBot
 from utils.models.annotated import UserDepends
+from utils.config import cache_dir, global_config
+from nonebot_plugin_htmlrender import get_new_page
+from nonebot.adapters.onebot.v11 import Bot as V11Bot
+from utils.models import User, Tasks, Student, TaskCommits
+from nonebot_plugin_alconna import File, Image, Other, UniMessage
+
+TaskFile = File | Image | Other
+
+
+class FileData(BaseModel):
+    name: str
+    data: bytes | None = None
+    path: Path | None = None
+
+    def save_data(self, file_path: Path, new: bool = True):
+        """保存数据，将数据迁移或者保存到指定文件"""
+        if self.data is None and self.path is None:
+            raise ValueError("data and path cannot be None at the same time")
+
+        if self.path and self.path != file_path:
+            shutil.move(self.path, file_path)
+            self.path = file_path if new else self.path
+        elif self.data:
+            file_path.write_bytes(self.data)
+            self.path = file_path if new else self.path
+
+    def get_data(self) -> bytes:
+        """获取数据，如果data为None就从path中读取"""
+        if self.path is None and self.data is None:
+            raise ValueError("data and path cannot be None at the same time")
+
+        if self.data is None:
+            self.data = self.path.read_bytes()  # type: ignore
+        return self.data
+
+    def __bool__(self) -> bool:
+        return bool(self.data or self.path)
 
 
 class TaskList(list[Tasks]):
@@ -127,25 +169,121 @@ class TaskManager:
     def __bool__(self) -> bool:
         return any((self.submit_tasks, self.not_submit_tasks))
 
+    async def check_file_exists(self, file_md5: str | bytes) -> bool:
+        if isinstance(file_md5, bytes):
+            # 文件校验
+            file_md5 = md5(file_md5).hexdigest()
+        return await TaskCommits.filter(file_md5=file_md5).exists()
 
-async def task_manager_depends(
-    matcher: Matcher, task_name: str | None, user: UserDepends
-) -> TaskManager | None:
-    if task_manager := matcher.state.get("_task_manager"):
+    async def download_file(self, url: str) -> bytes:
+        async with get_new_page() as page:
+            response = await page.request.get(url)
+            return await response.body()
+
+
+class PushTaskManager(TaskManager):
+    task_file: TaskFile | None = None
+
+    def set_task_file(self, message: UniMessage | TaskFile | Message) -> bool:
+        """设置提交的任务文件，只会拿第一次提交的文件
+
+        Args:
+            message (UniMessage | TaskFile): 用户消息
+
+        Returns:
+            bool: 是否提交成功
+        """
+        if self.task_file is not None:
+            return True
+        elif isinstance(message, TaskFile):
+            self.task_file = message
+            return True
+        elif isinstance(message, Message):
+            message = UniMessage.generate_sync(message=message)
+        for file in message:
+            if isinstance(file, TaskFile):
+                self.task_file = file
+                return True
+        return False
+
+    def task_file_url(self):
+        if self.task_file is not None:
+            if isinstance(self.task_file, File | Image):
+                return self.task_file.url
+            elif isinstance(self.task_file, Other):
+                print(self.task_file.origin.data)
+
+
+def task_manager_depends(
+    role: Literal["student", "teacher"] | None = None,
+    manager: type[TaskManager] | None = None,
+):
+    """任务管理器依赖
+
+    Args:
+        role (Literal[&quot;student&quot;, &quot;teacher&quot;] | None, optional): 角色. Defaults to None.
+            只获取学生任务或教师任务
+    """
+
+    async def _(
+        matcher: Matcher,
+        user: UserDepends,
+        task_name: str | None = None,
+    ) -> TaskManager | None:
+        if task_manager := matcher.state.get("_task_manager"):
+            return task_manager
+
+        # 既不是学生也不是教师
+        if user is None or (not user.student and not user.teacher):
+            await matcher.finish()
+
+        task_manager = (manager or TaskManager)(user)
+        # 当没有填写任务名时，返回所有任务
+        if task_name is None:
+            if (role is None or role == "student") and user.student:
+                task_manager.submit_tasks.extend(await user.student.classes.get_tasks())
+            if (role is None or role == "teacher") and user.teacher:
+                for classes in user.teacher.classes:
+                    task_manager.not_submit_tasks.extend(await classes.get_tasks())
+        matcher.state["_task_manager"] = task_manager
         return task_manager
-    if user is None or (not user.student and not user.teacher):
-        await matcher.finish()
 
-    task_manager = TaskManager(user)
-    # 当没有填写任务名时，返回所有任务
-    if task_name is None:
-        if user.student:
-            task_manager.submit_tasks.extend(await user.student.classes.get_tasks())
-        if user.teacher:
-            for classes in user.teacher.classes:
-                task_manager.not_submit_tasks.extend(await classes.get_tasks())
-        return task_manager
-    return task_manager
+    return Depends(_)
 
 
-TaskManagerDepends = Annotated[TaskManager, Depends(task_manager_depends)]
+async def get_file_data(
+    bot: BaseBot,
+    task_file: UniMessage = Arg(),
+    task_manager: PushTaskManager = task_manager_depends("student", PushTaskManager),
+) -> FileData | None:
+    task_manager.set_task_file(task_file)
+    if isinstance(task_manager.task_file, Other) and isinstance(bot, V11Bot):
+        if task_manager.task_file.origin.type != "file":
+            return None
+        file_id: str = task_manager.task_file.origin.data["file_id"]
+        res = await bot.get_file(file_id=file_id)
+        file_id = file_id.replace("\\", "").replace("/", "")
+        file_path = Path(res["file"])
+
+        # 在wsl模式下将从共享目录中获取文件
+        if global_config.wsl_share_dir and global_config.wsl_share_dir.exists():
+            file_path = global_config.wsl_share_dir / file_path.name
+
+        new_path = cache_dir / file_id
+        shutil.move(file_path, new_path)
+        file_path.unlink(True)
+        return FileData(
+            name=file_id,
+            path=new_path,
+        )
+    elif (
+        isinstance(task_manager.task_file, File | Image) and task_manager.task_file.url
+    ):
+        return FileData(
+            name=task_manager.task_file.name,
+            data=await task_manager.download_file(task_manager.task_file.url),
+        )
+
+
+TaskManagerDepends = Annotated[TaskManager, task_manager_depends()]
+FileDataDepends = Annotated[FileData | None, Depends(get_file_data)]

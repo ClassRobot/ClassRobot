@@ -1,13 +1,20 @@
-# from nonebot.adapters.ntchat import FileMessageEvent
 from utils import Emoji
 from utils.tools import StringCard
 from utils.models import Tasks, Classes
-from nonebot.params import EventPlainText
-from utils.models.annotated import UserDepends, UserOrCreatedDepends
-from nonebot_plugin_alconna import File, Image, Other, UniMessage, AlconnaMatcher
+from nonebot.adapters import MessageTemplate
+from nonebot.params import Arg, ArgPlainText
+from nonebot_plugin_alconna import UniMessage, AlconnaMatcher
+from utils.models.annotated import UserDepends, StudentDepends, UserOrCreatedDepends
 
-from .util import TaskManagerDepends
 from .commands import push_task_cmd, query_task_cmd, create_task_cmd, delete_task_cmd
+from .util import (
+    TaskFile,
+    TaskManager,
+    FileDataDepends,
+    PushTaskManager,
+    TaskManagerDepends,
+    task_manager_depends,
+)
 
 
 # --------------------------------- 创建任务 ---------------------------------
@@ -57,7 +64,11 @@ async def _(
     if submitted:  # 已提交的学生
         card = StringCard().hr("已提交")
         for student in submitted:
-            card.text(student.name, student.created_at.strftime("%Y-%m-%d %H:%M:%S"))
+            card.text(
+                student.name,
+                student.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+                sep=" | ",
+            )
         await matcher.send(card.render())
     else:
         await matcher.send(Emoji.warning + "暂无学生提交")
@@ -77,9 +88,9 @@ async def _(
 async def _(
     matcher: AlconnaMatcher, task_name: str | None, task_manager: TaskManagerDepends
 ):
-    if not task_manager:
-        await matcher.finish(Emoji.error + "您还未创建任务呢！")
-    elif task_name is None:
+    if task_name is None:
+        if not task_manager:
+            await matcher.finish(Emoji.error + "您还未创建任务呢！")
         await matcher.send(await task_manager.tasks.to_card(Emoji.info + "输入任务ID或名称删除"))
     else:
         matcher.state["got_name"] = UniMessage(task_name)
@@ -89,7 +100,7 @@ async def _(
 async def _(
     matcher: AlconnaMatcher,
     task_manager: TaskManagerDepends,
-    got_name: str = EventPlainText(),
+    got_name: str = ArgPlainText(),
 ):
     if not (got_name := got_name.strip()):
         await matcher.finish(Emoji.error("任务名称不能为空"))
@@ -103,5 +114,60 @@ async def _(
 
 # --------------------------------- 推送任务 ---------------------------------
 @push_task_cmd.handle()
-async def _(matcher: AlconnaMatcher, task_manager: TaskManagerDepends):
-    ...
+async def _(
+    matcher: AlconnaMatcher,
+    task_arg: tuple,
+    task_manager: TaskManager = task_manager_depends("student", PushTaskManager),
+):
+    for arg in task_arg:
+        if isinstance(arg, str) and "task_name" not in matcher.state:
+            matcher.state["task_name"] = UniMessage(arg)
+        elif isinstance(arg, TaskFile) and "task_file" not in matcher.state:
+            matcher.state["task_file"] = UniMessage(arg)
+
+    if not task_manager.submit_tasks:  # 没有填写task_name查看是否有任务
+        await matcher.finish(Emoji.error + "您所在的班级还未创建任务呢！")
+
+    if "task_name" not in matcher.state:
+        matcher.state["task_list"] = await task_manager.submit_tasks.to_card(
+            Emoji.info + "输入任务ID或名称提交"
+        )
+
+
+@push_task_cmd.got("task_name", MessageTemplate("{task_list}"))
+async def _(
+    matcher: AlconnaMatcher,
+    task_manager: PushTaskManager = task_manager_depends("student", PushTaskManager),
+    task_name: UniMessage = Arg(),
+):
+    if task_manager.set_task_file(task_name) and task_manager.task_file:
+        # 再次检查是否有文件
+        matcher.state["task_file"] = UniMessage(task_manager.task_file)
+
+    task_text = task_name.extract_plain_text()
+    if not task_text:
+        await matcher.finish(Emoji.error + "任务名称不能为空")
+    if not await task_manager.select(task_text):  # 根据任务名称选择任务
+        await matcher.finish(Emoji.error + f"没有找到【{task_text}】这个任务")
+
+
+@push_task_cmd.got("task_file", "文件给我吧！")
+async def _(
+    matcher: AlconnaMatcher,
+    student: StudentDepends,
+    file_data: FileDataDepends,
+    task_manager: PushTaskManager = task_manager_depends("student", PushTaskManager),
+):
+    if student is None:
+        await matcher.finish(Emoji.error + "您还未加入班级！")
+    elif not file_data:
+        await matcher.finish(Emoji.error + "未能获取到你提交的文件！")
+    elif await task_manager.check_file_exists(file_data.get_data()):
+        await matcher.finish(Emoji.error("这个文件已经被提交过了！请不要使用别人的文件哦！"))
+
+    if task_commit := await task_manager.select_task.get_commit(student):
+        await task_commit.update_file(file_data.get_data())
+        await matcher.finish(Emoji.success + "任务文件更新成功！")
+    else:
+        await task_manager.select_task.commit(student, file_data.get_data())
+        await matcher.finish(Emoji.success + "任务提交成功！")

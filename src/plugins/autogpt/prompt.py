@@ -1,6 +1,6 @@
 from src.plugins.helper import helper_menu
 
-prompt_system = f"""
+head = """
 <classbot_thinking_protocol>
 
 For every interaction with users, an AI should engage in a comprehensive, natural, and unfiltered thought process prior to responding or using tools. Additionally, the AI can think and reflect during the response if it deems this approach beneficial for formulating a more optimal reply.
@@ -19,7 +19,8 @@ thinking process should naturally aware of and adapt to the unique characteristi
 ```
 
 </adaptive_thinking_framework>
-
+"""
+prompt_system = f"""
 <initialize_thinking_framework>
 
 以下内容中所指的机器人指的是你

@@ -1,5 +1,7 @@
+from hashlib import md5
 from typing import List, Literal, Optional
 
+from utils.config import task_dir
 from nonebot_plugin_orm import Model, get_scoped_session
 from sqlalchemy.orm import Mapped, relationship, mapped_column
 from sqlalchemy import String, Integer, ForeignKey, select, update
@@ -833,7 +835,24 @@ class Tasks(Model, FilterModel):
 
     async def delete(self):
         """删除任务"""
+        for commit in await self.get_commits():
+            commit.read_path.unlink(missing_ok=True)
         return await self.filter(id=self.id).delete()
+
+    async def commit(self, student: Student, file_data: bytes):
+        file_md5 = md5(file_data).hexdigest()
+        file_path = self.classes.name
+        task_commit = await TaskCommits(
+            task_id=self.id,
+            file_md5=file_md5,
+            file_path=file_path,
+            student_id=student.id,
+        ).create()
+        task_commit.save_data(file_data)
+        return task_commit
+
+    async def get_commit(self, student: Student) -> Optional["TaskCommits"]:
+        return await TaskCommits.filter(task_id=self.id, student_id=student.id).first()
 
 
 class TaskCommits(Model, FilterModel):
@@ -847,6 +866,8 @@ class TaskCommits(Model, FilterModel):
     """任务ID"""
     file_path: Mapped[str] = mapped_column(String(255), nullable=False)
     """文件ID"""
+    file_md5: Mapped[str] = mapped_column(String(32), nullable=False, unique=True)
+    """文件MD5校验"""
     student_id: Mapped[int] = mapped_column(
         Integer, ForeignKey(Student.id, ondelete="CASCADE"), nullable=False
     )
@@ -859,14 +880,23 @@ class TaskCommits(Model, FilterModel):
     student: Mapped[Student] = relationship(lazy="selectin")
     """学生信息"""
 
+    async def update_file(self, data: bytes):
+        """更新文件"""
+        file_md5 = md5(data).hexdigest()
+        if file_md5 == self.file_md5:
+            return
+        res = await self.update(file_md5=file_md5)
+        self.save_data(data)
+        return res
+
     def save_data(self, data: bytes):
         """保存文件
 
         Args:
             data (bytes): 文件数据
         """
-        from src.plugins.tasks.config import task_dir
-
+        if not self.read_path.parent.exists():
+            self.read_path.parent.mkdir(parents=True, exist_ok=True)
         self.read_path.write_bytes(data)
 
     def read_data(self) -> bytes:
@@ -876,6 +906,4 @@ class TaskCommits(Model, FilterModel):
     @property
     def read_path(self):
         """文件路径"""
-        from src.plugins.tasks.config import task_dir
-
-        return task_dir / self.file_path
+        return task_dir / self.file_path / self.file_md5
