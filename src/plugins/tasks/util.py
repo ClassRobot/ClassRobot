@@ -119,7 +119,7 @@ class TaskManager:
                     self.select_task = task
                 elif task.name == task_name:
                     self.select_task = task
-                if self.select_task:
+                if self._select_task:
                     return True
         else:
             # 如果没有任务列表，则在数据库中查找

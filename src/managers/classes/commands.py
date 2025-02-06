@@ -2,7 +2,7 @@ from typing import Optional
 
 from utils import ValidateName, tip
 from utils.config import priority, comp_config
-from src.plugins.helper.schemas import Param, Helper
+from src.plugins.helper.schemas import Param, Helper, ParamMode
 from nonebot_plugin_alconna import Args, Field, Alconna, on_alconna
 
 add_classes_cmd = on_alconna(
@@ -75,6 +75,6 @@ __helper__ = [
     Helper(
         command="加入班级",
         description="可通过班级ID加入到指定班级中，如果在群聊中执行该命令且不携带班级ID的情况下会自动绑定该群到指定班级",
-        params=[Param(name="班级ID", required=False)],
+        params=[Param(name="班级ID", mode=ParamMode.OPTIONAL)],
     ),
 ]

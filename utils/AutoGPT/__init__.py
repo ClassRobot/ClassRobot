@@ -34,4 +34,7 @@ async def client_create(
         except APIError as e:
             logger.error(f"AutoGPT {gpt_config.name} error {e}")
             continue
+        except Exception as e:
+            logger.exception(e)
+            continue
     raise Exception("AutoGPT error")

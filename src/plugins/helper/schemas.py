@@ -1,5 +1,15 @@
+from strenum import StrEnum
 from nonebot.log import logger
-from pydantic import BaseModel
+from pydantic import BaseModel, validator
+
+
+class ParamMode(StrEnum):
+    # 可选参数
+    OPTIONAL = "?"
+    # 一次或多次参数
+    ONE_OR_MORE = "+"
+    # 零次或多次参数
+    ZERO_OR_MORE = "*"
 
 
 class Context(BaseModel):
@@ -17,10 +27,19 @@ class Param(BaseModel):
 
     name: str
     description: str | None = None
-    required: bool = True
+    mode: ParamMode | None = None
+
+    @validator("name")
+    def name_validator(cls, value: str) -> str:
+        if not value:
+            raise ValueError("参数名不能为空")
+        # name不能存在mode中的字符
+        if any(mode in value for mode in ParamMode):
+            raise ValueError("参数名不能包含特殊字符")
+        return value
 
     def __str__(self) -> str:
-        return self.name
+        return self.name + (self.mode or "")
 
 
 class Helper(BaseModel):
@@ -28,13 +47,38 @@ class Helper(BaseModel):
 
     command: str
     description: str
-    params: list[Param] = []
     tags: set[str] = set()
+    params: list[Param] = []
     aliases: set[str] = set()
     example: list[Context] | str = []
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(
+        self,
+        command: str,
+        description: str,
+        tags: set[str] = set(),
+        params: list[Param] = [],
+        aliases: set[str] = set(),
+        example: list[Context] | str = [],
+    ):
+        """帮助信息
+
+        Args:
+            command (str): 命令名称
+            description (str): 命令描述
+            params (list[Param], optional): 命令参数. Defaults to [].
+            tags (set[str], optional): 命令标签. Defaults to set().
+            aliases (set[str], optional): 命令别名. Defaults to set().
+            example (list[Context] | str, optional): 使用例子. Defaults to [].
+        """
+        super().__init__(
+            command=command,
+            description=description,
+            params=params,
+            tags=tags,
+            aliases=aliases,
+            example=example,
+        )
         helper_menu.add_helper(self)
 
     def is_command(self, command: str) -> bool:
