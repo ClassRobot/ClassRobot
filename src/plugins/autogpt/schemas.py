@@ -2,15 +2,16 @@ from typing import Literal
 from datetime import datetime
 
 from pydantic import Field, BaseModel
+from utils.AutoGPT.schema import Content
 from nonebot_plugin_alconna import Text, Image, UniMessage
 
 
 class Param(BaseModel):
     type: Literal["text", "image"]
     separate: bool = False
-    "命令是否需要和参数分两次发送，假设`/search`命令的某个参数需要和命令需要分开发送时`separate`为`True`时自动化程序会将`/search`和`参数`分两次执行"
+    "假设`/search`命令的某个参数需要和命令需要分开发送时`separate`为`True`时自动化程序会将`/search`和`参数`分两次执行"
     value: str
-    "参数值，当如果是image则为图片的url"
+    "如果是image则为url"
 
 
 class AutoTask(BaseModel):
@@ -35,6 +36,8 @@ class AutoTaskList(BaseModel):
     "回复给用户的消息，如果`tasks`里面有任务的话则告知用户机器人接下来会帮助用户做什么，如果`need_confirm`为`True`则必须要询问用户是否要执行，具体情况由机器人自己去分析用户意图。"
     is_violation: bool = False
     "结合历史聊天内容判断用户是否在发送一些无意义、重复、反动、色情、暴力等不良信息，如果是则不做回复"
+    priority: int = 10
+    "消息优先级，分析本轮会话的重要程度，数值越大越重要，反之会被优先删除"
 
 
 class ChatMessage(BaseModel):
@@ -44,45 +47,19 @@ class ChatMessage(BaseModel):
     "消息角色, user: 用户, help: 帮助文档"
     user_id: int | None = None
     "用户ID"
-    message: list[Param] = []
+    message: list[Content] = []
     "消息内容"
     create_at: datetime = Field(default_factory=datetime.now)
     "消息创建时间"
 
     def extend(self, message: UniMessage | str):
         if isinstance(message, str):
-            self.message.append(Param(type="text", value=message))
+            self.message.append(Content(type="text", value=message))
         else:
             for msg in message:
                 if isinstance(msg, Text):
-                    self.message.append(Param(type="text", value=msg.text))
+                    self.message.append(Content(type="text", value=msg.text))
                 elif isinstance(msg, Image) and msg.url:
-                    self.message.append(Param(type="image", value=msg.url))
-        return self
-
-    def have_image(self):
-        for msg in self.message:
-            if msg.type == "image":
-                return True
-        return False
-
-    def to_string(self):
-        if self.have_image():
-            data = [
-                {"type": "text", "text": self.json(ensure_ascii=False)},
-                *(
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": msg.value,
-                        },
-                    }
-                    for msg in self.message
-                    if msg.type == "image"
-                ),
-            ]
-            return data
-        return self.json(ensure_ascii=False)
-
-    def __str__(self) -> str:
-        return str(self.to_string())
+                    self.message.append(Content(type="image", value=msg.url))
+        print(self.message)
+        return self.message

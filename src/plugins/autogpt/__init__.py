@@ -4,10 +4,9 @@ from nonebot.matcher import Matcher
 from nonebot.adapters import Bot, Event
 from nonebot.message import handle_event
 from nonebot import on_command, on_message
-from utils.models.annotated import UserOrCreatedDepends
 from nonebot_plugin_alconna import UniMsg, MsgTarget, UniMessage, SupportScope
 
-from .util import chat_session_manager
+from .util import ChatSessionDepends
 from .schemas import AutoTask, AutoTaskList
 
 auto_gpt = on_message(priority=1000, block=True, rule=to_me())
@@ -33,20 +32,20 @@ async def _(
     bot: Bot,
     event: Event,
     matcher: Matcher,
-    user: UserOrCreatedDepends,
     message: UniMsg,
     target: MsgTarget,
+    chat_session: ChatSessionDepends,
 ):
     if target.scope == SupportScope.wechat:
         await matcher.finish()
-    chat = chat_session_manager.get_chat_session(user.id)
-    auto_task = await chat.send_message(message, user.id)
+    auto_task = await chat_session.send_message(message)
     if isinstance(auto_task, AutoTaskList):
         if auto_task.is_violation:
-            await matcher.finish("您发送的内容包含违规信息，已经被屏蔽")
+            await matcher.finish(auto_task.reply)
+
         if auto_task.reply:
             await matcher.send(auto_task.reply)
-            print(chat.messages.char_length())
+            print(chat_session.messages.char_length())
         if not auto_task.need_confirm:
             for auto_task in auto_task.tasks:
                 event.get_message = update_message(auto_task)  # type: ignore

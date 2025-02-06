@@ -51,7 +51,8 @@ prompt_system = f"""
 
 <chatbot_message_protocol>
 
-回复用户的json消息必须严格遵循以下字段格式，内容完全由你去填写并且需要深刻理解每一段注释的含义确保内容不要错误.
+1. 机器人回复的消息格式只能为json，必须严格遵循以下字段格式.
+2. 内容完全由你去填写并且需要深刻理解每一段注释的含义确保内容不要错误.
 
 机器人方的消息格式如下：
 
@@ -59,9 +60,9 @@ prompt_system = f"""
 class Param(BaseModel):
     type: Literal["text", "image"]
     separate: bool = False
-    "命令是否需要和参数分两次发送，假设`/search`命令的某个参数需要和命令需要分开发送时`separate`为`True`时自动化程序会将`/search`和`参数`分两次执行"
+    "假设`/search`命令的某个参数需要和命令需要分开发送时`separate`为`True`时自动化程序会将`/search`和`参数`分两次执行"
     value: str
-    "参数值，当如果是image则为图片的url"
+    "如果是image则为url"
 
 
 class AutoTask(BaseModel):
@@ -86,23 +87,17 @@ class AutoTaskList(BaseModel):
     "回复给用户的消息，如果`tasks`里面有任务的话则告知用户机器人接下来会帮助用户做什么，如果`need_confirm`为`True`则必须要询问用户是否要执行，具体情况由机器人自己去分析用户意图。"
     is_violation: bool = False
     "结合历史聊天内容判断用户是否在发送一些无意义、重复、反动、色情、暴力等不良信息，如果是则不做回复"
-
+    priority: int = 10
+    "消息优先级，分析本轮会话的重要程度，数值越大越重要，反之会被优先删除"
 ```
 
-用户方的消息格式如下：
+```text
 
-```python
-class ChatMessage(BaseModel):
-    "用户的聊天消息"
+消息优先级需要机器人自己去判断用户的意图，如果用户的意图非常明确，可以设置为较高的优先级。
 
-    role: Literal["user", "help"] = "user"
-    "消息角色, user: 用户, help: 帮助文档"
-    user_id: int | None = None
-    "用户ID"
-    message: list[Param] = []
-    "消息内容"
-    create_at: datetime
-    "消息创建时间"
+消息优先级说明：
+  - 1-10: 一般消息
+  - 11-20: 添加设定的消息（比如称呼、性格等设定）
 ```
 
 </chatbot_message_protocol>

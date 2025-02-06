@@ -3,6 +3,7 @@ from openai import APIError, AsyncOpenAI
 from openai.types.chat.chat_completion import ChatCompletion
 from openai.types.chat.chat_completion_message_param import ChatCompletionMessageParam
 
+from .schema import Messages
 from .config import AutoGPTConfig
 
 plugin_config = AutoGPTConfig.parse_obj(get_driver().config.dict())
@@ -14,9 +15,19 @@ for gpt_config in plugin_config.auto_gpt:
     clients[gpt_config.name] = client
 
 
-async def client_create(messages: list[ChatCompletionMessageParam]) -> ChatCompletion:
+async def client_create(
+    messages: list[ChatCompletionMessageParam] | Messages,
+) -> ChatCompletion:
     for gpt_config in plugin_config.auto_gpt:
+        if isinstance(messages, Messages):
+            if messages.text_only():
+                messages = messages.build_messages()
+            elif gpt_config.multi_modal:
+                messages = messages.build_messages(True)
+            else:
+                continue
         try:
+            logger.info(f"AutoGPT {gpt_config.name} request messages")
             return await clients[gpt_config.name].chat.completions.create(
                 model=gpt_config.model, stream=False, messages=messages
             )

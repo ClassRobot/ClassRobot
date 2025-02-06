@@ -6,6 +6,7 @@ class GPTConfig(BaseModel, extra=Extra.ignore):
     key: str
     url: str
     model: str
+    multi_modal: bool = False
 
 
 class AutoGPTConfig(BaseModel, extra=Extra.ignore):
