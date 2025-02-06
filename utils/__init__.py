@@ -12,7 +12,20 @@ from nonebot.adapters.onebot.v11 import GroupMessageEvent as V11GroupMessageEven
 from nonebot.adapters.onebot.v11 import PrivateMessageEvent as V11PrivateMessageEvent
 
 T = TypeVar("T")
-ValidateName = lambda name: None if name.strip().isdigit() else name
+special_characters = ("\\", "/", ":", "*", "?", '"', "<", ">", "|")
+
+
+def validate_name(name: str) -> str | None:
+    name = name.strip()
+    if name.isdigit():
+        return None
+    for c in special_characters:
+        if c in name:
+            return None
+    return name
+
+
+ValidateName = lambda name: validate_name(name)
 
 
 class Emoji(StrEnum):

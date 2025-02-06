@@ -24,6 +24,7 @@ class ChatSession:
         # 可能会存在```json和```这种情况，需要删除
         content = response.choices[0].message.content  # type: ignore
         if content:
+            print(content)
             contents = content.split("\n")
             start, end = 0, len(contents)
             for i, v in enumerate(contents):
@@ -31,8 +32,7 @@ class ChatSession:
                     start = i + 1
                 if v.endswith("```"):
                     end = i
-            print(content)
-            content = "\n".join(contents[start:end]).strip()
+            content = "\n".join(contents[start:end]).strip().replace("\\", "\\\\")
             auto_tasks = AutoTaskList.parse_obj(json.loads(content))
 
             if auto_tasks.is_violation:

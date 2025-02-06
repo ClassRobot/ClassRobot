@@ -1,18 +1,16 @@
 from typing import Optional
 
-from utils import tip
+from utils import ValidateName, tip
 from utils.config import priority, comp_config
 from src.plugins.helper.schemas import Param, Helper
 from nonebot_plugin_alconna import Args, Field, Alconna, on_alconna
-
-NameNotNumeric = lambda name: None if name.strip().isdigit() else name
 
 add_classes_cmd = on_alconna(
     Alconna(
         "添加班级",
         Args[
             "class_name",
-            NameNotNumeric,
+            ValidateName,
             Field(
                 completion=tip("请输入班级名称"),
                 unmatch_tips=tip("名称不能为纯数字"),
