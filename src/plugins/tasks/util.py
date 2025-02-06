@@ -1,19 +1,22 @@
 import shutil
 from hashlib import md5
 from pathlib import Path
+from zipfile import ZipFile
 from typing import Literal, Annotated
 
 from pydantic import BaseModel
 from utils.tools import StringCard
 from nonebot.matcher import Matcher
 from nonebot.adapters import Message
+from utils.tools.sync import run_sync
 from nonebot.params import Arg, Depends
+from utils.tools.cos import upload_file
 from nonebot.adapters import Bot as BaseBot
 from utils.models.annotated import UserDepends
-from utils.config import cache_dir, global_config
 from nonebot_plugin_htmlrender import get_new_page
 from nonebot.adapters.onebot.v11 import Bot as V11Bot
 from utils.models import User, Tasks, Student, TaskCommits
+from utils.config import task_dir, cache_dir, global_config
 from nonebot_plugin_alconna import File, Image, Other, UniMessage
 
 TaskFile = File | Image | Other
@@ -133,6 +136,24 @@ class TaskManager:
                         self.select_task = select_task
                         return True
         return False
+
+    async def build_task(self) -> None | str:
+        commits = await self.select_task.get_commits()
+        if not commits:
+            return None
+        zip_path = (
+            task_dir / f"{self.select_task.classes.name}-{self.select_task.name}.zip"
+        )
+        zip_path.parent.mkdir(parents=True, exist_ok=True)
+        with ZipFile(zip_path, "w") as zip_file:
+            for commit in commits:
+                await run_sync(zip_file.write)(
+                    commit.read_path,
+                    f"{self.select_task.classes.name}-{self.select_task.name}/{commit.student.name}-{commit.read_path.name}",
+                )
+        download_url = await upload_file(zip_path.read_bytes(), zip_path.name)
+        zip_path.unlink(True)  # 上传完成后删除本地文件
+        return download_url
 
     @property
     def is_select(self) -> bool:

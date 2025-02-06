@@ -1,12 +1,19 @@
-from utils import Emoji
+from nonebot import logger
 from utils.tools import StringCard
 from utils.models import Tasks, Classes
-from nonebot.adapters import MessageTemplate
+from utils import Emoji, bot_upload_file
 from nonebot.params import Arg, ArgPlainText
+from nonebot.adapters import Bot, Event, MessageTemplate
 from nonebot_plugin_alconna import UniMessage, AlconnaMatcher
 from utils.models.annotated import UserDepends, StudentDepends, UserOrCreatedDepends
 
-from .commands import push_task_cmd, query_task_cmd, create_task_cmd, delete_task_cmd
+from .commands import (
+    push_task_cmd,
+    query_task_cmd,
+    create_task_cmd,
+    delete_task_cmd,
+    export_task_cmd,
+)
 from .util import (
     TaskFile,
     TaskManager,
@@ -171,3 +178,47 @@ async def _(
     else:
         await task_manager.select_task.commit(student, file_data.get_data())
         await matcher.finish(Emoji.success + "任务提交成功！")
+
+
+# --------------------------------- 导出任务 ---------------------------------
+@export_task_cmd.handle()
+async def _(
+    matcher: AlconnaMatcher,
+    task_name: str | None,
+    task_manager: TaskManagerDepends,
+):
+    if task_name is None:
+        if not task_manager:
+            await matcher.finish(Emoji.error + "您还未创建任务呢！")
+        await matcher.send(await task_manager.tasks.to_card(Emoji.info + "输入任务ID或名称导出"))
+    else:
+        matcher.state["got_name"] = UniMessage(task_name)
+
+
+@export_task_cmd.got("got_name")
+async def _(
+    bot: Bot,
+    event: Event,
+    matcher: AlconnaMatcher,
+    task_manager: TaskManagerDepends,
+    got_name: str = ArgPlainText(),
+):
+    if not (got_name := got_name.strip()):
+        await matcher.finish(Emoji.error("任务名称不能为空"))
+
+    if not await task_manager.select(got_name):
+        await matcher.finish(Emoji.error(f"没有找到【{got_name}】这个任务"))
+
+    download_url = await task_manager.build_task()
+    if download_url is None:
+        await matcher.finish(Emoji.error + "导出失败，可能还没有人提交！")
+
+    await matcher.send(Emoji.info + "打包文件后导出，请稍等...")
+    try:
+        if not await bot_upload_file(
+            bot, event, download_url.split("/")[-1], download_url
+        ):
+            await matcher.send(UniMessage.file(url=download_url))
+    except Exception as e:
+        logger.exception(e)
+        await matcher.finish(Emoji.warning("文件发送失败，可以尝试从链接中下载", download_url, sep="\n"))
