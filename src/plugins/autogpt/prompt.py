@@ -107,8 +107,23 @@ class AutoTaskList(BaseModel):
 
 
 def get_prompt_system():
-    bot_command = "<classbot_command>\n你所具备的功能命令如下:\n%s</classbot_command>" % (
-        prompt_system + helper_menu.to_string()
+    bot_command = (
+        prompt_system
+        + f"""
+<classbot_command>
+
+命令参数说明:
+- ? 表示参数可选输入
+- + 一个或多个
+- * 零个或多个
+
+你所具备的命令如下:
+
+{helper_menu.to_string()}
+
+</classbot_command>
+"""
     )
+
     print("help len", helper_menu.to_string().__len__())
     return bot_command

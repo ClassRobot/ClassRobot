@@ -1,3 +1,4 @@
+import re
 import json
 from typing import Annotated
 
@@ -9,6 +10,11 @@ from utils.AutoGPT.schema import Role, Context, Messages
 
 from .prompt import get_prompt_system
 from .schemas import ChatMessage, AutoTaskList
+
+
+def escape_backslashes(content) -> str:
+    # 使用正则表达式替换所有的反斜杠，但保留转义字符
+    return re.sub(r"\\(?![nrtbfv](?![a-zA-Z]))", r"\\\\", content)
 
 
 class ChatSession:
@@ -32,8 +38,12 @@ class ChatSession:
                     start = i + 1
                 if v.endswith("```"):
                     end = i
-            content = "\n".join(contents[start:end]).strip().replace("\\", "\\\\")
-            auto_tasks = AutoTaskList.parse_obj(json.loads(content))
+            content = "\n".join(contents[start:end]).strip()
+            try:
+                data = json.loads(content)
+            except json.JSONDecodeError:
+                data = json.loads(escape_backslashes(content))
+            auto_tasks = AutoTaskList.parse_obj(data)
 
             if auto_tasks.is_violation:
                 auto_tasks.reply = "用户发送的消息包含违规内容，已被屏蔽！"

@@ -71,6 +71,7 @@ class Helper(BaseModel):
             aliases (set[str], optional): 命令别名. Defaults to set().
             example (list[Context] | str, optional): 使用例子. Defaults to [].
         """
+        aliases |= {command}
         super().__init__(
             command=command,
             description=description,
@@ -107,6 +108,7 @@ class Helper(BaseModel):
         """简要概述"""
         return (
             f"命令 | {self.command}\n"
+            f"参数 | {', '.join(map(str, self.params)) or '无'}\n"
             f"别名 | {', '.join(self.aliases) or '无'}\n"
             f"描述 | {self.description}\n"
         )
