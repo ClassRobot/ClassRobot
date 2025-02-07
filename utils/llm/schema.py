@@ -169,5 +169,4 @@ class Messages(BaseModel):
         print(self.char_length())
 
     def __repr__(self) -> str:
-        print("get")
         return str(self.get(Role.user, Role.assistant).messages)

@@ -3,10 +3,10 @@ import json
 from typing import Annotated
 
 from nonebot.params import Depends
-from utils.AutoGPT import client_create
+from utils.llm import client_create
 from nonebot_plugin_alconna import UniMessage
+from utils.llm.schema import Role, Context, Messages
 from utils.models.annotated import UserOrCreatedDepends
-from utils.AutoGPT.schema import Role, Context, Messages
 
 from .prompt import get_prompt_system
 from .exception import SessionLockError

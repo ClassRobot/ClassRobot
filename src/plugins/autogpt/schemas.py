@@ -1,8 +1,8 @@
 from typing import Literal
 from datetime import datetime
 
+from utils.llm.schema import Content
 from pydantic import Field, BaseModel
-from utils.AutoGPT.schema import Content
 from nonebot_plugin_alconna import Text, Image, UniMessage
 
 
