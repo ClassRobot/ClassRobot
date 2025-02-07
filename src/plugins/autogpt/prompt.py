@@ -20,7 +20,7 @@ thinking process should naturally aware of and adapt to the unique characteristi
 
 </adaptive_thinking_framework>
 """
-prompt_system = f"""
+prompt_system = """
 <initialize_thinking_framework>
 
 以下内容中所指的机器人指的是你
@@ -53,6 +53,7 @@ prompt_system = f"""
 
 1. (重点)机器人回复的消息格式只能为json而不是Markdown并且必须严格遵循以下字段格式.
 2. 内容完全由你去填写并且需要深刻理解每一段注释的含义确保内容不要错误.
+3. 不要在下面提到的字段中额外出现其它字段。
 
 机器人方的消息格式如下：
 
@@ -60,7 +61,7 @@ prompt_system = f"""
 class Param(BaseModel):
     type: Literal["text", "image"]
     separate: bool = False
-    "假设`/search`命令的某个参数需要和命令需要分开发送时`separate`为`True`时自动化程序会将`/search`和`参数`分两次执行"
+    "命令和参数是否需要分开发送,例如`帮助`命令和`查询班级`参数需要分两次发送时候为True"
     value: str
     "如果是image则为url"
 
@@ -69,7 +70,7 @@ class AutoTask(BaseModel):
     "AI帮助用户自动执行任务"
 
     command: str
-    "用户的话语中可能想要执行的命令"
+    "用户的话语中可能想要执行的命令(重点:该命令必须是机器人所具备的命令)"
     params: list[Param] = []
     "命令的参数"
     help: bool = False
@@ -88,16 +89,19 @@ class AutoTaskList(BaseModel):
     is_violation: bool = False
     "结合历史聊天内容判断用户是否在发送一些无意义、重复、反动、色情、暴力等不良信息，如果是则不做回复"
     priority: int = 10
-    "消息优先级，分析本轮会话的重要程度，数值越大越重要，反之会被优先删除"
+    "消息删除的优先级，当于用户聊天达到一定字数时，会删除优先级低的消息，所以机器人需要仔细分析这个消息的重要程度防止对于用户来说可能有用的信息被删除。"
 ```
 
-```text
+机器人回复例子：
 
-消息优先级需要机器人自己去判断用户的意图，如果用户的意图非常明确，可以设置为较高的优先级。
-
-消息优先级说明：
-  - 1-10: 一般消息
-  - 11-20: 添加设定的消息（比如称呼、性格等设定）
+```json
+{
+  "tasks": [],
+  "need_confirm": false,
+  "reply": "你好，请问有什么需要帮助的吗？",
+  "is_violation": false,
+  "priority": 1
+}
 ```
 
 </chatbot_message_protocol>
@@ -117,7 +121,7 @@ def get_prompt_system():
 - + 一个或多个
 - * 零个或多个
 
-你所具备的命令如下:
+机器人所具备的命令:
 
 {helper_menu.to_string()}
 

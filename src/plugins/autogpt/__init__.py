@@ -1,3 +1,4 @@
+from utils import Emoji
 from nonebot.rule import to_me
 from utils.config import priority
 from nonebot.matcher import Matcher
@@ -38,6 +39,8 @@ async def _(
 ):
     if target.scope == SupportScope.wechat:
         await matcher.finish()
+    elif chat_session.lock:
+        await matcher.finish(Emoji.error + "我知道你很急，但是你先别急，等我处理完你的上一条消息。")
     auto_task = await chat_session.send_message(message)
     if isinstance(auto_task, AutoTaskList):
         if auto_task.is_violation:

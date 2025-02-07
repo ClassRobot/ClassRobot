@@ -9,7 +9,7 @@ from nonebot_plugin_alconna import Text, Image, UniMessage
 class Param(BaseModel):
     type: Literal["text", "image"]
     separate: bool = False
-    "假设`/search`命令的某个参数需要和命令需要分开发送时`separate`为`True`时自动化程序会将`/search`和`参数`分两次执行"
+    "命令和参数是否需要分开发送,例如`帮助`命令和`查询班级`参数需要分两次发送时候为True"
     value: str
     "如果是image则为url"
 
@@ -18,7 +18,7 @@ class AutoTask(BaseModel):
     "AI帮助用户自动执行任务"
 
     command: str
-    "用户的话语中可能想要执行的命令"
+    "用户的话语中可能想要执行的命令(重点:该命令必须是机器人所具备的命令)"
     params: list[Param] = []
     "命令的参数"
     help: bool = False
@@ -37,7 +37,7 @@ class AutoTaskList(BaseModel):
     is_violation: bool = False
     "结合历史聊天内容判断用户是否在发送一些无意义、重复、反动、色情、暴力等不良信息，如果是则不做回复"
     priority: int = 10
-    "消息优先级，分析本轮会话的重要程度，数值越大越重要，反之会被优先删除"
+    "消息删除的优先级，当于用户聊天达到一定字数时，会删除优先级低的消息，所以机器人需要仔细分析这个消息的重要程度防止对于用户来说可能有用的信息被删除。"
 
 
 class ChatMessage(BaseModel):

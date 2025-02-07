@@ -11,3 +11,4 @@ class GPTConfig(BaseModel, extra=Extra.ignore):
 
 class AutoGPTConfig(BaseModel, extra=Extra.ignore):
     auto_gpt: list[GPTConfig] = []
+    auto_gpt_timeout: float = 20

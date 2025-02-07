@@ -17,7 +17,7 @@ class Content(BaseModel):
     value: str
 
     def __len__(self):
-        return len(self.value)
+        return len(self.value.encode("utf-8"))
 
 
 ContentType: TypeAlias = str | list[Content]
@@ -74,7 +74,7 @@ class Context(BaseModel):
 
     def __len__(self):
         if isinstance(self.content, str):
-            return len(self.content)
+            return len(self.content.encode("utf-8"))
         return sum(len(msg) for msg in self.content)
 
     def dict(self):
@@ -98,8 +98,8 @@ class Messages(BaseModel):
             messages.append(msg_dict)
         return messages
 
-    def get(self, role: Role) -> "Messages":
-        return Messages(messages=[msg for msg in self.messages if msg.role == role])
+    def get(self, *role: Role) -> "Messages":
+        return Messages(messages=[msg for msg in self.messages if msg.role in role])
 
     def text_only(self) -> bool:
         """是否只有文本消息"""
@@ -107,33 +107,27 @@ class Messages(BaseModel):
 
     @property
     def max_length(self) -> int:
-        return 12 * 1024
+        return 8 * 1024
 
     def char_length(self) -> int:
         return sum(len(message) for message in self.messages)
 
-    def delete_message(self, index: int):
-        """删除消息
-
-        如果当前删除的消息是user，那么需要检查下一条消息是否是assistant，如果是，则删除
-        如果当前删除的消息是assistant，那么需要检查上一条消息是否是user，如果是，则删除
-        当是system消息时，不能删除
-
-        Args:
-            index (int): 消息索引
-        """
-        if self.messages[index].role == Role.system:
-            raise ValueError("不能删除系统消息")
-        elif self.messages[index].role == Role.user:
-            if (
-                index + 1 < len(self.messages)
-                and self.messages[index + 1].role == Role.assistant
-            ):
-                self.messages.pop(index + 1)
+    def remove(self, obj: int | Context):
+        if isinstance(obj, int):
+            index = obj
+            context = self.messages.pop(obj)
         else:
-            if index - 1 >= 0 and self.messages[index - 1].role == Role.user:
-                self.messages.pop(index - 1)
-        self.messages.pop(index)
+            index = self.messages.index(obj)
+            context = self.messages.pop(index)
+
+        # 如果是用户的消息，说明下面一条或多条可能是机器人的消息，需要向下搜索知道下一条为用户消息，在这之间的消息都是机器人的消息需要删除
+        pop_role = Role.user if context.role == Role.assistant else Role.assistant
+        next_index = int(context.role == Role.assistant)
+        while (
+            len(self.messages) > (index := index - next_index)
+            and self.messages[index].role == pop_role
+        ):
+            self.messages.pop(index)
 
     def add_message(self, role: Role, content: str | list, priority: int = 1):
         char_length = self.char_length()
@@ -155,14 +149,14 @@ class Messages(BaseModel):
     def delete_messages(self, per: float = 0.5):
         """删除一定比例的消息"""
         char_length = self.char_length()
-        cl = int(char_length * per)
-        # 按照priority排序，删除优先级低的消息
-        while cl >= 0:
-            for priority in self.priority:
-                for ctx in self.messages.copy():
-                    if ctx.priority == priority and ctx.role == Role.assistant:
-                        cl -= len(ctx)
-                        self.messages.remove(ctx)
+        remaining_length = char_length - int(char_length * per)
+        # 需要删除到剩余数量
+        while self.char_length() > remaining_length:
+            # 按照priority排序，删除优先级低的消息
+            priority = self.priority.pop()
+            for ctx in self.get(Role.assistant).messages:
+                if ctx.priority == priority:
+                    self.remove(ctx)
 
     def user_message(self, content: ContentType, priority: int = 1):
         self.add_message(role=Role.user, content=content, priority=priority)
@@ -173,3 +167,7 @@ class Messages(BaseModel):
     def assistant_message(self, content: ContentType, priority: int = 1):
         self.add_message(role=Role.assistant, content=content, priority=priority)
         print(self.char_length())
+
+    def __repr__(self) -> str:
+        print("get")
+        return str(self.get(Role.user, Role.assistant).messages)

@@ -29,7 +29,10 @@ async def client_create(
         try:
             logger.info(f"AutoGPT {gpt_config.name} request messages")
             return await clients[gpt_config.name].chat.completions.create(
-                model=gpt_config.model, stream=False, messages=messages
+                model=gpt_config.model,
+                stream=False,
+                messages=messages,
+                timeout=plugin_config.auto_gpt_timeout,
             )
         except APIError as e:
             logger.error(f"AutoGPT {gpt_config.name} error {e}")
