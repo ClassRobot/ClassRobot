@@ -1,17 +1,15 @@
 from utils import Emoji
+from nonebot import on_message
 from nonebot.rule import to_me
-from utils.config import priority
 from nonebot.matcher import Matcher
 from nonebot.adapters import Bot, Event
 from nonebot.message import handle_event
-from nonebot import on_command, on_message
 from nonebot_plugin_alconna import UniMsg, MsgTarget, UniMessage, SupportScope
 
 from .util import ChatSessionDepends
 from .schemas import AutoTask, AutoTaskList
 
 auto_gpt = on_message(priority=1000, block=True, rule=to_me())
-clear_message = on_command("清除聊天", priority=priority, block=True)
 
 
 def update_message(task: AutoTask):

@@ -11,7 +11,7 @@ from .columns import CreateAt, UpdateAt, PrimaryKeyInteger
 from .enums import UserRole, JoinMethod, StudentRole, TeacherRole, PoliticalStatus
 
 
-class User(Model, FilterModel):
+class User(FilterModel, Model):
     """用户表"""
 
     __tablename__ = "user"
@@ -36,10 +36,10 @@ class User(Model, FilterModel):
     updated_at: Mapped[UpdateAt]
 
     teacher: Mapped["Teacher"] = relationship(
-        "Teacher", lazy="selectin", back_populates="user"
+        "Teacher", lazy=False, back_populates="user"
     )
     student: Mapped["Student"] = relationship(
-        "Student", lazy="selectin", back_populates="user"
+        "Student", lazy=False, back_populates="user"
     )
     """一个用户绑定一个学生"""
     binds: Mapped[List["Bind"]] = relationship(
@@ -132,8 +132,19 @@ class User(Model, FilterModel):
         session = get_scoped_session()
         return await session.scalar(select(cls).where(cls.id == user_id))
 
+    async def get_bind(self, platform_id: str) -> Optional["Bind"]:
+        """获取用户绑定信息
 
-class Bind(Model, FilterModel):
+        Args:
+            platform_id (str): 平台ID
+
+        Returns:
+            Optional[Bind]: 绑定信息
+        """
+        return await Bind.filter(user_id=self.id, platform_id=platform_id).first()
+
+
+class Bind(FilterModel, Model):
     """用户与平台绑定表
 
     - 用户与平台是一对多关系
@@ -234,7 +245,7 @@ class Bind(Model, FilterModel):
         await session.commit()
 
 
-class Group(Model, FilterModel):
+class Group(FilterModel, Model):
     """群组表"""
 
     __tablename__ = "group"
@@ -276,7 +287,7 @@ class Group(Model, FilterModel):
         return group
 
 
-class GroupBind(Model, FilterModel):
+class GroupBind(FilterModel, Model):
     """群组绑定表
 
     - 群组与平台是一对多关系
@@ -330,7 +341,7 @@ class GroupBind(Model, FilterModel):
         return group_bind
 
 
-class Teacher(Model, FilterModel):
+class Teacher(FilterModel, Model):
     """教师表
 
     - 教师与用户是一对一关系
@@ -452,8 +463,17 @@ class Teacher(Model, FilterModel):
         await session.commit()
         await session.refresh(self)
 
+    async def get_students(self):
+        """获取教师所在班级的学生信息"""
+        students = (
+            await Student.select.join(Classes)
+            .join(TeacherClasses)
+            .where(TeacherClasses.teacher_id == self.id)
+        )
+        return list(students)
 
-class Classes(Model, FilterModel):
+
+class Classes(FilterModel, Model):
     """班级表
 
     - 班级与教师是多对多关系
@@ -633,7 +653,7 @@ class Classes(Model, FilterModel):
             await session.refresh(self)
 
 
-class ClassesJoinRequest(Model, FilterModel):
+class ClassesJoinRequest(FilterModel, Model):
     id: Mapped[PrimaryKeyInteger]
     classes_id: Mapped[int] = mapped_column(
         Integer, ForeignKey(Classes.id, ondelete="CASCADE"), nullable=False
@@ -650,7 +670,7 @@ class ClassesJoinRequest(Model, FilterModel):
 
 
 # 教师与班级多对多关系
-class TeacherClasses(Model, FilterModel):
+class TeacherClasses(FilterModel, Model):
     """教师与班级关联表"""
 
     __tablename__ = "teacher_classes"
@@ -689,7 +709,7 @@ class TeacherClasses(Model, FilterModel):
         await session.refresh(teacher_classes)
 
 
-class Student(Model, FilterModel):
+class Student(FilterModel, Model):
     """学生表"""
 
     __tablename__ = "student"
@@ -749,8 +769,11 @@ class Student(Model, FilterModel):
         await session.commit()
         await session.refresh(self)
 
+    async def get_classmates(self) -> list["Student"]:
+        return await Student.filter(classes_id=self.classes_id).all()
 
-class StudentExtra(Model, FilterModel):
+
+class StudentExtra(FilterModel, Model):
     """学生额外信息表"""
 
     __tablename__ = "student_extra"
@@ -772,7 +795,7 @@ class StudentExtra(Model, FilterModel):
     student: Mapped[Student] = relationship(lazy="selectin", back_populates="extra")
 
 
-class Tasks(Model, FilterModel):
+class Tasks(FilterModel, Model):
     """任务表"""
 
     __tablename__ = "tasks"
@@ -855,7 +878,7 @@ class Tasks(Model, FilterModel):
         return await TaskCommits.filter(task_id=self.id, student_id=student.id).first()
 
 
-class TaskCommits(Model, FilterModel):
+class TaskCommits(FilterModel, Model):
     """任务文件表"""
 
     __tablename__ = "task_files"

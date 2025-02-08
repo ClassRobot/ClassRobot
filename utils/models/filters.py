@@ -1,9 +1,45 @@
-from typing import Any, Type, Generic, TypeVar, Optional
+from typing import TYPE_CHECKING, Any, Type, Generic, TypeVar, Optional, Generator
 
 from nonebot_plugin_orm import get_scoped_session
-from sqlalchemy import ScalarResult, ColumnExpressionArgument, delete, select, update
+from sqlalchemy import (
+    Select,
+    ScalarResult,
+    ColumnExpressionArgument,
+    delete,
+    select,
+    update,
+)
 
 T = TypeVar("T")
+
+if TYPE_CHECKING:
+
+    class SelectFilter(Select, Generic[T]):
+        def __await__(self) -> Generator[Any, Any, ScalarResult[T]]:
+            ...
+
+else:
+
+    class SelectFilter(Generic[T]):
+        def __init__(self, model) -> None:
+            self.model: T = model
+            self._select = select(model)
+
+        def __getattr__(self: T, name: str) -> "T":
+            call = getattr(self._select, name)
+
+            def _(*args, **kwargs):
+                self._select = call(*args, **kwargs)
+                return self
+
+            return _
+
+        def __await__(self) -> Generator[Any, Any, ScalarResult[T]]:
+            async def _():
+                session = get_scoped_session()
+                return await session.scalars(self._select)
+
+            return _().__await__()
 
 
 class Filter(Generic[T]):
@@ -33,7 +69,6 @@ class Filter(Generic[T]):
         return await self.session.scalar(select(self.model).where(*self.options))
 
     async def scalars(self) -> ScalarResult[T]:
-        print(select(self.model).where(*self.options))
         return await self.session.scalars(select(self.model).where(*self.options))
 
     async def delete(self):
@@ -78,3 +113,8 @@ class FilterModel:
         await session.commit()
         await session.refresh(self)
         return self
+
+    @classmethod
+    @property
+    def select(cls: type[T]) -> SelectFilter[T]:
+        return SelectFilter[cls](cls)

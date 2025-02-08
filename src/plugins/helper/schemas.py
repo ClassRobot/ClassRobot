@@ -4,12 +4,12 @@ from pydantic import BaseModel, validator
 
 
 class ParamMode(StrEnum):
-    # 可选参数
     OPTIONAL = "?"
-    # 一次或多次参数
+    """可选参数"""
     ONE_OR_MORE = "+"
-    # 零次或多次参数
+    """至少一个参数"""
     ZERO_OR_MORE = "*"
+    """零个或多个参数"""
 
 
 class Context(BaseModel):
