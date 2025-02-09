@@ -30,12 +30,21 @@ ValidateName = lambda name: validate_name(name)
 
 class Emoji(StrEnum):
     win = "🎉"
+    "庆祝"
     error = "❌"
+    "错误"
     success = "✅"
+    "成功"
     warning = "⚠️"
+    "警告"
     info = "ℹ️"
+    "信息"
     question = "❓"
+    "问题"
     loading = "⏳"
+    "加载"
+    bulb = "💡"
+    "灯泡"
 
     def __call__(self, *msg: str, sep: str = "") -> str:
         return self + sep + sep.join(msg)

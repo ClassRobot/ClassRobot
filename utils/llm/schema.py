@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Literal, TypeAlias
 
+from nonebot import logger
 from strenum import StrEnum
 from pydantic import Field, BaseModel
 from openai.types.chat.chat_completion_message_param import ChatCompletionMessageParam
@@ -45,8 +46,10 @@ class Context(BaseModel):
                         },
                     }
                 )
+                data.append({"type": "text", "text": f"![image]({msg.value})"})
             elif msg.type == "text":
                 data.append({"type": "text", "text": msg.value})
+        print(data)
         return data
 
     def single_modal(self) -> str:
@@ -127,7 +130,8 @@ class Messages(BaseModel):
             len(self.messages) > (index := index - next_index)
             and self.messages[index].role == pop_role
         ):
-            self.messages.pop(index)
+            msg = self.messages.pop(index)
+            logger.info("超出长度，删除消息: %s", msg)
 
     def add_message(self, role: Role, content: str | list, priority: int = 1):
         char_length = self.char_length()
@@ -155,9 +159,9 @@ class Messages(BaseModel):
             # 按照priority排序，删除优先级低的消息
             if self.priority:
                 priority = self.priority.pop()
-            for ctx in self.get(Role.assistant).messages:
-                if ctx.priority == priority:
-                    self.remove(ctx)
+                for ctx in self.get(Role.assistant).messages:
+                    if ctx.priority == priority:
+                        self.remove(ctx)
 
     def user_message(self, content: ContentType, priority: int = 1):
         self.add_message(role=Role.user, content=content, priority=priority)
