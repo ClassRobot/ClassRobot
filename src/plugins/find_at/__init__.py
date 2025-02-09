@@ -35,5 +35,5 @@ async def _(
             platform_id=session.platform, user_id=user_id
         ).first():
             at_user += UniMessage.at(user.account_id)
-
-    await matcher.finish(at_user)
+    if at_user:
+        await matcher.finish(at_user)

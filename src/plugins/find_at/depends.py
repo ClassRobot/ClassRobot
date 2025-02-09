@@ -12,7 +12,6 @@ from .util import to_df
 async def get_student_classmates(
     matcher: Matcher, student: StudentDepends
 ) -> set[Student]:
-    print(student)
     name = "_student_classmates"
     if name in matcher.state:
         return matcher.state[name]

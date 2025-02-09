@@ -862,6 +862,10 @@ class Tasks(FilterModel, Model):
             commit.read_path.unlink(missing_ok=True)
         return await self.filter(id=self.id).delete()
 
+    # 检查学生是否已提交
+    async def check_commit(self, student: Student) -> bool:
+        return await TaskCommits.filter(task_id=self.id, student_id=student.id).exists()
+
     async def commit(self, student: Student, file_data: bytes):
         file_md5 = md5(file_data).hexdigest()
         file_path = self.classes.name

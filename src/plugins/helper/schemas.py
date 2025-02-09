@@ -72,13 +72,15 @@ class Helper(BaseModel):
             example (list[Context] | str, optional): 使用例子. Defaults to [].
         """
         aliases |= {command}
+        if not example:
+            example = " ".join((command, *(p.name for p in params)))
         super().__init__(
-            command=command,
-            description=description,
-            params=params,
             tags=tags,
+            params=params,
+            command=command,
             aliases=aliases,
             example=example,
+            description=description,
         )
         helper_menu.add_helper(self)
 

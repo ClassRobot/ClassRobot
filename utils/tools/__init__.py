@@ -26,7 +26,7 @@ class StringCard:
             self.card.append(title)
 
     def text(self, *text: str, sep: str = " "):
-        self.card.append(f"{self.v} {sep.join(text)}")
+        self.card.append(f"{self.v} {sep.join(i for i in text if text)}")
         return self
 
     def hr(self, text: str | None = None):

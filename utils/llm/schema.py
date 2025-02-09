@@ -107,7 +107,7 @@ class Messages(BaseModel):
 
     @property
     def max_length(self) -> int:
-        return 8 * 1024
+        return 12 * 1024
 
     def char_length(self) -> int:
         return sum(len(message) for message in self.messages)
@@ -153,7 +153,8 @@ class Messages(BaseModel):
         # 需要删除到剩余数量
         while self.char_length() > remaining_length:
             # 按照priority排序，删除优先级低的消息
-            priority = self.priority.pop()
+            if self.priority:
+                priority = self.priority.pop()
             for ctx in self.get(Role.assistant).messages:
                 if ctx.priority == priority:
                     self.remove(ctx)
