@@ -107,7 +107,10 @@ class TaskManager:
 
     @property
     def tasks(self) -> TaskList:
-        return TaskList(dict.fromkeys(self.submit_tasks + self.not_submit_tasks))
+        tasks: dict[int, Tasks] = {}
+        for task in self.submit_tasks + self.not_submit_tasks:
+            tasks[task.id] = task
+        return TaskList(tasks.values())
 
     async def select(self, task_name: str) -> bool:
         self.select_name = task_name

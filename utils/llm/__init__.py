@@ -40,7 +40,7 @@ async def client_create(
                 stream=False,
                 messages=messages,
                 timeout=plugin_config.llm_timeout,
-                response_format={"type": "json_object"},
+                # response_format={"type": "json_object"},
             )
         except APIError as e:
             logger.opt(colors=True).error(f'LLM "<y>{llm_config.name}</y>" error {e}')

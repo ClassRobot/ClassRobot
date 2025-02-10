@@ -2,7 +2,7 @@ from hashlib import md5
 from typing import List, Literal, Optional
 
 from utils.config import task_dir
-from nonebot_plugin_orm import Model, get_scoped_session
+from nonebot_plugin_orm import Model, get_session
 from sqlalchemy.orm import Mapped, relationship, mapped_column
 from sqlalchemy import String, Integer, ForeignKey, select, update
 
@@ -107,16 +107,13 @@ class User(FilterModel, Model):
         Returns:
             User: 创建后的用户
         """
-        user = cls(
+        user = await cls(
             nickname=nickname,
             username=username,
             password=password,
             email=email,
             avatar=avatar,
-        )
-        session = get_scoped_session()
-        session.add(user)
-        await session.commit()
+        ).create()
         return user
 
     @classmethod
@@ -129,8 +126,7 @@ class User(FilterModel, Model):
         Returns:
             Optional[User]: 用户信息
         """
-        session = get_scoped_session()
-        return await session.scalar(select(cls).where(cls.id == user_id))
+        return await cls.filter(id=user_id).first()
 
     async def get_bind(self, platform_id: str) -> Optional["Bind"]:
         """获取用户绑定信息
@@ -217,32 +213,34 @@ class Bind(FilterModel, Model):
         Returns:
             Bind: 绑定信息
         """
-        session = get_scoped_session()
-        where_and = (Bind.platform_id == platform_id) & (Bind.account_id == account_id)
-        if bind := await session.scalar(select(Bind).where(where_and)):
-            # 查看之前绑定的用户是否是当前用户
-            if bind.user_id == user.id:
-                return bind
-            # 查看之前绑定的用户是否只有这一次绑定，如果是只有一次绑定则删除该用户
-            old_user = bind.user  # 获取之前绑定的用户的id
-            await session.execute(update(Bind).where(where_and).values(user=user))
+        async with get_session() as session:
+            where_and = (Bind.platform_id == platform_id) & (
+                Bind.account_id == account_id
+            )
+            if bind := await session.scalar(select(Bind).where(where_and)):
+                # 查看之前绑定的用户是否是当前用户
+                if bind.user_id == user.id:
+                    return bind
+                # 查看之前绑定的用户是否只有这一次绑定，如果是只有一次绑定则删除该用户
+                old_user = bind.user  # 获取之前绑定的用户的id
+                await session.execute(update(Bind).where(where_and).values(user=user))
+                await session.commit()
+                # 查看之前用户是否有其他绑定，如果没有则删除该用户
+                if len(old_user.binds) == 0:
+                    await session.delete(old_user)
+            else:
+                bind = cls(platform_id=platform_id, account_id=account_id, user=user)
+                session.add(bind)
             await session.commit()
-            # 查看之前用户是否有其他绑定，如果没有则删除该用户
-            if len(old_user.binds) == 0:
-                await session.delete(old_user)
-        else:
-            bind = cls(platform_id=platform_id, account_id=account_id, user=user)
-            session.add(bind)
-        await session.commit()
-        await session.refresh(user)
-        await session.refresh(bind)
-        return bind
+            await session.refresh(user)
+            await session.refresh(bind)
+            return bind
 
     async def delete(self):
         """删除绑定"""
-        session = get_scoped_session()
-        await session.delete(self)
-        await session.commit()
+        async with get_session() as session:
+            await session.delete(self)
+            await session.commit()
 
 
 class Group(FilterModel, Model):
@@ -279,12 +277,7 @@ class Group(FilterModel, Model):
         Returns:
             Group: 群组信息
         """
-        group = cls(creator=creator)
-        session = get_scoped_session()
-        session.add(group)
-        await session.commit()
-        await session.refresh(group)
-        return group
+        return await cls(creator=creator).create()
 
 
 class GroupBind(FilterModel, Model):
@@ -328,16 +321,12 @@ class GroupBind(FilterModel, Model):
         Returns:
             GroupBind: 绑定信息
         """
-        session = get_scoped_session()
-        group_bind = cls(
+        group_bind = await cls(
             platform_id=platform_id,
             channel_id=channel_id,
             guild_id=guild_id,
             group_id=group.id,
-        )
-        session.add(group_bind)
-        await session.commit()
-        await session.refresh(group_bind)
+        ).create()
         return group_bind
 
 
@@ -380,11 +369,7 @@ class Teacher(FilterModel, Model):
         Returns:
             Teacher: 教师信息
         """
-        teacher = cls(name=name, user=user)
-        session = get_scoped_session()
-        session.add(teacher)
-        await session.commit()
-        await session.refresh(user)
+        teacher = await cls(name=name, user=user).create()
         return teacher
 
     @classmethod
@@ -397,8 +382,7 @@ class Teacher(FilterModel, Model):
         Returns:
             Optional[Teacher]: 教师信息
         """
-        session = get_scoped_session()
-        return await session.scalar(select(cls).where(cls.user_id == user.id))
+        return await cls.filter(user_id=user.id).first()
 
     @classmethod
     async def get_or_create_teacher(cls, name: str, user: User) -> "Teacher":
@@ -434,7 +418,6 @@ class Teacher(FilterModel, Model):
         Returns:
             Optional["Classes"]: 班级信息
         """
-        session = get_scoped_session()
         condition = TeacherClasses.teacher_id == self.id
         if isinstance(platform_id, int):
             condition &= TeacherClasses.classes_id == platform_id
@@ -444,12 +427,12 @@ class Teacher(FilterModel, Model):
                 condition &= GroupBind.channel_id == channel_id
             if guild_id:
                 condition &= GroupBind.guild_id == guild_id
-        return await session.scalar(
-            select(Classes)
-            .join(TeacherClasses)
+        return (
+            await Classes.select.join(TeacherClasses)
             .join(Group)
             .join(GroupBind)
             .where(condition)
+            .first()
         )
 
     async def bind_classes(self, classes: "Classes"):
@@ -458,10 +441,10 @@ class Teacher(FilterModel, Model):
         Args:
             classes (Classes): 班级信息
         """
-        session = get_scoped_session()
-        self.classes.append(classes)
-        await session.commit()
-        await session.refresh(self)
+        async with get_session() as session:
+            self.classes.append(classes)
+            await session.commit()
+            await session.refresh(self)
 
     async def get_students(self):
         """获取教师所在班级的学生信息"""
@@ -545,16 +528,13 @@ class Classes(FilterModel, Model):
             user (User): 用户信息
             describe (str): 申请描述
         """
-        session = get_scoped_session()
-        classes_join_request = ClassesJoinRequest(
+        classes_join_request = await ClassesJoinRequest(
             classes_id=self.id,
             user_id=user.id,
             join_method=JoinMethod.apply,
             describe=describe,
-        )
-        session.add(classes_join_request)
-        await session.commit()
-        await session.refresh(classes_join_request)
+        ).create()
+        return classes_join_request
 
     @classmethod
     async def get_classes(
@@ -575,9 +555,8 @@ class Classes(FilterModel, Model):
         Returns:
             Optional[Classes]: 班级信息
         """
-        session = get_scoped_session()
         if isinstance(platform_id, int):
-            return await session.scalar(select(cls).where(cls.id == platform_id))
+            return await cls.filter(id=platform_id).first()
 
         assert channel_id is not None, "channel_id is None"
 
@@ -586,7 +565,7 @@ class Classes(FilterModel, Model):
         )
         if guild_id:
             condition &= GroupBind.guild_id == guild_id
-        if group_bind := await session.scalar(select(GroupBind).where(condition)):
+        if group_bind := await GroupBind.filter(condition).first():
             return group_bind.group.classes
 
     @classmethod
@@ -614,12 +593,7 @@ class Classes(FilterModel, Model):
         """
         group = await Group.create_group(user)  # 创建群组
         await GroupBind.bind_group(platform_id, channel_id, guild_id, group)  # 绑定群组
-        session = get_scoped_session()
-        classes = cls(name=name, group=group)  # 创建班级
-        session.add(classes)
-        await session.commit()
-        await session.refresh(classes)
-        return classes
+        return await cls(name=name, group=group).create()  # 创建班级
 
     async def bind_teacher(self, teacher: Teacher, role: TeacherRole | None = None):
         """绑定教师
@@ -627,10 +601,10 @@ class Classes(FilterModel, Model):
         Args:
             teacher (Teacher): 教师信息
         """
-        session = get_scoped_session()
-        self.teacher.append(teacher)
-        await session.commit()
-        await session.refresh(self)
+        async with get_session() as session:
+            self.teacher.append(teacher)
+            await session.commit()
+            await session.refresh(self)
 
     async def update_teacher_role(self, teacher: Teacher, role: TeacherRole):
         """更新教师角色
@@ -639,18 +613,10 @@ class Classes(FilterModel, Model):
             teacher (Teacher): 教师信息
             role (TeacherRole): 教师角色
         """
-        session = get_scoped_session()
-        if teacher_classes := await session.scalar(
-            select(TeacherClasses).where(
-                (TeacherClasses.teacher_id == teacher.id)
-                & (TeacherClasses.classes_id == self.id)
-            )
-        ):
-            teacher_classes.role = role
-            await session.commit()
-            await session.refresh(teacher_classes)
-            await session.refresh(teacher)
-            await session.refresh(self)
+
+        await TeacherClasses.filter(teacher_id=teacher.id, classes_id=self.id).update(
+            role=role
+        )
 
 
 class ClassesJoinRequest(FilterModel, Model):
@@ -702,11 +668,10 @@ class TeacherClasses(FilterModel, Model):
             teacher (Teacher): 教师
             classes (Classes): 班级
         """
-        session = get_scoped_session()
-        teacher_classes = cls(teacher_id=teacher.id, classes_id=classes.id)
-        session.add(teacher_classes)
-        await session.commit()
-        await session.refresh(teacher_classes)
+        teacher_classes = await cls(
+            teacher_id=teacher.id, classes_id=classes.id
+        ).create()
+        return teacher_classes
 
 
 class Student(FilterModel, Model):
@@ -750,11 +715,7 @@ class Student(FilterModel, Model):
         Returns:
             Student: 学生信息
         """
-        student = cls(name=name, classes=classes, user=user)
-        session = get_scoped_session()
-        session.add(student)
-        await session.commit()
-        await session.refresh(student)
+        student = await cls(name=name, classes=classes, user=user).create()
         return student
 
     async def update_classes(self, classes: Classes):
@@ -763,11 +724,10 @@ class Student(FilterModel, Model):
         Args:
             classes (Classes): 班级信息
         """
-        session = get_scoped_session()
-        self.classes = classes
-        self.role = StudentRole.student
-        await session.commit()
-        await session.refresh(self)
+        await self.update(
+            classes=classes,
+            role=StudentRole.student,
+        )
 
     async def get_classmates(self) -> list["Student"]:
         return await Student.filter(classes_id=self.classes_id).all()
@@ -844,16 +804,12 @@ class Tasks(FilterModel, Model):
         Returns:
             Tasks: 任务信息
         """
-        task = cls(
+        task = await cls(
             name=name,
             classes_id=classes.id,
             creator_id=creator.id,
             creator_role=creator_role,
-        )
-        session = get_scoped_session()
-        session.add(task)
-        await session.commit()
-        await session.refresh(task)
+        ).create()
         return task
 
     async def delete(self):

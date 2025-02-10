@@ -1,6 +1,7 @@
 from utils import Emoji
 from utils.models import Bind
 from utils.config import template_dir
+from nonebot.adapters import Event, qq
 from utils.session import EventSession
 from nonebot_plugin_htmlrender import template_to_pic
 from nonebot_plugin_alconna import UniMessage, AlconnaMatcher
@@ -40,8 +41,13 @@ async def _(
 
 @at_cmd.handle()
 async def _(
-    matcher: AlconnaMatcher, find_students: FindStudents, session: EventSession
+    event: Event,
+    session: EventSession,
+    matcher: AlconnaMatcher,
+    find_students: FindStudents,
 ):
+    if isinstance(event, qq.Event):
+        await matcher.finish(Emoji.error + "本功能暂不支持官方QQ机器人")
     if find_students.empty:
         await matcher.finish(Emoji.error + "没有找到符合条件的学生")
 

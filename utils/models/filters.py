@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Any, Type, Generic, TypeVar, Optional, Generator
 
-from nonebot_plugin_orm import get_scoped_session
+from nonebot_plugin_orm import Model, get_session
 from sqlalchemy import (
     Select,
     ScalarResult,
@@ -16,6 +16,9 @@ if TYPE_CHECKING:
 
     class SelectFilter(Select, Generic[T]):
         def __await__(self) -> Generator[Any, Any, ScalarResult[T]]:
+            ...
+
+        async def first(self) -> Optional[T]:
             ...
 
 else:
@@ -34,10 +37,14 @@ else:
 
             return _
 
+        async def first(self) -> Optional[T]:
+            async with get_session() as session:
+                return await session.scalar(self._select)
+
         def __await__(self) -> Generator[Any, Any, ScalarResult[T]]:
             async def _():
-                session = get_scoped_session()
-                return await session.scalars(self._select)
+                async with get_session() as session:
+                    return await session.scalars(self._select)
 
             return _().__await__()
 
@@ -46,12 +53,11 @@ class Filter(Generic[T]):
     def __init__(
         self,
         model: Type[T],
-        session=None,
         options: Optional[list[ColumnExpressionArgument[bool]]] = None,
     ) -> None:
         self.model: type[T] = model
-        self.session = get_scoped_session() if session is None else session
         self.options: list[ColumnExpressionArgument[bool]] = (options or []).copy()
+        self.refresh_model: list[Model] = []
 
     def filter(
         self, *where_clause: ColumnExpressionArgument[bool], **kwargs: Any
@@ -61,37 +67,48 @@ class Filter(Generic[T]):
         for key in kwargs:
             option = getattr(self.model, key) == kwargs[key]
             select_option = option if select_option is None else select_option & option
+            if isinstance(kwargs[key], Model):
+                self.refresh_model.append(kwargs[key])
         if select_option is not None:
             self.options.append(select_option)
-        return Filter[self.model](self.model, self.session, self.options)
+        return Filter[self.model](self.model, self.options)
 
     async def first(self) -> Optional[T]:
-        return await self.session.scalar(select(self.model).where(*self.options))
+        async with get_session() as session:
+            return await session.scalar(select(self.model).where(*self.options))
 
     async def scalars(self) -> ScalarResult[T]:
-        return await self.session.scalars(select(self.model).where(*self.options))
+        async with get_session() as session:
+            return await session.scalars(select(self.model).where(*self.options))
 
     async def delete(self):
-        result = await self.session.execute(delete(self.model).where(*self.options))
-        await self.session.commit()
-        return result
+        async with get_session() as session:
+            result = await session.execute(delete(self.model).where(*self.options))
+            await session.commit()
+            for model in self.refresh_model:
+                await session.refresh(model)
+            return result
 
     async def update(self, **kwargs: Any):
-        result = await self.session.execute(
-            update(self.model).where(*self.options).values(**kwargs)
-        )
-        await self.session.commit()
-        return result
+        async with get_session() as session:
+            result = await session.execute(
+                update(self.model).where(*self.options).values(**kwargs)
+            )
+            await session.commit()
+            for model in self.refresh_model:
+                await session.refresh(model)
+            return result
 
     async def all(self) -> list[T]:
         return list(await self.scalars())
 
     async def exists(self) -> bool:
-        return bool(
-            await self.session.scalar(
-                select(select(self.model).where(*self.options).exists())
+        async with get_session() as session:
+            return bool(
+                await session.scalar(
+                    select(select(self.model).where(*self.options).exists())
+                )
             )
-        )
 
 
 class FilterModel:
@@ -100,19 +117,24 @@ class FilterModel:
         return Filter[cls](cls).filter(*where_clause, **kwargs)
 
     async def create(self):
-        session = get_scoped_session()
-        session.add(self)
-        await session.commit()
-        await session.refresh(self)
-        return self
+        async with get_session() as session:
+            session.add(self)
+            await session.commit()
+            await session.refresh(self)
+            return self
 
     async def update(self, **kwargs: Any):
-        session = get_scoped_session()
-        for key in kwargs:
-            setattr(self, key, kwargs[key])
-        await session.commit()
-        await session.refresh(self)
-        return self
+        refresh_model = []
+        async with get_session() as session:
+            for key in kwargs:
+                setattr(self, key, kwargs[key])
+                if isinstance(kwargs[key], Model):
+                    refresh_model.append(kwargs[key])
+            await session.commit()
+            await session.refresh(self)
+            for model in refresh_model:
+                await session.refresh(model)
+            return self
 
     @classmethod
     @property
