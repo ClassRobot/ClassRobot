@@ -71,7 +71,7 @@ query_task_cmd = on_alconna(
         Args["task_name?", str | None],
     ),
     aliases=query_task_alias,
-    priority=priority - 10,
+    priority=priority,
     block=True,
     skip_for_unmatch=False,
     comp_config=comp_config,

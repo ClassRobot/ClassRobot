@@ -38,6 +38,8 @@ alc_config.default_namespace.compact = True
 data_dir: Path = get_data_dir(dirname)
 cache_dir: Path = get_cache_dir(dirname)
 config_dir: Path = get_config_dir(dirname)
+static_dir: Path = Path().cwd() / "static"
+template_dir = static_dir / "template"
 priority = 100
 
 task_dir = data_dir / "tasks"

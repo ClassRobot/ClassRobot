@@ -26,13 +26,15 @@ class ChatSession:
             messages=[Context(role=Role.system, content=get_prompt_system())]
         )
 
-    async def send_message(self, message: str | UniMessage):
+    async def send_message(self, message: str | UniMessage | ChatMessage):
         if self.lock:
             raise SessionLockError("聊天锁已经被锁定，无法发送消息！")
         try:
             self.lock = True
             self.messages.user_message(
-                ChatMessage(user_id=self.user_id).extend(message)
+                message.message
+                if isinstance(message, ChatMessage)
+                else ChatMessage(user_id=self.user_id).extend(message)
             )
             response = await client_create(self.messages)
             # 可能会存在```json和```这种情况，需要删除
@@ -84,5 +86,5 @@ async def get_chat_session(user: UserOrCreatedDepends) -> ChatSession:
     return chat_session_manager.get_chat_session(user.id)
 
 
-chat_session_manager = ChatSessionManager()
 ChatSessionDepends = Annotated[ChatSession, Depends(get_chat_session)]
+chat_session_manager = ChatSessionManager()

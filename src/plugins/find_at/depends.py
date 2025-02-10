@@ -40,11 +40,9 @@ TeacherStudents = Annotated[set[Student], Depends(get_teacher_students)]
 
 
 async def get_students(
-    matcher: Matcher, classmates: StudentClassmates, students: TeacherStudents
+    classmates: StudentClassmates, students: TeacherStudents
 ) -> set[Student]:
-    if students := students | classmates:
-        return students
-    await matcher.finish()
+    return students | classmates
 
 
 UserStudents = Annotated[set[Student], Depends(get_students)]

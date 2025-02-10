@@ -1,24 +1,41 @@
 from utils import Emoji
 from utils.models import Bind
+from utils.config import template_dir
 from utils.session import EventSession
-from nonebot_plugin_htmlrender import md_to_pic
+from nonebot_plugin_htmlrender import template_to_pic
 from nonebot_plugin_alconna import UniMessage, AlconnaMatcher
 
+from .util import get_display_columns
 from .commands import at_cmd, find_cmd
 from .depends import FindStudents, UserStudents
 
 
 @find_cmd.handle()
 async def _(
-    matcher: AlconnaMatcher, find_students: FindStudents, students: UserStudents
+    matcher: AlconnaMatcher,
+    find_students: FindStudents,
+    students: UserStudents,
+    items: list[str],
 ):
     if not students:
         await matcher.finish(Emoji.error + "您没有可以查找的学生")
     elif find_students.empty:
         await matcher.finish(Emoji.error + "没有找到符合条件的学生")
 
-    html = find_students.to_markdown(index=False)
-    await matcher.finish(UniMessage.image(raw=await md_to_pic(md=html, width=1200)))
+    columns = get_display_columns(items)
+    # 显示指定几个列,nan替换成空字符串
+    find_students = find_students[columns].fillna("无").astype(str)
+    await matcher.finish(
+        UniMessage.image(
+            raw=await template_to_pic(
+                str(template_dir),
+                "find.html",
+                {
+                    "data": find_students.to_dict(orient="records"),
+                },
+            )
+        )
+    )
 
 
 @at_cmd.handle()

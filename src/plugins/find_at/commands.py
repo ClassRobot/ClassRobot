@@ -7,7 +7,7 @@ from .util import columns_chinese
 find_cmd = on_alconna(
     Alconna("find", Args["items", MultiVar(str, "+")]),
     aliases={"查找", "查询"},
-    priority=priority,
+    priority=priority + 10,
     block=True,
 )
 

@@ -35,10 +35,12 @@ async def client_create(
                 f'LLM "<y>{llm_config.name}</y>" request messages'
             )
             return await clients[llm_config.name].chat.completions.create(
+                max_tokens=1000,
                 model=llm_config.model,
                 stream=False,
                 messages=messages,
                 timeout=plugin_config.llm_timeout,
+                response_format={"type": "json_object"},
             )
         except APIError as e:
             logger.opt(colors=True).error(f'LLM "<y>{llm_config.name}</y>" error {e}')

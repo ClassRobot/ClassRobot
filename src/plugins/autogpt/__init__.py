@@ -1,6 +1,7 @@
 from utils import Emoji
 from nonebot import on_message
 from nonebot.rule import to_me
+from utils.config import priority
 from nonebot.matcher import Matcher
 from nonebot.adapters import Bot, Event
 from nonebot.message import handle_event
@@ -9,7 +10,7 @@ from nonebot_plugin_alconna import UniMsg, MsgTarget, UniMessage, SupportScope
 from .util import ChatSessionDepends
 from .schemas import AutoTask, AutoTaskList
 
-auto_gpt = on_message(priority=1000, block=True, rule=to_me())
+auto_gpt = on_message(priority=priority * 10, block=True, rule=to_me())
 
 
 def update_message(task: AutoTask):

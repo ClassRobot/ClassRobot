@@ -17,8 +17,29 @@ columns = {
     "political_status": ["政治面貌"],
 }
 
-default_display_columns = ["name", "role", "phone", "email", "classes"]
-columns_chinese = [values[0] for key, values in columns.items() if key not in []]
+default_display_columns = [
+    "user_id",
+    "student_code",
+    "name",
+    "role",
+    "phone",
+    "email",
+    "classes",
+]
+columns_chinese = {key: values[0] for key, values in columns.items() if key not in []}
+
+
+def get_display_columns(items: list[str]) -> list[str]:
+    """获取要显示的列"""
+    display_columns = ["user_id", "student_code", "name", "classes"]
+    length = len(display_columns)
+    for item in items:
+        for key, values in columns.items():
+            if item in values and key not in display_columns:
+                display_columns.append(key)
+    if len(display_columns) == length:
+        return default_display_columns.copy()
+    return display_columns
 
 
 def student_to_dict(student: Student) -> dict:

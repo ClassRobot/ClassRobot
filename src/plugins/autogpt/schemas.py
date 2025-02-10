@@ -3,7 +3,7 @@ from datetime import datetime
 
 from utils.llm.schema import Content
 from pydantic import Field, BaseModel
-from nonebot_plugin_alconna import Text, Image, UniMessage
+from nonebot_plugin_alconna import Text, Image, Reply, UniMessage
 
 
 class Param(BaseModel):
@@ -61,5 +61,17 @@ class ChatMessage(BaseModel):
                     self.message.append(Content(type="text", value=msg.text))
                 elif isinstance(msg, Image) and msg.url:
                     self.message.append(Content(type="image", value=msg.url))
-        print(self.message)
+                elif isinstance(msg, Reply):
+                    if msg.msg is None:
+                        continue
+                    self.message.append(
+                        Content(type="text", value="<reference_message>")
+                    )
+                    if isinstance(msg.msg, str):
+                        self.message.append(Content(type="text", value=msg.msg))
+                    else:
+                        self.extend(UniMessage.generate_sync(message=msg.msg))
+                    self.message.append(
+                        Content(type="text", value="</reference_message>")
+                    )
         return self.message
