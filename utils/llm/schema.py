@@ -46,10 +46,11 @@ class Context(BaseModel):
                         },
                     }
                 )
-                data.append({"type": "text", "text": f"![image]({msg.value})"})
             elif msg.type == "text":
                 data.append({"type": "text", "text": msg.value})
-        print(data)
+
+            if msg.type != "text":
+                data.append({"type": "text", "text": f"![{msg.type}]({msg.value})"})
         return data
 
     def single_modal(self) -> str:
@@ -85,8 +86,8 @@ class Context(BaseModel):
 
 
 class Messages(BaseModel):
-    messages: list[Context]
-    priority: list[int] = []
+    messages: list[Context] = []
+    priority: dict[int, int] = {}
 
     def build_messages(
         self, is_multi_modal: bool = False
@@ -112,16 +113,24 @@ class Messages(BaseModel):
     def max_length(self) -> int:
         return 12 * 1024
 
-    def char_length(self) -> int:
-        return sum(len(message) for message in self.messages)
+    def char_length(self, *role: Role) -> int:
+        return sum(
+            len(message)
+            for message in self.messages
+            if not role or message.role in role
+        )
+
+    def rollback(self):
+        """回滚消息"""
+        self.pop()
 
     def remove(self, obj: int | Context):
         if isinstance(obj, int):
             index = obj
-            context = self.messages.pop(obj)
+            context = self.pop(obj)
         else:
             index = self.messages.index(obj)
-            context = self.messages.pop(index)
+            context = self.pop(index)
 
         # 如果是用户的消息，说明下面一条或多条可能是机器人的消息，需要向下搜索知道下一条为用户消息，在这之间的消息都是机器人的消息需要删除
         pop_role = Role.user if context.role == Role.assistant else Role.assistant
@@ -130,48 +139,52 @@ class Messages(BaseModel):
             len(self.messages) > (index := index - next_index)
             and self.messages[index].role == pop_role
         ):
-            msg = self.messages.pop(index)
+            msg = self.pop(index)
             logger.info("超出长度，删除消息: %s", msg)
 
+    def pop(self, index: int = -1) -> Context:
+        context = self.pop(index)
+        self.priority[context.priority] -= 1
+        if self.priority[context.priority] <= 0:
+            self.priority.pop(context.priority)
+        return context
+
     def add_message(self, role: Role, content: str | list, priority: int = 1):
-        char_length = self.char_length()
-        if char_length > self.max_length:
+        if self.char_length() > self.max_length:  # 超出长度
             self.delete_messages(0.5)
 
-        # 按照优先级排序
-        if priority in self.priority:
-            """如果已经存在的优先级，则不添加"""
-        elif not self.priority:
-            self.priority.append(priority)
-        elif priority < self.priority[-1]:
-            self.priority.append(priority)
-        elif priority > self.priority[0]:
-            self.priority.insert(0, priority)
-
+        self.priority.setdefault(priority, 0)
+        self.priority[priority] += 1
         self.messages.append(Context(role=role, content=content, priority=priority))
+        print(self.char_length(), self)
 
     def delete_messages(self, per: float = 0.5):
         """删除一定比例的消息"""
         char_length = self.char_length()
         remaining_length = char_length - int(char_length * per)
         # 需要删除到剩余数量
-        while self.char_length() > remaining_length:
+        while char_length > remaining_length:
             # 按照priority排序，删除优先级低的消息
             if self.priority:
-                priority = self.priority.pop()
+                priority = sorted(self.priority.keys())[0]
                 for ctx in self.get(Role.assistant).messages:
                     if ctx.priority == priority:
                         self.remove(ctx)
+            _length = self.char_length()
+            if _length == char_length:
+                break
 
     def user_message(self, content: ContentType, priority: int = 1):
         self.add_message(role=Role.user, content=content, priority=priority)
 
-    def system_message(self, content: ContentType, priority: int = 1):
+    def system_message(self, content: ContentType, priority: int = 1000):
         self.add_message(role=Role.system, content=content, priority=priority)
 
     def assistant_message(self, content: ContentType, priority: int = 1):
         self.add_message(role=Role.assistant, content=content, priority=priority)
-        print(self.char_length())
 
     def __repr__(self) -> str:
-        return str(self.get(Role.user, Role.assistant).messages)
+        return self.get(Role.user, Role.assistant).messages.__repr__()
+
+    def __str__(self) -> str:
+        return self.__repr__()

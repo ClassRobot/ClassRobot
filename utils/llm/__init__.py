@@ -1,6 +1,7 @@
 from nonebot import logger
-from openai import APIError, AsyncOpenAI
 from openai.types.chat.chat_completion import ChatCompletion
+from openai import NOT_GIVEN, APIError, NotGiven, AsyncOpenAI
+from openai.types.chat.chat_completion_tool_param import ChatCompletionToolParam
 from openai.types.chat.chat_completion_message_param import ChatCompletionMessageParam
 
 from .schema import Messages
@@ -21,7 +22,10 @@ for llm_config in plugin_config.llm_configs:
 
 async def client_create(
     messages: list[ChatCompletionMessageParam] | Messages,
+    tools: list[ChatCompletionToolParam] | NotGiven | None = None,
 ) -> ChatCompletion:
+    if tools is None:
+        tools = NOT_GIVEN
     for llm_config in plugin_config.llm_configs:
         if isinstance(messages, Messages):
             if messages.text_only():
@@ -35,10 +39,11 @@ async def client_create(
                 f'LLM "<y>{llm_config.name}</y>" request messages'
             )
             return await clients[llm_config.name].chat.completions.create(
-                max_tokens=1000,
-                model=llm_config.model,
+                tools=tools,
                 stream=False,
+                max_tokens=1000,
                 messages=messages,
+                model=llm_config.model,
                 timeout=plugin_config.llm_timeout,
                 # response_format={"type": "json_object"},
             )

@@ -52,6 +52,8 @@ def student_to_dict(student: Student) -> dict:
         "email": student.user.email,
         "classes": student.classes.name,
     }
+    for bind in student.user.binds:
+        data[bind.platform_id] = bind.account_id
     if student.extra:
         data.update(
             {
@@ -67,7 +69,9 @@ def student_to_dict(student: Student) -> dict:
 
 def to_df(students: Iterable[Student]) -> DataFrame:
     """取出指定字段转成 DataFrame"""
-    return DataFrame(
-        (student_to_dict(student) for student in students),
-        columns=tuple(columns.keys()),
-    )
+    df = DataFrame(student_to_dict(student) for student in students)
+    # 补全columns，不存在的用None填充
+    for key in columns:
+        if key not in df:
+            df[key] = None
+    return df

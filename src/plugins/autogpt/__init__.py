@@ -47,7 +47,6 @@ async def _(
 
         if auto_task.reply:
             await matcher.send(auto_task.reply)
-            print(chat_session.messages.char_length())
         if not auto_task.need_confirm:
             for auto_task in auto_task.tasks:
                 event.get_message = update_message(auto_task)  # type: ignore
