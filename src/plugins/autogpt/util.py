@@ -1,3 +1,4 @@
+from time import time
 from typing import Annotated
 
 from nonebot.params import Depends
@@ -14,6 +15,7 @@ from .schemas import ChatMessage, AutoTaskList
 
 class ChatSession:
     def __init__(self, user_id: int) -> None:
+        self.update_time = time()
         self.user_id = user_id
         self.lock = False  # 聊天锁，防止一轮聊天还没结束又开始新的聊天
         self.messages = Messages()
@@ -51,11 +53,24 @@ class ChatSession:
 
 
 class ChatSessionManager:
+    timeout = 60 * 60 * 24  # 24小时
+
     def __init__(self):
         self.sessions: dict[int, ChatSession] = {}
 
-    def get_chat_session(self, user_id: int):
+    # 检查是否有过期的session然后删除
+    def check_timeout(self):
+        current_time = time()
+        for session in self.sessions.values():
+            if current_time - session.update_time > self.timeout:
+                del self.sessions[session.user_id]
+
+    def get_chat_session(self, user_id: int) -> ChatSession:
+        # 检查是否有过期的session
+        self.check_timeout()
+
         if session := self.sessions.get(user_id):
+            session.update_time = time()
             return session
         session = ChatSession(user_id)
         self.sessions[user_id] = session
