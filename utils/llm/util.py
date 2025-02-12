@@ -1,6 +1,7 @@
 import re
 import json
 
+from nonebot import logger
 from nonebot_plugin_alconna import Text, Image, Reply, UniMessage
 
 from .schema import Content
@@ -29,6 +30,20 @@ def uni_message_to_contents(messages: UniMessage | str) -> list[Content]:
                 )
             contexts.append(Content(type="text", value="</reference_message>"))
     return contexts
+
+
+def contents_to_uni_message(contents: list[Content]) -> UniMessage:
+    messages = UniMessage()
+    for content in contents:
+        if content.type == "text":
+            messages += UniMessage.text(content.value)
+        elif content.type == "image":
+            messages += UniMessage.image(content.value)
+        elif content.type == "file":
+            messages += UniMessage.file(content.value)
+        else:
+            logger.warning(f"未知的消息类型: {content.type}")
+    return messages
 
 
 def escape_backslashes(content: str) -> str:

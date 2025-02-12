@@ -4,17 +4,19 @@ from typing import Literal, TypeAlias
 from nonebot import logger
 from strenum import StrEnum
 from pydantic import Field, BaseModel
-from openai.types.chat.chat_completion_message_param import ChatCompletionMessageParam
+
+from .typings import ChatCompletionMessageParam
 
 
 class Role(StrEnum):
     user = "user"
+    tool = "tool"
     system = "system"
     assistant = "assistant"
 
 
 class Content(BaseModel):
-    type: Literal["text", "image"]
+    type: Literal["text", "image", "file"]
     value: str
 
     def __len__(self):
@@ -27,6 +29,7 @@ ContentType: TypeAlias = str | list[Content]
 class Context(BaseModel):
     role: Role
     content: str | list[Content]
+    tool_call_id: str | None = None
     priority: int = 10
     created_at: datetime = Field(default_factory=datetime.now)
 
@@ -82,7 +85,10 @@ class Context(BaseModel):
         return sum(len(msg) for msg in self.content)
 
     def dict(self):
-        return super().dict(include={"role", "content"})
+        data = super().dict(include={"role", "content"})
+        if self.role == Role.tool:
+            data["tool_call_id"] = self.tool_call_id
+        return data
 
 
 class Messages(BaseModel):
@@ -103,6 +109,7 @@ class Messages(BaseModel):
         return messages
 
     def get(self, *role: Role) -> "Messages":
+        """通过角色获取消息"""
         return Messages(messages=[msg for msg in self.messages if msg.role in role])
 
     def text_only(self) -> bool:
@@ -149,14 +156,24 @@ class Messages(BaseModel):
             self.priority.pop(context.priority)
         return context
 
-    def add_message(self, role: Role, content: str | list, priority: int = 1):
+    def add_message(
+        self,
+        role: Role,
+        content: str | list,
+        tool_call_id: str | None = None,
+        priority: int = 1,
+    ):
         if self.char_length() > self.max_length:  # 超出长度
             self.delete_messages(0.5)
 
         self.priority.setdefault(priority, 0)
         self.priority[priority] += 1
-        self.messages.append(Context(role=role, content=content, priority=priority))
-        print(self.char_length(), self)
+        self.messages.append(
+            Context(
+                role=role, content=content, priority=priority, tool_call_id=tool_call_id
+            )
+        )
+        print(self.char_length(), role, self)
 
     def delete_messages(self, per: float = 0.5):
         """删除一定比例的消息"""
@@ -183,8 +200,16 @@ class Messages(BaseModel):
     def assistant_message(self, content: ContentType, priority: int = 1):
         self.add_message(role=Role.assistant, content=content, priority=priority)
 
+    def tool_message(self, tool_call_id: str, content: str, priority: int = 1):
+        self.add_message(
+            role=Role.tool,
+            content=content,
+            tool_call_id=tool_call_id,
+            priority=priority,
+        )
+
     def __repr__(self) -> str:
-        return self.get(Role.user, Role.assistant).messages.__repr__()
+        return self.get(Role.user, Role.assistant, Role.tool).messages.__repr__()
 
     def __str__(self) -> str:
         return self.__repr__()

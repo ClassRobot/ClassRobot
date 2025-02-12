@@ -1,11 +1,9 @@
 from nonebot import logger
-from openai.types.chat.chat_completion import ChatCompletion
 from openai import NOT_GIVEN, APIError, NotGiven, AsyncOpenAI
-from openai.types.chat.chat_completion_tool_param import ChatCompletionToolParam
-from openai.types.chat.chat_completion_message_param import ChatCompletionMessageParam
 
 from .schema import Messages
 from .config import plugin_config
+from .typings import ChatCompletion, ChatCompletionToolParam, ChatCompletionMessageParam
 
 clients: dict[str, AsyncOpenAI] = {}
 
@@ -23,10 +21,13 @@ for llm_config in plugin_config.llm_configs:
 async def client_create(
     messages: list[ChatCompletionMessageParam] | Messages,
     tools: list[ChatCompletionToolParam] | NotGiven | None = None,
+    llm_name: str | None = None,
 ) -> ChatCompletion:
     if tools is None:
         tools = NOT_GIVEN
     for llm_config in plugin_config.llm_configs:
+        if llm_name and llm_name != llm_config.name:
+            continue
         if isinstance(messages, Messages):
             if messages.text_only():
                 messages = messages.build_messages()
@@ -34,6 +35,7 @@ async def client_create(
                 messages = messages.build_messages(True)
             else:
                 continue
+            print(messages)
         try:
             logger.opt(colors=True).info(
                 f'LLM "<y>{llm_config.name}</y>" request messages'
