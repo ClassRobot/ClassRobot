@@ -5,7 +5,7 @@ from nonebot import logger
 from strenum import StrEnum
 from pydantic import Field, BaseModel
 
-from .typings import ChatCompletionMessageParam
+from .typings import ChatCompletionMessage, ChatCompletionMessageParam
 
 
 class Role(StrEnum):
@@ -92,7 +92,7 @@ class Context(BaseModel):
 
 
 class Messages(BaseModel):
-    messages: list[Context] = []
+    messages: list[Context | ChatCompletionMessage] = []
     priority: dict[int, int] = {}
 
     def build_messages(
@@ -101,20 +101,30 @@ class Messages(BaseModel):
         messages = []
         msg_len = len(self.messages)
         for i, ctx in enumerate(self.messages):
-            msg_dict = ctx.dict()
-            msg_dict["content"] = ctx.single_modal()
-            if i == msg_len - 1 and is_multi_modal:  # 最后一条消息
-                msg_dict["content"] = ctx.multi_modal()
-            messages.append(msg_dict)
+            msg_dict = None
+            if isinstance(ctx, Context):
+                msg_dict = ctx.dict()
+                msg_dict["content"] = ctx.single_modal()
+                if i == msg_len - 1 and is_multi_modal:  # 最后一条消息
+                    msg_dict["content"] = ctx.multi_modal()
+            messages.append(msg_dict or ctx)
         return messages
 
     def get(self, *role: Role) -> "Messages":
         """通过角色获取消息"""
-        return Messages(messages=[msg for msg in self.messages if msg.role in role])
+        return Messages(
+            messages=[
+                msg
+                for msg in self.messages
+                if isinstance(msg, Context) and msg.role in role
+            ]
+        )
 
     def text_only(self) -> bool:
         """是否只有文本消息"""
-        return self.messages[-1].text_only()
+        if isinstance(self.messages[-1], Context):
+            return self.messages[-1].text_only()
+        return True
 
     @property
     def max_length(self) -> int:
@@ -124,7 +134,7 @@ class Messages(BaseModel):
         return sum(
             len(message)
             for message in self.messages
-            if not role or message.role in role
+            if isinstance(message, Context) and (not role or message.role in role)
         )
 
     def rollback(self):
@@ -144,7 +154,8 @@ class Messages(BaseModel):
         next_index = int(context.role == Role.assistant)
         while (
             len(self.messages) > (index := index - next_index)
-            and self.messages[index].role == pop_role
+            and isinstance(self.messages[index], Context)
+            and self.messages[index].role == pop_role  # type: ignore
         ):
             msg = self.pop(index)
             logger.info("超出长度，删除消息: %s", msg)
@@ -175,6 +186,9 @@ class Messages(BaseModel):
         )
         print(self.char_length(), role, self)
 
+    def add_tool(self, context: ChatCompletionMessage):
+        self.messages.append(context)
+
     def delete_messages(self, per: float = 0.5):
         """删除一定比例的消息"""
         char_length = self.char_length()
@@ -185,7 +199,7 @@ class Messages(BaseModel):
             if self.priority:
                 priority = sorted(self.priority.keys())[0]
                 for ctx in self.get(Role.assistant).messages:
-                    if ctx.priority == priority:
+                    if isinstance(ctx, Context) and ctx.priority == priority:
                         self.remove(ctx)
             _length = self.char_length()
             if _length == char_length:

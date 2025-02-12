@@ -64,7 +64,7 @@ class NoticeSession:
         response = await client_create(self.messages, tools=self.functions)
         content = response.choices[0].message.content
         if response.choices[0].message.tool_calls:
-            self.messages
+            self.messages.add_tool(response.choices[0].message)
             for tool in response.choices[0].message.tool_calls:
                 match (tool.function.name):
                     case "get_self_id":
@@ -78,7 +78,9 @@ class NoticeSession:
 
         if content:
             print(content)
-            return Notices.parse_obj(json_loads(content))
+            notices = Notices.parse_obj(json_loads(content))
+            self.messages.assistant_message(notices.json(ensure_ascii=False))
+            return notices
 
     async def get_self_id(self) -> str:
         return f"user_id: {self.user.id}"

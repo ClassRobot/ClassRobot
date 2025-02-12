@@ -1,3 +1,5 @@
+from pprint import pprint
+
 from nonebot import logger
 from openai import NOT_GIVEN, APIError, NotGiven, AsyncOpenAI
 
@@ -35,7 +37,7 @@ async def client_create(
                 messages = messages.build_messages(True)
             else:
                 continue
-            print(messages)
+            pprint(messages[1:])
         try:
             logger.opt(colors=True).info(
                 f'LLM "<y>{llm_config.name}</y>" request messages'

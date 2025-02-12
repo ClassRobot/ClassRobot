@@ -51,17 +51,24 @@ def escape_backslashes(content: str) -> str:
     return re.sub(r"\\(?![nrtbfv](?![a-zA-Z]))", r"\\\\", content)
 
 
-def json_loads(content: str) -> dict:
-    """用于解析llm发送过来的json数据"""
-    contents = content.split("\n")
-    start, end = 0, len(contents)
-    for i, v in enumerate(contents):
-        if v.startswith("```json"):
-            start = i + 1
-        if v.endswith("```"):
-            end = i
-    content = "\n".join(contents[start:end]).strip()
+def _loads(content: str) -> dict:
     try:
         return json.loads(content)
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as error:
         return json.loads(escape_backslashes(content))
+
+
+def json_loads(content: str) -> dict:
+    """用于解析llm发送过来的json数据"""
+    error = Exception("JSON解析失败")
+    # 得到所有```的数量
+    contents = content[content.find("```json") + 7 :].split("```")
+    for ctx in range(len(contents)):
+        content = "```".join(contents[: ctx + 1]).strip()
+        if not content:
+            continue
+        try:
+            return _loads(content)
+        except Exception as error:
+            continue
+    raise error
