@@ -60,15 +60,16 @@ def _loads(content: str) -> dict:
 
 def json_loads(content: str) -> dict:
     """用于解析llm发送过来的json数据"""
-    error = Exception("JSON解析失败")
-    # 得到所有```的数量
-    contents = content[content.find("```json") + 7 :].split("```")
-    for ctx in range(len(contents)):
-        content = "```".join(contents[: ctx + 1]).strip()
-        if not content:
-            continue
-        try:
-            return _loads(content)
-        except Exception as error:
-            continue
-    raise error
+    try:
+        return _loads(content)
+    except json.JSONDecodeError as error:
+        contents = content[content.find("```json") + 7 :].split("```")
+        for ctx in range(len(contents)):
+            content = "```".join(contents[: ctx + 1]).strip()
+            if not content:
+                continue
+            try:
+                return _loads(content)
+            except:
+                continue
+        raise error
