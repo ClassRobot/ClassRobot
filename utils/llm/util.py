@@ -54,7 +54,7 @@ def escape_backslashes(content: str) -> str:
 def _loads(content: str) -> dict:
     try:
         return json.loads(content)
-    except json.JSONDecodeError as error:
+    except json.JSONDecodeError:
         return json.loads(escape_backslashes(content))
 
 
@@ -62,7 +62,7 @@ def json_loads(content: str) -> dict:
     """用于解析llm发送过来的json数据"""
     try:
         return _loads(content)
-    except json.JSONDecodeError as error:
+    except json.decoder.JSONDecodeError as error:
         contents = content[content.find("```json") + 7 :].split("```")
         for ctx in range(len(contents)):
             content = "```".join(contents[: ctx + 1]).strip()

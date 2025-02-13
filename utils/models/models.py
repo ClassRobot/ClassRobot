@@ -1,10 +1,11 @@
 from hashlib import md5
+from datetime import datetime
 from typing import List, Literal, Optional
 
 from utils.config import task_dir
 from nonebot_plugin_orm import Model, get_session
 from sqlalchemy.orm import Mapped, relationship, mapped_column
-from sqlalchemy import String, Integer, ForeignKey, select, update
+from sqlalchemy import Text, String, Integer, DateTime, ForeignKey, select, update
 
 from .filters import FilterModel
 from .columns import CreateAt, UpdateAt, PrimaryKeyInteger
@@ -138,6 +139,10 @@ class User(FilterModel, Model):
             Optional[Bind]: 绑定信息
         """
         return await Bind.filter(user_id=self.id, platform_id=platform_id).first()
+
+    async def get_notices(self) -> List["ScheduledNotice"]:
+        """获取用户的通知任务"""
+        return await ScheduledNotice.filter(user_id=self.id).all()
 
 
 class Bind(FilterModel, Model):
@@ -890,3 +895,20 @@ class TaskCommits(FilterModel, Model):
     def read_path(self):
         """文件路径"""
         return task_dir / self.file_path / self.file_md5
+
+
+class ScheduledNotice(FilterModel, Model):
+    id: Mapped[PrimaryKeyInteger]
+    creator_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey(User.id, ondelete="CASCADE"), nullable=False
+    )
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    """通知标题"""
+    notice_time: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+    """通知时间"""
+    recipients: Mapped[str] = mapped_column(Text, nullable=True)
+    """通知对象"""
+    messages: Mapped[str] = mapped_column(Text, nullable=False)
+    """通知内容"""
+    creator: Mapped[User] = relationship(lazy=False)
+    """创建者信息"""

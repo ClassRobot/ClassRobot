@@ -31,8 +31,8 @@ class Notice(BaseModel):
     "通知标题"
     notice_time: datetime | None = None
     "通知时间,如果为None则表示立即通知"
-    recipients: list[NoticeGroup | NoticePrivate] | None = None
-    "通知对象,如果为None则是关于自己的通知事件,类似于定时什么时候提前自己起床这种任务"
+    recipients: list[NoticeGroup | NoticePrivate]
+    "通知对象"
     messages: list[Content] = []
     "通知内容"
 
@@ -41,12 +41,16 @@ class Notices(BaseModel):
     "通知列表"
     notices: list[Notice] = []
     "通知列表"
-    reply: str | None = None
+    reply: str
     "回复给用户的消息，如果`notices`里面有任务的话则告知用户机器人接下来会帮助用户做什么,具体回复内容由机器人自己去分析用户意图."
     is_invalid: bool = False
-    "用户的通知内容是否无效或胡言乱语或者找不到通知对象则为True"
+    "用户消息是否未有效通知"
 ```
 
+`is_invalid`参数补充说明(包括且不限于以下条件,满足则为True)：:
+- 未找到需要通知的对象.
+- 用户发送的消息无效或者胡言乱语.
+- 用户要求循环定时,例如每过一段时间通知一次.
 
 通知事件的例子:
 

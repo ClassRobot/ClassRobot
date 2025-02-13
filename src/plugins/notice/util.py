@@ -1,15 +1,16 @@
 from datetime import datetime
 
+from nonebot import logger
 from pandas import DataFrame
 from utils.models import User, Classes
-from nonebot_plugin_alconna import UniMessage
 from utils.llm import Messages, client_create
 from src.plugins.find_at.util import students_to_df
 from utils.llm.typings import ChatCompletionToolParam
-from utils.llm.util import json_loads, uni_message_to_contents
+from nonebot_plugin_alconna import Target, UniMessage, SupportAdapter, get_bot
+from utils.llm.util import json_loads, contents_to_uni_message, uni_message_to_contents
 
 from .prompt import prompt
-from .schema import Notices
+from .schema import Notice, Notices
 
 
 def classes_to_df(classes: list[Classes]) -> DataFrame:
@@ -24,6 +25,47 @@ def classes_to_df(classes: list[Classes]) -> DataFrame:
             info[bind.platform_id] = bind.channel_id
         data.append(info)
     return DataFrame(data)
+
+
+async def notice_work(notice: Notice, creator: User | None = None):
+    try:
+        if creator is None:
+            creator = await notice.get_creator()
+
+        if creator is None:
+            logger.error("遭遇错误，无法获取通知创建者")
+            return
+
+        message = UniMessage(
+            f"[有您的通知消息]\n[发送人用户ID: {creator.id} | {creator.nickname}]\n"
+        ) + contents_to_uni_message(notice.messages)
+
+        users = await notice.get_notice_users()
+        groups = await notice.get_notice_groups()
+
+        for user in users:
+            for bind in user.binds:
+                adapter_name = SupportAdapter[bind.platform_id.split(".")[0]]
+                for bot in await get_bot(adapter=adapter_name):
+                    try:
+                        await Target(bind.account_id, private=True).send(message, bot)
+                    except Exception as e:
+                        logger.exception(e)
+
+        for group in groups:
+            for bind in group.group_binds:
+                adapter_name = SupportAdapter[bind.platform_id.split(".")[0]]
+                for bot in await get_bot(adapter=adapter_name):
+                    try:
+                        await Target(
+                            id=bind.channel_id,
+                            channel=bool(bind.guild_id),
+                            parent_id=bind.guild_id,
+                        ).send(message, bot)
+                    except Exception as e:
+                        logger.exception(e)
+    finally:
+        await notice.remove_job()
 
 
 class NoticeSession:
@@ -55,32 +97,41 @@ class NoticeSession:
         self.user = user
         self.messages = Messages()
         self.messages.system_message(
-            prompt + f"当前时间: {datetime.now()}\n当前用户ID: {user.id}"
+            prompt + f"\n当前时间: {datetime.now()}\n当前用户ID: {user.id}"
         )
-        self.messages.assistant_message("{reply: '好的，我会严格按照您的邀请去编写通知任务,并以json格式返回给您'}")
 
     async def call(self, message: UniMessage) -> Notices | None:
-        self.messages.user_message(uni_message_to_contents(message))
-        response = await client_create(self.messages, tools=self.functions)
-        content = response.choices[0].message.content
-        if response.choices[0].message.tool_calls:
-            self.messages.add_tool(response.choices[0].message)
-            for tool in response.choices[0].message.tool_calls:
-                match (tool.function.name):
-                    case "get_self_id":
-                        self.messages.tool_message(tool.id, await self.get_self_id())
-                    case "get_classmates":
-                        self.messages.tool_message(tool.id, await self.get_classmates())
-                    case "get_classes":
-                        self.messages.tool_message(tool.id, await self.get_classes())
-            response = await client_create(self.messages)
+        try:
+            self.messages.user_message(uni_message_to_contents(message))
+            response = await client_create(self.messages, tools=self.functions)
             content = response.choices[0].message.content
+            if response.choices[0].message.tool_calls:
+                self.messages.add_tool(response.choices[0].message)
+                for tool in response.choices[0].message.tool_calls:
+                    match (tool.function.name):
+                        case "get_self_id":
+                            self.messages.tool_message(
+                                tool.id, await self.get_self_id()
+                            )
+                        case "get_classmates":
+                            self.messages.tool_message(
+                                tool.id, await self.get_classmates()
+                            )
+                        case "get_classes":
+                            self.messages.tool_message(
+                                tool.id, await self.get_classes()
+                            )
+                response = await client_create(self.messages)
+                content = response.choices[0].message.content
 
-        if content:
-            print(content)
-            notices = Notices.parse_obj(json_loads(content))
-            self.messages.assistant_message(notices.json(ensure_ascii=False))
-            return notices
+            if content:
+                print(content)
+                notices = Notices.parse_obj(json_loads(content))
+                self.messages.assistant_message(notices.json(ensure_ascii=False))
+                return notices
+        except Exception as e:
+            logger.exception(e)
+            return None
 
     async def get_self_id(self) -> str:
         return f"user_id: {self.user.id}"
