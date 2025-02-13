@@ -1,5 +1,6 @@
 from nonebot import on_command
 from utils.config import priority, comp_config
+from src.plugins.helper.schemas import Param, Helper
 from nonebot_plugin_alconna import Args, Field, Alconna, on_alconna
 
 notice_cmd = on_command(
@@ -21,3 +22,13 @@ delete_notice_cmd = on_alconna(
     skip_for_unmatch=False,
     comp_config=comp_config,
 )
+
+
+__helpers__ = [
+    Helper(
+        command="通知",
+        aliases={"定时", "转发"},
+        description="向自己同学发起通知,或者定时消息,只需要在命令后面加上具体内容即可,用白话文的方式说明即可,AI会去解析你的意图",
+        params=[Param(name="具体内容", description="用白话文的方式描述自己需要通知的内容")],
+    )
+]

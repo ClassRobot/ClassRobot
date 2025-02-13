@@ -5,7 +5,7 @@ from utils.config import priority
 from nonebot.matcher import Matcher
 from nonebot.adapters import Bot, Event
 from nonebot.message import handle_event
-from nonebot_plugin_alconna import UniMsg, MsgTarget, UniMessage, SupportScope
+from nonebot_plugin_alconna import Target, UniMsg, MsgTarget, UniMessage, SupportScope
 
 from .util import ChatSessionDepends
 from .schemas import AutoTask, AutoTaskList
@@ -13,16 +13,15 @@ from .schemas import AutoTask, AutoTaskList
 auto_gpt = on_message(priority=priority * 10, block=True, rule=to_me())
 
 
-def update_message(task: AutoTask):
+def update_message(task: AutoTask, target: Target):
     def _get_message():
         message = UniMessage.text(task.command)
         for param in task.params:
-            message += " "
             if param.type == "text":
                 message += UniMessage.text(param.value)
             elif param.type == "image":
                 message += UniMessage.image(param.value)
-        return message
+        return message.export_sync(adapter=target.adapter)
 
     return _get_message
 
@@ -49,5 +48,5 @@ async def _(
             await matcher.send(auto_task.reply)
         if not auto_task.need_confirm:
             for auto_task in auto_task.tasks:
-                event.get_message = update_message(auto_task)  # type: ignore
+                event.get_message = update_message(auto_task, target)  # type: ignore
                 await handle_event(bot, event)
