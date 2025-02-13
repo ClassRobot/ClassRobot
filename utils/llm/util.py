@@ -8,6 +8,9 @@ from .schema import Content
 
 
 def uni_message_to_contents(messages: UniMessage | str) -> list[Content]:
+    messages = messages.replace("<reference_message>", "").replace(
+        "</reference_message>", ""
+    )
     if isinstance(messages, str):
         return [Content(type="text", value=messages)]
     contexts = []

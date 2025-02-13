@@ -4,7 +4,7 @@ from nonebot_plugin_alconna import Args, Field, Alconna, on_alconna
 
 notice_cmd = on_command(
     "通知",
-    aliases={"定时"},
+    aliases={"定时", "转发"},
     priority=priority,
     block=True,
 )

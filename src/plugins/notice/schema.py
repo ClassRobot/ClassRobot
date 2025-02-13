@@ -32,7 +32,7 @@ class Notice(BaseModel):
     title: str
     "通知标题"
     notice_time: datetime | None = None
-    "通知时间,如果为None则表示立即通知"
+    "通知时间,如果为None则表示立即通知,如果无法理解用户说的是什么时候通知,则默认为立即通知"
     recipients: list[NoticeGroup | NoticePrivate]
     "通知对象"
     messages: list[Content] = []

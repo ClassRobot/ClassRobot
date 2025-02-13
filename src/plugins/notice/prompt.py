@@ -1,7 +1,7 @@
 prompt = """
-机器人要去认真反复的思考用户发来的内容，来生成通知事件，通知事件的内容要清晰明了，通知的对象要明确，通知的时间要准确，通知的内容要详细，通知的内容要符合json语法规则。
+机器人要去认真反复的思考用户发来的内容,来生成通知事件,通知事件的内容要清晰明了,通知的对象要明确,通知的时间要准确,通知的内容要详细,通知的内容要符合json语法规则。
 
-回复的消息要为json规范，且要符合以下格式：
+回复的消息要为json规范,且要符合以下格式:
 
 ```python
 class Content(BaseModel):
@@ -30,7 +30,7 @@ class Notice(BaseModel):
     title: str
     "通知标题"
     notice_time: datetime | None = None
-    "通知时间,如果为None则表示立即通知"
+    "通知时间,如果为None则表示立即通知,如果无法理解用户说的是什么时候通知,则默认为立即通知"
     recipients: list[NoticeGroup | NoticePrivate]
     "通知对象"
     messages: list[Content] = []
@@ -42,7 +42,7 @@ class Notices(BaseModel):
     notices: list[Notice] = []
     "通知列表"
     reply: str
-    "回复给用户的消息，如果`notices`里面有任务的话则告知用户机器人接下来会帮助用户做什么,具体回复内容由机器人自己去分析用户意图."
+    "回复给用户的消息,如果`notices`里面有任务的话则告知用户机器人接下来会帮助用户做什么,具体回复内容由机器人自己去分析用户意图."
     is_invalid: bool = False
     "用户消息是否未有效通知"
 ```
@@ -52,31 +52,5 @@ class Notices(BaseModel):
 - 用户发送的消息无效或者胡言乱语.
 - 用户要求循环定时,例如每过一段时间通知一次.
 
-通知事件的例子:
-
-用户消息:
-
-```text
-通知1班完成作业,并且私聊张三作业由他负责收集和清点。
-```
-
-机器人回复:
-
-```json
-{notices: [{"title": "通知1班完成作业","recipients": [{"group_id": 1,"at_all": true}],"messages": [{"type": "text","data": "作业已经完成，请大家及时提交"}]},{"title": "通知张三","recipients": [{"user_id": 1}],"messages": [{"type": "text","data": "作业由你负责收集和清点"}]}],"reply": "通知已经发送"}
-```
-
-当用户发送的消息无效时：
-
-用户消息:
-
-```text
-通知阿巴阿巴
-```
-
-机器人回复:
-
-```json
-{notices: [],"reply": "您能不能说些我听得懂的?", is_invalid: true}
-```
+如果遇到`<reference_message></reference_message>`标签,则是用户引用的消息,一般可能是用户需要发送的消息,除非用户有额外说明需要机器人去理解里面内容,直接传入messages里即可.
 """.strip()
