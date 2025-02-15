@@ -912,3 +912,59 @@ class ScheduledNotice(FilterModel, Model):
     """通知内容"""
     creator: Mapped[User] = relationship(lazy=False)
     """创建者信息"""
+
+
+# 班级或学生课表配置项
+class CurriculumConfig(FilterModel, Model):
+    id: Mapped[PrimaryKeyInteger]
+    classes_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey(Classes.id, ondelete="CASCADE"), nullable=True
+    )
+    """班级ID"""
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey(User.id, ondelete="CASCADE"), nullable=True
+    )
+    """用户ID"""
+    current_week: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default="1"
+    )
+    """当前周"""
+    is_notify: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
+    """是否开启课前通知"""
+    is_share: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    """是否为共享课表"""
+    curriculums: Mapped[List["Curriculum"]] = relationship(
+        "Curriculum", lazy="selectin", back_populates="config"
+    )
+    """课表信息"""
+    create_at: Mapped[CreateAt]
+    update_at: Mapped[UpdateAt]
+
+
+# 课表
+class Curriculum(FilterModel, Model):
+    id: Mapped[PrimaryKeyInteger]
+    config_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey(CurriculumConfig.id, ondelete="CASCADE"), nullable=False
+    )
+    """用户ID"""
+    week: Mapped[str] = mapped_column(String, nullable=False)
+    """周几"""
+    day: Mapped[str] = mapped_column(String, nullable=False)
+    """星期几"""
+    lesson: Mapped[str] = mapped_column(String(255), nullable=False)
+    """第几节课"""
+    course: Mapped[str] = mapped_column(String(255), nullable=False)
+    """课程名称"""
+    teacher: Mapped[str] = mapped_column(String(255), nullable=False)
+    """教师"""
+    classroom: Mapped[str] = mapped_column(String(255), nullable=False)
+    """教室"""
+    created_at: Mapped[CreateAt]
+    updated_at: Mapped[UpdateAt]
+    config: Mapped["CurriculumConfig"] = relationship(
+        lazy=False, back_populates="curriculums"
+    )
+
+    async def get_teacher(self) -> Teacher | None:
+        return await Teacher.filter(name=self.teacher).first()
