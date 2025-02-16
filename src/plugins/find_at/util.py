@@ -2,20 +2,7 @@ from typing import Iterable
 
 from pandas import DataFrame
 from utils.models import Student
-
-columns = {
-    "name": ["姓名"],
-    "role": ["角色", "职位", "班干部"],
-    "phone": ["电话", "手机号", "联系方式"],
-    "user_id": ["用户ID", "用户编号"],
-    "email": ["邮箱", "电子邮箱"],
-    "classes": ["班级", "班级名称"],
-    "sex": ["性别"],
-    "dormitory": ["宿舍", "寝室"],
-    "student_code": ["学号", "学生编号"],
-    "family_contact": ["家庭联系方式", "家庭联系电话"],
-    "political_status": ["政治面貌"],
-}
+from utils.params.student import columns
 
 default_display_columns = [
     "user_id",

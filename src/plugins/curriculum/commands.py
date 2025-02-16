@@ -105,5 +105,16 @@ __helper__ = [
         params=[
             Param(name="课表内容", mode=ParamMode.ONE_OR_MORE),
         ],
-    )
+    ),
+    Helper(
+        command="删除课表",
+        description="删除自己的课表,一次可以删除多个课表,只需要输入课表ID即可",
+        params=[
+            Param(name="课表ID", mode=ParamMode.ONE_OR_MORE),
+        ],
+    ),
+    Helper(
+        command="查询课表",
+        description="查询自己和自己相关的课表",
+    ),
 ]

@@ -704,10 +704,14 @@ class Student(FilterModel, Model):
     """学生与班级一对多关系"""
     user: Mapped[User] = relationship(lazy=False, back_populates="student")
     """学生与用户一对一关系"""
-    extra: Mapped["StudentExtra"] = relationship(
+    extra: Mapped[Optional["StudentExtra"]] = relationship(
         lazy="selectin", back_populates="student", uselist=False
     )
     """学生额外信息"""
+
+    async def create_extra(self, **kwargs):
+        if self.extra is None:
+            await StudentExtra(student_id=self.id, **kwargs).create()
 
     @classmethod
     async def create_student(cls, name: str, classes: Classes, user: User) -> "Student":
