@@ -39,26 +39,12 @@ add_curriculum = on_alconna(
     skip_for_unmatch=False,
     comp_config=comp_config,
 )
-add_classes_curriculum = on_alconna(
-    Alconna(
-        "添加班级课表",
-        Args[
-            "values",
-            MultiVar(str, flag="+"),
-            Field(completion=tip("课表内容不能为空" + input_help)),
-        ],
-    ),
-    block=True,
-    priority=priority,
-    skip_for_unmatch=False,
-    comp_config=comp_config,
-)
 del_curriculum = on_alconna(
     Alconna(
         "删除课表",
         Args[
             "values",
-            MultiVar(int, flag="+"),
+            MultiVar(str, flag="+"),
             Field(completion=tip("请输入课表ID")),
         ],
     ),

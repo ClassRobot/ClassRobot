@@ -1,5 +1,5 @@
 columns = {
-    "name": ["姓名"],
+    "name": ["姓名", "名字"],
     "role": ["角色", "职位", "班干部"],
     "phone": ["电话", "手机号", "联系方式"],
     "user_id": ["用户ID", "用户编号"],
@@ -22,12 +22,11 @@ def get_columns_chinese(ignore: list[str] | None = None) -> dict:
 columns_chinese = get_columns_chinese()
 
 
-def get_column_key(value: str) -> str:
+def get_column_key(value: str) -> str | None:
     """获取列的key"""
     for key, values in columns.items():
         if value in values:
             return key
-    return value
 
 
 def is_user_key(value: str) -> bool:

@@ -3,10 +3,11 @@ from datetime import datetime
 from nonebot import logger
 from pandas import DataFrame
 from utils.models import User, Classes
+from nonebot_plugin_alconna import UniMessage
 from utils.llm import Messages, client_create
 from src.plugins.find_at.util import students_to_df
 from utils.llm.typings import ChatCompletionToolParam
-from nonebot_plugin_alconna import Target, UniMessage, SupportAdapter, get_bot
+from utils.tools import push_user_message, push_group_message
 from utils.llm.util import json_loads, contents_to_uni_message, uni_message_to_contents
 
 from .prompt import prompt
@@ -44,26 +45,10 @@ async def notice_work(notice: Notice, creator: User | None = None):
         groups = await notice.get_notice_groups()
 
         for user in users:
-            for bind in user.binds:
-                adapter_name = SupportAdapter[bind.platform_id.split(".")[0]]
-                for bot in await get_bot(adapter=adapter_name):
-                    try:
-                        await Target(bind.account_id, private=True).send(message, bot)
-                    except Exception as e:
-                        logger.exception(e)
+            await push_user_message(user, message)
 
         for group in groups:
-            for bind in group.group_binds:
-                adapter_name = SupportAdapter[bind.platform_id.split(".")[0]]
-                for bot in await get_bot(adapter=adapter_name):
-                    try:
-                        await Target(
-                            id=bind.channel_id,
-                            channel=bool(bind.guild_id),
-                            parent_id=bind.guild_id,
-                        ).send(message, bot)
-                    except Exception as e:
-                        logger.exception(e)
+            await push_group_message(group, message)
     finally:
         await notice.remove_job()
 

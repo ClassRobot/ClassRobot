@@ -14,13 +14,17 @@ from .typings import CurriculumType
 class BaseCurriculum:
     def __init__(self, user: User):
         self.user = user
+        # 今天加一天
         self.today = datetime.now()
         self.weekday = self.today.weekday() + 1
         self._config: CurriculumConfig | None = None
 
-    async def get_config(self) -> CurriculumConfig | None:
+    async def get_config(self, is_classes: bool = False) -> CurriculumConfig | None:
         if self._config is None:
-            self._config = await self.user.get_curriculum_config()
+            if is_classes and self.user.student:
+                self._config = await self.user.student.classes.get_curriculum_config()
+            else:
+                self._config = await self.user.get_curriculum_config()
         return self._config
 
 
@@ -33,6 +37,7 @@ class CurriculumRender(BaseModel):
     classroom: str | None
     teacher: str | None
     current_week: int
+    today: datetime
     type: CurriculumType
 
     def is_week(self, week: int) -> bool:
@@ -40,6 +45,7 @@ class CurriculumRender(BaseModel):
 
     def is_day(self, day: int) -> bool:
         """范围是1-7"""
+        print(day, self.weekday, self.id)
         return day in self.weekday
 
     def is_lesson(self, lesson: int) -> bool:
@@ -68,21 +74,12 @@ class CurriculumRender(BaseModel):
     # 是否是今天的课程
     def is_today(self, day: int | None = None) -> bool:
         return self.is_current_week() and self.is_day(
-            day if day is not None else datetime.now().weekday()
+            day if day is not None else self.today.weekday() + 1
         )
 
     def is_end(self) -> bool:
         """是否已经结束"""
         return self.current_week > max(self.week)
-
-    @property
-    def html(self):
-        return f"""
-    <p>{self.course}</p>
-    <p>{self.classroom or ""}</p>
-    <p>{self.teacher or ""}</p>
-    <p>{self.week}</p>
-    """
 
 
 class AddCurriculum(BaseCurriculum):
@@ -94,10 +91,18 @@ class AddCurriculum(BaseCurriculum):
         course: str,
         classroom: str | None = None,
         teacher: str | None = None,
-    ) -> Curriculum:
+        is_classes: bool = False,
+    ) -> Curriculum | None:
         # 获取用户自己的课表配置,如果没有就创建一个
-        if (config := await self.get_config()) is None:
-            config = await CurriculumConfig(user_id=self.user.id).create()
+        if not is_classes:
+            if (config := await self.get_config()) is None:
+                config = await CurriculumConfig(user_id=self.user.id).create()
+        elif self.user.student and (config := await self.get_config(True)) is None:
+            config = await CurriculumConfig(
+                classes_id=self.user.student.classes.id
+            ).create()
+        elif config is None:
+            return None
 
         curriculum = await Curriculum(
             week=json.dumps(week),
@@ -149,8 +154,8 @@ class QueryCurriculum(BaseCurriculum):
         self._curriculums = curriculums
         return curriculums
 
-    # 获取今天的课程
     async def get_today_curriculums(self) -> list[Curriculum]:
+        """获取到今天的课程"""
         curriculums = await self.get_curriculums()
         day_curriculums = []
         for i in chain(*curriculums.values()):
@@ -206,8 +211,9 @@ class QueryCurriculum(BaseCurriculum):
                     card.text(f"授课老师:", v.teacher)
         return card.render()
 
+    @staticmethod
     def curriculum_to_dict(
-        self, curriculum: Curriculum, type: CurriculumType
+        curriculum: Curriculum, type: CurriculumType, today: datetime
     ) -> CurriculumRender:
         data = curriculum.loads()
         return CurriculumRender(
@@ -219,10 +225,11 @@ class QueryCurriculum(BaseCurriculum):
             classroom=curriculum.classroom,
             teacher=curriculum.teacher,
             type=type,
+            today=today,
             current_week=curriculum.config.current_week,
         )
 
-    async def render_pic(self):
+    async def render_pic(self) -> bytes:
         curriculums = await self.get_curriculums()
         # 从课表中获取最大的节次
         max_lesson = 0
@@ -232,14 +239,10 @@ class QueryCurriculum(BaseCurriculum):
                 max_lesson = max(max(data["lesson"]), max_lesson)
 
         renders = [
-            self.curriculum_to_dict(value, key)
+            self.curriculum_to_dict(value, key, self.today)
             for key, values in curriculums.items()
             for value in values
         ]
-        renders.extend(
-            self.curriculum_to_dict(i, CurriculumType.today)
-            for i in await self.get_today_curriculums()
-        )
         html = await template_to_pic(
             str(template_dir),
             "curriculum.html",
@@ -251,10 +254,36 @@ class QueryCurriculum(BaseCurriculum):
         )
         return html
 
+    @classmethod
+    async def render_pic_by_curriculums(cls, curriculums: list[Curriculum]) -> bytes:
+        # 从课表中获取最大的节次
+        today = datetime.now()
+        max_lesson = 0
+        for value in curriculums:
+            data = value.loads()
+            max_lesson = max(max(data["lesson"]), max_lesson)
+
+        renders = [
+            cls.curriculum_to_dict(value, CurriculumType.classes, today)
+            for value in curriculums
+        ]
+        html = await template_to_pic(
+            str(template_dir),
+            "curriculum.html",
+            {
+                "renders": renders,
+                "today": today,
+                "lesson": list(range(1, max_lesson + 1)),
+            },
+        )
+        return html
+
 
 class DeleteCurriculum(QueryCurriculum):
-    async def delete(self, curriculum_id: list[int]) -> list[int]:
-        if config := await self.get_config():
+    async def delete(
+        self, curriculum_id: list[int], is_classes: bool = False
+    ) -> list[int]:
+        if config := await self.get_config(is_classes):
             curriculums = config.curriculums
             ids = [i.id for i in curriculums]
             for i in curriculum_id.copy():

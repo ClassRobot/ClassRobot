@@ -624,6 +624,9 @@ class Classes(FilterModel, Model):
             role=role
         )
 
+    async def get_curriculum_config(self) -> Optional["CurriculumConfig"]:
+        return await CurriculumConfig.filter(classes_id=self.id).first()
+
 
 class ClassesJoinRequest(FilterModel, Model):
     id: Mapped[PrimaryKeyInteger]

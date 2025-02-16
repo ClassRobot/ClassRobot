@@ -104,11 +104,17 @@
         }
 
         .tips div {
-            width: 1em;
+            width: 3em;
             height: 1em;
             display: inline-block;
             margin-right: 0.5em;
             border-radius: 5px;
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 2px 6px;
+            text-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
         }
 
     </style>
@@ -137,52 +143,45 @@
                 <th>第{{ l }}节</th>
                 {% for i in range(1,8) %}
                     {% if i == today.weekday() + 1 %}
-                <td style="background-color: #ced5df;">
+                        <td style="background-color: #ced5df;">
                     {% else %}
-                <td>
+                        <td>
                     {% endif %}
                     {% for render in renders %}
                         {% if render.is_lesson(l) and render.is_day(i) %}
 
 
 
-
                             {% if render.is_today() %}
-                    <div class="lesson start">
-                        {% elif render.is_end() %}
-                        <div class="lesson end">
+                            <div class="lesson start">
+                            {% elif render.is_end() %}
+                            <div class="lesson end">
                             {% elif render.is_current_week() %}
                             <div class="lesson current">
-                                {% else %}
-                                <div class="lesson">
+                            {% else %}
+                            <div class="lesson">
+                            {% endif %}
+                            <h2 class="title"><span class="id">[ID:{{ render.id }}]</span>{{ render.course }}</h2>
+                            <p>{{ render.teacher or "" }}</p>
+                            <p style="font-size: 1.2em;">{{ render.classroom or "" }}</p>
+                            <div class="weeks">
+                                {% for rw in render.week %}
+                                    {% if render.is_current_week(rw) %}
+                                        <div class="week start">{{rw}}</div>
+                                    {% elif render.is_past_week(rw) %}
+                                        <div class="week end">{{rw}}</div>
+                                    {% else %}
+                                        <div class="week">{{rw}}</div>
                                     {% endif %}
-
-                                    <h2 class="title">
-                                        <span class="id">[ID:{{ render.id }}]</span>
-                                        {{ render.course }}
-                                    </h2>
-                                    <p>{{ render.teacher or "" }}</p>
-                                    <p>{{ render.classroom or "" }}</p>
-                                    <div class="weeks">
-                                        {% for rw in render.week %}
-                                            {% if render.is_current_week(rw) %}
-                                            <div class="week start">{{rw}}</div>
-                                            {% elif render.is_past_week(rw) %}
-                                            <div class="week end">{{rw}}</div>
-                                            {% else %}
-                                            <div class="week">{{rw}}</div>
-                                            {% endif %}
-                                        {% endfor %}
-                                    </div>
-
-                                </div>
-
-
-
-
-
-                                {% endif %}
                                 {% endfor %}
+                            </div>
+                            <div class="tag">来源: {{ render.type_str }}</div>
+                            </div>
+
+
+
+                        {% endif %}
+                    {% endfor %}
                 </td>
                 {% endfor %}
             </tr>

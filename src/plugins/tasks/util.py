@@ -61,7 +61,7 @@ class TaskList(list[Tasks]):
         for task in self:
             creator = task.creator
             if task.creator_role == "student":
-                nickname = creator.student.name
+                nickname = creator.student.name  # type: ignore
             elif task.creator_role == "teacher":
                 nickname = creator.teacher.name
             else:

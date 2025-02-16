@@ -32,6 +32,12 @@ async def _(
         await matcher.finish(
             Emoji.error + "至少具备[周期] [星期几] [第几节课] [课程名称]四个参数,其次[教室(可选)] [老师(可选)]"
         )
+
+    is_classes = values[0] == "班级"
+    if is_classes:
+        values = values[1:]
+        value_length -= 1
+
     if not (weeks := range_parser(values[0])):
         await matcher.finish(Emoji.error + "周期参数错误")
     if not (weekdays := range_parser(values[1])):
@@ -46,13 +52,14 @@ async def _(
     classroom = values[4] if value_length > 4 else None
     teacher = values[5] if value_length > 5 else None
 
-    curriculum = await add_curriculum.add(
-        weeks, weekdays, lessons, course_name, classroom, teacher
-    )
-
-    await matcher.finish(
-        Emoji.success + f"[{curriculum.id}: {curriculum.course}]添加成功\n"
-    )
+    if curriculum := await add_curriculum.add(
+        weeks, weekdays, lessons, course_name, classroom, teacher, is_classes=is_classes
+    ):
+        await matcher.finish(
+            Emoji.success + f"[{curriculum.id}: {curriculum.course}]添加成功\n"
+        )
+    else:
+        await matcher.finish(Emoji.error + "添加失败,请检查参数是否正确")
 
 
 @query_curriculum.handle()
@@ -64,11 +71,18 @@ async def _(matcher: AlconnaMatcher, query_curriculum: QueryCurriculumDepends):
 @del_curriculum.handle()
 async def _(
     matcher: AlconnaMatcher,
-    values: list[int],
+    values: list[str],
     delete_curriculum: DeleteCurriculumDepends,
 ):
     # 拿到无法删除的id
-    ids = await delete_curriculum.delete(values)
+    is_classes = values[0] == "班级"
+    values = values[1:] if is_classes else values
+    values_int = [int(i) for i in values if i.isdigit()]
+
+    if not values_int:
+        await matcher.finish(Emoji.error + "请输入要删除的课程ID")
+
+    ids = await delete_curriculum.delete(values_int, is_classes=is_classes)
 
     if ids:
         await matcher.finish(
