@@ -140,3 +140,8 @@ class FilterModel:
     @property
     def select(cls: type[T]) -> SelectFilter[T]:
         return SelectFilter[cls](cls)
+
+    async def refresh(self):
+        async with get_session() as session:
+            await session.refresh(self)
+            return self

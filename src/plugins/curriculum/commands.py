@@ -1,16 +1,41 @@
 from utils import tip
-from utils.config import comp_config
+from utils.config import priority, comp_config
+from src.plugins.helper.schemas import Param, Helper, ParamMode
 from nonebot_plugin_alconna import Args, Field, Alconna, MultiVar, on_alconna
+
+input_help = """具体输入格式如下:
+
+[周期] [星期几] [第几节课] [课程名称] [教室(可选)] [老师(可选)]
+
+例如:
+
+> 1-12 1 1-2 数学 一教101 张三
+
+其中[周期][星期几][第几节课]可以有多种表示方式:
+
+- 使用`-`表示连续的范围
+- 使用`,`表示多个范围
+- 使用`+n`表示间隔的范围
+
+例如:
+
+- 1-12 表示1到12
+- 1,3,5 表示1,3,5
+- 2-6+1 可以表示双数,得到2,4,6
+- 1-5+1,6 表示1,3,5,6
+"""
 
 add_curriculum = on_alconna(
     Alconna(
         "添加课表",
         Args[
-            "curriculum",
+            "values",
             MultiVar(str, flag="+"),
-            Field(unmatch_tips=tip("课表内容不能为空")),
+            Field(completion=tip("课表内容不能为空" + input_help)),
         ],
     ),
+    block=True,
+    priority=priority,
     skip_for_unmatch=False,
     comp_config=comp_config,
 )
@@ -18,27 +43,44 @@ add_classes_curriculum = on_alconna(
     Alconna(
         "添加班级课表",
         Args[
-            "curriculum",
+            "values",
             MultiVar(str, flag="+"),
-            Field(unmatch_tips=tip("课表内容不能为空")),
+            Field(completion=tip("课表内容不能为空" + input_help)),
         ],
     ),
+    block=True,
+    priority=priority,
     skip_for_unmatch=False,
     comp_config=comp_config,
 )
 del_curriculum = on_alconna(
     Alconna(
         "删除课表",
-        Args["curriculum_id", MultiVar(int, flag="+")],
+        Args[
+            "values",
+            MultiVar(int, flag="+"),
+            Field(completion=tip("请输入课表ID")),
+        ],
     ),
+    block=True,
+    priority=priority,
     skip_for_unmatch=False,
     comp_config=comp_config,
 )
 query_curriculum = on_alconna(
-    Alconna(
-        "查询课表",
-        Args["curriculum_id", MultiVar(int, flag="+")],
-    ),
+    Alconna("查询课表"),
+    block=True,
+    priority=priority,
     skip_for_unmatch=False,
     comp_config=comp_config,
 )
+
+__helper__ = [
+    Helper(
+        command="添加课表",
+        description="添加学生自己的的课表,一条命令只能写入一次课表,如果机器人要加两次课表请分开两次命令执行." + input_help,
+        params=[
+            Param(name="课表内容", mode=ParamMode.ONE_OR_MORE),
+        ],
+    )
+]

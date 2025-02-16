@@ -1,8 +1,8 @@
 """empty message
 
-迁移 ID: 7a4e4b71bc1a
+迁移 ID: d601e610448d
 父迁移: 
-创建时间: 2025-02-15 14:37:56.132973
+创建时间: 2025-02-15 20:30:40.057931
 
 """
 from __future__ import annotations
@@ -12,7 +12,7 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "7a4e4b71bc1a"
+revision: str = "d601e610448d"
 down_revision: str | Sequence[str] | None = None
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
@@ -39,6 +39,8 @@ def upgrade(name: str = "") -> None:
             "updated_at", sa.DateTime(), server_default=sa.text("now()"), nullable=False
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_user")),
+        sa.UniqueConstraint("email"),
+        sa.UniqueConstraint("phone"),
         sa.UniqueConstraint("username"),
         info={"bind_key": "models"},
     )
@@ -234,6 +236,7 @@ def upgrade(name: str = "") -> None:
             ondelete="CASCADE",
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_models_curriculumconfig")),
+        sa.UniqueConstraint("classes_id"),
         info={"bind_key": "models"},
     )
     op.create_table(
@@ -264,6 +267,7 @@ def upgrade(name: str = "") -> None:
             ondelete="CASCADE",
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_student")),
+        sa.UniqueConstraint("user_id"),
         info={"bind_key": "models"},
     )
     op.create_table(
@@ -332,12 +336,12 @@ def upgrade(name: str = "") -> None:
         "models_curriculum",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
         sa.Column("config_id", sa.Integer(), nullable=False),
-        sa.Column("week", sa.String(), nullable=False),
-        sa.Column("day", sa.String(), nullable=False),
+        sa.Column("week", sa.String(length=255), nullable=False),
+        sa.Column("day", sa.String(length=255), nullable=False),
         sa.Column("lesson", sa.String(length=255), nullable=False),
         sa.Column("course", sa.String(length=255), nullable=False),
-        sa.Column("teacher", sa.String(length=255), nullable=False),
-        sa.Column("classroom", sa.String(length=255), nullable=False),
+        sa.Column("teacher", sa.String(length=255), nullable=True),
+        sa.Column("classroom", sa.String(length=255), nullable=True),
         sa.Column(
             "created_at", sa.DateTime(), server_default=sa.text("now()"), nullable=False
         ),
@@ -351,8 +355,14 @@ def upgrade(name: str = "") -> None:
             ondelete="CASCADE",
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_models_curriculum")),
+        sa.UniqueConstraint("config_id"),
         info={"bind_key": "models"},
     )
+    with op.batch_alter_table("models_curriculum", schema=None) as batch_op:
+        batch_op.create_index(
+            batch_op.f("ix_models_curriculum_course"), ["course"], unique=False
+        )
+
     op.create_table(
         "student_extra",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
@@ -372,6 +382,7 @@ def upgrade(name: str = "") -> None:
             ondelete="CASCADE",
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_student_extra")),
+        sa.UniqueConstraint("student_id"),
         info={"bind_key": "models"},
     )
     with op.batch_alter_table("student_extra", schema=None) as batch_op:
@@ -420,6 +431,9 @@ def downgrade(name: str = "") -> None:
         batch_op.drop_index(batch_op.f("ix_student_extra_student_code"))
 
     op.drop_table("student_extra")
+    with op.batch_alter_table("models_curriculum", schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f("ix_models_curriculum_course"))
+
     op.drop_table("models_curriculum")
     op.drop_table("teacher_classes")
     op.drop_table("tasks")

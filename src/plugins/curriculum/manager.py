@@ -1,0 +1,226 @@
+import json
+from itertools import chain
+from datetime import datetime
+
+from openai import BaseModel
+from utils.tools import StringCard
+from utils.config import template_dir
+from nonebot_plugin_htmlrender import template_to_pic
+from utils.models import User, Curriculum, CurriculumConfig
+
+from .typings import CurriculumType
+
+
+class BaseCurriculum:
+    def __init__(self, user: User):
+        self.user = user
+        self.today = datetime.now()
+        self.weekday = self.today.weekday()
+
+
+class CurriculumRender(BaseModel):
+    id: int
+    week: list[int]
+    day: list[int]
+    lesson: list[int]
+    course: str
+    classroom: str | None
+    teacher: str | None
+    type: CurriculumType
+
+    def is_week(self, week: int) -> bool:
+        return week in self.week
+
+    def is_day(self, day: int) -> bool:
+        if day == 0:
+            return day in self.day or 7 in self.day
+        return day in self.day
+
+    def is_lesson(self, lesson: int) -> bool:
+        return lesson in self.lesson
+
+    @property
+    def html(self):
+        return f"""
+    <p>{self.course}</p>
+    <p>{self.classroom or ""}</p>
+    <p>{self.teacher or ""}</p>
+    <p>{self.week}</p>
+    """
+
+
+class AddCurriculum(BaseCurriculum):
+    async def add(
+        self,
+        week: list[int],
+        weekday: list[int],
+        lesson: list[int],
+        course: str,
+        classroom: str | None = None,
+        teacher: str | None = None,
+    ) -> Curriculum:
+        # 获取用户自己的课表配置,如果没有就创建一个
+        if (config := await self.user.get_curriculum_config()) is None:
+            config = await CurriculumConfig(user_id=self.user.id).create()
+
+        curriculum = await Curriculum(
+            week=json.dumps(week),
+            day=json.dumps(weekday),
+            lesson=json.dumps(lesson),
+            course=course,
+            teacher=teacher,
+            classroom=classroom,
+            config=config,
+        ).create()
+        return curriculum
+
+
+class QueryCurriculum(BaseCurriculum):
+    _curriculums: dict[CurriculumType, list[Curriculum]] | None = None
+
+    async def get_configs(self):
+        """获取到于用户相关的课表配置"""
+
+        # 拿到共享的课表配置
+        configs = await CurriculumConfig.filter(user_id=self.user.id).all()
+        # 如果用户是学生则获取班级的课表配置
+        if self.user.student:
+            configs += await CurriculumConfig.filter(
+                classes_id=self.user.student.classes.id
+            ).all()
+        return configs
+
+    async def get_curriculums(self) -> dict[CurriculumType, list[Curriculum]]:
+        """获取到用户的课表"""
+        if self._curriculums:
+            return self._curriculums
+        curriculums: dict[CurriculumType, list[Curriculum]] = {}
+        for config in await self.get_configs():
+            if config.is_share:
+                curriculums.setdefault(CurriculumType.share, []).extend(
+                    config.curriculums
+                )
+            elif config.classes_id:
+                curriculums.setdefault(CurriculumType.classes, []).extend(
+                    config.curriculums
+                )
+            else:
+                curriculums.setdefault(CurriculumType.private, []).extend(
+                    config.curriculums
+                )
+        self._curriculums = curriculums
+        return curriculums
+
+    # 获取今天的课程
+    async def get_today_curriculums(self) -> list[Curriculum]:
+        curriculums = await self.get_curriculums()
+        day_curriculums = []
+        for i in chain(*curriculums.values()):
+            data = i.loads()
+            if i.config.current_week in data["week"] and self.is_weekday(data["day"]):
+                day_curriculums.append(i)
+        return day_curriculums
+
+    def is_weekday(self, week: list[int]) -> bool:
+        if self.weekday == 0:
+            return self.weekday in week or 7 in week
+        return self.weekday in week
+
+    async def render(self):
+        card = StringCard()
+        for key, values in (await self.get_curriculums()).items():
+            for index, value in enumerate(values):
+                if not index:
+                    if key == "private":
+                        card.hr("个人课表")
+                    elif key == "share":
+                        card.hr("共享课表")
+                    elif key == "classes":
+                        card.hr("班级课表")
+                else:
+                    card.hr()
+                data = value.loads()
+                card.text(f"课程ID:", str(value.id))
+                card.text(f"课程周期:", ",".join(str(i) for i in data["week"]))
+                card.text(f"每周星期:", ",".join(str(i) for i in data["day"]))
+                card.text(f"课程节数:", ",".join(str(i) for i in data["lesson"]))
+                card.text(f"课程名称:", value.course)
+                if value.classroom:
+                    card.text(f"课程教室:", value.classroom)
+                if value.teacher:
+                    card.text(f"授课老师:", value.teacher)
+        # 获取今天的课程
+        if today_curriculums := await self.get_today_curriculums():
+            for i, v in enumerate(today_curriculums):
+                if not i:
+                    card.hr("今日课程")
+                else:
+                    card.hr()
+                data = v.loads()
+                card.text(f"课程ID:", str(v.id))
+                card.text(f"课程周期:", ",".join(str(i) for i in data["week"]))
+                card.text(f"每周星期:", ",".join(str(i) for i in data["day"]))
+                card.text(f"课程节数:", ",".join(str(i) for i in data["lesson"]))
+                card.text(f"课程名称:", v.course)
+                if v.classroom:
+                    card.text(f"课程教室:", v.classroom)
+                if v.teacher:
+                    card.text(f"授课老师:", v.teacher)
+        return card.render()
+
+    def curriculum_to_dict(
+        self, curriculum: Curriculum, type: CurriculumType
+    ) -> CurriculumRender:
+        data = curriculum.loads()
+        return CurriculumRender(
+            id=curriculum.id,
+            week=data["week"],
+            day=data["day"],
+            lesson=data["lesson"],
+            course=curriculum.course,
+            classroom=curriculum.classroom,
+            teacher=curriculum.teacher,
+            type=type,
+        )
+
+    async def render_pic(self):
+        curriculums = await self.get_curriculums()
+        # 从课表中获取最大的节次
+        max_lesson = 0
+        for values in curriculums.values():
+            for value in values:
+                data = value.loads()
+                max_lesson = max(max(data["lesson"]), max_lesson)
+
+        renders = [
+            self.curriculum_to_dict(value, key)
+            for key, values in curriculums.items()
+            for value in values
+        ]
+        renders.extend(
+            self.curriculum_to_dict(i, CurriculumType.today)
+            for i in await self.get_today_curriculums()
+        )
+        html = await template_to_pic(
+            str(template_dir),
+            "curriculum.html",
+            {
+                "renders": renders,
+                "today": self.today,
+                "lesson": list(range(1, max_lesson + 1)),
+            },
+        )
+        return html
+
+
+class DeleteCurriculum(QueryCurriculum):
+    async def delete(self, curriculum_id: list[int]) -> list[int]:
+        if config := await self.user.get_curriculum_config():
+            curriculums = config.curriculums
+            ids = [i.id for i in curriculums]
+            for i in curriculum_id.copy():
+                if i in ids:
+                    await Curriculum.filter(id=i).delete()
+                    ids.remove(i)
+                    curriculum_id.remove(i)
+        return curriculum_id

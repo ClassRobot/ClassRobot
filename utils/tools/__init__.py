@@ -19,15 +19,25 @@ class StringCard:
 
     def __init__(self, title: str | None = None, hr_len: int = 10) -> None:
         self.hr_len: int = hr_len
-        self.head_corner: str = self.lt + self.h * self.hr_len
-        self.foot_corner: str = self.lb + self.h * self.hr_len
-        self.card = []
-        if title:
-            self.card.append(title)
+        self.title = title
+        self.card: list[str] = []
+        if self.title:
+            self.card.append(self.title)
 
-    def text(self, *text: str, sep: str = " "):
-        self.card.append(f"{self.v} {sep.join(i for i in text if text)}")
-        return self
+    @property
+    def foot_corner(self) -> str:
+        return self.lb + self.h * self.hr_len
+
+    def text(self, *text: str, sep: str = " ", inplace: bool = True):
+        value = f"{self.v} {sep.join(str(i) for i in text)}"
+        if inplace:
+            self.card.append(value)
+            return self
+        else:
+            card = StringCard(self.title, self.hr_len)
+            card.card = self.card.copy()
+            card.card.append(value)
+            return card
 
     def hr(self, text: str | None = None):
         if text and len(text) > self.hr_len:
@@ -51,3 +61,12 @@ class StringCard:
 
     def __bool__(self) -> bool:
         return bool(self.card)
+
+
+if __name__ == "__main__":
+    card = StringCard("用户信息")
+    card.hr()
+    card.text("UID: 1")
+    print(card.text("昵称: 小明", inplace=False))
+    card.text("账号: xiaoming")
+    print(card)

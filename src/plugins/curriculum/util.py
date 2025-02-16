@@ -36,16 +36,3 @@ def range_parser(range_str: str) -> list[int]:
 # print(range_parser("1-3,8-10"))
 # print(range_parser("1-3"))
 # print(range_parser("1"))
-
-
-# 解析curriculum参数
-def curriculum_parser(curriculum: list[str]) -> list[str]:
-    """解析课表参数
-
-    1-13(周范围) 1-7(星期范围) 1-5(课程范围) 课程名称 课程地点 教师
-    1-13+1表示间隔1周,得到的是1,3,5,7,9,11,13
-        +2表示间隔2周,得到的是1,4,7,10,13
-    """
-    weeks = []
-
-    return curriculum

@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            font-family: 'Microsoft JhengHei', sans-serif;
+        }
+
+        body {
+            width: 1600px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .week {
+            display: inline-block;
+            padding: 0 5px;
+            background-color: #f1f1f1;
+            margin-top: 2px;
+            margin-right: 1px;
+            border-radius: 2px;
+            color: black;
+        }
+
+        td {
+            min-width: 200px;
+        }
+
+        .lesson {
+            background-color: #3498db;
+            padding: 5px;
+            margin: 5px;
+            border-radius: 5px;
+            color: white;
+        }
+
+        .id {
+            font-weight: bold;
+            border-radius: 50px;
+        }
+
+        /** 文字不换行 */
+        th,
+        thead td {
+            background-color: #DEE1E6;
+            white-space: nowrap;
+            padding: 6px 20px;
+            text-align: center;
+            font-size: 1.5em;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>{{ today.strftime('%Y/%m/%d') }}</h1>
+    </header>
+    <table border="1">
+        <thead>
+            <tr>
+                <th>{{ today.month }}月</th>
+                <td>星期一</td>
+                <td>星期二</td>
+                <td>星期三</td>
+                <td>星期四</td>
+                <td>星期五</td>
+                <td>星期六</td>
+                <td>星期日</td>
+            </tr>
+        </thead>
+        <tbody>
+            {% for l in lesson %}
+            <tr>
+                <th>第{{ l }}节</th>
+                {% for i in range(1, 8) %}
+                <td>
+                    {% for render in renders %}
+                    {% if render.is_lesson(l) and render.is_day(i) %}
+
+
+
+
+                    <div class="lesson">
+                        <h2>
+                            <span class="id">
+                                {{ render.id }}
+                            </span>
+                            {{ render.course }}
+                        </h2>
+                        <p>{{ render.teacher or "" }}</p>
+                        <p>{{ render.classroom or "" }}</p>
+                        <p class="weeks">
+                            {% for rw in render.week %}
+                        <div class="week">{{rw}}</div>
+                        {% endfor %}
+                        </p>
+
+                    </div>
+
+
+
+
+
+                    {% endif %}
+                    {% endfor %}
+                </td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+
+</html>

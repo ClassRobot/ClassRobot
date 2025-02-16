@@ -1,7 +1,9 @@
+from uuid import uuid4
 from typing import Annotated
 
 from nonebot.params import Depends
 from nonebot.typing import T_State
+from nonebot_plugin_alconna import At, UniMessage
 from utils.session import EventSession, GroupEventSession
 from nonebot_plugin_userinfo import UserInfo, EventUserInfo
 from utils.models.models import Bind, User, Classes, Student, Teacher
@@ -14,10 +16,10 @@ async def get_user_depends(
     state: T_State,
 ) -> User | None:
     """通过平台与用户信息获取用户"""
-    if user := state.get("user_model"):
+    if user := state.get("_user_model"):
         return user
     elif user := await Bind.get_user(platform.platform, platform.user_id):
-        state["user_model"] = user
+        state["_user_model"] = user
         return user
 
 
@@ -31,23 +33,38 @@ async def get_user_or_create_depends(
 ) -> User:
     """通过平台与用户信息获取用户，若不存在则创建"""
     if user is None:
+        username = uuid4().hex[:16]
         if user_info:
             avatar = user_info.user_avatar
             user = await User.create_user(
                 nickname=user_info.user_name.strip() or default_nickname,
-                username=user_info.user_id,
+                username=username,
                 avatar=avatar.get_url() if avatar else None,
             )
         else:
             user = await User.create_user(
                 nickname=default_nickname,
-                username=platform.user_id,
+                username=username,
             )
         await Bind.bind_user(platform.platform, platform.user_id, user)
     return user
 
 
 UserOrCreatedDepends = Annotated[User, Depends(get_user_or_create_depends)]
+
+
+async def at_users_depends(messages: UniMessage, platform: EventSession) -> list[User]:
+    """通过消息获取@的用户"""
+    users: list[User] = []
+    for message in messages:
+        if isinstance(message, At) and (
+            user := await Bind.get_user(platform.platform, message.target)
+        ):
+            users.append(user)
+    return users
+
+
+AtUsersDepends = Annotated[list[User], Depends(at_users_depends)]
 
 
 async def teacher_depends(user: UserOrCreatedDepends) -> Teacher | None:

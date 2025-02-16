@@ -17,13 +17,15 @@ async def _(matcher: AlconnaMatcher, user: UserOrCreatedDepends):
     card = (
         StringCard()
         .hr("用户信息")
-        .text(f"ID: {user.id}")
+        .text(f"UID: {user.id}")
         .text(f"昵称: {user.nickname}")
-        # .text(f"账号: {user.username}")
-        # .text(f"邮箱: {user.email}")
-        # .text(f"电话: {user.phone}")
-        .text(f"创建日期: {user.created_at.strftime('%Y-%m-%d')}")
+        .text(f"账号: {user.username}")
     )
+    if user.email:
+        card.text(f"邮箱: {user.email}")
+    if user.phone:
+        card.text(f"电话: {user.phone}")
+    card.text(f"创建日期: {user.created_at.strftime('%Y-%m-%d')}")
     if user.teacher is not None:
         (
             card.hr("教师信息")
