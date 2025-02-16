@@ -127,11 +127,15 @@ class FilterModel:
         refresh_model = []
         async with get_session() as session:
             for key in kwargs:
+                print(key, kwargs[key])
+                print(getattr(self, key))
                 setattr(self, key, kwargs[key])
                 if isinstance(kwargs[key], Model):
                     refresh_model.append(kwargs[key])
+            print(getattr(self, key))
             await session.commit()
             await session.refresh(self)
+
             for model in refresh_model:
                 await session.refresh(model)
             return self

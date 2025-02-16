@@ -14,6 +14,7 @@
 
         body {
             width: 1600px;
+            background: #C2D0E5;
         }
 
         table {
@@ -21,13 +22,30 @@
             border-collapse: collapse;
         }
 
+        .weeks {
+            background-color: #DEE1E6;
+            margin: 3px;
+            padding: 3px;
+            border-radius: 5px;
+        }
+
         .week {
             display: inline-block;
             padding: 0 5px;
             background-color: #f1f1f1;
-            margin-top: 2px;
-            margin-right: 1px;
+            margin: 1px;
             border-radius: 2px;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+            color: black;
+        }
+
+        .week.end {
+            background-color: #e74c3c;
+            color: white;
+        }
+
+        .week.start {
+            background-color: #2ecc71;
             color: black;
         }
 
@@ -38,9 +56,26 @@
         .lesson {
             background-color: #3498db;
             padding: 5px;
-            margin: 5px;
-            border-radius: 5px;
+            margin: 7px;
+            border-radius: 10px;
             color: white;
+            border: 7px solid hsla(0, 0%, 100%, 0.5);
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+        }
+
+        /** 今天的课 */
+        .lesson.start {
+            background-color: #6CE2C2;
+        }
+
+        /** 当前周的课 */
+        .lesson.current {
+            background-color: #f1c40f;
+        }
+
+        /** 课程结束 */
+        .lesson.end {
+            background-color: #EB8195;
         }
 
         .id {
@@ -57,12 +92,31 @@
             text-align: center;
             font-size: 1.5em;
         }
+
+        .title {
+            text-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+        }
+
+        .tips {
+            padding: 2em;
+            gap: 1em;
+            display: flex;
+        }
+
+        .tips div {
+            width: 1em;
+            height: 1em;
+            display: inline-block;
+            margin-right: 0.5em;
+            border-radius: 5px;
+        }
+
     </style>
 </head>
 
 <body>
     <header>
-        <h1>{{ today.strftime('%Y/%m/%d') }}</h1>
+        <h1>{{ today.strftime('%Y/%m/%d') }} 星期 {{ today.weekday() + 1 }}</h1>
     </header>
     <table border="1">
         <thead>
@@ -81,43 +135,66 @@
             {% for l in lesson %}
             <tr>
                 <th>第{{ l }}节</th>
-                {% for i in range(1, 8) %}
+                {% for i in range(1,8) %}
+                    {% if i == today.weekday() + 1 %}
+                <td style="background-color: #ced5df;">
+                    {% else %}
                 <td>
-                    {% for render in renders %}
-                    {% if render.is_lesson(l) and render.is_day(i) %}
-
-
-
-
-                    <div class="lesson">
-                        <h2>
-                            <span class="id">
-                                {{ render.id }}
-                            </span>
-                            {{ render.course }}
-                        </h2>
-                        <p>{{ render.teacher or "" }}</p>
-                        <p>{{ render.classroom or "" }}</p>
-                        <p class="weeks">
-                            {% for rw in render.week %}
-                        <div class="week">{{rw}}</div>
-                        {% endfor %}
-                        </p>
-
-                    </div>
-
-
-
-
-
                     {% endif %}
-                    {% endfor %}
+                    {% for render in renders %}
+                        {% if render.is_lesson(l) and render.is_day(i) %}
+
+
+
+
+                            {% if render.is_today() %}
+                    <div class="lesson start">
+                        {% elif render.is_end() %}
+                        <div class="lesson end">
+                            {% elif render.is_current_week() %}
+                            <div class="lesson current">
+                                {% else %}
+                                <div class="lesson">
+                                    {% endif %}
+
+                                    <h2 class="title">
+                                        <span class="id">[ID:{{ render.id }}]</span>
+                                        {{ render.course }}
+                                    </h2>
+                                    <p>{{ render.teacher or "" }}</p>
+                                    <p>{{ render.classroom or "" }}</p>
+                                    <div class="weeks">
+                                        {% for rw in render.week %}
+                                            {% if render.is_current_week(rw) %}
+                                            <div class="week start">{{rw}}</div>
+                                            {% elif render.is_past_week(rw) %}
+                                            <div class="week end">{{rw}}</div>
+                                            {% else %}
+                                            <div class="week">{{rw}}</div>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </div>
+
+                                </div>
+
+
+
+
+
+                                {% endif %}
+                                {% endfor %}
                 </td>
                 {% endfor %}
             </tr>
             {% endfor %}
         </tbody>
     </table>
+    <div class="tips">
+        <span><div style="background-color:#3498db"></div>还未开始的课程</span>
+        <span><div style="background-color:#6CE2C2"></div>今天的课程</span>
+        <span><div style="background-color:#f1c40f"></div>本周的课程</span>
+        <span><div style="background-color:#EB8195"></div>已结束的课程</span>
+    </div>
 </body>
 
 </html>

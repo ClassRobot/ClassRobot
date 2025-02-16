@@ -74,6 +74,29 @@ query_curriculum = on_alconna(
     skip_for_unmatch=False,
     comp_config=comp_config,
 )
+share_curriculum = on_alconna(
+    Alconna(
+        "分享课表",
+        Args["share_id?", str | None],
+    ),
+    aliases={"分享课程表", "分享课程"},
+    block=True,
+    priority=priority,
+    skip_for_unmatch=False,
+    comp_config=comp_config,
+)
+
+set_week_cmd = on_alconna(
+    Alconna(
+        "设置当前周",
+        Args["week", int],
+        Args["classes_id?", int | None],
+    ),
+    block=True,
+    priority=priority,
+    skip_for_unmatch=False,
+    comp_config=comp_config,
+)
 
 __helper__ = [
     Helper(
