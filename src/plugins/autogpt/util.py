@@ -44,7 +44,6 @@ class ChatSession:
                 if auto_tasks.reply:
                     self.messages.assistant_message(
                         auto_tasks.json(ensure_ascii=False),
-                        priority=auto_tasks.priority,
                     )
                 return auto_tasks
             return content
