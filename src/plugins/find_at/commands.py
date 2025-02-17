@@ -20,8 +20,8 @@ at_cmd = on_alconna(
 
 __helpers__ = [
     Helper(
-        command="find",
-        aliases={"查找", "查询"},
+        command="查找学生",
+        aliases={"查询学生", "搜索学生"},
         description=(
             "查找自己班级的学生或同学,可以通过多个关键信息进行搜索."
             "例如:`李四 张三`就可以搜索到李四和张三两个同学的信息."

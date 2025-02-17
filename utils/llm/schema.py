@@ -1,7 +1,6 @@
 from datetime import datetime
 from typing import Literal, TypeAlias
 
-from nonebot import logger
 from strenum import StrEnum
 from pydantic import Field, BaseModel
 
@@ -65,9 +64,9 @@ class Context(BaseModel):
         for msg in self.content:
             if msg.type == "text":
                 content.append(msg.value)
-            elif msg.type == "image":
+            else:
                 # 采用md的img格式
-                content.append(f"![image]({msg.value})")
+                content.append(f"![{msg.type}]({msg.value})")
         return "\n".join(content)
 
     def text_only(self) -> bool:
@@ -93,7 +92,6 @@ class Context(BaseModel):
 
 class Messages(BaseModel):
     messages: list[Context | ChatCompletionMessage] = []
-    priority: dict[int, int] = {}
 
     def build_messages(
         self, is_multi_modal: bool = False
@@ -128,7 +126,7 @@ class Messages(BaseModel):
 
     @property
     def max_length(self) -> int:
-        return 16000
+        return 20480
 
     def char_length(self, *role: Role) -> int:
         return sum(
@@ -137,35 +135,13 @@ class Messages(BaseModel):
             if isinstance(message, Context) and (not role or message.role in role)
         )
 
-    def rollback(self):
-        """回滚消息"""
-        self.pop()
-
-    def remove(self, obj: int | Context):
+    def remove(self, obj: int | Context | ChatCompletionMessage):
+        if isinstance(obj, Context) and obj.role == Role.system:
+            return
         if isinstance(obj, int):
-            index = obj
-            context = self.pop(obj)
+            self.messages.pop(obj)
         else:
-            index = self.messages.index(obj)
-            context = self.pop(index)
-
-        # 如果是用户的消息，说明下面一条或多条可能是机器人的消息，需要向下搜索知道下一条为用户消息，在这之间的消息都是机器人的消息需要删除
-        pop_role = Role.user if context.role == Role.assistant else Role.assistant
-        next_index = int(context.role == Role.assistant)
-        while (
-            len(self.messages) > (index := index - next_index)
-            and isinstance(self.messages[index], Context)
-            and self.messages[index].role == pop_role  # type: ignore
-        ):
-            msg = self.pop(index)
-            logger.info("超出长度，删除消息: %s", msg)
-
-    def pop(self, index: int = -1) -> Context:
-        context = self.pop(index)
-        self.priority[context.priority] -= 1
-        if self.priority[context.priority] <= 0:
-            self.priority.pop(context.priority)
-        return context
+            self.messages.remove(obj)
 
     def add_message(
         self,
@@ -176,9 +152,6 @@ class Messages(BaseModel):
     ):
         if self.char_length() > self.max_length:  # 超出长度
             self.delete_messages(0.5)
-
-        self.priority.setdefault(priority, 0)
-        self.priority[priority] += 1
         self.messages.append(
             Context(
                 role=role, content=content, priority=priority, tool_call_id=tool_call_id
@@ -187,6 +160,7 @@ class Messages(BaseModel):
         print(self.char_length(), role, self)
 
     def add_tool(self, context: ChatCompletionMessage):
+        """添加工具消息"""
         self.messages.append(context)
 
     def delete_messages(self, per: float = 0.5):
@@ -194,16 +168,19 @@ class Messages(BaseModel):
         char_length = self.char_length()
         remaining_length = char_length - int(char_length * per)
         # 需要删除到剩余数量
-        while char_length > remaining_length:
-            # 按照priority排序，删除优先级低的消息
-            if self.priority:
-                priority = sorted(self.priority.keys())[0]
-                for ctx in self.get(Role.assistant).messages:
-                    if isinstance(ctx, Context) and ctx.priority == priority:
-                        self.remove(ctx)
-            _length = self.char_length()
-            if _length == char_length:
-                break
+        while char_length > remaining_length and len(self.messages) > 1:
+            # 从后往前删除消息
+
+            messages = self.messages.copy()
+            messages.reverse()
+            for ctx in messages:
+                # 当删除到用户消息时停止
+                if isinstance(ctx, Context) and ctx.role == Role.user:
+                    self.remove(ctx)
+                    break
+                self.remove(ctx)
+
+            char_length = self.char_length()
 
     def user_message(self, content: ContentType, priority: int = 1):
         self.add_message(role=Role.user, content=content, priority=priority)
