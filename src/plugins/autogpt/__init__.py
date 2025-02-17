@@ -1,8 +1,8 @@
 from utils import Emoji
-from nonebot import on_message
 from nonebot.rule import to_me
 from utils.config import priority
 from nonebot.matcher import Matcher
+from nonebot import logger, on_message
 from nonebot.adapters import Bot, Event
 from nonebot.message import handle_event
 from nonebot_plugin_alconna import Target, UniMsg, MsgTarget, UniMessage, SupportScope
@@ -39,13 +39,17 @@ async def _(
         await matcher.finish()
     elif chat_session.lock:
         await matcher.finish(Emoji.error + "我知道你很急，但是你先别急，等我处理完你的上一条消息。")
-    auto_task = await chat_session.send_message(message)
+    try:
+        auto_task = await chat_session.send_message(message)
+    except Exception as e:
+        await matcher.finish(Emoji.error + "消息理解失败了, 请重新发送")
+        logger.error(e)
     if isinstance(auto_task, AutoTaskList):
         if auto_task.is_violation:
             await matcher.finish(auto_task.reply)
 
         if auto_task.reply:
-            await matcher.send(auto_task.reply)
+            await matcher.send(auto_task.reply.replace(".", "⋅"))
         if not auto_task.need_confirm:
             for auto_task in auto_task.tasks:
                 event.get_message = update_message(auto_task, target)  # type: ignore

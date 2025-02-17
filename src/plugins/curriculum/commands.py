@@ -57,8 +57,6 @@ query_curriculum = on_alconna(
     Alconna("查询课表"),
     block=True,
     priority=priority,
-    skip_for_unmatch=False,
-    comp_config=comp_config,
 )
 share_curriculum = on_alconna(
     Alconna(

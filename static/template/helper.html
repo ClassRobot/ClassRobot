@@ -9,113 +9,106 @@
         * {
             margin: 0;
             padding: 0;
+            font-family: "Helvetica Neue", Helvetica, Arial, "PingFang SC", "Hiragino Sans GB", "Heiti SC", "Microsoft YaHei", "WenQuanYi Micro Hei", sans-serif;
         }
 
         body {
-            width: 1000px;
+            width: 1200px;
             padding: 1em;
         }
 
-        .h,
-        .v {
-            background-color: hsla(219, 14%, 20%, 0.3);
-            border-radius: 10px;
+        li {
+            list-style: none;
         }
 
-        .h {
-            width: auto;
+        /** 横线 */
+        hr {
             height: 3px;
-            margin: 10px 0;
+            background-color: rgba(128, 128, 128, 0.3);
+            margin: .5em 0;
+            border: none;
         }
 
-        .v {
-            width: 3px;
-            height: auto;
-            margin: 0 10px;
-        }
-
-        .info {
+        .helpers {
             display: flex;
-            justify-content: center;
-            height: 100%;
+            flex-wrap: wrap;
+            gap: 1em;
+        }
+
+        .helpers .card {
+            flex: 1 1 calc(33.333% - 1em);
+            box-sizing: border-box;
+            min-height: 100px;
+            background-color: antiquewhite;
+            padding: 1em;
+            border-radius: .5em;
+        }
+
+        .box {
+            display: flex;
+            gap: 1em;
         }
 
         .description,
-        .more {
-            padding: 1em;
-            border-radius: 10px;
+        .params {
+            min-height: 100px;
         }
 
         .description {
-            flex: 0 0 600px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 5;
+            line-clamp: 5;
+            -webkit-box-orient: vertical;
+            flex: 1 1 auto;
+            border-right: 3px solid rgba(128, 128, 128, 0.3);
+            padding-right: .5em;
         }
 
-        .more {
-            flex: 1;
+        .params {
+            flex: 0 0 100px; /* Fixed size for params */
         }
-        .params,
-        .tags {
-            display: flex;
-            flex-wrap: wrap;
-            color: white;
-            gap: 5px;
-            padding: 5px 0;
-        }
-        .param,
-        .tag {
-            display: inline-block;
-            padding: 6px 12px;
-            background-color: #2196F3;
-            border-radius: 10px;
+        .params * {
+            word-wrap: break-word;
         }
     </style>
 </head>
 
 <body>
-    <h1 class="command">帮助</h1>
-    <div class="h"></div>
-    <div class="info">
-        <div class="description">
-                添加学生自己的的课表,一条命令只能写入一次课表,如果机器人要加两次课表请分开两次命令执行.具体输入格式如下:
+    {% if helper %}
 
-                [周期] [星期几] [第几节课] [课程名称] [教室(可选)] [老师(可选)]
-    
-                例如:
-    
-                > 1-12 1 1-2 数学 一教101 张三
-    
-                其中[周期][星期几][第几节课]可以有多种表示方式:
-    
-                - 使用`-`表示连续的范围
-                - 使用`,`表示多个范围
-                - 使用`+n`表示间隔的范围
-    
-                例如:
-    
-                - 1-12 表示1到12
-                - 1,3,5 表示1,3,5
-                - 2-6+1 可以表示双数,得到2,4,6
-                - 1-5+1,6 表示1,3,5,6
-        </div>
-        <div class="v"></div>
-        <div class="more">
-            <!-- 别名 -->
+
+
+
+
+
+    {% elif helpers %}
+    <div class="helpers">
+        {% for data in helpers %}
+        <div class="card">
+            <h2>{{ data.command }}</h2>
+            <hr>
             <div class="box">
-                <h2>别名</h2>
-                <ul class="tags">
-                    <li class="tag">课表</li>
-                    <li class="tag">课程</li>
-                    <li class="tag">课程表</li>
-                </ul>
-            </div>
-            <div class="box">
-                <h2>参数</h2>
+                <div class="description">
+                    {% for text in data.description.split("\n") %}
+                    <p>{{ text.replace(" ", "&nbsp;") }}</p>
+                    {% endfor %}
+                </div>
                 <div class="params">
-                    <div class="param">命令名称</div>
+                    <h3>参数</h3>
+                    <ul>
+                        {% for param in data.params %}
+                        <li>{{ param }}</li>
+                        {% endfor %}
+                    </ul>
                 </div>
             </div>
         </div>
+        {% endfor %}
     </div>
+    {% endif %}
+
 </body>
 
 </html>

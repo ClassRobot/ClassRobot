@@ -1,6 +1,8 @@
 from strenum import StrEnum
 from nonebot.log import logger
+from utils.config import template_dir
 from pydantic import BaseModel, validator
+from nonebot_plugin_htmlrender import template_to_pic
 
 
 class ParamMode(StrEnum):
@@ -141,6 +143,16 @@ class HelperMenu:
 
     def get_helper(self, command: str) -> Helper | None:
         return self.helper_search.get(command)
+
+    async def render_pic(self) -> bytes:
+        html = await template_to_pic(
+            str(template_dir),
+            "helper.html",
+            {
+                "helpers": self.helpers,
+            },
+        )
+        return html
 
 
 helper_menu = HelperMenu()

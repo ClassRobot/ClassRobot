@@ -4,7 +4,8 @@ from nonebot import logger
 from openai import NOT_GIVEN, APIError, NotGiven, AsyncOpenAI
 
 from .schema import Messages
-from .config import plugin_config
+from .excepions import LLMRequestException
+from .config import LLMConfig, plugin_config
 from .typings import ChatCompletion, ChatCompletionToolParam, ChatCompletionMessageParam
 
 clients: dict[str, AsyncOpenAI] = {}
@@ -42,19 +43,35 @@ async def client_create(
             logger.opt(colors=True).info(
                 f'LLM "<y>{llm_config.name}</y>" request messages'
             )
-            return await clients[llm_config.name].chat.completions.create(
-                tools=tools,
-                stream=False,
-                max_tokens=1000,
-                messages=messages,
-                model=llm_config.model,
-                timeout=plugin_config.llm_timeout,
-                # response_format={"type": "json_object"},
-            )
+            try:
+                return await clients[llm_config.name].chat.completions.create(
+                    tools=tools,
+                    stream=False,
+                    max_tokens=2000,
+                    messages=messages,
+                    model=llm_config.model,
+                    timeout=plugin_config.llm_timeout,
+                    response_format={"type": "json_object"},
+                )
+            except APIError as e:
+                if isinstance(e.body, dict) and (
+                    str(e.body.get("code", "")) == str(20024)
+                ):
+                    logger.opt(colors=True).warning(
+                        f'Reload LLM "<y>{llm_config.name}</y>" error {e}'
+                    )
+                    return await clients[llm_config.name].chat.completions.create(
+                        tools=tools,
+                        stream=False,
+                        max_tokens=2000,
+                        messages=messages,
+                        model=llm_config.model,
+                        timeout=plugin_config.llm_timeout,
+                    )
         except APIError as e:
             logger.opt(colors=True).error(f'LLM "<y>{llm_config.name}</y>" error {e}')
             continue
         except Exception as e:
             logger.exception(e)
             continue
-    raise Exception("LLM request failed")
+    raise LLMRequestException("LLM request failed")
