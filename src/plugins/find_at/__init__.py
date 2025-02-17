@@ -7,11 +7,11 @@ from nonebot_plugin_htmlrender import template_to_pic
 from nonebot_plugin_alconna import UniMessage, AlconnaMatcher
 
 from .util import get_display_columns
-from .commands import at_cmd, find_cmd
+from .commands import at_cmd, find_student_cmd
 from .depends import FindStudents, UserStudents
 
 
-@find_cmd.handle()
+@find_student_cmd.handle()
 async def _(
     matcher: AlconnaMatcher,
     find_students: FindStudents,

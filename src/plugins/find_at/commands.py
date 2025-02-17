@@ -4,9 +4,9 @@ from nonebot_plugin_alconna import Args, Alconna, MultiVar, on_alconna
 
 from .util import columns_chinese
 
-find_cmd = on_alconna(
-    Alconna("find", Args["items", MultiVar(str, "+")]),
-    aliases={"查找", "查询"},
+find_student_cmd = on_alconna(
+    Alconna("查找学生", Args["items", MultiVar(str, "+")]),
+    aliases={"查询学生", "搜索学生"},
     priority=priority + 10,
     block=True,
 )

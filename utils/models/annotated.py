@@ -37,7 +37,9 @@ async def get_user_or_create_depends(
         if user_info:
             avatar = user_info.user_avatar
             user = await User.create_user(
-                nickname=user_info.user_name.strip() or default_nickname,
+                nickname="".join(
+                    (user_info.user_name.strip() or default_nickname).split()
+                ),
                 username=username,
                 avatar=avatar.get_url() if avatar else None,
             )

@@ -45,7 +45,6 @@ class CurriculumRender(BaseModel):
 
     def is_day(self, day: int) -> bool:
         """范围是1-7"""
-        print(day, self.weekday, self.id)
         return day in self.weekday
 
     def is_lesson(self, lesson: int) -> bool:
@@ -243,15 +242,7 @@ class QueryCurriculum(BaseCurriculum):
             for key, values in curriculums.items()
             for value in values
         ]
-        html = await template_to_pic(
-            str(template_dir),
-            "curriculum.html",
-            {
-                "renders": renders,
-                "today": self.today,
-                "lesson": list(range(1, max_lesson + 1)),
-            },
-        )
+        html = await self._render_pic(renders, self.today, max_lesson)
         return html
 
     @classmethod
@@ -267,10 +258,28 @@ class QueryCurriculum(BaseCurriculum):
             cls.curriculum_to_dict(value, CurriculumType.classes, today)
             for value in curriculums
         ]
+        html = await cls._render_pic(renders, today, max_lesson)
+        return html
+
+    @staticmethod
+    async def _render_pic(renders, today, max_lesson):
         html = await template_to_pic(
             str(template_dir),
             "curriculum.html",
             {
+                "times": [
+                    "08:30-09:15",
+                    "09:20-10:05",
+                    "10:25-11:10",
+                    "11:15-12:00",
+                    "14:00-14:45",
+                    "14:50-15:35",
+                    "15:55-16:40",
+                    "16:45-17:30",
+                    "19:00-19:45",
+                    "19:50-20:35",
+                    "20:40-21:25",
+                ],
                 "renders": renders,
                 "today": today,
                 "lesson": list(range(1, max_lesson + 1)),
