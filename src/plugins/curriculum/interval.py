@@ -4,7 +4,7 @@ from nonebot import logger
 from utils.models import CurriculumConfig
 from nonebot_plugin_alconna import UniMessage
 from nonebot_plugin_apscheduler import scheduler
-from utils.tools import push_user_message, push_group_message
+from utils.models.tool import push_user_message, push_group_message
 
 from .manager import QueryCurriculum
 

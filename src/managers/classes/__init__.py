@@ -3,7 +3,7 @@ from utils.tools import StringCard
 from utils.session import EventSession
 from nonebot.params import ArgPlainText
 from utils.models import Classes, GroupBind
-from utils.models.enums import JoinMethod, TeacherRole
+from utils.roles import JoinMethod, TeacherRole
 from nonebot_plugin_alconna import UniMessage, AlconnaMatcher
 from utils.models.annotated import (
     TeacherDepends,

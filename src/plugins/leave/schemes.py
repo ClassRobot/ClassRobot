@@ -4,7 +4,7 @@ from pydantic import BaseModel
 
 
 class Leave(BaseModel):
-    apply_time: datetime | None
+    start_time: datetime | None
     "请假时间"
     end_time: datetime | None
     "请假结束时间"

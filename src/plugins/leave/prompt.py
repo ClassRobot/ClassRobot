@@ -9,7 +9,7 @@ plugin_prompt = """
 
 ```python
 class Leave(BaseModel):
-    apply_time: datetime | None
+    start_time: datetime | None
     "请假时间 格式为: 2021-09-01 08:00:00"
     end_time: datetime | None
     "请假结束时间 格式为: 2021-09-01 08:00:00"
@@ -31,7 +31,7 @@ class Leave(BaseModel):
 
 ```json
 {
-    "apply_time": "2021-09-01 08:00:00",
+    "start_time": "2021-09-01 08:00:00",
     "end_time": "2021-09-01 08:00:00",
     "reason": "生病",
     "is_valid": true,

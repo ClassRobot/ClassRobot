@@ -1,16 +1,18 @@
 import json
 from hashlib import md5
+from pathlib import Path
 from datetime import datetime
-from typing import Generator, List, Literal, Optional
+from typing import List, Literal, Optional
 
-from utils.config import task_dir
+from utils.tools import get_file_suffix
+from utils.config import data_dir, task_dir
 from nonebot_plugin_orm import Model, get_session
 from sqlalchemy.orm import Mapped, relationship, mapped_column
 from sqlalchemy import Text, String, Integer, DateTime, ForeignKey, select, update
+from utils.roles import UserRole, JoinMethod, StudentRole, TeacherRole, PoliticalStatus
 
 from .filters import FilterModel
 from .columns import CreateAt, UpdateAt, PrimaryKeyInteger
-from .enums import UserRole, JoinMethod, StudentRole, TeacherRole, PoliticalStatus
 
 
 class User(FilterModel, Model):
@@ -347,10 +349,76 @@ class Files(FilterModel, Model):
     """文件MD5校验"""
     file_path: Mapped[str] = mapped_column(String(255), nullable=False)
     """文件路径"""
-    suffix: Mapped[str] = mapped_column(String(10), nullable=True)
+    suffix: Mapped[str | None] = mapped_column(String(10), nullable=True)
     """文件后缀"""
     created_at: Mapped[CreateAt]
     """创建时间"""
+
+    @classmethod
+    async def file_duplicate(cls, file_md5: str) -> bool:
+        """检查文件是否重复"""
+        return await cls.filter(file_md5=file_md5).exists()
+
+    @classmethod
+    async def get_file(cls, file_md5: str) -> Optional["Files"]:
+        """获取文件信息"""
+        return await cls.filter(file_md5=file_md5).first()
+
+    @classmethod
+    async def new(
+        cls,
+        file_md5: str,
+        file_path: Path,
+        *,
+        name: str | None = None,
+        suffix: str | None = None,
+    ):
+        """创建文件信息
+
+        Args:
+            file_md5 (str): 文件MD5校验
+            file_path (Path): 文件路径(包含文件名)
+            name (str): 文件名
+            suffix (str): 文件后缀
+        """
+        # 如果名字为None从path.name中获取，并且去掉后缀
+        name = name or file_path.stem
+        suffix = suffix or file_path.suffix.lstrip(".")
+        return await cls(
+            name=name,
+            file_md5=file_md5,
+            file_path=str(file_path.parent.relative_to(data_dir)),
+            suffix=suffix,
+        ).create()
+
+    @classmethod
+    async def parse_data(
+        cls, file_data: bytes, save_path: Path, suffix: str | None = None
+    ) -> "Files":
+        """解析文件数据
+
+        Args:
+            file_data (bytes): 文件数据
+            save_path (Path): 保存路径(不包含文件名)
+            suffix (str): 文件后缀
+        """
+        file_md5 = md5(file_data).hexdigest()
+        save_path.mkdir(parents=True, exist_ok=True)
+        suffix = suffix or get_file_suffix(file_data)
+        file_path = save_path / (f"{file_md5}.{suffix}" if suffix else file_md5)
+        file_path.write_bytes(file_data)
+        return await cls.new(file_md5, file_path, suffix=suffix, name=file_md5)
+
+    @property
+    def path(self) -> Path:
+        name = f"{self.name}.{self.suffix}" if self.suffix else self.name
+        return data_dir / self.file_path / name
+
+    def read_bytes(self) -> bytes:
+        return self.path.read_bytes()
+
+    def read_text(self, encoding: str | None = None) -> str:
+        return self.path.read_text(encoding=encoding)
 
 
 class Teacher(FilterModel, Model):
@@ -641,11 +709,8 @@ class Classes(FilterModel, Model):
     async def get_curriculum_config(self) -> Optional["CurriculumConfig"]:
         return await CurriculumConfig.filter(classes_id=self.id).first()
 
-    async def get_all_leaves(self) -> list["StudentLeave"]:
-        leaves: list[StudentLeave] = []
-        for student in await self.get_students():
-            leaves.extend(await student.get_leaves())
-        return leaves
+    async def get_leaves(self) -> list["StudentLeave"]:
+        return await StudentLeave.filter(classes_id=self.id).all()
 
 
 class ClassesJoinRequest(FilterModel, Model):

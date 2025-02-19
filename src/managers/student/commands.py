@@ -1,4 +1,5 @@
 from utils import tip
+from utils.roles import StudentRoleLang
 from utils.config import priority, comp_config
 from utils.params.student import get_columns_chinese
 from src.plugins.helper.schemas import Param, Helper, ParamMode
@@ -28,7 +29,8 @@ set_cmd = on_alconna(
 __helper__ = [
     Helper(
         command="修改学生信息",
-        description=f"修改方式如名字=张三 性别=男\n可以修改的内容:\n {', '.join(get_columns_chinese(['user_id']).values())}",
+        description=f"修改方式如名字=张三 性别=男\n可以修改的内容:\n {', '.join(get_columns_chinese(['user_id']).values())}\n其中班干部包括:\n"
+        + ", ".join(StudentRoleLang._member_names_),
         aliases={"修改学生", "设置学生信息"},
         params=[
             Param(

@@ -5,6 +5,7 @@ from utils.tools import StringCard
 from nonebot.matcher import Matcher
 from utils.models import Bind, User
 from utils.session import EventSession
+from utils.roles import StudentRoleLang
 from nonebot.params import ArgPlainText, EventPlainText
 from nonebot_plugin_alconna import UniMessage, AlconnaMatcher
 from utils.models.annotated import UserDepends, UserOrCreatedDepends
@@ -39,9 +40,17 @@ async def _(matcher: AlconnaMatcher, user: UserOrCreatedDepends):
             card.hr("学生信息")
             .text(f"学生ID: {user.student.id}")
             .text(f"学生昵称: {user.student.name}")
-            .text(f"学生职位: {user.student.role}")
-            .text(f"所在班级: {user.student.classes.name}")
-            .text(f"创建日期: {user.student.created_at.strftime('%Y-%m-%d')}")
+        )
+
+        if user.student.role in StudentRoleLang._member_names_:
+            card.text(f"学生职位: {StudentRoleLang[user.student.role]}")
+        else:
+            card.text(f"学生职位: {user.student.role}(无效)")
+
+        (
+            card.text(f"所在班级: {user.student.classes.name}").text(
+                f"创建日期: {user.student.created_at.strftime('%Y-%m-%d')}"
+            )
         )
 
     if user.avatar:

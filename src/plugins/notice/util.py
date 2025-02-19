@@ -7,7 +7,7 @@ from nonebot_plugin_alconna import UniMessage
 from utils.llm import Messages, client_create
 from src.plugins.find_at.util import students_to_df
 from utils.llm.typings import ChatCompletionToolParam
-from utils.tools import push_user_message, push_group_message
+from utils.models.tool import push_user_message, push_group_message
 from utils.llm.util import json_loads, contents_to_uni_message, uni_message_to_contents
 
 from .prompt import prompt

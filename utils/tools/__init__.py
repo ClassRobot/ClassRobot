@@ -1,11 +1,9 @@
 import re
-from pathlib import Path
 from typing import Any
-from nonebot import logger
-from utils.models.models import User, Group
-from nonebot_plugin_alconna import Target, UniMessage, SupportAdapter, get_bot
+from pathlib import Path
+
+from filetype import guess_extension
 from nonebot_plugin_htmlrender import get_new_page
-from filetype import guess
 
 
 class StringCard:
@@ -73,33 +71,6 @@ class StringCard:
         return bool(self.card)
 
 
-# 推送给用户消息
-async def push_user_message(user: User, message: UniMessage):
-    """推送给用户所绑定的所有平台发送消息"""
-    for bind in user.binds:
-        adapter_name = SupportAdapter[bind.platform_id.split(".")[0]]
-        for bot in await get_bot(adapter=adapter_name):
-            try:
-                await Target(bind.account_id, private=True).send(message, bot)
-            except Exception as e:
-                logger.exception(e)
-
-
-async def push_group_message(group: Group, message: UniMessage):
-    """推送给群所绑定的所有平台发送消息"""
-    for bind in group.group_binds:
-        adapter_name = SupportAdapter[bind.platform_id.split(".")[0]]
-        for bot in await get_bot(adapter=adapter_name):
-            try:
-                await Target(
-                    id=bind.channel_id,
-                    channel=bool(bind.guild_id),
-                    parent_id=bind.guild_id,
-                ).send(message, bot)
-            except Exception as e:
-                logger.exception(e)
-
-
 async def download_file(
     uri: str,
     *,
@@ -118,16 +89,15 @@ async def download_file(
 
 def get_file_suffix(file: bytes) -> str | None:
     """获取文件类型"""
-    if kind := guess(file):
-        return str(kind.extension).replace(".", "")
+    if kind := guess_extension(file):
+        return str(kind).replace(".", "")
 
 
 def get_url_suffix(url: str) -> str | None:
     """获取url文件类型"""
-    url_split = url.split('.')
+    url_split = url.split(".")
     if len(url_split) > 2 and re.match("^[a-zA-Z]+$", url_split[-1]):
         return url_split[-1]
-
 
 
 if __name__ == "__main__":
