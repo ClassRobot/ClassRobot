@@ -1,6 +1,11 @@
+import re
+from pathlib import Path
+from typing import Any
 from nonebot import logger
 from utils.models.models import User, Group
 from nonebot_plugin_alconna import Target, UniMessage, SupportAdapter, get_bot
+from nonebot_plugin_htmlrender import get_new_page
+from filetype import guess
 
 
 class StringCard:
@@ -93,6 +98,36 @@ async def push_group_message(group: Group, message: UniMessage):
                 ).send(message, bot)
             except Exception as e:
                 logger.exception(e)
+
+
+async def download_file(
+    uri: str,
+    *,
+    headers: dict[str, str] | None = None,
+    params: dict[str, Any] | None = None,
+    to_path: str | Path | None = None,
+) -> bytes:
+    """下载文件"""
+    async with get_new_page() as page:
+        response = await page.request.get(uri, headers=headers, params=params)
+        body = await response.body()
+        if to_path:
+            Path(to_path).write_bytes(body)
+        return body
+
+
+def get_file_suffix(file: bytes) -> str | None:
+    """获取文件类型"""
+    if kind := guess(file):
+        return str(kind.extension).replace(".", "")
+
+
+def get_url_suffix(url: str) -> str | None:
+    """获取url文件类型"""
+    url_split = url.split('.')
+    if len(url_split) > 2 and re.match("^[a-zA-Z]+$", url_split[-1]):
+        return url_split[-1]
+
 
 
 if __name__ == "__main__":

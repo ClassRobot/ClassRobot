@@ -34,6 +34,7 @@ aioredis = "^2.0.1"
 nonebot-plugin-status = "^0.9.0"
 nonebot-plugin-waiter = "^0.8.1"
 tabulate = "^0.9.0"
+filetype = "^1.2.0"
 
 [tool.poetry.group.dev.dependencies]
 pycln = "^2.5.0"

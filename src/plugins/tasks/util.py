@@ -5,7 +5,6 @@ from zipfile import ZipFile
 from typing import Literal, Annotated
 
 from pydantic import BaseModel
-from utils.tools import StringCard
 from nonebot.matcher import Matcher
 from nonebot.adapters import Message
 from utils.tools.sync import run_sync
@@ -13,7 +12,7 @@ from nonebot.params import Arg, Depends
 from utils.tools.cos import upload_file
 from nonebot.adapters import Bot as BaseBot
 from utils.models.annotated import UserDepends
-from nonebot_plugin_htmlrender import get_new_page
+from utils.tools import StringCard, download_file
 from nonebot.adapters.onebot.v11 import Bot as V11Bot
 from utils.models import User, Tasks, Student, TaskCommits
 from utils.config import task_dir, cache_dir, global_config
@@ -199,11 +198,6 @@ class TaskManager:
             file_md5 = md5(file_md5).hexdigest()
         return await TaskCommits.filter(file_md5=file_md5).exists()
 
-    async def download_file(self, url: str) -> bytes:
-        async with get_new_page() as page:
-            response = await page.request.get(url)
-            return await response.body()
-
 
 class PushTaskManager(TaskManager):
     task_file: TaskFile | None = None
@@ -305,7 +299,7 @@ async def get_file_data(
     ):
         return FileData(
             name=task_manager.task_file.name,
-            data=await task_manager.download_file(task_manager.task_file.url),
+            data=await download_file(task_manager.task_file.url),
         )
 
 

@@ -1,7 +1,7 @@
 import json
 from hashlib import md5
 from datetime import datetime
-from typing import List, Literal, Optional
+from typing import Generator, List, Literal, Optional
 
 from utils.config import task_dir
 from nonebot_plugin_orm import Model, get_session
@@ -641,6 +641,12 @@ class Classes(FilterModel, Model):
     async def get_curriculum_config(self) -> Optional["CurriculumConfig"]:
         return await CurriculumConfig.filter(classes_id=self.id).first()
 
+    async def get_all_leaves(self) -> list["StudentLeave"]:
+        leaves: list[StudentLeave] = []
+        for student in await self.get_students():
+            leaves.extend(await student.get_leaves())
+        return leaves
+
 
 class ClassesJoinRequest(FilterModel, Model):
     id: Mapped[PrimaryKeyInteger]
@@ -758,6 +764,9 @@ class Student(FilterModel, Model):
 
     async def get_classmates(self) -> list["Student"]:
         return await Student.filter(classes_id=self.classes_id).all()
+
+    async def get_leaves(self) -> List["StudentLeave"]:
+        return await StudentLeave.filter(student_id=self.id).all()
 
 
 class StudentExtra(FilterModel, Model):

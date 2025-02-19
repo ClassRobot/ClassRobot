@@ -44,3 +44,6 @@ priority = 100
 
 task_dir = data_dir / "tasks"
 task_dir.mkdir(parents=True, exist_ok=True)
+
+leave_dir = data_dir / "files"
+leave_dir.mkdir(parents=True, exist_ok=True)
