@@ -339,6 +339,20 @@ class GroupBind(FilterModel, Model):
         return group_bind
 
 
+class Files(FilterModel, Model):
+    id: Mapped[PrimaryKeyInteger]
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    """文件名称"""
+    file_md5: Mapped[str] = mapped_column(String(32), nullable=False, unique=True)
+    """文件MD5校验"""
+    file_path: Mapped[str] = mapped_column(String(255), nullable=False)
+    """文件路径"""
+    suffix: Mapped[str] = mapped_column(String(10), nullable=True)
+    """文件后缀"""
+    created_at: Mapped[CreateAt]
+    """创建时间"""
+
+
 class Teacher(FilterModel, Model):
     """教师表
 
@@ -1009,3 +1023,45 @@ class Curriculum(FilterModel, Model):
             "weekday": json.loads(self.weekday),
             "lesson": json.loads(self.lesson),
         }
+
+
+class ClassesLeaveConfig(FilterModel, Model):
+    id: Mapped[PrimaryKeyInteger]
+    classes_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey(Classes.id, ondelete="CASCADE"), nullable=False, unique=True
+    )
+    """班级ID"""
+    notify_role: Mapped[str] = mapped_column(
+        String(255), nullable=False, server_default="[]"
+    )
+    """通知给指定角色"""
+    create_at: Mapped[CreateAt]
+    update_at: Mapped[UpdateAt]
+
+
+class StudentLeave(FilterModel, Model):
+    id: Mapped[PrimaryKeyInteger]
+    start_time: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+    """请假开始时间"""
+    end_time: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+    """请假结束时间"""
+    reason: Mapped[str] = mapped_column(String(255), nullable=False)
+    """请假原因"""
+    classes_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey(Classes.id, ondelete="CASCADE"), nullable=False
+    )
+    """班级ID"""
+    student_id: Mapped[int] = mapped_column(
+        Integer, __type_pos=ForeignKey(Student.id, ondelete="CASCADE"), nullable=False
+    )
+    """用户ID"""
+    file_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey(Files.id, ondelete="CASCADE"), nullable=False
+    )
+    """请假条文件ID"""
+    created_at: Mapped[CreateAt]
+    updated_at: Mapped[UpdateAt]
+
+    file: Mapped[Files] = relationship(lazy=False)
+    student: Mapped[Student] = relationship(lazy=False)
+    classes: Mapped[Classes] = relationship(lazy=False)
