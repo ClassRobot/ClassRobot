@@ -7,15 +7,14 @@ from typing import List, Literal, Annotated
 from pydantic import BaseModel
 from nonebot.matcher import Matcher
 from nonebot.adapters import Message
-from utils.models.models import Files
 from utils.tools.sync import run_sync
 from nonebot.params import Arg, Depends
 from utils.tools.cos import upload_file
 from nonebot.adapters import Bot as BaseBot
 from utils.models.depends import UserDepends
 from utils.tools import StringCard, download_file
+from utils.models import User, Files, Tasks, Student
 from nonebot.adapters.onebot.v11 import Bot as V11Bot
-from utils.models import User, Tasks, Student, TaskCommits
 from utils.config import task_dir, cache_dir, global_config
 from nonebot_plugin_alconna import File, Image, Other, UniMessage
 
@@ -95,7 +94,7 @@ class QueryTasks:
         return tasks
 
 
-class PushTaskCommit(QueryTasks): 
+class PushTaskCommit(QueryTasks):
     async def task_commit(self, task: Tasks):
         ...
 

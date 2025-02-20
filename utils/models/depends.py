@@ -6,7 +6,7 @@ from nonebot.typing import T_State
 from nonebot_plugin_alconna import At, UniMessage
 from utils.session import EventSession, GroupEventSession
 from nonebot_plugin_userinfo import UserInfo, EventUserInfo
-from utils.models.models import Bind, User, Classes, Student, Teacher
+from utils.models import Bind, User, Classes, Student, Teacher
 
 default_nickname = "user"
 

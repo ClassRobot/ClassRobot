@@ -1,5 +1,5 @@
-from utils.models.models import User, ScheduledNotice
 from utils.tools import StringCard
+from utils.models import User, ScheduledNotice
 
 
 class QueryNotice:
@@ -9,7 +9,7 @@ class QueryNotice:
     async def get_notices(self) -> list[ScheduledNotice]:
         """获取到与用户相关的所有通知"""
         return await ScheduledNotice.filter(creator=self.user).all()
-    
+
     def render_string(self, notices: list[ScheduledNotice]) -> str:
         card = StringCard("通知列表")
         for notice in notices:

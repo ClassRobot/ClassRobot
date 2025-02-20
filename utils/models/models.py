@@ -962,7 +962,7 @@ class TaskCommits(FilterModel, Model):
     )
     """任务ID"""
     file_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey(Files.id), nulltable=False, unique=True
+        Integer, ForeignKey(Files.id), nullable=False, unique=True
     )
     student_id: Mapped[int] = mapped_column(
         Integer, ForeignKey(Student.id, ondelete="CASCADE"), nullable=False

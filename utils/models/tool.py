@@ -1,5 +1,5 @@
 from nonebot import logger
-from utils.models.models import User, Group
+from utils.models import User, Group
 from nonebot_plugin_alconna import Target, UniMessage, SupportAdapter, get_bot
 
 
