@@ -8,7 +8,7 @@ from utils.session import EventSession
 from utils.roles import StudentRoleLang
 from nonebot.params import ArgPlainText, EventPlainText
 from nonebot_plugin_alconna import UniMessage, AlconnaMatcher
-from utils.models.annotated import UserDepends, UserOrCreatedDepends
+from utils.models.depends import UserDepends, UserOrCreatedDepends
 
 from .commands import token_cmd, bind_user_cmd, self_info_cmd
 

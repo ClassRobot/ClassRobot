@@ -4,7 +4,7 @@ from utils.models import Student
 from nonebot.params import Depends
 from nonebot.matcher import Matcher
 from pandas import DataFrame, concat
-from utils.models.annotated import StudentDepends, TeacherDepends
+from utils.models.depends import StudentDepends, TeacherDepends
 
 from .util import students_to_df
 

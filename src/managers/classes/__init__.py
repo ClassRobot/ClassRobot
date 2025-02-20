@@ -5,7 +5,7 @@ from nonebot.params import ArgPlainText
 from utils.models import Classes, GroupBind
 from utils.roles import JoinMethod, TeacherRole
 from nonebot_plugin_alconna import UniMessage, AlconnaMatcher
-from utils.models.annotated import (
+from utils.models.depends import (
     TeacherDepends,
     UserOrCreatedDepends,
     TeacherOrCreatedDepends,

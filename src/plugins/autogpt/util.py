@@ -5,7 +5,7 @@ from nonebot.params import Depends
 from utils.llm import client_create
 from utils.llm.schema import Messages
 from nonebot_plugin_alconna import UniMessage
-from utils.models.annotated import UserOrCreatedDepends
+from utils.models.depends import UserOrCreatedDepends
 from utils.llm.util import json_loads, uni_message_to_contents
 
 from .prompt import get_prompt_system

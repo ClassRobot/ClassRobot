@@ -6,7 +6,7 @@ from nonebot.params import Arg
 from nonebot.matcher import Matcher
 from nonebot.adapters import Message
 from utils.models import ScheduledNotice
-from utils.models.annotated import UserOrCreatedDepends
+from utils.models.depends import UserOrCreatedDepends
 from nonebot_plugin_alconna.uniseg.adapters import alter_get_exporter
 from nonebot_plugin_alconna import Target, UniMsg, UniMessage, SupportAdapter, get_bot
 

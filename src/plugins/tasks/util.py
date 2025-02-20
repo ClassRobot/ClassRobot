@@ -11,7 +11,7 @@ from utils.tools.sync import run_sync
 from nonebot.params import Arg, Depends
 from utils.tools.cos import upload_file
 from nonebot.adapters import Bot as BaseBot
-from utils.models.annotated import UserDepends
+from utils.models.depends import UserDepends
 from utils.tools import StringCard, download_file
 from nonebot.adapters.onebot.v11 import Bot as V11Bot
 from utils.models import User, Tasks, Student, TaskCommits

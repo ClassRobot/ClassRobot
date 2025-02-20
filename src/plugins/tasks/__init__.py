@@ -5,7 +5,7 @@ from utils import Emoji, bot_upload_file
 from nonebot.params import Arg, ArgPlainText
 from nonebot.adapters import Bot, Event, MessageTemplate
 from nonebot_plugin_alconna import UniMessage, AlconnaMatcher
-from utils.models.annotated import UserDepends, StudentDepends, UserOrCreatedDepends
+from utils.models.depends import UserDepends, StudentDepends, UserOrCreatedDepends
 
 from .commands import (
     push_task_cmd,

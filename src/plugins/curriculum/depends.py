@@ -2,7 +2,7 @@ from typing import Annotated
 
 from nonebot.params import Depends
 from nonebot_plugin_alconna import AlconnaMatcher
-from utils.models.annotated import UserOrCreatedDepends
+from utils.models.depends import UserOrCreatedDepends
 
 from .manager import (
     AddCurriculum,

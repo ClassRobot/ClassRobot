@@ -1,6 +1,6 @@
 from utils import Emoji
 from nonebot_plugin_alconna import AlconnaMatcher
-from utils.models.annotated import StudentDepends
+from utils.models.depends import StudentDepends
 from utils.params.student import (
     is_user_key,
     get_column_key,
