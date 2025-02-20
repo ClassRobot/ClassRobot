@@ -13,6 +13,7 @@ from utils.models.tool import push_user_message
 from nonebot_plugin_alconna import Image, UniMessage
 from utils.tools import download_file, get_url_suffix
 from utils.models import User, Files, Student, StudentLeave, ClassesLeaveConfig
+from utils.roles import StudentRole
 
 from .schemes import Leave
 from .prompt import plugin_prompt
@@ -71,11 +72,11 @@ class AddLeave:
         data = await download_file(self.image_url)
         file_md5 = md5(data).hexdigest()
 
-        # 检查文件是否重复
-        if await Files.file_duplicate(file_md5):
-            return
-
-        files = await Files.parse_data(data, leave_dir, suffix)
+        # 如果不能获取到文件则保存一下
+        if (files := await Files.get_file(file_md5)) is None:
+            files = await Files.parse_data(
+                data, leave_dir, suffix=suffix, file_md5=file_md5
+            )
 
         student_leave = await StudentLeave(
             start_time=leave.start_time,
@@ -109,14 +110,77 @@ class AddLeave:
 
 class QueryLeave(BaseLeave):
     async def get_student_leave(self) -> List[StudentLeave] | None:
+        """获取学生的全部请假条"""
         if self.user.student:
             return await self.user.student.get_leaves()
 
     async def get_classes_leave(
         self, classes: Classes | None = None
     ) -> List[StudentLeave] | None:
+        """获取以班级未单位的全部请假条
+
+        Args:
+            classes (Classes | None, optional): 班级表. Defaults to None.
+
+        Returns:
+            List[StudentLeave] | None: 请假条列表
+        """
         if classes is None:
             if self.user.student:
                 return await self.user.student.classes.get_leaves()
         else:
             return await classes.get_leaves()
+
+    async def get_teacher_classes_leave(self) -> List[StudentLeave] | None:
+        """获取教师所管理的全部请假条"""
+        if self.user.teacher:
+            leaves = []
+            for classes in self.user.teacher.classes:
+                leaves.extend(await classes.get_leaves())
+            return leaves
+
+    @property
+    def is_student(self) -> bool:
+        """判断是否为学生"""
+        return self.user.student is not None
+
+    @property
+    def is_classes_admin(self) -> bool:
+        """判断是否为班干部"""
+        return (
+            self.user.student is not None
+            and self.user.student.role in StudentRole._member_names_
+        )
+
+    @property
+    def is_teacher(self) -> bool:
+        """判断是否为教师"""
+        return self.user.teacher is not None
+
+    def leave_to_messages(self, leave_list: list[StudentLeave]) -> list[UniMessage]:
+        today = datetime.now()
+        # 已结束的请假申请
+        end_leave = [leave for leave in leave_list if leave.end_time < today]
+        # 未结束的请假申请
+        not_end_leave = [leave for leave in leave_list if leave.end_time >= today]
+
+        messages = []
+        if not_end_leave:
+            messages.append(UniMessage.text("请假申请:"))
+            for leave in not_end_leave:
+                messages[-1] += self.to_message(leave)
+        if end_leave:
+            messages.append(UniMessage.text("已结束的请假申请:"))
+            for leave in end_leave:
+                messages[-1] += self.to_message(leave)
+        return messages
+
+    @staticmethod
+    def to_message(leave: StudentLeave):
+        return UniMessage.text(
+            f"请假申请: [LID:{leave.id}]\n"
+            f"申请学生: [SID:{leave.student_id}] {leave.student.name}\n"
+            f"所属班级: {leave.classes.name}\n"
+            f"请假时间: {leave.start_time} - {leave.end_time}\n"
+            f"请假理由: {leave.reason}"
+        ) + UniMessage.image(path=leave.file.path)

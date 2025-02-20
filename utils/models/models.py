@@ -393,7 +393,12 @@ class Files(FilterModel, Model):
 
     @classmethod
     async def parse_data(
-        cls, file_data: bytes, save_path: Path, suffix: str | None = None
+        cls,
+        file_data: bytes,
+        save_path: Path,
+        *,
+        suffix: str | None = None,
+        file_md5: str | None = None,
     ) -> "Files":
         """解析文件数据
 
@@ -402,7 +407,7 @@ class Files(FilterModel, Model):
             save_path (Path): 保存路径(不包含文件名)
             suffix (str): 文件后缀
         """
-        file_md5 = md5(file_data).hexdigest()
+        file_md5 = file_md5 if file_md5 else md5(file_data).hexdigest()
         save_path.mkdir(parents=True, exist_ok=True)
         suffix = suffix or get_file_suffix(file_data)
         file_path = save_path / (f"{file_md5}.{suffix}" if suffix else file_md5)
