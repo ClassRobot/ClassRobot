@@ -7,13 +7,16 @@ from nonebot.matcher import Matcher
 from nonebot.adapters import Message
 from utils.models import ScheduledNotice
 from utils.models.depends import UserOrCreatedDepends
-from nonebot_plugin_alconna.uniseg.adapters import alter_get_exporter
-from nonebot_plugin_alconna import Target, UniMsg, UniMessage, SupportAdapter, get_bot
+from nonebot_plugin_alconna import AlconnaMatcher, UniMsg, UniMessage
+
 
 from .schema import Notice
 from .util import notice_work
-from .commands import notice_cmd
-from .depends import NoticeSessionDepends
+from .commands import notice_cmd, delete_notice_cmd, query_notice_cmd
+from .depends import DeleteNoticeDepends, NoticeSessionDepends, QueryNoticeDepends
+
+
+# --------------------------------- 创建通知 ---------------------------------
 
 
 @notice_cmd.handle()
@@ -52,11 +55,41 @@ async def _(
         await matcher.finish(Emoji.error + "处理失败")
 
 
+# --------------------------------- 查询自己创建的所有通知 ---------------------------------
+
+
+@query_notice_cmd.handle()
+async def _(matcher: AlconnaMatcher, query_notice: QueryNoticeDepends):
+    notice_list = await query_notice.get_notices()
+    if notice_list:
+        await matcher.finish(query_notice.render_string(notice_list))
+
+    await matcher.finish(Emoji.error + "您似乎还未创建通知")
+
+
+# --------------------------------- 删除自己创建的通知 ---------------------------------
+
+
+@delete_notice_cmd.handle()
+async def _(
+    matcher: AlconnaMatcher, delete_notice: DeleteNoticeDepends, notice_id: list[str]
+):
+    if not (notice_ids := [int(nid) for nid in notice_id if nid.isdigit()]):
+        await matcher.finish(Emoji.error + "您需要输入通知ID(NID)才能删除")
+
+    for nid in notice_ids:
+        if notice := await delete_notice.get_notice(nid):
+            await delete_notice.delete_notice(notice)
+
+    await matcher.finish(Emoji.success + "删除完成！")
+
+
 driver = get_driver()
 
 
 @driver.on_startup
-async def _():
+async def startup_create_notice():
+    """在启动时创建所有通知,如果是已经结束的通知则紧急发送掉"""
     sns = (await ScheduledNotice.select).all()
     tasks = []
     for sn in sns:

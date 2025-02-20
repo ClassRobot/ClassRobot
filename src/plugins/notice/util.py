@@ -29,6 +29,14 @@ def classes_to_df(classes: list[Classes]) -> DataFrame:
 
 
 async def notice_work(notice: Notice, creator: User | None = None):
+    """发送通知
+
+    在通知发送结束后删除通知
+
+    Args:
+        notice (Notice): 通知内容
+        creator (User | None, optional): 创建者. Defaults to None.
+    """
     try:
         if creator is None:
             creator = await notice.get_creator()

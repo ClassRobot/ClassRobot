@@ -416,14 +416,22 @@ class Files(FilterModel, Model):
 
     @property
     def path(self) -> Path:
-        name = f"{self.name}.{self.suffix}" if self.suffix else self.name
-        return data_dir / self.file_path / name
+        return data_dir / self.file_path / self.file_name
+
+    @property
+    def file_name(self) -> str:
+        return f"{self.name}.{self.suffix.lstrip('.')}" if self.suffix else self.name
 
     def read_bytes(self) -> bytes:
         return self.path.read_bytes()
 
     def read_text(self, encoding: str | None = None) -> str:
         return self.path.read_text(encoding=encoding)
+
+    async def delete(self):
+        """输出文件，同时删除本地文件"""
+        self.path.unlink(True)
+        await self.filter(id=self.id).delete()
 
 
 class Teacher(FilterModel, Model):
@@ -921,23 +929,23 @@ class Tasks(FilterModel, Model):
     async def delete(self):
         """删除任务"""
         for commit in await self.get_commits():
-            commit.read_path.unlink(missing_ok=True)
+            await commit.file.delete()
         return await self.filter(id=self.id).delete()
 
     # 检查学生是否已提交
     async def check_commit(self, student: Student) -> bool:
         return await TaskCommits.filter(task_id=self.id, student_id=student.id).exists()
 
-    async def commit(self, student: Student, file_data: bytes):
-        file_md5 = md5(file_data).hexdigest()
-        file_path = self.classes.name
+    async def commit(self, student: Student, file_data: bytes) -> "TaskCommits":
+        file = await Files.parse_data(
+            file_data,
+            task_dir,
+        )
         task_commit = await TaskCommits(
+            file_id=file.id,
             task_id=self.id,
-            file_md5=file_md5,
-            file_path=file_path,
             student_id=student.id,
         ).create()
-        task_commit.save_data(file_data)
         return task_commit
 
     async def get_commit(self, student: Student) -> Optional["TaskCommits"]:
@@ -953,10 +961,9 @@ class TaskCommits(FilterModel, Model):
         Integer, ForeignKey(Tasks.id, ondelete="CASCADE"), nullable=False
     )
     """任务ID"""
-    file_path: Mapped[str] = mapped_column(String(255), nullable=False)
-    """文件ID"""
-    file_md5: Mapped[str] = mapped_column(String(32), nullable=False, unique=True)
-    """文件MD5校验"""
+    file_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey(Files.id), nulltable=False, unique=True
+    )
     student_id: Mapped[int] = mapped_column(
         Integer, ForeignKey(Student.id, ondelete="CASCADE"), nullable=False
     )
@@ -964,38 +971,19 @@ class TaskCommits(FilterModel, Model):
     created_at: Mapped[CreateAt]
     updated_at: Mapped[UpdateAt]
 
-    task: Mapped[Tasks] = relationship(lazy="selectin")
+    file: Mapped[Files] = relationship(lazy=False)
+    """文件信息"""
+    task: Mapped[Tasks] = relationship(lazy=False)
     """任务信息"""
-    student: Mapped[Student] = relationship(lazy="selectin")
+    student: Mapped[Student] = relationship(lazy=False)
     """学生信息"""
 
-    async def update_file(self, data: bytes):
+    async def update_file(self, file: Files | bytes):
         """更新文件"""
-        file_md5 = md5(data).hexdigest()
-        if file_md5 == self.file_md5:
-            return
-        res = await self.update(file_md5=file_md5)
-        self.save_data(data)
-        return res
-
-    def save_data(self, data: bytes):
-        """保存文件
-
-        Args:
-            data (bytes): 文件数据
-        """
-        if not self.read_path.parent.exists():
-            self.read_path.parent.mkdir(parents=True, exist_ok=True)
-        self.read_path.write_bytes(data)
-
-    def read_data(self) -> bytes:
-        """读取文件"""
-        return self.read_path.read_bytes()
-
-    @property
-    def read_path(self):
-        """文件路径"""
-        return task_dir / self.file_path / self.file_md5
+        await self.file.delete()  # 删除旧的文件
+        if isinstance(file, bytes):  # 如果是bytes则解析文件
+            file = await Files.parse_data(file, task_dir)
+        await self.filter(id=self.id).update(file=file)  # 更新文件信息
 
 
 class ScheduledNotice(FilterModel, Model):

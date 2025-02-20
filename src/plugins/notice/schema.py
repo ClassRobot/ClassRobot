@@ -99,7 +99,7 @@ class Notice(BaseModel):
 
     def add_job(self, func: Callable[["Notice"], Awaitable[None]]):
         """添加定时任务"""
-        if self.is_immediate:
+        if self.is_immediate:   # 如果是立即发送的任务则不创建
             return
         elif self.id is None:
             raise ValueError("通知id不能为空,需要先调用create保存置数据库后获取ID")
@@ -119,7 +119,7 @@ class Notice(BaseModel):
             try:
                 scheduler.remove_job(f"notice_{self.id}")
             except JobLookupError:
-                pass
+                logger.warning("Notice")
 
 
 class Notices(BaseModel):

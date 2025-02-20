@@ -2,11 +2,12 @@ import shutil
 from hashlib import md5
 from pathlib import Path
 from zipfile import ZipFile
-from typing import Literal, Annotated
+from typing import List, Literal, Annotated
 
 from pydantic import BaseModel
 from nonebot.matcher import Matcher
 from nonebot.adapters import Message
+from utils.models.models import Files
 from utils.tools.sync import run_sync
 from nonebot.params import Arg, Depends
 from utils.tools.cos import upload_file
@@ -49,6 +50,54 @@ class FileData(BaseModel):
 
     def __bool__(self) -> bool:
         return bool(self.data or self.path)
+
+
+class QueryTasks:
+    def __init__(self, user: User):
+        self.user = user
+        self._student_tasks: list[Tasks] = []
+        self._teacher_tasks: list[Tasks] = []
+
+    async def get_student_tasks(self) -> List[Tasks]:
+        """获取学生班级的task"""
+        if self._student_tasks:
+            return self._student_tasks
+
+        if self.user.student:
+            return await self.user.student.classes.get_tasks()
+        return self._student_tasks
+
+    async def get_teacher_tasks(self) -> List[Tasks]:
+        """获取与教师相关的tasks"""
+        if self._teacher_tasks:
+            return self._teacher_tasks
+
+        if self.user.teacher:
+            for classes in self.user.teacher.classes:
+                self._teacher_tasks.extend(await classes.get_tasks())
+        return self._teacher_tasks
+
+    async def get_student_task(self, task_id: int | str) -> Tasks | None:
+        for task in await self.get_student_tasks():
+            if isinstance(task_id, int) and task.id == task_id:
+                return task
+            elif isinstance(task_id, str) and task.name == task_id:
+                return task
+
+    async def get_teacher_task(self, task_id: int | str) -> list[Tasks]:
+        """或许教师相关班级任务(以为多个班级可能存在重复任务)"""
+        tasks = []
+        for task in await self.get_teacher_tasks():
+            if isinstance(task_id, int) and task.id == task_id:
+                tasks.append(task)
+            elif isinstance(task_id, str) and task.name == task_id:
+                tasks.append(task)
+        return tasks
+
+
+class PushTaskCommit(QueryTasks): 
+    async def task_commit(self, task: Tasks):
+        ...
 
 
 class TaskList(list[Tasks]):
@@ -140,6 +189,7 @@ class TaskManager:
         return False
 
     async def build_task(self) -> None | str:
+        """将task里提交的文件打包成zip"""
         commits = await self.select_task.get_commits()
         if not commits:
             return None
@@ -150,8 +200,8 @@ class TaskManager:
         with ZipFile(zip_path, "w") as zip_file:
             for commit in commits:
                 await run_sync(zip_file.write)(
-                    commit.read_path,
-                    f"{self.select_task.classes.name}-{self.select_task.name}/{commit.student.name}-{commit.read_path.name}",
+                    commit.file.path,
+                    f"{self.select_task.classes.name}-{self.select_task.name}/{commit.student.name}-{commit.file.file_name}",
                 )
         download_url = await upload_file(zip_path.read_bytes(), zip_path.name)
         zip_path.unlink(True)  # 上传完成后删除本地文件
@@ -196,7 +246,7 @@ class TaskManager:
         if isinstance(file_md5, bytes):
             # 文件校验
             file_md5 = md5(file_md5).hexdigest()
-        return await TaskCommits.filter(file_md5=file_md5).exists()
+        return await Files.file_duplicate(file_md5)  # type: ignore
 
 
 class PushTaskManager(TaskManager):
@@ -274,6 +324,7 @@ async def get_file_data(
     task_file: UniMessage = Arg(),
     task_manager: PushTaskManager = task_manager_depends("student", PushTaskManager),
 ) -> FileData | None:
+    """将用户发送的文件解析成FileData"""
     task_manager.set_task_file(task_file)
     if isinstance(task_manager.task_file, Other) and isinstance(bot, V11Bot):
         if task_manager.task_file.origin.type != "file":
