@@ -6,6 +6,7 @@ from utils.models import Classes, GroupBind
 from utils.roles import JoinMethod, TeacherRole
 from nonebot_plugin_alconna import UniMessage, AlconnaMatcher
 from utils.models.depends import (
+    StudentDepends,
     TeacherDepends,
     UserOrCreatedDepends,
     TeacherOrCreatedDepends,
@@ -13,6 +14,7 @@ from utils.models.depends import (
 
 from .commands import (
     add_classes_cmd,
+    exit_classes_cmd,
     join_classes_cmd,
     query_classes_cmd,
     set_join_classes_cmd,
@@ -123,6 +125,28 @@ async def _(
         case JoinMethod.invite:
             await matcher.finish("❌️该班级只能通过邀请加入！！")
     await matcher.finish("❌️[异常]加入班级失败！！")
+
+
+# --------------------------------- 退出班级 ---------------------------------
+
+
+@exit_classes_cmd.handle()
+async def _(matcher: AlconnaMatcher, student: StudentDepends):
+    if student is None:
+        await matcher.finish("❌️您还未加入班级！！")
+
+
+@exit_classes_cmd.got("is_exit", prompt="您确定要退出班级吗？(yes/no)")
+async def _(
+    matcher: AlconnaMatcher, student: StudentDepends, is_exit: str = ArgPlainText()
+):
+    if is_exit.strip() != "yes":
+        await matcher.finish("❌️已取消操作！！")
+
+    if student:
+        await student.filter(id=student.id).delete()
+        await matcher.finish("✅️成功退出班级！！")
+    await matcher.finish("❌️退出班级失败，您的身份似乎并不是学生！！")
 
 
 # --------------------------------- 修改加入班级方式 ---------------------------------

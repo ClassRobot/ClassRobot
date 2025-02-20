@@ -18,7 +18,7 @@ def update_message(task: AutoTask, target: Target):
         message = UniMessage.text(task.command)
         for param in task.params:
             if param.type == "text":
-                message += UniMessage.text(param.value)
+                message += UniMessage.text(" " + param.value)
             elif param.type == "image":
                 message += UniMessage.image(param.value)
         return message.export_sync(adapter=target.adapter)
