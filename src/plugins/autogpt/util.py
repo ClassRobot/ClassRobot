@@ -21,7 +21,10 @@ class ChatSession:
         self.user_id = user_id
         self.lock = False  # 聊天锁，防止一轮聊天还没结束又开始新的聊天
         self.messages = Messages()
-        self.messages.system_message(content=get_prompt_system(helpers))
+        self.messages.system_message(get_prompt_system(helpers))
+
+    def update_helpers(self, helpers: Helpers):
+        self.messages[0].content = get_prompt_system(helpers)
 
     async def send_message(self, message: str | UniMessage | ChatMessage):
         if self.lock:
@@ -81,7 +84,9 @@ class ChatSessionManager:
 async def get_chat_session(
     user: UserOrCreatedDepends, helpers: HelpersDepends
 ) -> ChatSession:
-    return chat_session_manager.get_chat_session(user.id, helpers)
+    chat_session = chat_session_manager.get_chat_session(user.id, helpers)
+    chat_session.update_helpers(helpers)
+    return chat_session
 
 
 ChatSessionDepends = Annotated[ChatSession, Depends(get_chat_session)]

@@ -204,3 +204,6 @@ class Messages(BaseModel):
 
     def __str__(self) -> str:
         return self.__repr__()
+
+    def __getitem__(self, item: int) -> Context | ChatCompletionMessage:
+        return self.messages[item]
