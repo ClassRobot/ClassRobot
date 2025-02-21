@@ -50,6 +50,7 @@ class Helper(BaseModel):
     command: str
     description: str
     tags: set[str] = set()
+    roles: set[str] = set()
     params: list[Param] = []
     aliases: set[str] = set()
     example: list[Context] | str = []

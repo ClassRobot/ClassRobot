@@ -1,5 +1,6 @@
 import json
 from hashlib import md5
+from venv import logger
 from asyncio import wait
 from datetime import datetime
 from typing import List, Iterable
@@ -29,6 +30,7 @@ class AddLeave:
         self.messages = Messages()
         self.messages.system_message(plugin_prompt + self.current_state)
         self.image_url: str | None = None
+        self.content = []
 
     def get_message_image(self, messages: Iterable):
         """获取用户发送的消息中的图片"""
@@ -43,18 +45,17 @@ class AddLeave:
 
     def add_message(self, messages: list[str | Image]):
         self.get_message_image(messages)
-        self.messages.user_message(
-            [
-                (
-                    Content(type="text", value=msg)
-                    if isinstance(msg, str)
-                    else Content(type="image", value=msg.url)  # type: ignore
-                )
-                for msg in messages
-            ]
+        self.content.extend(
+            (
+                Content(type="image", value=msg.url)  # type: ignore
+                if isinstance(msg, Image)
+                else Content(type="text", value=str(msg))
+            )
+            for msg in messages
         )
 
     async def send_message(self) -> Leave | None:
+        self.messages.user_message(content=self.content)
         chat = await client_create(messages=self.messages)
         if chat.choices[0].message.content:
             print(chat.choices[0].message.content)
@@ -100,11 +101,15 @@ class AddLeave:
         students = await Student.filter(
             classes_id=self.student.classes_id, role__in=notify_role
         ).all()
-        messages = UniMessage.text(
-            f"学生`{self.student.name}`提交了请假申请:\n" f"申请理由: {leave.reason}"
-        )
-        messages += UniMessage.image(path=leave_dir / leave.file.name)
-        await wait([push_user_message(student.user, messages) for student in students])
+        if students:
+            logger.info(f"通知班干部")
+            messages = UniMessage.text(
+                f"学生`{self.student.name}`提交了请假申请:\n" f"申请理由: {leave.reason}"
+            )
+            messages += UniMessage.image(path=leave_dir / leave.file.name)
+            await wait(
+                [push_user_message(student.user, messages) for student in students]
+            )
 
 
 class QueryLeave(BaseLeave):
@@ -157,11 +162,15 @@ class QueryLeave(BaseLeave):
         return self.user.teacher is not None
 
     def leave_to_messages(self, leave_list: list[StudentLeave]) -> list[UniMessage]:
-        today = datetime.now()
+        today = datetime.now().timestamp()
         # 已结束的请假申请
-        end_leave = [leave for leave in leave_list if leave.end_time < today]
+        end_leave = [
+            leave for leave in leave_list if leave.end_time.timestamp() < today
+        ]
         # 未结束的请假申请
-        not_end_leave = [leave for leave in leave_list if leave.end_time >= today]
+        not_end_leave = [
+            leave for leave in leave_list if leave.end_time.timestamp() >= today
+        ]
 
         messages = []
         if not_end_leave:
@@ -177,9 +186,9 @@ class QueryLeave(BaseLeave):
     @staticmethod
     def to_message(leave: StudentLeave):
         return UniMessage.text(
-            f"请假申请: [LID:{leave.id}]\n"
+            f"\n申请ID: {leave.id}\n"
             f"申请学生: [SID:{leave.student_id}] {leave.student.name}\n"
             f"所属班级: {leave.classes.name}\n"
-            f"请假时间: {leave.start_time} - {leave.end_time}\n"
+            f"请假时间:\n\t开始: {leave.start_time}\n\t结束: {leave.end_time}\n"
             f"请假理由: {leave.reason}"
         ) + UniMessage.image(path=leave.file.path)

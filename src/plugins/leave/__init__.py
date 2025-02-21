@@ -1,9 +1,10 @@
-from nonebot_plugin_alconna import Image, UniMsg, AlconnaMatcher, UniMessage
-
 from utils import Emoji
+from nonebot.adapters import Message
+from utils.params import ArgUniMessage
+from nonebot_plugin_alconna import Image, UniMessage, AlconnaMatcher
 
-from .commands import add_leave_cmd, query_leave_cmd, delete_leave_cmd
 from .depends import AddLeaveDepends, QueryLeaveDepends
+from .commands import add_leave_cmd, query_leave_cmd, delete_leave_cmd
 
 # --------------------------------- 添加请假 ---------------------------------
 
@@ -12,23 +13,30 @@ from .depends import AddLeaveDepends, QueryLeaveDepends
 async def _(
     matcher: AlconnaMatcher, leave_reason: list[str | Image], add_leave: AddLeaveDepends
 ):
+    print(leave_reason)
     add_leave.add_message(leave_reason)  # 将消息保存
     if add_leave.image_url:  # 查看用户消息是否有添加图片
         matcher.state["leave_image"] = UniMessage.image(url=add_leave.image_url)
 
 
-@add_leave_cmd.got(
-    "leave_image", prompt=Emoji.warning + "您还要发一张请假截图证明呢！"
-)  # 未添加则提示
-async def _(matcher: AlconnaMatcher, msg: UniMsg, add_leave: AddLeaveDepends):
-    add_leave.add_message(msg)  # 再次保存内容
+@add_leave_cmd.got("leave_image", prompt=Emoji.warning + "您还要发一张请假截图证明呢！")  # 未添加则提示
+async def _(
+    matcher: AlconnaMatcher,
+    add_leave: AddLeaveDepends,
+    leave_image: UniMessage = ArgUniMessage("leave_image"),
+):
+    print([i for i in leave_image])
+    add_leave.add_message([i for i in leave_image])  # 再次保存内容
     if not add_leave.image_url:  # 如果二次没有提交则退出程序
         await matcher.finish(Emoji.error + "未能拿到您的证明图片，请重试！")
 
     if leave := await add_leave.send_message():
-        student_leave = await add_leave.save_student_leave(leave)
-        await matcher.send(Emoji.success + leave.reply)
-        await add_leave.notice_leave(student_leave)
+        if leave.is_valid:
+            student_leave = await add_leave.save_student_leave(leave)
+            await matcher.send(Emoji.success + leave.reply)
+            await add_leave.notice_leave(student_leave)
+        else:
+            await matcher.finish(Emoji.error + leave.reply)
     else:
         await matcher.finish(Emoji.error + "请假提交失败！")
 
@@ -46,8 +54,8 @@ async def _(matcher: AlconnaMatcher, query_leave: QueryLeaveDepends):
     if leave_list:
         for msg in query_leave.leave_to_messages(leave_list):
             await matcher.send(msg)
-
-    await matcher.finish(Emoji.error + "您没有可查询请假条")
+    else:
+        await matcher.finish(Emoji.error + "您没有可查询请假条")
 
 
 # --------------------------------- 删除请假 ---------------------------------
