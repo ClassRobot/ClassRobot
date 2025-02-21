@@ -1,5 +1,4 @@
 from utils import Emoji
-from nonebot.adapters import Message
 from utils.params import ArgUniMessage
 from nonebot_plugin_alconna import Image, UniMessage, AlconnaMatcher
 

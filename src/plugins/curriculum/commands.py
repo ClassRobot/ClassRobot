@@ -1,6 +1,6 @@
 from utils import tip
 from utils.config import priority, comp_config
-from utils.helper import Param, Helper, ParamMode
+from utils.helper import Param, Helper, UserRole, ParamMode
 from nonebot_plugin_alconna import Args, Field, Alconna, MultiVar, on_alconna
 
 input_help = """具体输入格式如下:
@@ -89,6 +89,7 @@ __helpers__ = [
         params=[
             Param(name="课表内容", mode=ParamMode.ONE_OR_MORE),
         ],
+        roles={UserRole.user},
     ),
     Helper(
         command="删除课表",
@@ -96,9 +97,11 @@ __helpers__ = [
         params=[
             Param(name="课表ID", mode=ParamMode.ONE_OR_MORE),
         ],
+        roles={UserRole.user},
     ),
     Helper(
         command="查询课表",
         description="查询自己和自己相关的课表",
+        roles={UserRole.user},
     ),
 ]

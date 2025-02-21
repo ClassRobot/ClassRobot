@@ -1,6 +1,6 @@
 from utils import tip
 from utils.config import priority, comp_config
-from src.plugins.helper.schemas import Param, Helper
+from utils.helper import Param, Helper, UserRole
 from nonebot_plugin_alconna import Args, Field, Image, Alconna, MultiVar, on_alconna
 
 add_leave_cmd = on_alconna(
@@ -62,5 +62,23 @@ __helpers__ = [
         command="请假",
         description="请告诉我请假原因,时间等信息,同时还有请假条照片给我,一张图片即可!",
         params=[Param(name="请假原因"), Param(name="请假条照片")],
+        roles={UserRole.student},
+    ),
+    Helper(
+        command="查询请假",
+        description="查询自己发布的请假",
+        roles={UserRole.student, UserRole.teacher, UserRole.class_cadre},
+    ),
+    Helper(
+        command="设置请假推送",
+        description="设置请假推送给哪几个班干部",
+        params=[Param(name="推送给哪几个班干部")],
+        roles={UserRole.teacher},
+    ),
+    Helper(
+        command="删除请假",
+        description="删除自己发布的请假",
+        params=[Param(name="请假条ID")],
+        roles={UserRole.student, UserRole.teacher, UserRole.class_cadre},
     ),
 ]

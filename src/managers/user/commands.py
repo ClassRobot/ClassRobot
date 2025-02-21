@@ -1,7 +1,7 @@
 from nonebot import on_command
 from utils.config import priority
+from utils.helper import Helper, Context, UserRole
 from nonebot_plugin_alconna import Alconna, on_alconna
-from utils.helper import Helper, Context
 
 self_info_cmd = on_alconna(
     Alconna("我的信息"), aliases={"个人信息", "用户信息"}, priority=priority, block=True
@@ -22,6 +22,7 @@ __helpers__ = [
         command="我的信息",
         description="查看自己的信息,是否为教师或学生",
         aliases={"个人信息", "用户信息"},
+        roles={UserRole.user},
     ),
     Helper(
         command="绑定用户",
@@ -45,5 +46,6 @@ __helpers__ = [
                 content="此时用户B查询的用户信息实际上是用户A的信息",
             ),
         ],
+        roles={UserRole.user},
     ),
 ]

@@ -1,4 +1,4 @@
-from src.plugins.helper import helper_menu
+from utils.helper import Helpers
 
 head = """
 <classbot_thinking_protocol>
@@ -97,7 +97,7 @@ class AutoTaskList(BaseModel):
 """.strip()
 
 
-def get_prompt_system():
+def get_prompt_system(helpers: Helpers):
     bot_command = (
         prompt_system
         + f"""
@@ -112,11 +112,11 @@ def get_prompt_system():
 
 机器人所具备的命令(重点:不存在超出以下命令的其他命令):
 
-{helper_menu.to_string()}
+{helpers.to_string()}
 
 </classbot_command>
 """
     )
 
-    print("help len", helper_menu.to_string().__len__())
+    print("help len", helpers.to_string().__len__())
     return bot_command

@@ -50,7 +50,7 @@ class User(FilterModel, Model):
         "Bind", lazy="selectin", back_populates="user"
     )
     """一个用户可以绑定多个表"""
-    
+
     @property
     def roles(self) -> list[UserRole]:
         roles = [UserRole.user]
@@ -61,7 +61,11 @@ class User(FilterModel, Model):
         if self.teacher:
             roles.append(UserRole.teacher)
         # 是否为班干部
-        if self.student and self.student.role in StudentRole and self.student.role != StudentRole.student:
+        if (
+            self.student
+            and self.student.role in StudentRole._member_names_
+            and self.student.role != StudentRole.student
+        ):
             roles.append(UserRole.class_cadre)
         return roles
 

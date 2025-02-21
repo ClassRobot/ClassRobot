@@ -2,7 +2,7 @@ from utils import tip
 from utils.roles import StudentRoleLang
 from utils.config import priority, comp_config
 from utils.params.student import get_columns_chinese
-from utils.helper import Param, Helper, ParamMode
+from utils.helper import Param, Helper, UserRole, ParamMode
 from nonebot_plugin_alconna import Args, Field, Alconna, MultiVar, on_alconna
 
 set_cmd = on_alconna(
@@ -39,5 +39,6 @@ __helpers__ = [
                 description="修改方式如名字=张三 性别=男",
             ),
         ],
+        roles={UserRole.student},
     )
 ]

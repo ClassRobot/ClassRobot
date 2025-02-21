@@ -1,5 +1,6 @@
 from typing import Iterable, Generator
 
+from nonebot import logger
 from strenum import StrEnum
 from utils.roles import UserRole
 from utils.config import template_dir
@@ -118,7 +119,9 @@ class Helpers(BaseModel):
         """包含tag的helper"""
         helpers = Helpers()
         helpers.extend(
-            helper for helper in self.helpers if helper.tags.intersection(tags)
+            helper
+            for helper in self.helpers
+            if not helper or helper.tags.intersection(tags)
         )
         return helpers
 
@@ -126,7 +129,9 @@ class Helpers(BaseModel):
         """包含role的helper"""
         helpers = Helpers()
         helpers.extend(
-            helper for helper in self.helpers if helper.roles.intersection(roles)
+            helper
+            for helper in self.helpers
+            if not helper.roles or helper.roles.intersection(roles)
         )
         return helpers
 
@@ -145,6 +150,16 @@ class Helpers(BaseModel):
                     ),
                 )
             ]
+        if helper in self.helpers:
+            logger.warning(f"helper {helper.command} already exists")
+        else:
+            self.helpers.append(helper)
+        for command in helper.commands:
+            if command in self.helper_search:
+                # 命令别名重复
+                logger.warning(f"command {command} already exists")
+            else:
+                self.helper_search[command] = helper
 
     def __iter__(self) -> Generator[Helper, None, None]:
         yield from self.helpers
@@ -158,3 +173,6 @@ class Helpers(BaseModel):
             },
         )
         return html
+
+    def to_string(self):
+        return "\n".join(helper.overview() for helper in self.helpers)

@@ -1,16 +1,8 @@
 from utils.config import priority
-from nonebot import get_loaded_plugins, get_driver
-from nonebot_plugin_alconna import (
-    Args,
-    Alconna,
-    UniMessage,
-    AlconnaMatcher,
-    on_alconna,
-)
-
-from utils.models.depends import UserOrCreatedDepends
-
-from .schemas import helper_menu as helper_menu
+from utils.helper.config import helper_menu
+from utils.helper.depends import HelpersDepends
+from nonebot import get_driver, get_loaded_plugins
+from nonebot_plugin_alconna import Args, Alconna, UniMessage, AlconnaMatcher, on_alconna
 
 driver = get_driver()
 help_cmd = on_alconna(
@@ -23,11 +15,10 @@ help_cmd = on_alconna(
 
 @help_cmd.handle()
 async def _(
-    matcher: AlconnaMatcher,
     name: str | None,
-    user: UserOrCreatedDepends,
+    matcher: AlconnaMatcher,
+    helpers: HelpersDepends,
 ):
-    helpers = helper_menu.helpers.get_roles_helpers(*user.roles)
     if name:
         if helper := helpers.get_helper(name):
             await matcher.finish(helper.to_string())
@@ -36,12 +27,11 @@ async def _(
         await matcher.finish(UniMessage.image(raw=await helpers.render_pic()))
 
 
-
 @driver.on_startup
 async def _():
-    plugins = get_loaded_plugins()
-    
-    for plugin in plugins:
-        if helpers := getattr(plugin, "__helpers__", None):
-            helper_menu.extend(*helpers)
-
+    for plugin in get_loaded_plugins():
+        if helpers := getattr(plugin.module, "__helpers__", None):
+            helper_menu.extend(helpers)
+        elif cmd := getattr(plugin.module, "commands", None):
+            if helpers := getattr(cmd, "__helpers__", None):
+                helper_menu.extend(helpers)

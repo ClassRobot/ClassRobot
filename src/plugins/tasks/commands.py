@@ -1,6 +1,6 @@
 from utils.config import priority, comp_config
 from utils import ValidateName, tip, alias_product
-from utils.helper import Param, Helper, ParamMode
+from utils.helper import Param, Helper, UserRole, ParamMode
 from nonebot_plugin_alconna import (
     Args,
     File,
@@ -84,30 +84,35 @@ __helpers__ = [
         description="发布任务用于收集、清点、打包作业，支持上传文件、图片.\n使用方式: 提交任务 任务名称/ID [文件/图片]",
         aliases=push_task_alias,
         params=[Param(name="任务名称/ID"), Param(name="[文件]/[图片]")],
+        roles={UserRole.student},
     ),
     Helper(
         command="创建任务",
         description="创建新的任务(名称不能为纯数字)",
         aliases=create_task_alias,
         params=[Param(name="任务名称/ID")],
+        roles={UserRole.teacher, UserRole.student},
     ),
     Helper(
         command="删除任务",
         description="通过任务名称或ID删除指定任务",
         aliases=delete_task_alias,
         params=[Param(name="任务名称/ID")],
+        roles={UserRole.teacher, UserRole.student},
     ),
     Helper(
         command="导出任务",
         description="机器人会将用户提交的任务文件打包发送给用户",
         aliases=export_task_alias,
         params=[Param(name="任务名称/ID")],
+        roles={UserRole.teacher, UserRole.student},
     ),
     Helper(
         command="查询任务",
         description="通过任务ID或名称查询，当不携带名称时显示所有任务",
         aliases=query_task_alias,
         params=[Param(name="任务名称/ID", mode=ParamMode.OPTIONAL)],
+        roles={UserRole.teacher, UserRole.student},
     ),
 ]
 

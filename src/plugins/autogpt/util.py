@@ -1,10 +1,12 @@
 from time import time
 from typing import Annotated
 
+from utils.helper import Helpers
 from nonebot.params import Depends
 from utils.llm import client_create
 from utils.llm.schema import Messages
 from nonebot_plugin_alconna import UniMessage
+from utils.helper.depends import HelpersDepends
 from utils.models.depends import UserOrCreatedDepends
 from utils.llm.util import json_loads, uni_message_to_contents
 
@@ -14,12 +16,12 @@ from .schemas import ChatMessage, AutoTaskList
 
 
 class ChatSession:
-    def __init__(self, user_id: int) -> None:
+    def __init__(self, user_id: int, helpers: Helpers) -> None:
         self.update_time = time()
         self.user_id = user_id
         self.lock = False  # 聊天锁，防止一轮聊天还没结束又开始新的聊天
         self.messages = Messages()
-        self.messages.system_message(content=get_prompt_system())
+        self.messages.system_message(content=get_prompt_system(helpers))
 
     async def send_message(self, message: str | UniMessage | ChatMessage):
         if self.lock:
@@ -64,20 +66,22 @@ class ChatSessionManager:
             if current_time - session.update_time > self.timeout:
                 del self.sessions[session.user_id]
 
-    def get_chat_session(self, user_id: int) -> ChatSession:
+    def get_chat_session(self, user_id: int, helpers: Helpers) -> ChatSession:
         # 检查是否有过期的session
         self.check_timeout()
 
         if session := self.sessions.get(user_id):
             session.update_time = time()
             return session
-        session = ChatSession(user_id)
+        session = ChatSession(user_id, helpers)
         self.sessions[user_id] = session
         return session
 
 
-async def get_chat_session(user: UserOrCreatedDepends) -> ChatSession:
-    return chat_session_manager.get_chat_session(user.id)
+async def get_chat_session(
+    user: UserOrCreatedDepends, helpers: HelpersDepends
+) -> ChatSession:
+    return chat_session_manager.get_chat_session(user.id, helpers)
 
 
 ChatSessionDepends = Annotated[ChatSession, Depends(get_chat_session)]

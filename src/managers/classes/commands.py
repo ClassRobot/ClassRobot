@@ -2,7 +2,7 @@ from typing import Optional
 
 from utils import ValidateName, tip
 from utils.config import priority, comp_config
-from utils.helper import Param, Helper, ParamMode
+from utils.helper import Param, Helper, UserRole, ParamMode
 from nonebot_plugin_alconna import Args, Field, Alconna, on_alconna
 
 add_classes_cmd = on_alconna(
@@ -66,15 +66,18 @@ __helpers__ = [
         description="创建一个自己的班级，创建后默认会成为该班级教师，同时也可以将已有班级与群进行绑定，一条命令只能创建一个班级！",
         aliases={"创建班级", "绑定班级"},
         params=[Param(name="班级名称")],
+        roles={UserRole.user},
     ),
     Helper(
         command="查询班级",
         description="查询自己创建的班级",
         aliases={"班级列表", "我的班级"},
+        roles={UserRole.teacher},
     ),
     Helper(
         command="加入班级",
         description="可通过班级ID加入到指定班级中，如果在群聊中执行该命令且不携带班级ID的情况下会自动绑定该群到指定班级",
         params=[Param(name="班级ID", mode=ParamMode.OPTIONAL)],
+        roles={UserRole.user},
     ),
 ]
