@@ -10,7 +10,12 @@ from nonebot.params import ArgPlainText, EventPlainText
 from nonebot_plugin_alconna import UniMessage, AlconnaMatcher
 from utils.models.depends import UserDepends, UserOrCreatedDepends
 
-from .commands import token_cmd, bind_user_cmd, self_info_cmd
+from .commands import (
+    token_cmd,
+    bind_user_cmd,
+    self_info_cmd,
+    # __helpers__ as __helpers__,
+)
 
 
 @self_info_cmd.handle()
@@ -65,7 +70,9 @@ async def _(matcher: AlconnaMatcher, user: UserOrCreatedDepends):
     token = str(uuid4())
     await cache.set(token, user.id, ex=300)
     await matcher.finish(
-        UniMessage((f"需要绑定平台请在5分钟内将下方内容粘贴到指定平台发送:\n" f"token={token}"))
+        UniMessage(
+            (f"需要绑定平台请在5分钟内将下方内容粘贴到指定平台发送:\n" f"token={token}")
+        )
     )
 
 
@@ -90,7 +97,9 @@ async def _(
     if user is None:
         matcher.state["confirm"] = UniMessage("yes")
     else:
-        await matcher.send(f"您已经在该平台绑定过[{user.id}:{user.username}]的账号，是否要重新绑定？(yes/no)")
+        await matcher.send(
+            f"您已经在该平台绑定过[{user.id}:{user.username}]的账号，是否要重新绑定？(yes/no)"
+        )
 
 
 @token_cmd.got("confirm")

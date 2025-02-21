@@ -2,7 +2,7 @@ from utils import tip
 from utils.roles import StudentRoleLang
 from utils.config import priority, comp_config
 from utils.params.student import get_columns_chinese
-from src.plugins.helper.schemas import Param, Helper, ParamMode
+from utils.helper import Param, Helper, ParamMode
 from nonebot_plugin_alconna import Args, Field, Alconna, MultiVar, on_alconna
 
 set_cmd = on_alconna(
@@ -26,7 +26,7 @@ set_cmd = on_alconna(
 )
 
 
-__helper__ = [
+__helpers__ = [
     Helper(
         command="修改学生信息",
         description=f"修改方式如名字=张三 性别=男\n可以修改的内容:\n {', '.join(get_columns_chinese(['user_id']).values())}\n其中班干部包括:\n"

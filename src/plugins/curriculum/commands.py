@@ -1,6 +1,6 @@
 from utils import tip
 from utils.config import priority, comp_config
-from src.plugins.helper.schemas import Param, Helper, ParamMode
+from utils.helper import Param, Helper, ParamMode
 from nonebot_plugin_alconna import Args, Field, Alconna, MultiVar, on_alconna
 
 input_help = """具体输入格式如下:
@@ -82,7 +82,7 @@ set_week_cmd = on_alconna(
     comp_config=comp_config,
 )
 
-__helper__ = [
+__helpers__ = [
     Helper(
         command="添加课表",
         description="添加学生自己的的课表,一条命令只能写入一次课表,如果机器人要加两次课表请分开两次命令执行." + input_help,

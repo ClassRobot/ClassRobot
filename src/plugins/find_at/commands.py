@@ -1,5 +1,5 @@
 from utils.config import priority
-from src.plugins.helper.schemas import Param, Helper, ParamMode
+from utils.helper import Param, Helper, ParamMode
 from nonebot_plugin_alconna import Args, Alconna, MultiVar, on_alconna
 
 from .util import columns_chinese
