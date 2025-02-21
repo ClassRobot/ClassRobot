@@ -2,7 +2,7 @@ from typing import Optional
 
 from utils import ValidateName, tip
 from utils.config import priority, comp_config
-from src.plugins.helper.schemas import Param, Helper, ParamMode
+from utils.helper import Param, Helper, ParamMode
 from nonebot_plugin_alconna import Args, Field, Alconna, on_alconna
 
 add_classes_cmd = on_alconna(
@@ -60,7 +60,7 @@ exit_classes_cmd = on_alconna(
     block=True,
 )
 
-__helper__ = [
+__helpers__ = [
     Helper(
         command="添加班级",
         description="创建一个自己的班级，创建后默认会成为该班级教师，同时也可以将已有班级与群进行绑定，一条命令只能创建一个班级！",

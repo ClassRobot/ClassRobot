@@ -1,7 +1,7 @@
 from nonebot import on_command
 from utils.config import priority
 from nonebot_plugin_alconna import Alconna, on_alconna
-from src.plugins.helper.schemas import Helper, Context
+from utils.helper import Helper, Context
 
 self_info_cmd = on_alconna(
     Alconna("我的信息"), aliases={"个人信息", "用户信息"}, priority=priority, block=True
@@ -17,7 +17,7 @@ bind_user_cmd = on_alconna(
 token_cmd = on_command("token", priority=priority, block=True)
 
 
-__helper__ = [
+__helpers__ = [
     Helper(
         command="我的信息",
         description="查看自己的信息,是否为教师或学生",

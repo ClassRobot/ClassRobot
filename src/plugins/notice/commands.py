@@ -1,6 +1,6 @@
 from nonebot import on_command
 from utils.config import priority, comp_config
-from src.plugins.helper.schemas import Param, Helper
+from utils.helper import Param, Helper
 from nonebot_plugin_alconna import Args, Field, Alconna, MultiVar, on_alconna
 
 notice_cmd = on_command(

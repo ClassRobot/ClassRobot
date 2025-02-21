@@ -8,6 +8,12 @@ class UserRole(StrEnum):
     """普通用户"""
     admin = "admin"
     """管理员"""
+    student = "student"
+    """学生"""
+    teacher = "teacher"
+    """教师"""
+    class_cadre = "class_cadre"
+    """班干部"""
 
 
 class UserRoleLang(StrEnum):
