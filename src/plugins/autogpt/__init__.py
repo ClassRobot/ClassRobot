@@ -1,16 +1,19 @@
 from utils import Emoji
 from nonebot.rule import to_me
+from utils.helper import Helper
+from utils.roles import UserRole
 from utils.config import priority
 from nonebot.matcher import Matcher
-from nonebot import logger, on_message
 from nonebot.adapters import Bot, Event
 from nonebot.message import handle_event
+from nonebot import logger, on_command, on_message
 from nonebot_plugin_alconna import Target, UniMsg, MsgTarget, UniMessage, SupportScope
 
 from .util import ChatSessionDepends
 from .schemas import AutoTask, AutoTaskList
 
 auto_gpt = on_message(priority=priority * 10, block=True, rule=to_me())
+clear_chat = on_command("清空聊天", priority=priority, block=True)
 
 
 def update_message(task: AutoTask, target: Target):
@@ -24,6 +27,15 @@ def update_message(task: AutoTask, target: Target):
         return message.export_sync(adapter=target.adapter)
 
     return _get_message
+
+
+@clear_chat.handle()
+async def _(
+    matcher: Matcher,
+    chat_session: ChatSessionDepends,
+):
+    chat_session.clear()
+    await matcher.finish("已清空聊天记录")
 
 
 @auto_gpt.handle()
@@ -52,5 +64,17 @@ async def _(
             await matcher.send(auto_task.reply.replace(".", "⋅"))
         if not auto_task.need_confirm:
             for auto_task in auto_task.tasks:
-                event.get_message = update_message(auto_task, target)  # type: ignore
-                await handle_event(bot, event)
+                if chat_session.helpers.get_helper(auto_task.command):
+                    event.get_message = update_message(auto_task, target)  # type: ignore
+                    await handle_event(bot, event)
+                else:
+                    await matcher.send(Emoji.error + f"无法调用`{auto_task.command}`命令")
+
+
+__helpers__ = [
+    Helper(
+        command="清空聊天",
+        description="清空机器人于用户的聊天内容",
+        roles={UserRole.user},
+    )
+]

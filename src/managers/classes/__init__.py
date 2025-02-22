@@ -114,6 +114,10 @@ async def _(
 
     if (classes := matcher.state.get("classes")) is None:
         await matcher.finish("❌️[异常]未找到班级！！")
+    elif user.teacher is not None and user.teacher.id in [
+        tid.id for tid in classes.teacher
+    ]:
+        await matcher.finish("❌️您是班级的教师，无法加入该班级！！")
 
     match classes.join_method:
         case JoinMethod.direct:

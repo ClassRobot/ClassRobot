@@ -4,8 +4,8 @@ from nonebot import logger
 from openai import NOT_GIVEN, APIError, NotGiven, AsyncOpenAI
 
 from .schema import Messages
+from .config import plugin_config
 from .excepions import LLMRequestException
-from .config import LLMConfig, plugin_config
 from .typings import ChatCompletion, ChatCompletionToolParam, ChatCompletionMessageParam
 
 clients: dict[str, AsyncOpenAI] = {}
@@ -68,6 +68,7 @@ async def client_create(
                         model=llm_config.model,
                         timeout=plugin_config.llm_timeout,
                     )
+                raise e
         except APIError as e:
             logger.opt(colors=True).error(f'LLM "<y>{llm_config.name}</y>" error {e}')
             continue

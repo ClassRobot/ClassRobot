@@ -1,5 +1,6 @@
 from utils.roles import UserRole
 
+from .config import helper_menu
 from .schemes import Helper as Helper
 from .schemes import Context as Context
 from .schemes import Helpers as Helpers
@@ -13,4 +14,5 @@ __all__ = [
     "Context",
     "UserRole",
     "ParamMode",
+    "helper_menu",
 ]

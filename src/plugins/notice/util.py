@@ -62,7 +62,7 @@ async def notice_work(notice: Notice, creator: User | None = None):
 
 
 class NoticeSession:
-    functions: list[ChatCompletionToolParam] = [
+    functools: list[ChatCompletionToolParam] = [
         {
             "type": "function",
             "function": {
@@ -96,7 +96,7 @@ class NoticeSession:
     async def call(self, message: UniMessage) -> Notices | None:
         try:
             self.messages.user_message(uni_message_to_contents(message))
-            response = await client_create(self.messages, tools=self.functions)
+            response = await client_create(self.messages, tools=self.functools)
             content = response.choices[0].message.content
             if response.choices[0].message.tool_calls:
                 self.messages.add_tool(response.choices[0].message)
