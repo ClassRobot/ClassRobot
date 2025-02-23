@@ -5,7 +5,7 @@ from utils.models import Student
 from utils.params.student import columns
 
 default_display_columns = [
-    "student_id",
+    "user_id",
     "student_code",
     "name",
     "role",
@@ -18,7 +18,7 @@ columns_chinese = {key: values[0] for key, values in columns.items() if key not 
 
 def get_display_columns(items: list[str]) -> list[str]:
     """获取要显示的列"""
-    display_columns = ["student_id", "student_code", "name", "classes"]
+    display_columns = ["user_id", "student_code", "name", "classes"]
     length = len(display_columns)
     for item in items:
         for key, values in columns.items():
@@ -34,7 +34,7 @@ def student_to_dict(student: Student) -> dict:
     data = {
         "name": student.name,
         "role": student.role,
-        "student_id": student.id,
+        "user_id": student.user.id,
         "phone": student.user.phone,
         "email": student.user.email,
         "classes": student.classes.name,

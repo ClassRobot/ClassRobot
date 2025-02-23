@@ -11,7 +11,7 @@ from utils.send import push_user_message, push_group_message
 from utils.llm.util import json_loads, contents_to_uni_message, uni_message_to_contents
 
 from .prompt import prompt
-from .schema import Notice, Notices
+from .schema import Notice, Notices, NoticeGroup, NoticePrivate
 
 
 def classes_to_df(classes: list[Classes]) -> DataFrame:
@@ -92,6 +92,8 @@ class NoticeSession:
         self.messages.system_message(
             prompt + f"\n当前时间: {datetime.now()}\n当前用户ID: {user.id}"
         )
+        self.user_ids = [self.user.id]
+        self.group_ids = []
 
     async def call(self, message: UniMessage) -> Notices | None:
         try:
@@ -120,11 +122,26 @@ class NoticeSession:
             if content:
                 print(content)
                 notices = Notices.parse_obj(json_loads(content))
+                self.filter_notices(notices)
                 self.messages.assistant_message(notices.json(ensure_ascii=False))
                 return notices
         except Exception as e:
             logger.exception(e)
             return None
+
+    def filter_notices(self, notices: Notices) -> Notices:
+        """过滤掉于用户本身无关联的用户"""
+        for notice in notices.notices.copy():
+            for obj in notice.recipients.copy():
+                if isinstance(obj, NoticeGroup):
+                    if obj.group_id not in self.group_ids:
+                        notice.recipients.remove(obj)
+                elif isinstance(obj, NoticePrivate):
+                    if obj.user_id not in self.user_ids:
+                        notice.recipients.remove(obj)
+            if not notice.recipients:
+                notices.remove(notice)
+        return notices
 
     async def get_self_id(self) -> str:
         return f"user_id: {self.user.id}"
@@ -135,7 +152,9 @@ class NoticeSession:
             students += await self.user.student.get_classmates()
         if self.user.teacher:
             students += await self.user.teacher.get_students()
-        return students_to_df(students).drop_duplicates().to_markdown()
+        students_df = students_to_df(students).drop_duplicates()
+        self.user_ids = students_df["user_id"].tolist() + [self.user.id]
+        return students_df.to_json(orient="records", force_ascii=False)
 
     async def get_classes(self):
         classes = []
@@ -143,4 +162,6 @@ class NoticeSession:
             classes.append(self.user.student.classes)
         if self.user.teacher:
             classes += self.user.teacher.classes
-        return classes_to_df(classes).drop_duplicates().to_markdown()
+        classes_df = classes_to_df(classes).drop_duplicates()
+        self.group_ids = classes_df["group_id"].tolist()
+        return classes_df.to_json(orient="records", force_ascii=False)
