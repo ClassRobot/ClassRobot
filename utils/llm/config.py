@@ -8,6 +8,9 @@ class LLMConfig(BaseModel, extra=Extra.ignore):
     url: str
     model: str
     multi_modal: bool = False
+    """是否支持多模态"""
+    supports_functools: bool = False
+    """是否支持functools"""
 
 
 class AutoGPTConfig(BaseModel, extra=Extra.ignore):

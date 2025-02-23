@@ -59,7 +59,7 @@ class ChatSession:
                     ","
                 )
                 self.messages.tool_message(tool.id, self.get_command_help(args))
-        return await client_create(self.messages, self.functools)
+        return await client_create(self.messages)
 
     def get_command_help(self, commands: list[str]):
         helpers_string = ""
@@ -78,7 +78,7 @@ class ChatSession:
                 if isinstance(message, ChatMessage)
                 else uni_message_to_contents(message)
             )
-            response = await client_create(self.messages, tools=self.functools)
+            response = await client_create(self.messages)
             if response.choices[0].message.tool_calls:
                 self.messages.add_tool(response.choices[0].message)
                 response = await self.call_tools(response.choices[0].message.tool_calls)

@@ -96,7 +96,7 @@ class NoticeSession:
     async def call(self, message: UniMessage) -> Notices | None:
         try:
             self.messages.user_message(uni_message_to_contents(message))
-            response = await client_create(self.messages, tools=self.functools)
+            response = await client_create(self.messages, functools=self.functools)
             content = response.choices[0].message.content
             if response.choices[0].message.tool_calls:
                 self.messages.add_tool(response.choices[0].message)

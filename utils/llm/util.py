@@ -68,7 +68,7 @@ def json_loads(content: str) -> dict:
     except json.decoder.JSONDecodeError as error:
         contents = content[content.find("{") :].split("}")
         for index in range(len(contents), 0, -1):
-            content = "}".join(contents[: index + 1]).strip() + "}"
+            content = "}".join(contents[:index]).strip() + "}"
             if not content:
                 continue
             try:

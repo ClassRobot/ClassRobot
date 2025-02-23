@@ -23,19 +23,55 @@ for llm_config in plugin_config.llm_configs:
 
 async def client_create(
     messages: list[ChatCompletionMessageParam] | Messages,
-    tools: list[ChatCompletionToolParam] | NotGiven | None = None,
+    functools: list[ChatCompletionToolParam] | NotGiven | None = None,
     llm_name: str | None = None,
+    multi_modal: bool | None = None,
+    max_tokens: int = 1000,
 ) -> ChatCompletion:
-    if tools is None:
-        tools = NOT_GIVEN
+    """Create LLM client
+
+    Args:
+        messages (list[ChatCompletionMessageParam] | Messages): 发送的消息
+        functools (list[ChatCompletionToolParam] | NotGiven | None, optional): 函数工具. Defaults to None.
+        llm_name (str | None, optional): 指定特定的模型，不填写则动态切换
+        multi_modal (bool | None, optional): 是否多模态消息. `None`表示动态切换,`True`表示多模态消息,`False`表示单模态消息. Defaults to None.
+    """
+    if functools is None:
+        functools = NOT_GIVEN
+
     for llm_config in plugin_config.llm_configs:
-        if llm_name and llm_name != llm_config.name:
+        # 如果在指定了llm_name的情况下
+        if llm_name:
+            if llm_name != llm_config.name:
+                continue
+            # 查看是否传了functools,如果传了则判断是否支持函数调用，不支持则报错
+            elif functools is not NOT_GIVEN and not llm_config.supports_functools:
+                raise LLMRequestException(
+                    f'LLM "<y>{llm_config.name}</y>" not support functools'
+                )
+            # 判断是否启用了多模态，如果启用了但不支持则报错
+            elif multi_modal is True and not llm_config.multi_modal:
+                raise LLMRequestException(
+                    f'LLM "<y>{llm_config.name}</y>" not support multi_modal'
+                )
+
+        # 如果没有指定llm_name则动态切换
+
+        # 判断是否传了functools,如果传了则判断是否支持函数调用，不支持则跳过
+        if functools is not NOT_GIVEN and not llm_config.supports_functools:
             continue
+
+        # 判断是否启用了多模态，如果启用了但不支持则跳过
+        if multi_modal is True and not llm_config.multi_modal:
+            continue
+
         if isinstance(messages, Messages):
-            if messages.text_only():
-                messages = messages.build_messages()
+            # 如果要求只使用单模态，或者消息只有文本
+            if multi_modal is False or messages.text_only():
+                messages = await messages.build_messages()
+            # 如果支持多模态
             elif llm_config.multi_modal:
-                messages = messages.build_messages(True)
+                messages = await messages.build_messages(True)
             else:
                 continue
             pprint(messages[1:])
@@ -43,32 +79,14 @@ async def client_create(
             logger.opt(colors=True).info(
                 f'LLM "<y>{llm_config.name}</y>" request messages'
             )
-            try:
-                return await clients[llm_config.name].chat.completions.create(
-                    tools=tools,
-                    stream=False,
-                    max_tokens=2000,
-                    messages=messages,
-                    model=llm_config.model,
-                    timeout=plugin_config.llm_timeout,
-                    response_format={"type": "json_object"},
-                )
-            except APIError as e:
-                if isinstance(e.body, dict) and (
-                    str(e.body.get("code", "")) == str(20024)
-                ):
-                    logger.opt(colors=True).warning(
-                        f'Reload LLM "<y>{llm_config.name}</y>" error {e}'
-                    )
-                    return await clients[llm_config.name].chat.completions.create(
-                        tools=tools,
-                        stream=False,
-                        max_tokens=2000,
-                        messages=messages,
-                        model=llm_config.model,
-                        timeout=plugin_config.llm_timeout,
-                    )
-                raise e
+            return await clients[llm_config.name].chat.completions.create(
+                stream=False,
+                tools=functools,
+                messages=messages,
+                max_tokens=max_tokens,
+                model=llm_config.model,
+                timeout=plugin_config.llm_timeout,
+            )
         except APIError as e:
             logger.opt(colors=True).error(f'LLM "<y>{llm_config.name}</y>" error {e}')
             continue

@@ -54,8 +54,8 @@ async def _(
     try:
         auto_task = await chat_session.send_message(message)
     except Exception as e:
+        logger.exception(e)
         await matcher.finish(Emoji.error + "消息理解失败了, 请重新发送")
-        logger.error(e)
     if isinstance(auto_task, AutoTaskList):
         if auto_task.is_violation:
             await matcher.finish(auto_task.reply)

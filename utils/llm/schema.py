@@ -32,11 +32,10 @@ class Context(BaseModel):
     priority: int = 10
     created_at: datetime = Field(default_factory=datetime.now)
 
-    def multi_modal(self) -> ContentType:
+    async def multi_modal(self) -> ContentType:
         """多模态消息"""
         if isinstance(self.content, str):
             return self.content
-
         data = []
         for msg in self.content:
             if msg.type == "image":
@@ -93,9 +92,17 @@ class Context(BaseModel):
 class Messages(BaseModel):
     messages: list[Context | ChatCompletionMessage] = []
 
-    def build_messages(
+    async def build_messages(
         self, is_multi_modal: bool = False
     ) -> list[ChatCompletionMessageParam]:
+        """打包消息
+
+        Args:
+            is_multi_modal (bool, optional): 是否多模态消息. Defaults to False.
+
+        Returns:
+            list[ChatCompletionMessageParam]: 消息列表
+        """
         messages = []
         msg_len = len(self.messages)
         for i, ctx in enumerate(self.messages):
@@ -104,7 +111,7 @@ class Messages(BaseModel):
                 msg_dict = ctx.dict()
                 msg_dict["content"] = ctx.single_modal()
                 if i == msg_len - 1 and is_multi_modal:  # 最后一条消息
-                    msg_dict["content"] = ctx.multi_modal()
+                    msg_dict["content"] = await ctx.multi_modal()
             messages.append(msg_dict or ctx)
         return messages
 
