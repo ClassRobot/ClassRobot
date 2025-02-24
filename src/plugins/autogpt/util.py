@@ -86,14 +86,18 @@ class ChatSession:
             content = response.choices[0].message.content  # type: ignore
             if content:
                 print(content)
-                auto_tasks = AutoTaskList.parse_obj(json_loads(content))
-
+                contents = content.split("<hr/>")
+                task_data = contents[-1].strip()
+                auto_tasks = AutoTaskList.parse_obj(json_loads(task_data))
+                auto_tasks.reply = "\n".join(contents[:-1]).strip()
                 if auto_tasks.is_violation:
                     auto_tasks.reply = "用户发送的消息包含违规内容，已被屏蔽！"
 
                 if auto_tasks.reply:
                     self.messages.assistant_message(
-                        auto_tasks.json(ensure_ascii=False),
+                        auto_tasks.reply
+                        + "\n<hr/>\n"
+                        + auto_tasks.json(exclude={"reply"}, ensure_ascii=False),
                     )
                 return auto_tasks
             return content

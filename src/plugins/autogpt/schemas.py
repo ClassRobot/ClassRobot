@@ -29,7 +29,7 @@ class AutoTaskList(BaseModel):
 
     tasks: list[AutoTask] = []
     "自动任务列表，如果存在的话，回复用户内容后会开始执行tasks中的任务"
-    need_confirm: bool = True
+    need_confirm: bool = False
     "`True`表示必须要询问用户是否要执行，但机器人如果非常确定用户的意图则可以不需要用户确认"
     reply: str | None = None
     "回复给用户的消息，如果`tasks`里面有任务的话则告知用户机器人接下来会帮助用户做什么，如果`need_confirm`为`True`则必须要询问用户是否要执行，具体情况由机器人自己去分析用户意图。"
