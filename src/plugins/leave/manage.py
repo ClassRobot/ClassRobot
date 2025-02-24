@@ -187,7 +187,7 @@ class QueryLeave(BaseLeave):
     def to_message(leave: StudentLeave):
         return UniMessage.text(
             f"\n申请ID: {leave.id}\n"
-            f"申请学生: [SID:{leave.student_id}] {leave.student.name}\n"
+            f"申请学生: [UID:{leave.student.user.id}] {leave.student.name}\n"
             f"所属班级: {leave.classes.name}\n"
             f"请假时间:\n\t开始: {leave.start_time}\n\t结束: {leave.end_time}\n"
             f"请假理由: {leave.reason}"

@@ -54,7 +54,7 @@ del_curriculum = on_alconna(
     comp_config=comp_config,
 )
 query_curriculum = on_alconna(
-    Alconna("查询课表"),
+    Alconna("查询课表", "查看课表"),
     block=True,
     priority=priority,
 )
@@ -63,7 +63,7 @@ share_curriculum = on_alconna(
         "分享课表",
         Args["share_id?", str | None],
     ),
-    aliases={"分享课程表", "分享课程"},
+    aliases={"分享课程表", "分享课程", "共享课程", "共享课程表"},
     block=True,
     priority=priority,
     skip_for_unmatch=False,
