@@ -88,8 +88,11 @@ class ChatSession:
                 print(content)
                 contents = content.split("<hr/>")
                 task_data = contents[-1].strip()
-                auto_tasks = AutoTaskList.parse_obj(json_loads(task_data))
-                auto_tasks.reply = "\n".join(contents[:-1]).strip()
+                try:
+                    auto_tasks = AutoTaskList.parse_obj(json_loads(task_data))
+                except json.JSONDecodeError:
+                    auto_tasks = AutoTaskList()
+                auto_tasks.reply = "<hr/>".join(contents[:-1]).strip()
                 if auto_tasks.is_violation:
                     auto_tasks.reply = "用户发送的消息包含违规内容，已被屏蔽！"
 
