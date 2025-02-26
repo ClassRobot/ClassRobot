@@ -7,6 +7,7 @@ from nonebot.matcher import Matcher
 from nonebot.adapters import Bot, Event
 from nonebot.message import handle_event
 from nonebot import logger, on_command, on_message
+from nonebot.adapters.qq.exception import ActionFailed
 from nonebot_plugin_alconna import Target, UniMsg, MsgTarget, UniMessage, SupportScope
 
 from .util import ChatSessionDepends
@@ -61,7 +62,11 @@ async def _(
             await matcher.finish(auto_task.reply)
 
         if auto_task.reply:
-            await matcher.send(auto_task.reply.replace(".", "⋅"))
+            try:
+                await matcher.send(auto_task.reply.replace(".", "⋅"))
+            except ActionFailed as e:
+                logger.exception(e)
+                await matcher.finish(Emoji.error + (e.message or str(e.status_code)))
         if not auto_task.need_confirm:
             for auto_task in auto_task.tasks:
                 if chat_session.helpers.get_helper(auto_task.command):

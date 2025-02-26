@@ -54,7 +54,8 @@ del_curriculum = on_alconna(
     comp_config=comp_config,
 )
 query_curriculum = on_alconna(
-    Alconna("查询课表", "查看课表"),
+    Alconna("查询课表"),
+    aliases={"查看课表"},
     block=True,
     priority=priority,
 )
