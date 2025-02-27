@@ -24,9 +24,11 @@ for llm_config in plugin_config.llm_configs:
 async def client_create(
     messages: list[ChatCompletionMessageParam] | Messages,
     functools: list[ChatCompletionToolParam] | NotGiven | None = None,
+    *,
+    max_tokens: int = 1000,
     llm_name: str | None = None,
     multi_modal: bool | None = None,
-    max_tokens: int = 1000,
+    temperature: float | NotGiven | None = None,
 ) -> ChatCompletion:
     """Create LLM client
 
@@ -38,6 +40,8 @@ async def client_create(
     """
     if functools is None:
         functools = NOT_GIVEN
+    if temperature is None:
+        temperature = NOT_GIVEN
 
     for llm_config in plugin_config.llm_configs:
         # 如果在指定了llm_name的情况下
@@ -85,6 +89,7 @@ async def client_create(
                 messages=messages,
                 max_tokens=max_tokens,
                 model=llm_config.model,
+                temperature=temperature,
                 timeout=plugin_config.llm_timeout,
             )
         except APIError as e:
