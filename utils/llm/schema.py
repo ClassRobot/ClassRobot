@@ -19,7 +19,7 @@ class Content(BaseModel):
     value: str
 
     def __len__(self):
-        return len(self.value.encode("utf-8"))
+        return len(self.value)
 
 
 ContentType: TypeAlias = str | list[Content]
