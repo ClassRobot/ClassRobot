@@ -20,16 +20,14 @@ clear_chat = on_command("清空聊天", priority=priority, block=True)
 
 
 def update_message(task: AutoTask, target: Target) -> Callable[[], Message]:
-    def _get_message() -> Message:
-        message = UniMessage.text(task.command)
-        for param in task.params:
-            if param.type == "text":
-                message += UniMessage.text(" " + param.value)
-            elif param.type == "image":
-                message += UniMessage.image(param.value)
-        return message.export_sync(adapter=target.adapter)
-
-    return _get_message
+    message = UniMessage.text(task.command)
+    for param in task.params:
+        if param.type == "text":
+            message += UniMessage.text(" " + param.value)
+        elif param.type == "image":
+            message += UniMessage.image(url=param.value)
+    msg = message.export_sync(adapter=target.adapter)
+    return lambda: msg
 
 
 @clear_chat.handle()
