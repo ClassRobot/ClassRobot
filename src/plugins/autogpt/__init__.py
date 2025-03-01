@@ -1,11 +1,13 @@
+from typing import Callable
+
 from utils import Emoji
 from nonebot.rule import to_me
 from utils.helper import Helper
 from utils.roles import UserRole
 from utils.config import priority
 from nonebot.matcher import Matcher
-from nonebot.adapters import Bot, Event
 from nonebot.message import handle_event
+from nonebot.adapters import Bot, Event, Message
 from nonebot import logger, on_command, on_message
 from nonebot.adapters.qq.exception import ActionFailed
 from nonebot_plugin_alconna import Target, UniMsg, MsgTarget, UniMessage, SupportScope
@@ -17,8 +19,8 @@ auto_gpt = on_message(priority=priority * 10, block=True, rule=to_me())
 clear_chat = on_command("清空聊天", priority=priority, block=True)
 
 
-def update_message(task: AutoTask, target: Target):
-    def _get_message():
+def update_message(task: AutoTask, target: Target) -> Callable[[], Message]:
+    def _get_message() -> Message:
         message = UniMessage.text(task.command)
         for param in task.params:
             if param.type == "text":
@@ -70,8 +72,9 @@ async def _(
         if not auto_task.need_confirm:
             for auto_task in auto_task.tasks:
                 if chat_session.helpers.get_helper(auto_task.command):
-                    event.get_message = update_message(auto_task, target)  # type: ignore
-                    await handle_event(bot, event)
+                    new_event = event.copy()
+                    new_event.get_message = update_message(auto_task, target)
+                    await handle_event(bot, new_event)
                 else:
                     await matcher.send(Emoji.error + f"无法调用`{auto_task.command}`命令")
 
