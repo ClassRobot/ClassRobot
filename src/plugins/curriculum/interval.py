@@ -20,25 +20,22 @@ async def daily_task():
 
 @scheduler.scheduled_job("cron", hour=7, minute=0)
 async def _():
-    configs = await CurriculumConfig.filter().all()
-    if not configs:
+    if not (configs := await CurriculumConfig.filter().all()):
         return
 
     for config in configs:
-        if config.is_notify:
-            if config.user:
-                query = QueryCurriculum(config.user)
-                await push_user_message(
-                    config.user, UniMessage.image(raw=await query.render_pic())
-                )
-            elif config.classes and (
-                cc := await config.classes.get_curriculum_config()
-            ):
-                await push_group_message(
-                    config.classes.group,
-                    UniMessage.image(
-                        raw=await QueryCurriculum.render_pic_by_curriculums(
-                            cc.curriculums
-                        )
-                    ),
-                )
+        if not config.is_notify:
+            continue
+
+        if config.user:
+            query = QueryCurriculum(config.user)
+            await push_user_message(
+                config.user, UniMessage.image(raw=await query.render_pic())
+            )
+        elif config.classes and (cc := await config.classes.get_curriculum_config()):
+            await push_group_message(
+                config.classes.group,
+                UniMessage.image(
+                    raw=await QueryCurriculum.render_pic_by_curriculums(cc.curriculums)
+                ),
+            )
