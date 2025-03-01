@@ -1,5 +1,6 @@
 import re
 import json
+from typing import Iterable
 
 from nonebot import logger
 from nonebot_plugin_alconna import Text, Image, Reply, UniMessage
@@ -7,15 +8,20 @@ from nonebot_plugin_alconna import Text, Image, Reply, UniMessage
 from .schema import Content
 
 
-def uni_message_to_contents(messages: UniMessage | str) -> list[Content]:
-    messages = messages.replace("<reference_message>", "").replace(
-        "</reference_message>", ""
-    )
+def uni_message_to_contents(
+    messages: Iterable[str | Image | Text] | UniMessage | str,
+) -> list[Content]:
+    if isinstance(messages, UniMessage):
+        messages = messages.replace("<reference_message>", "").replace(
+            "</reference_message>", ""
+        )
     if isinstance(messages, str):
         return [Content(type="text", value=messages)]
     contexts = []
     for msg in messages:
-        if isinstance(msg, Text):
+        if isinstance(msg, str):
+            contexts.append(Content(type="text", value=msg))
+        elif isinstance(msg, Text):
             contexts.append(Content(type="text", value=msg.text))
         elif isinstance(msg, Image) and msg.url:
             contexts.append(Content(type="image", value=msg.url))
