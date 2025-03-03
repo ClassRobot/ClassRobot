@@ -32,7 +32,8 @@ async def _(
         await matcher.finish(Emoji.error + "请在群聊中使用该命令！！")
     elif classes := await Classes.get_classes(**platform.group_params):
         await matcher.finish(
-            Emoji.error + f"这个群已经是班级群了！！\n> 班级ID: {classes.id}\n> 名称: {classes.name}"
+            Emoji.error
+            + f"这个群已经是班级群了！！\n> 班级ID: {classes.id}\n> 名称: {classes.name}"
         )
     if classes := await teacher.get_classes(class_name):
         # 如果教师班级已存在并且该群未绑定班级就按照名字绑定班级
@@ -91,7 +92,9 @@ async def _(
         if (classes := await Classes.get_classes(**platform.group_params)) is None:
             await matcher.finish("❌️该群不是班级群！！")
     else:  # 如果不是群聊则提示需要班级ID
-        await matcher.finish("❌️请在群聊中使用该命令或命令后面携带班级ID，例如:\n添加班级 1！！")
+        await matcher.finish(
+            "❌️请在群聊中使用该命令或命令后面携带班级ID，例如:\n添加班级 1！！"
+        )
 
     if user.student is not None:  # 已经是学生说明已经加入过班级
         if user.student.classes_id == classes.id:
@@ -102,7 +105,9 @@ async def _(
     matcher.state["classes"] = classes
 
 
-@join_classes_cmd.got("is_join", prompt="您已经加入过其它班级，是否需要修改您的班级？(yes/no)")
+@join_classes_cmd.got(
+    "is_join", prompt="您已经加入过其它班级，是否需要修改您的班级？(yes/no)"
+)
 async def _(
     matcher: AlconnaMatcher,
     user: UserOrCreatedDepends,

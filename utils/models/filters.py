@@ -15,11 +15,9 @@ T = TypeVar("T")
 if TYPE_CHECKING:
 
     class SelectFilter(Select, Generic[T]):
-        def __await__(self) -> Generator[Any, Any, ScalarResult[T]]:
-            ...
+        def __await__(self) -> Generator[Any, Any, ScalarResult[T]]: ...
 
-        async def first(self) -> Optional[T]:
-            ...
+        async def first(self) -> Optional[T]: ...
 
 else:
 

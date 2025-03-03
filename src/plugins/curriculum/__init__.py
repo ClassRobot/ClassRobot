@@ -30,7 +30,8 @@ async def _(
     value_length = len(values)
     if value_length < 4:
         await matcher.finish(
-            Emoji.error + "至少具备[周期] [星期几] [第几节课] [课程名称]四个参数,其次[教室(可选)] [老师(可选)]"
+            Emoji.error
+            + "至少具备[周期] [星期几] [第几节课] [课程名称]四个参数,其次[教室(可选)] [老师(可选)]"
         )
 
     is_classes = values[0] == "班级"
@@ -86,7 +87,8 @@ async def _(
 
     if ids:
         await matcher.finish(
-            Emoji.error + f"以下由于不是您创建的课程无法删除: {', '.join(str(i) for i in ids)}"
+            Emoji.error
+            + f"以下由于不是您创建的课程无法删除: {', '.join(str(i) for i in ids)}"
         )
     await matcher.finish(Emoji.success + "删除成功")
 
@@ -117,7 +119,8 @@ async def _(
         else:
             await matcher.finish(Emoji.error + "您没有自己的课表可以分享")
         await matcher.finish(
-            Emoji.success + f"您的课表分享ID为: {share_id}\n对方输入: `分享课表+ID`即可获取,有效期为3分钟"
+            Emoji.success
+            + f"您的课表分享ID为: {share_id}\n对方输入: `分享课表+ID`即可获取,有效期为3分钟"
         )
     elif config_id := await cache.get(share_id):
         config_id = int(config_id)

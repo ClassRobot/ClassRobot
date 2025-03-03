@@ -10,11 +10,10 @@ from nonebot.params import ArgPlainText, EventPlainText
 from nonebot_plugin_alconna import UniMessage, AlconnaMatcher
 from utils.models.depends import UserDepends, UserOrCreatedDepends
 
-from .commands import (
+from .commands import (  # __helpers__ as __helpers__,
     token_cmd,
     bind_user_cmd,
     self_info_cmd,
-    # __helpers__ as __helpers__,
 )
 
 

@@ -95,8 +95,7 @@ class QueryTasks:
 
 
 class PushTaskCommit(QueryTasks):
-    async def task_commit(self, task: Tasks):
-        ...
+    async def task_commit(self, task: Tasks): ...
 
 
 class TaskList(list[Tasks]):

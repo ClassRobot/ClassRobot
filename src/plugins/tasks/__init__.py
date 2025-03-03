@@ -50,7 +50,9 @@ async def _(matcher: AlconnaMatcher, task_name: str, user: UserOrCreatedDepends)
     classes = matcher.state.get("classes")
     if isinstance(classes, Classes):
         if await classes.get_task(task_name):
-            await matcher.finish(Emoji.warning + f"“{task_name}”任务已存在，请勿重复创建！")
+            await matcher.finish(
+                Emoji.warning + f"“{task_name}”任务已存在，请勿重复创建！"
+            )
         await Tasks.create_task(task_name, classes, user, matcher.state["role"])
         await matcher.finish(Emoji.success + f"“{task_name}”任务创建成功")
 
@@ -104,7 +106,9 @@ async def _(
     if task_name is None:
         if not task_manager:
             await matcher.finish(Emoji.error + "您还未创建任务呢！")
-        await matcher.send(await task_manager.tasks.to_card(Emoji.info + "输入任务ID或名称删除"))
+        await matcher.send(
+            await task_manager.tasks.to_card(Emoji.info + "输入任务ID或名称删除")
+        )
     else:
         matcher.state["got_name"] = UniMessage(task_name)
 
@@ -176,7 +180,9 @@ async def _(
     elif not file_data:
         await matcher.finish(Emoji.error + "未能获取到你提交的文件！")
     elif await task_manager.check_file_exists(file_data.get_data()):
-        await matcher.finish(Emoji.error("这个文件已经被提交过了！请不要使用别人的文件哦！"))
+        await matcher.finish(
+            Emoji.error("这个文件已经被提交过了！请不要使用别人的文件哦！")
+        )
 
     if task_commit := await task_manager.select_task.get_commit(student):
         await task_commit.update_file(file_data.get_data())
@@ -196,7 +202,9 @@ async def _(
     if task_name is None:
         if not task_manager:
             await matcher.finish(Emoji.error + "您还未创建任务呢！")
-        await matcher.send(await task_manager.tasks.to_card(Emoji.info + "输入任务ID或名称导出"))
+        await matcher.send(
+            await task_manager.tasks.to_card(Emoji.info + "输入任务ID或名称导出")
+        )
     else:
         matcher.state["got_name"] = UniMessage(task_name)
 

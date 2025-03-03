@@ -51,7 +51,9 @@ async def _(
     if target.scope == SupportScope.wechat:
         await matcher.finish()
     elif chat_session.lock:
-        await matcher.finish(Emoji.error + "我知道你很急，但是你先别急，等我处理完你的上一条消息。")
+        await matcher.finish(
+            Emoji.error + "我知道你很急，但是你先别急，等我处理完你的上一条消息。"
+        )
     try:
         auto_task = await chat_session.send_message(message)
     except Exception as e:
@@ -74,7 +76,9 @@ async def _(
                     new_event.get_message = update_message(auto_task, target)
                     await handle_event(bot, new_event)
                 else:
-                    await matcher.send(Emoji.error + f"无法调用`{auto_task.command}`命令")
+                    await matcher.send(
+                        Emoji.error + f"无法调用`{auto_task.command}`命令"
+                    )
 
 
 __helpers__ = [

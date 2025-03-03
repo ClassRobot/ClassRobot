@@ -18,7 +18,9 @@ async def _(
         matcher.state["leave_image"] = UniMessage.image(url=add_leave.image_url)
 
 
-@add_leave_cmd.got("leave_image", prompt=Emoji.warning + "您还要发一张请假截图证明呢！")  # 未添加则提示
+@add_leave_cmd.got(
+    "leave_image", prompt=Emoji.warning + "您还要发一张请假截图证明呢！"
+)  # 未添加则提示
 async def _(
     matcher: AlconnaMatcher,
     add_leave: AddLeaveDepends,

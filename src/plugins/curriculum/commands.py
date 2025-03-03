@@ -86,7 +86,8 @@ set_week_cmd = on_alconna(
 __helpers__ = [
     Helper(
         command="添加课表",
-        description="添加学生自己的的课表,一条命令只能写入一次课表,如果机器人要加两次课表请分开两次命令执行." + input_help,
+        description="添加学生自己的的课表,一条命令只能写入一次课表,如果机器人要加两次课表请分开两次命令执行."
+        + input_help,
         params=[
             Param(name="课表内容", mode=ParamMode.ONE_OR_MORE),
         ],

@@ -32,7 +32,9 @@ __helpers__ = [
         command="创建通知",
         aliases={"定时", "转发"},
         description="向自己同学发起通知,或者定时消息,只需要在命令后面加上具体内容即可,用白话文的方式说明即可,AI会去解析你的意图",
-        params=[Param(name="具体内容", description="用白话文的方式描述自己需要通知的内容")],
+        params=[
+            Param(name="具体内容", description="用白话文的方式描述自己需要通知的内容")
+        ],
         roles={UserRole.user},
     ),
     Helper(

@@ -9,7 +9,11 @@ add_leave_cmd = on_alconna(
         Args[
             "leave_reason",
             MultiVar(str | Image, "+"),
-            Field(completion=tip("请告诉我请假原因,时间等信息,如果有请假条也可以直接发请假条照片给我,一张图片即可!")),
+            Field(
+                completion=tip(
+                    "请告诉我请假原因,时间等信息,如果有请假条也可以直接发请假条照片给我,一张图片即可!"
+                )
+            ),
         ],
     ),
     priority=priority,

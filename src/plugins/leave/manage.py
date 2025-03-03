@@ -104,7 +104,8 @@ class AddLeave:
         if students:
             logger.info(f"通知班干部")
             messages = UniMessage.text(
-                f"学生`{self.student.name}`提交了请假申请:\n" f"申请理由: {leave.reason}"
+                f"学生`{self.student.name}`提交了请假申请:\n"
+                f"申请理由: {leave.reason}"
             )
             messages += UniMessage.image(path=leave_dir / leave.file.name)
             await wait(

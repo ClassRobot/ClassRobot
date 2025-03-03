@@ -9,7 +9,7 @@ class Config(BaseModel, extra=Extra.ignore):
     region: str | None = None
     bucket: str | None = None
     scheme: str = "https"
-    
+
     def __bool__(self) -> bool:
         return all([self.cos_secret_id, self.cos_secret_key, self.region, self.bucket])
 

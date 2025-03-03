@@ -12,6 +12,7 @@ from utils.models import User, Group, ScheduledNotice
 
 class NoticeGroup(BaseModel):
     "通知的群"
+
     group_id: int
     "通知的群ID"
     at_all: bool = False
@@ -22,6 +23,7 @@ class NoticeGroup(BaseModel):
 
 class NoticePrivate(BaseModel):
     "通知的私聊用户"
+
     user_id: int
     "通知的用户ID"
 
@@ -124,6 +126,7 @@ class Notice(BaseModel):
 
 class Notices(BaseModel):
     "通知列表"
+
     notices: list[Notice] = []
     "通知列表"
     reply: str

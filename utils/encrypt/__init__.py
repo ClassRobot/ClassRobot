@@ -1,9 +1,11 @@
 from os import urandom
 from pathlib import Path
-from nonebot import get_driver, logger
 from hashlib import pbkdf2_hmac
 from binascii import hexlify, unhexlify
+
+from nonebot import logger, get_driver
 from nonebot_plugin_localstore import get_config_dir
+
 from .config import EncryptConfig
 
 plugin_config = EncryptConfig.parse_obj(get_driver().config.dict())
