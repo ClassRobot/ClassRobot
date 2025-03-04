@@ -156,15 +156,15 @@ class Messages(BaseModel):
         content: str | list,
         tool_call_id: str | None = None,
         priority: int = 1,
-    ):
+    ) -> Context:
         if self.char_length() > self.max_length:  # 超出长度
             self.delete_messages(0.5)
-        self.messages.append(
-            Context(
-                role=role, content=content, priority=priority, tool_call_id=tool_call_id
-            )
+        context = Context(
+            role=role, content=content, priority=priority, tool_call_id=tool_call_id
         )
+        self.messages.append(context)
         print(self.char_length(), role, self)
+        return context
 
     def add_tool(self, context: ChatCompletionMessage):
         """添加工具消息"""
@@ -189,17 +189,19 @@ class Messages(BaseModel):
 
             char_length = self.char_length()
 
-    def user_message(self, content: ContentType, priority: int = 1):
-        self.add_message(role=Role.user, content=content, priority=priority)
+    def user_message(self, content: ContentType, priority: int = 1) -> Context:
+        return self.add_message(role=Role.user, content=content, priority=priority)
 
-    def system_message(self, content: ContentType, priority: int = 1000):
-        self.add_message(role=Role.system, content=content, priority=priority)
+    def system_message(self, content: ContentType, priority: int = 1000) -> Context:
+        return self.add_message(role=Role.system, content=content, priority=priority)
 
-    def assistant_message(self, content: ContentType, priority: int = 1):
-        self.add_message(role=Role.assistant, content=content, priority=priority)
+    def assistant_message(self, content: ContentType, priority: int = 1) -> Context:
+        return self.add_message(role=Role.assistant, content=content, priority=priority)
 
-    def tool_message(self, tool_call_id: str, content: str, priority: int = 1):
-        self.add_message(
+    def tool_message(
+        self, tool_call_id: str, content: str, priority: int = 1
+    ) -> Context:
+        return self.add_message(
             role=Role.tool,
             content=content,
             tool_call_id=tool_call_id,
