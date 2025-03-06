@@ -57,24 +57,25 @@ async def _(
     except Exception as e:
         logger.exception(e)
         await matcher.finish(Emoji.error + "消息理解失败了, 请重新发送")
-    if isinstance(auto_task, AutoTaskList):
-        if auto_task.is_violation:
-            await matcher.finish(auto_task.reply)
+    if not isinstance(auto_task, AutoTaskList):
+        await matcher.finish(Emoji.error + "消息理解失败了, 请重新发送")
+    elif auto_task.is_violation:
+        await matcher.finish(auto_task.reply)
 
-        if auto_task.reply:
-            try:
-                await matcher.send(auto_task.reply.replace(".", "⋅"))
-            except ActionFailed as e:
-                logger.exception(e)
-                await matcher.finish(Emoji.error + (e.message or str(e.status_code)))
-        if not auto_task.need_confirm:
-            for auto_task in auto_task.tasks:
-                if chat_session.helpers.get_helper(auto_task.command):
-                    new_event = event.copy()
-                    new_event.get_message = update_message(auto_task, target)
-                    await handle_event(bot, new_event)
-                else:
-                    await matcher.send(Emoji.error + f"无法调用`{auto_task.command}`命令")
+    if auto_task.reply:
+        try:
+            await matcher.send(auto_task.reply.replace(".", "⋅"))
+        except ActionFailed as e:
+            logger.exception(e)
+            await matcher.finish(Emoji.error + (e.message or str(e.status_code)))
+    if not auto_task.need_confirm:
+        for auto_task in auto_task.tasks:
+            if chat_session.helpers.get_helper(auto_task.command):
+                new_event = event.copy()
+                new_event.get_message = update_message(auto_task, target)
+                await handle_event(bot, new_event)
+            else:
+                await matcher.send(Emoji.error + f"无法调用`{auto_task.command}`命令")
 
 
 __helpers__ = [
