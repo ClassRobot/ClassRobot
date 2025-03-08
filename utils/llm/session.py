@@ -22,9 +22,8 @@ class ChatSession:
         return time() - self.update_time > session_timeout
 
     def __new__(cls, session_id: str) -> "ChatSession":
-        if (
-            session_id in chat_sessions and chat_sessions[session_id].is_timeout
-        ):  # 检查是否有过期的session
+        # 检查是否有过期的session
+        if session_id in chat_sessions and chat_sessions[session_id].is_timeout:
             del chat_sessions[session_id]
 
         if session_id not in chat_sessions:

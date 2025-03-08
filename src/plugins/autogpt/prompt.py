@@ -128,12 +128,17 @@ def get_prompt_system(helpers: Helpers):
 
 <bot_param_thinking>
 
-命令参数说明:
+命令参数中的符号说明:
 - ? 表示参数可选输入
 - + 一个或多个
 - * 零个或多个
 
-例如`任务名称`这个参数再不添加上述符号时表示只能输入一个任务名称也必须输入,`任务名称?`则表示可以不输入,以此类推.
+例如：
+
+- `任务名称`=必须输入
+- `任务名称?`=可选输入
+- `任务名称+`=至少输入一个
+- `任务名称*`=可选输入多个
 
 </bot_param_thinking>
 
@@ -143,14 +148,12 @@ def get_prompt_system(helpers: Helpers):
 """.format(
             helpers="\n\n".join(
                 f"""
-<command_{helper.command}>
 
 命令: {helper.command}
 命令别名: {', '.join(helper.aliases) or '无'}
 命令参数: {', '.join(map(str, helper.params)) or '无'}
 命令描述: {helper.description}
 
-</command_{helper.command}>
 """
                 for helper in helpers
             )

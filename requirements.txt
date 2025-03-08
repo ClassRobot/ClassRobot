@@ -858,9 +858,12 @@ nonebot-adapter-onebot==2.4.6 ; python_version >= "3.10" and python_version < "4
 nonebot-adapter-qq==1.6.2 ; python_version >= "3.10" and python_version < "4.0" \
     --hash=sha256:5674a4df4e5c98a0d59b1ec484735e6b6e891673c1773f48041b395090cbc319 \
     --hash=sha256:6ee7a7ae19a2efd2a9f83437c71f9849c23d4a71d01b6b3fb63177eb791440eb
-nonebot-plugin-alconna==0.55.0 ; python_version >= "3.10" and python_version < "4.0" \
-    --hash=sha256:9bd8571f2a020d35024e47505266a999f4df4a484a081626f15591fc392a05a2 \
-    --hash=sha256:d9856de217d560ec3e36a3951020383d9417ace5c204e474fdb2c997ed42bdca
+nonebot-adapter-wxmp==0.1.4 ; python_version >= "3.10" and python_version < "4.0" \
+    --hash=sha256:7ceff43fbcbd359f14d8f60817babaa6983ad4638595222d63a0a977c1d19b6f \
+    --hash=sha256:e81d1cf55a88f8280f14d62ba0be95d4b7f3d74a1c042ad73484d4fd436cd633
+nonebot-plugin-alconna==0.55.2 ; python_version >= "3.10" and python_version < "4.0" \
+    --hash=sha256:abd7169d71876228de9f7e9ee248aa38778b3c957a8e0314febd9d3a1650523a \
+    --hash=sha256:c0f7207ad38bc739035e717552fc206a0e12df603e5e3d98b2e0230f25fa82e6
 nonebot-plugin-animeres==1.0.5 ; python_version >= "3.10" and python_version < "4.0" \
     --hash=sha256:90037cee8f1be012660fb795e3dfa6b48b6cb03eac4b028d361e377e95e223db \
     --hash=sha256:e9ea800da4ec24066dc71895c48f13732d5485f81bb6933da5c6d3207445db13

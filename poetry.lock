@@ -2132,15 +2132,36 @@ url = "https://mirrors.cloud.tencent.com/pypi/simple"
 reference = "tencent"
 
 [[package]]
+name = "nonebot-adapter-wxmp"
+version = "0.1.4"
+description = "Nonebot2 Adapter for Weixin Official Accounts Platform"
+optional = false
+python-versions = ">=3.10"
+groups = ["main"]
+files = [
+    {file = "nonebot_adapter_wxmp-0.1.4-py3-none-any.whl", hash = "sha256:e81d1cf55a88f8280f14d62ba0be95d4b7f3d74a1c042ad73484d4fd436cd633"},
+    {file = "nonebot_adapter_wxmp-0.1.4.tar.gz", hash = "sha256:7ceff43fbcbd359f14d8f60817babaa6983ad4638595222d63a0a977c1d19b6f"},
+]
+
+[package.dependencies]
+nonebot2 = ">=2.3.0"
+xmltodict = ">=0.14.0"
+
+[package.source]
+type = "legacy"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
+
+[[package]]
 name = "nonebot-plugin-alconna"
-version = "0.55.0"
+version = "0.55.2"
 description = "Alconna Adapter for Nonebot"
 optional = false
 python-versions = ">=3.9"
 groups = ["main"]
 files = [
-    {file = "nonebot_plugin_alconna-0.55.0-py3-none-any.whl", hash = "sha256:d9856de217d560ec3e36a3951020383d9417ace5c204e474fdb2c997ed42bdca"},
-    {file = "nonebot_plugin_alconna-0.55.0.tar.gz", hash = "sha256:9bd8571f2a020d35024e47505266a999f4df4a484a081626f15591fc392a05a2"},
+    {file = "nonebot_plugin_alconna-0.55.2-py3-none-any.whl", hash = "sha256:c0f7207ad38bc739035e717552fc206a0e12df603e5e3d98b2e0230f25fa82e6"},
+    {file = "nonebot_plugin_alconna-0.55.2.tar.gz", hash = "sha256:abd7169d71876228de9f7e9ee248aa38778b3c957a8e0314febd9d3a1650523a"},
 ]
 
 [package.dependencies]
@@ -4542,4 +4563,4 @@ reference = "tencent"
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.10"
-content-hash = "8f5fa0e48ca060941a311e4d4736b51f7071c7c3cbf89be0ca4a42e778506e31"
+content-hash = "533036ba4be761af5bbf79a59b91280ebbbdfc74a937456a619f0221bbc67524"
