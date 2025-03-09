@@ -12,9 +12,7 @@ def uni_message_to_contents(
     messages: Iterable[str | Image | Text] | UniMessage | str,
 ) -> list[Content]:
     if isinstance(messages, UniMessage):
-        messages = messages.replace("<reference_message>", "").replace(
-            "</reference_message>", ""
-        )
+        messages = messages.replace("<reference_message>", "").replace("</reference_message>", "")
     if isinstance(messages, str):
         return [Content(type="text", value=messages)]
     contexts = []
@@ -32,11 +30,7 @@ def uni_message_to_contents(
             if isinstance(msg.msg, str):
                 contexts.append(Content(type="text", value=msg.msg))
             else:
-                contexts.extend(
-                    uni_message_to_contents(
-                        messages=UniMessage.generate_sync(message=msg.msg)
-                    )
-                )
+                contexts.extend(uni_message_to_contents(messages=UniMessage.generate_sync(message=msg.msg)))
             contexts.append(Content(type="text", value="</reference_message>"))
     return contexts
 
@@ -79,6 +73,6 @@ def json_loads(content: str) -> dict:
                 continue
             try:
                 return _loads(content)
-            except:
+            except Exception:
                 continue
         raise error

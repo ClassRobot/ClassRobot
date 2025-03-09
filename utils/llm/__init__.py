@@ -3,8 +3,8 @@ from pprint import pprint
 from nonebot import logger
 from openai import NOT_GIVEN, APIError, NotGiven, AsyncOpenAI
 
-from .schema import Messages
 from .config import plugin_config
+from .schema import Role, Messages
 from .excepions import LLMRequestException
 from .typings import ChatCompletion, ChatCompletionToolParam, ChatCompletionMessageParam
 
@@ -12,9 +12,7 @@ clients: dict[str, AsyncOpenAI] = {}
 
 for llm_config in plugin_config.llm_configs:
     if llm_config.name in clients:
-        logger.opt(colors=True).warning(
-            f'LLM <y>"{llm_config.name}"</y> client already exists'
-        )
+        logger.opt(colors=True).warning(f'LLM <y>"{llm_config.name}"</y> client already exists')
         continue
     client = AsyncOpenAI(api_key=llm_config.key, base_url=llm_config.url)
     clients[llm_config.name] = client
@@ -22,7 +20,7 @@ for llm_config in plugin_config.llm_configs:
 
 
 async def client_create(
-    messages: list[ChatCompletionMessageParam] | Messages,
+    messages: list[ChatCompletionMessageParam] | Messages | str,
     functools: list[ChatCompletionToolParam] | NotGiven | None = None,
     *,
     max_tokens: int = 1000,
@@ -50,17 +48,12 @@ async def client_create(
                 continue
             # 查看是否传了functools,如果传了则判断是否支持函数调用，不支持则报错
             elif functools is not NOT_GIVEN and not llm_config.supports_functools:
-                raise LLMRequestException(
-                    f'LLM "<y>{llm_config.name}</y>" not support functools'
-                )
+                raise LLMRequestException(f'LLM "<y>{llm_config.name}</y>" not support functools')
             # 判断是否启用了多模态，如果启用了但不支持则报错
             elif multi_modal is True and not llm_config.multi_modal:
-                raise LLMRequestException(
-                    f'LLM "<y>{llm_config.name}</y>" not support multi_modal'
-                )
+                raise LLMRequestException(f'LLM "<y>{llm_config.name}</y>" not support multi_modal')
 
         # 如果没有指定llm_name则动态切换
-
         # 判断是否传了functools,如果传了则判断是否支持函数调用，不支持则跳过
         if functools is not NOT_GIVEN and not llm_config.supports_functools:
             continue
@@ -68,6 +61,11 @@ async def client_create(
         # 判断是否启用了多模态，如果启用了但不支持则跳过
         if multi_modal is True and not llm_config.multi_modal:
             continue
+
+        if isinstance(messages, str):
+            text = messages
+            messages = Messages()
+            messages.add_message(role=Role.user, content=text)
 
         if isinstance(messages, Messages):
             # 如果要求只使用单模态，或者消息只有文本
@@ -80,9 +78,7 @@ async def client_create(
                 continue
             pprint(messages[1:])
         try:
-            logger.opt(colors=True).info(
-                f'LLM "<y>{llm_config.name}</y>" request messages'
-            )
+            logger.opt(colors=True).info(f'LLM "<y>{llm_config.name}</y>" request messages')
             return await clients[llm_config.name].chat.completions.create(
                 stream=False,
                 tools=functools,

@@ -17,7 +17,7 @@ markdown2 = "^2.5.3"
 cryptography = "^44.0.0"
 nonebot-adapter-qq = "^1.6.2"
 nonebot-plugin-orm = {extras = ["postgresql", "asyncpg"], version = "^0.7.6"}
-nonebot-plugin-alconna = "^0.55.2"
+nonebot-plugin-alconna = "^0.56.2"
 nonebot-plugin-animeres = "^1.0.5"
 nonebot-plugin-localstore = "^0.7.3"
 nonebot-plugin-blockwords = "^0.2.1"
@@ -36,7 +36,7 @@ nonebot-plugin-waiter = "^0.8.1"
 tabulate = "^0.9.0"
 filetype = "^1.2.0"
 pypandoc = "^1.15"
-nonebot-adapter-wxmp = "^0.1.4"
+nonebot-adapter-wxmp = "^0.1.8"
 
 [tool.poetry.group.dev.dependencies]
 pycln = "^2.5.0"
@@ -54,6 +54,11 @@ nonebug = "^0.4.3"
 name = "tencent"
 url = "https://mirrors.cloud.tencent.com/pypi/simple"
 priority = "primary"
+
+[[tool.poetry.source]]
+name = "pypi-official"
+url = "https://pypi.python.org/simple"
+priority = "supplemental"
 
 [tool.nonebot]
 plugins = [

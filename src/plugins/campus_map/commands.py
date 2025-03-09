@@ -1,0 +1,24 @@
+from utils import tip
+from utils.config import priority, comp_config
+from utils.helper import Param, Helper, UserRole, ParamMode
+from nonebot_plugin_alconna import Args, Field, Alconna, MultiVar, on_alconna
+
+campus_map_cmd = on_alconna(
+    Alconna(
+        "校园地图",
+        Args["position", MultiVar(str, "+"), Field(completion=tip("您想知道学校哪个地方的位置"))],
+    ),
+    priority=priority,
+    block=True,
+    comp_config=comp_config,
+)
+
+
+__helpers__ = [
+    Helper(
+        command="校园地图",
+        description="查询学校某个楼的位置。",
+        params=[Param(name="position", mode=ParamMode.ONE_OR_MORE, description="您想知道学校哪个地方的位置")],
+        roles={UserRole.user},
+    )
+]

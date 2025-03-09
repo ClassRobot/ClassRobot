@@ -1,4 +1,5 @@
 import re
+import base64
 from io import BytesIO
 from typing import Any
 from pathlib import Path
@@ -8,13 +9,7 @@ from filetype import guess_extension
 from qrcode.image.pil import PilImage
 from qrcode.image.pure import PyPNGImage
 from nonebot_plugin_htmlrender import get_new_page
-from nonebot_plugin_htmlrender.data_source import (
-    env,
-    logger,
-    markdown,
-    read_tpl,
-    read_file,
-)
+from nonebot_plugin_htmlrender.data_source import env, markdown, read_tpl
 
 
 class StringCard:
@@ -148,6 +143,14 @@ async def md_to_html(md: str) -> str:
 
 
 def text_to_qrcode(text: str) -> bytes:
+    """文字转二维码
+
+    Args:
+        text (str): 文字内容或url
+
+    Returns:
+        bytes: 二维码图片
+    """
     image_bytes = BytesIO()
     code_img = QRCode()
     code_img.add_data(text)
@@ -155,6 +158,18 @@ def text_to_qrcode(text: str) -> bytes:
     image: PilImage | PyPNGImage = code_img.make_image()
     image.save(image_bytes)
     return image_bytes.getvalue()
+
+
+def bytes_to_base64(data: bytes) -> str:
+    """bytes转base64
+
+    Args:
+        data (bytes): bytes数据
+
+    Returns:
+        str: base64数据
+    """
+    return base64.b64encode(data).decode()
 
 
 if __name__ == "__main__":

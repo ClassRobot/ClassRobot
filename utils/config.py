@@ -39,6 +39,7 @@ data_dir: Path = get_data_dir(dirname)
 cache_dir: Path = get_cache_dir(dirname)
 config_dir: Path = get_config_dir(dirname)
 static_dir: Path = Path().cwd() / "static"
+prompts_dir = static_dir / "prompts"
 template_dir = static_dir / "template"
 priority = 100
 
