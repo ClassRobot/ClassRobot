@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Literal, TypeAlias
+from typing import Union, Literal, TypeAlias
 
 from strenum import StrEnum
 from pydantic import Field, BaseModel
@@ -123,6 +123,12 @@ class Messages(BaseModel):
             return self.messages[-1].text_only()
         return True
 
+    def extend(self, messages: Union["Messages", list[Context | ChatCompletionMessage]]):
+        """扩展消息"""
+        if isinstance(messages, Messages):
+            messages = messages.messages
+        self.messages.extend(messages)
+
     @property
     def max_length(self) -> int:
         return 30000
@@ -145,7 +151,7 @@ class Messages(BaseModel):
     def add_message(
         self,
         role: Role,
-        content: str | list,
+        content: str | list[Content],
         tool_call_id: str | None = None,
         priority: int = 1,
     ) -> Context:
