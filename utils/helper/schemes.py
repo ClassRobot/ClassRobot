@@ -54,6 +54,8 @@ class Helper(BaseModel):
     """命令名称"""
     description: str
     """命令描述"""
+    ai_description: str | None = None
+    """描述给AI的提示"""
     tags: set[str] = set()
     """命令标签"""
     roles: set[UserRole] = set()
@@ -107,6 +109,18 @@ class Helper(BaseModel):
             f"描述 | {self.description}\n"
         )
 
+    def ai_overview(self) -> str:
+        """提供给AI的简要概述"""
+        text = (
+            f"命令 | {self.command}\n"
+            f"参数 | {', '.join(map(str, self.params)) or '无'}\n"
+            f"别名 | {', '.join(self.aliases) or '无'}\n"
+            f"描述 | {self.description}\n"
+        )
+        if self.ai_description:
+            text += f"提示 | {self.ai_description}\n"
+        return text
+
 
 class Helpers(BaseModel):
     helpers: list[Helper] = []
@@ -118,21 +132,13 @@ class Helpers(BaseModel):
     def get_tags_helpers(self, *tags: str) -> "Helpers":
         """包含tag的helper"""
         helpers = Helpers()
-        helpers.extend(
-            helper
-            for helper in self.helpers
-            if not helper or helper.tags.intersection(tags)
-        )
+        helpers.extend(helper for helper in self.helpers if not helper or helper.tags.intersection(tags))
         return helpers
 
     def get_roles_helpers(self, *roles: UserRole) -> "Helpers":
         """包含role的helper"""
         helpers = Helpers()
-        helpers.extend(
-            helper
-            for helper in self.helpers
-            if not helper.roles or helper.roles.intersection(roles)
-        )
+        helpers.extend(helper for helper in self.helpers if not helper.roles or helper.roles.intersection(roles))
         return helpers
 
     def extend(self, helpers: Iterable[Helper]):
@@ -145,9 +151,7 @@ class Helpers(BaseModel):
             helper.example = [
                 Context(
                     rote=UserRole.user,
-                    content=" ".join(
-                        (helper.command, *(p.name for p in helper.params))
-                    ),
+                    content=" ".join((helper.command, *(p.name for p in helper.params))),
                 )
             ]
         if helper in self.helpers:

@@ -5,7 +5,8 @@ from typing import Annotated
 from utils.helper import Helpers
 from nonebot.params import Depends
 from utils.llm import client_create
-from utils.llm.schema import Messages
+from utils.template import get_prompts
+from utils.llm.schema import Role, Messages
 from nonebot_plugin_alconna import UniMessage
 from utils.helper.depends import HelpersDepends
 from utils.models.depends import UserOrCreatedDepends
@@ -13,9 +14,15 @@ from openai.types.chat.chat_completion import ChatCompletion
 from utils.llm.util import json_loads, uni_message_to_contents
 from utils.llm.typings import ChatCompletionToolParam, ChatCompletionMessageToolCall
 
-from .prompt import get_prompt_system
 from .exception import SessionLockError
 from .schemas import ChatMessage, AutoTaskList
+
+
+async def get_prompt_system(helpers: Helpers) -> str:
+    prompt_system = await get_prompts("autogpt.jinja", {"helpers": helpers})
+
+    print("help len", helpers.to_string().__len__())
+    return prompt_system
 
 
 class ChatSession:
@@ -44,20 +51,19 @@ class ChatSession:
         self.lock = False  # 聊天锁，防止一轮聊天还没结束又开始新的聊天
         self.messages = Messages()
         self.helpers = helpers
-        self.messages.system_message(get_prompt_system(helpers))
 
-    def update_helpers(self, helpers: Helpers):
+    async def update_helpers(self, helpers: Helpers):
         self.helpers = helpers
-        self.messages[0].content = get_prompt_system(helpers)
+        prompts = await get_prompt_system(helpers)
+        if self.messages and self.messages[0].role == Role.system:
+            self.messages[0].content = prompts
+        else:
+            self.messages.system_message(prompts)
 
-    async def call_tools(
-        self, tool_calls: list[ChatCompletionMessageToolCall]
-    ) -> ChatCompletion:
+    async def call_tools(self, tool_calls: list[ChatCompletionMessageToolCall]) -> ChatCompletion:
         for tool in tool_calls:
             if tool.function.name == "get_command_help":
-                args: list[str] = json.loads(tool.function.arguments)["commands"].split(
-                    ","
-                )
+                args: list[str] = json.loads(tool.function.arguments)["commands"].split(",")
                 self.messages.tool_message(tool.id, self.get_command_help(args))
         return await client_create(self.messages)
 
@@ -65,7 +71,9 @@ class ChatSession:
         helpers_string = ""
         for command in set(commands):
             if helper := self.helpers.get_helper(command):
-                helpers_string += f"""\n<command_helper_{helper.command}>\n{helper.json()}\n</command_helper_{helper.command}>\n"""
+                helpers_string += (
+                    f"""\n<command_helper_{helper.command}>\n{helper.json()}\n</command_helper_{helper.command}>\n"""
+                )
         return helpers_string
 
     async def send_message(self, message: str | UniMessage | ChatMessage):
@@ -74,9 +82,7 @@ class ChatSession:
         try:
             self.lock = True
             self.messages.user_message(
-                message.message
-                if isinstance(message, ChatMessage)
-                else uni_message_to_contents(message)
+                message.message if isinstance(message, ChatMessage) else uni_message_to_contents(message)
             )
             response = await client_create(self.messages)
             if response.choices[0].message.tool_calls:
@@ -98,9 +104,7 @@ class ChatSession:
 
                 if auto_tasks.reply:
                     self.messages.assistant_message(
-                        auto_tasks.reply
-                        + "\n<hr/>\n"
-                        + auto_tasks.json(exclude={"reply"}, ensure_ascii=False),
+                        auto_tasks.reply + "\n<hr/>\n" + auto_tasks.json(exclude={"reply"}, ensure_ascii=False),
                     )
                 return auto_tasks
             return content
@@ -124,23 +128,21 @@ class ChatSessionManager:
             if current_time - session.update_time > self.timeout:
                 del self.sessions[session.user_id]
 
-    def get_chat_session(self, user_id: int, helpers: Helpers) -> ChatSession:
+    async def get_chat_session(self, user_id: int, helpers: Helpers) -> ChatSession:
         # 检查是否有过期的session
         self.check_timeout()
 
         if session := self.sessions.get(user_id):
             session.update_time = time()
-            session.update_helpers(helpers)
-            return session
-        session = ChatSession(user_id, helpers)
+        else:
+            session = ChatSession(user_id, helpers)
+        await session.update_helpers(helpers)
         self.sessions[user_id] = session
         return session
 
 
-async def get_chat_session(
-    user: UserOrCreatedDepends, helpers: HelpersDepends
-) -> ChatSession:
-    chat_session = chat_session_manager.get_chat_session(user.id, helpers)
+async def get_chat_session(user: UserOrCreatedDepends, helpers: HelpersDepends) -> ChatSession:
+    chat_session = await chat_session_manager.get_chat_session(user.id, helpers)
     return chat_session
 
 

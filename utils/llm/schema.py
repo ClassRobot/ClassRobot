@@ -92,9 +92,7 @@ class Context(BaseModel):
 class Messages(BaseModel):
     messages: list[Context | ChatCompletionMessage] = []
 
-    async def build_messages(
-        self, is_multi_modal: bool = False
-    ) -> list[ChatCompletionMessageParam]:
+    async def build_messages(self, is_multi_modal: bool = False) -> list[ChatCompletionMessageParam]:
         """打包消息
 
         Args:
@@ -117,13 +115,7 @@ class Messages(BaseModel):
 
     def get(self, *role: Role) -> "Messages":
         """通过角色获取消息"""
-        return Messages(
-            messages=[
-                msg
-                for msg in self.messages
-                if isinstance(msg, Context) and msg.role in role
-            ]
-        )
+        return Messages(messages=[msg for msg in self.messages if isinstance(msg, Context) and msg.role in role])
 
     def text_only(self) -> bool:
         """是否只有文本消息"""
@@ -159,9 +151,7 @@ class Messages(BaseModel):
     ) -> Context:
         if self.char_length() > self.max_length:  # 超出长度
             self.delete_messages(0.5)
-        context = Context(
-            role=role, content=content, priority=priority, tool_call_id=tool_call_id
-        )
+        context = Context(role=role, content=content, priority=priority, tool_call_id=tool_call_id)
         self.messages.append(context)
         print(self.char_length(), role, self)
         return context
@@ -198,9 +188,7 @@ class Messages(BaseModel):
     def assistant_message(self, content: ContentType, priority: int = 1) -> Context:
         return self.add_message(role=Role.assistant, content=content, priority=priority)
 
-    def tool_message(
-        self, tool_call_id: str, content: str, priority: int = 1
-    ) -> Context:
+    def tool_message(self, tool_call_id: str, content: str, priority: int = 1) -> Context:
         return self.add_message(
             role=Role.tool,
             content=content,
@@ -216,3 +204,6 @@ class Messages(BaseModel):
 
     def __getitem__(self, item: int) -> Context | ChatCompletionMessage:
         return self.messages[item]
+
+    def __bool__(self) -> bool:
+        return bool(self.messages)
