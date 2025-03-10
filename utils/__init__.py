@@ -17,7 +17,7 @@ def validate_name(name: str) -> str | None:
     return name
 
 
-ValidateName = lambda name: validate_name(name)
+ValidateName = lambda name: validate_name(name)  # noqa: E731
 
 
 class Emoji(StrEnum):

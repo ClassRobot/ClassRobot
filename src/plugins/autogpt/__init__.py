@@ -84,5 +84,6 @@ __helpers__ = [
         command="清空聊天",
         description="清空机器人于用户的聊天内容",
         roles={UserRole.user},
+        ai_description="当用户对于的行为不满意，或者存在违规内容时候机器人可以主动清空聊天记录",
     )
 ]

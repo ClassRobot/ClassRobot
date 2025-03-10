@@ -1,7 +1,9 @@
 import json
 from time import time
 from typing import Annotated
+from datetime import datetime
 
+from nonebot import logger
 from utils.helper import Helpers
 from nonebot.params import Depends
 from utils.llm import client_create
@@ -19,7 +21,9 @@ from .schemas import ChatMessage, AutoTaskList
 
 
 async def get_prompt_system(helpers: Helpers) -> str:
-    prompt_system = await get_prompts("autogpt.jinja", {"helpers": helpers})
+    prompt_system = await get_prompts(
+        "autogpt.jinja", {"helpers": helpers, "info": ("当前时间:" + datetime.now().strftime("%Y-%m-%d %H:%M:%S"))}
+    )
 
     print("help len", helpers.to_string().__len__())
     return prompt_system
@@ -97,7 +101,7 @@ class ChatSession:
                 response = await self.vision_model(contents)
                 self.messages.tool_message(tool.id, response.choices[0].message.content)  # type: ignore
 
-        return await client_create(self.messages, functools=self.functools, multi_modal=False)
+        return await client_create(self.messages, multi_modal=False)
 
     async def vision_model(self, contents: list[Content]):
         messages = Messages()
@@ -109,12 +113,10 @@ class ChatSession:
         helpers_string = ""
         for command in set(commands):
             if helper := self.helpers.get_helper(command):
-                helpers_string += (
-                    f"""\n<command_helper_{helper.command}>\n{helper.json()}\n</command_helper_{helper.command}>\n"""
-                )
+                helpers_string += helper.json(ensure_ascii=False) + "\n\n"
         return helpers_string
 
-    async def send_message(self, message: str | UniMessage | ChatMessage):
+    async def send_message(self, message: str | UniMessage | ChatMessage) -> AutoTaskList | None:
         if self.lock:
             raise SessionLockError("聊天锁已经被锁定，无法发送消息！")
         try:
@@ -129,7 +131,8 @@ class ChatSession:
                 # 调用工具函数
                 response = await self.call_tools(response.choices[0].message.tool_calls)
             # 可能会存在```json和```这种情况，需要删除
-            content = response.choices[0].message.content  # type: ignore
+            content = response.choices[0].message.content
+            logger.info(f"`{self.user_id}` response: {content}")
             if content:
                 contents = content.split("<hr/>")
                 task_data = contents[-1].strip()
@@ -147,7 +150,6 @@ class ChatSession:
                         auto_tasks.reply + "\n<hr/>\n" + auto_tasks.json(exclude={"reply"}, ensure_ascii=False),
                     )
                 return auto_tasks
-            return content
         finally:
             self.lock = False
 

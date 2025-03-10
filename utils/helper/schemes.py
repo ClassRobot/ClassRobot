@@ -111,12 +111,7 @@ class Helper(BaseModel):
 
     def ai_overview(self) -> str:
         """提供给AI的简要概述"""
-        text = (
-            f"命令 | {self.command}\n"
-            f"参数 | {', '.join(map(str, self.params)) or '无'}\n"
-            f"别名 | {', '.join(self.aliases) or '无'}\n"
-            f"描述 | {self.description}\n"
-        )
+        text = f"命令 | {self.command}\n" f"别名 | {', '.join(self.aliases) or '无'}\n" f"描述 | {self.description}\n"
         if self.ai_description:
             text += f"提示 | {self.ai_description}\n"
         return text
