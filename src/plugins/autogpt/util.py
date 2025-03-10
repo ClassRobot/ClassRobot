@@ -94,7 +94,8 @@ class ChatSession:
                     urls = json.loads(urls)
                     for url in urls:
                         contents.append(Content(type="image", value=url))
-                await self.vision_model(contents)
+                response = await self.vision_model(contents)
+                self.messages.tool_message(tool.id, response.choices[0].message.content)  # type: ignore
 
         return await client_create(self.messages, functools=self.functools, multi_modal=False)
 
@@ -102,8 +103,7 @@ class ChatSession:
         messages = Messages()
         messages.extend(self.messages.get(Role.system))
         messages.user_message(contents)
-        response = await client_create(messages, multi_modal=True)
-        self.messages.tool_message(response.choices[0].message.content)  # type: ignore
+        return await client_create(messages, multi_modal=True)
 
     def get_command_help(self, commands: list[str]):
         helpers_string = ""
