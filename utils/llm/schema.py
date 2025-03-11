@@ -1,4 +1,6 @@
+import hashlib
 from datetime import datetime
+from functools import lru_cache
 from typing import Union, Literal, TypeAlias
 
 from strenum import StrEnum
@@ -31,6 +33,11 @@ class Context(BaseModel):
     tool_call_id: str | None = None
     priority: int = 10
     created_at: datetime = Field(default_factory=datetime.now)
+
+    @property
+    @lru_cache
+    def md5(self) -> str:
+        return hashlib.md5(self.json(include={"role", "content"}).encode("utf-8")).hexdigest()
 
     async def multi_modal(self) -> ContentType:
         """多模态消息"""

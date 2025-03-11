@@ -1,12 +1,7 @@
 from utils import Emoji
-from nonebot_plugin_alconna import AlconnaMatcher
 from utils.models.depends import StudentDepends
-from utils.params.student import (
-    is_user_key,
-    get_column_key,
-    is_student_key,
-    is_student_extra_key,
-)
+from nonebot_plugin_alconna import AlconnaMatcher
+from utils.params.student import is_user_key, get_column_key, is_student_key, is_student_extra_key
 
 from .commands import set_cmd
 
@@ -18,7 +13,10 @@ async def _(matcher: AlconnaMatcher, values: list[str], student: StudentDepends)
 
     options = {}
     for value in values:
-        key, value = value.split("=")
+        value_split = value.split("=")
+        if len(value_split) != 2:
+            await matcher.finish(Emoji.error + f"参数 {value} 格式错误！！\n应该采用 名字=张三 的形式")
+        key, value = value_split
         if column := get_column_key(key):
             options[column] = value
 

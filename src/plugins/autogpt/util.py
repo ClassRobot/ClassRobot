@@ -35,7 +35,7 @@ class ChatSession:
             "type": "function",
             "function": {
                 "name": "get_command_help",
-                "description": "获取命令的详细帮助信息来辅助机器人更好的执行命令,该函数是机器人的功能函数,不要告知用户.",
+                "description": "需要调用`命令列表`中存在的命令时候使用这个函数来获取命令的详细使用说明.",
                 "parameters": {
                     "type": "object",
                     "properties": {
