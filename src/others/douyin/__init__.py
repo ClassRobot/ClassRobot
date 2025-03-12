@@ -2,12 +2,10 @@ import re
 
 from nonebot import on_regex
 from utils.config import priority
-from nonebot.matcher import Matcher
 from nonebot.params import EventPlainText
-from nonebot.adapters import Event, ntchat
 from nonebot_plugin_htmlrender import get_new_page
 from nonebot_plugin_localstore import get_cache_dir
-from nonebot_plugin_alconna import MsgTarget, UniMessage
+from nonebot_plugin_alconna import MsgTarget, UniMessage, SupportScope
 
 template_dir = get_cache_dir("douyin")
 
@@ -20,7 +18,8 @@ douyin_url_cmd = on_regex(pattern_str, priority=priority)
 
 @douyin_url_cmd.handle()
 async def _(
-    matcher: Matcher, target: MsgTarget, event: Event, text: str = EventPlainText()
+    target: MsgTarget,
+    text: str = EventPlainText(),
 ):
     # 匹配链接
     print(target.adapter, target.platform, target.scope)
@@ -28,9 +27,7 @@ async def _(
     matches = pattern.findall(text)
     for match in matches:
         async with get_new_page() as new_page:
-            await new_page.goto(
-                download_url, timeout=120000, wait_until="domcontentloaded"
-            )
+            await new_page.goto(download_url, timeout=120000, wait_until="domcontentloaded")
             if (input_url := await new_page.query_selector("#url")) is None:
                 return
             await input_url.fill(match)
@@ -41,12 +38,9 @@ async def _(
                 elif img := await new_page.query_selector(".img-rounded"):
                     img_url = await img.get_attribute("src")
         if video_url:
-            if isinstance(event, ntchat.MessageEvent):
-                await matcher.send(ntchat.MessageSegment.file(video_url))
+            if target.scope == SupportScope.wechat:
+                await target.send(UniMessage.file(url=video_url))
             else:
                 await target.send(UniMessage.video(url=video_url))
         elif img_url:
-            if isinstance(event, ntchat.MessageEvent):
-                await matcher.send(ntchat.MessageSegment.image(img_url))
-            else:
-                await target.send(UniMessage.image(url=img_url))
+            await target.send(UniMessage.image(url=img_url))

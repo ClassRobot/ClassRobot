@@ -1,0 +1,41 @@
+name: Generate SQL
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  generate_sql:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pipx
+          pipx install nb-cli
+          pipx install poetry
+          pipx ensurepath
+          poetry install
+      
+      - name: ORM Upgrade
+        run: nb orm upgrade
+
+      - name: Generate SQL
+        run: python scripts/generate_sql.py sqlite:///db.sqlite3
+
+      - name: Commit SQL files
+        run: |
+          git config --local user.email "2711402357@qq.com"
+          git config --local user.name "MelodyKnit"
+          git add generated_sql/*.sql
+          git commit -m "Automated SQL generation" || echo "No changes to commit"

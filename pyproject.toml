@@ -78,11 +78,10 @@ plugin_dirs = [
     "src/others",
 ]
 adapters = [
-    {name = "QQ", module_name = "nonebot.adapters.qq"},
     {name = "OneBot V11", module_name = "nonebot.adapters.onebot.v11"},
     {name = "OneBot V12", module_name = "nonebot.adapters.onebot.v12"},
-    {name = "Ntchat", module_name = "nonebot.adapters.ntchat"},
     {name = "WXMP", module_name = "nonebot.adapters.wxmp"},
+    {name = "QQ", module_name = "nonebot.adapters.qq"},
 ]
 
 [tool.black]
