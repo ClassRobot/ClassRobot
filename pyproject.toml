@@ -39,6 +39,8 @@ filetype = "^1.2.0"
 pypandoc = "^1.15"
 nonebot-adapter-wxmp = "^0.1.8"
 qrcode = "^8.0"
+pillow = "^11.1.0"
+nonebot-plugin-userinfo = "^0.2.6"
 
 [tool.poetry.group.dev.dependencies]
 pycln = "^2.5.0"
