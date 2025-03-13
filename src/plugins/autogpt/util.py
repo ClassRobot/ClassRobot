@@ -24,8 +24,6 @@ async def get_prompt_system(helpers: Helpers) -> str:
     prompt_system = await get_prompts(
         "autogpt.jinja", {"helpers": helpers, "info": ("当前时间:" + datetime.now().strftime("%Y-%m-%d %H:%M:%S"))}
     )
-
-    print("help len", helpers.to_string().__len__())
     return prompt_system
 
 
