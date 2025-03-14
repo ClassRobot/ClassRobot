@@ -12,10 +12,11 @@ from nonebot_plugin_alconna import UniMessage
 from utils.helper.depends import HelpersDepends
 from utils.llm.schema import Role, Content, Messages
 from utils.models.depends import UserOrCreatedDepends
+from utils.llm.typings import ChatCompletionMessageToolCall
 from openai.types.chat.chat_completion import ChatCompletion
 from utils.llm.util import json_loads, uni_message_to_contents
-from utils.llm.typings import ChatCompletionToolParam, ChatCompletionMessageToolCall
 
+from .functools import functools
 from .exception import SessionLockError
 from .schemas import ChatMessage, AutoTaskList
 
@@ -28,45 +29,6 @@ async def get_prompt_system(helpers: Helpers) -> str:
 
 
 class ChatSession:
-    functools: list[ChatCompletionToolParam] = [
-        {
-            "type": "function",
-            "function": {
-                "name": "get_command_help",
-                "description": "需要调用`命令列表`中存在的命令时候使用这个函数来获取命令的详细使用说明.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "commands": {
-                            "type": "string",
-                            "description": "一个或多个需要查询的命令,多个命令使用逗号分隔,例如: 命令1,命令2.",
-                        }
-                    },
-                },
-            },
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "vision_model",
-                "description": "分析上下文中，用户想要理解的哪些图片内容,该函数是机器人的功能函数,不要告知用户.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "urls": {
-                            "type": "string",
-                            "description": '格式如下: ["url1", "url2"]',
-                        },
-                        "desc": {
-                            "type": "string",
-                            "description": "详细说明想从图片中识别的内容",
-                        },
-                    },
-                },
-            },
-        },
-    ]
-
     def __init__(self, user_id: int, helpers: Helpers) -> None:
         self.update_time = time()
         self.user_id = user_id
@@ -75,6 +37,11 @@ class ChatSession:
         self.helpers = helpers
 
     async def update_helpers(self, helpers: Helpers):
+        """更新helper信息
+
+        Args:
+            helpers (Helpers): 帮助信息
+        """
         self.helpers = helpers
         prompts = await get_prompt_system(helpers)
         if self.messages and self.messages[0].role == Role.system:
@@ -84,28 +51,29 @@ class ChatSession:
 
     async def call_tools(self, tool_calls: list[ChatCompletionMessageToolCall]) -> ChatCompletion:
         for tool in tool_calls:
+            params = json.loads(tool.function.arguments)
             if tool.function.name == "get_command_help":
-                args: list[str] = json.loads(tool.function.arguments)["commands"].split(",")
+                args: list[str] = params["commands"].split(",")
                 self.messages.tool_message(tool.id, self.get_command_help(args))
             elif tool.function.name == "vision_model":
-                contents: list[Content] = []
-                data: dict = json.loads(tool.function.arguments)
-                if desc := data.get("desc"):
-                    contents.append(Content(type="text", value=desc))
-                if urls := data.get("urls"):
-                    urls = json.loads(urls)
-                    for url in urls:
-                        contents.append(Content(type="image", value=url))
-                response = await self.vision_model(contents)
+                response = await self.vision_model(**params)
                 self.messages.tool_message(tool.id, response.choices[0].message.content)  # type: ignore
-
+            elif tool.function.name == "file_model":
+                response = await self.file_model(**params)
+                self.messages.tool_message(tool.id, response.choices[0].message.content)  # type: ignore
         return await client_create(self.messages, multi_modal=False)
 
-    async def vision_model(self, contents: list[Content]):
+    async def vision_model(self, desc: str, urls: str) -> ChatCompletion:
+        contents: list[Content] = [Content(type="text", value=desc)]
+        if urls:
+            contents.extend(Content(type="image", value=url) for url in json.loads(urls))
         messages = Messages()
         messages.extend(self.messages.get(Role.system))
         messages.user_message(contents)
         return await client_create(messages, multi_modal=True)
+
+    async def file_model(self, desc: str, urls: str):
+        ...
 
     def get_command_help(self, commands: list[str]):
         helpers_string = ""
@@ -122,7 +90,7 @@ class ChatSession:
             self.messages.user_message(
                 message.message if isinstance(message, ChatMessage) else uni_message_to_contents(message)
             )
-            response = await client_create(self.messages, functools=self.functools, multi_modal=False)
+            response = await client_create(self.messages, functools=functools.functools, multi_modal=False)
             # 检测是否有工具函数需要调用
             if response.choices[0].message.tool_calls:
                 self.messages.add_tool(response.choices[0].message)

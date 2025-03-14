@@ -3,7 +3,7 @@ import json
 from typing import Iterable
 
 from nonebot import logger
-from nonebot_plugin_alconna import Text, Image, Reply, UniMessage
+from nonebot_plugin_alconna import File, Text, Image, Reply, UniMessage
 
 from .schema import Content
 
@@ -23,6 +23,8 @@ def uni_message_to_contents(
             contexts.append(Content(type="text", value=msg.text))
         elif isinstance(msg, Image) and msg.url:
             contexts.append(Content(type="image", value=msg.url))
+        elif isinstance(msg, File) and msg.url:
+            contexts.append(Content(type="file", value=msg.url))
         elif isinstance(msg, Reply):
             if msg.msg is None:
                 continue

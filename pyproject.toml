@@ -41,6 +41,9 @@ nonebot-adapter-wxmp = "^0.1.8"
 qrcode = "^8.0"
 pillow = "^11.1.0"
 nonebot-plugin-userinfo = "^0.2.6"
+aiofiles = "^24.1.0"
+comtypes = "^1.4.10"
+pdf2image = "^1.17.0"
 
 [tool.poetry.group.dev.dependencies]
 pycln = "^2.5.0"

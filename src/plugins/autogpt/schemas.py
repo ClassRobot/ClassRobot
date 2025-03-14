@@ -28,6 +28,7 @@ class AutoTaskList(BaseModel):
     "机器人回复内容，自动任务列表"
 
     reply: str | None = None
+    create_at: datetime = Field(default_factory=datetime.now)
     tasks: list[AutoTask] = []
     "用户的话语中可能想要执行的命令(重点:该命令必须是命令列表中的命令)"
     need_confirm: bool = False
