@@ -10,10 +10,10 @@ from utils.llm import client_create
 from utils.template import get_prompts
 from nonebot_plugin_alconna import UniMessage
 from utils.helper.depends import HelpersDepends
-from utils.llm.schema import Role, Content, Messages
 from utils.models.depends import UserOrCreatedDepends
 from utils.llm.typings import ChatCompletionMessageToolCall
 from openai.types.chat.chat_completion import ChatCompletion
+from utils.llm.schema import Role, Content, Context, Messages
 from utils.llm.util import json_loads, uni_message_to_contents
 
 from .functools import functools
@@ -35,6 +35,13 @@ class ChatSession:
         self.lock = False  # 聊天锁，防止一轮聊天还没结束又开始新的聊天
         self.messages = Messages()
         self.helpers = helpers
+
+    def is_last_duplicate_message(self, contents: list[Content]) -> bool:
+        user_content = Context(role=Role.user, content=contents)
+        user_message = self.messages.get(Role.user)
+        if user_message and user_message[-1] == user_content:
+            return True
+        return False
 
     async def update_helpers(self, helpers: Helpers):
         """更新helper信息
@@ -87,18 +94,28 @@ class ChatSession:
             raise SessionLockError("聊天锁已经被锁定，无法发送消息！")
         try:
             self.lock = True
-            self.messages.user_message(
-                message.message if isinstance(message, ChatMessage) else uni_message_to_contents(message)
-            )
-            response = await client_create(self.messages, functools=functools.functools, multi_modal=False)
-            # 检测是否有工具函数需要调用
-            if response.choices[0].message.tool_calls:
-                self.messages.add_tool(response.choices[0].message)
-                # 调用工具函数
-                response = await self.call_tools(response.choices[0].message.tool_calls)
-            # 可能会存在```json和```这种情况，需要删除
-            content = response.choices[0].message.content
-            logger.info(f"`{self.user_id}` response: {content}")
+            content = None
+            user_content = message.message if isinstance(message, ChatMessage) else uni_message_to_contents(message)
+            is_duplicate = self.is_last_duplicate_message(user_content)
+
+            if is_duplicate:  # 是否与上文重复，重复则直接返回机器人的上一条回复
+                print("重复")
+                assistant_message = self.messages.get(Role.assistant)
+                if assistant_message and isinstance(assistant_message[-1].content, str):
+                    content = assistant_message[-1].content
+
+            if content is None:
+                self.messages.user_message(user_content)
+                response = await client_create(self.messages, functools=functools.functools, multi_modal=False)
+                # 检测是否有工具函数需要调用
+                if response.choices[0].message.tool_calls:
+                    self.messages.add_tool(response.choices[0].message)
+                    # 调用工具函数
+                    response = await self.call_tools(response.choices[0].message.tool_calls)
+                # 可能会存在```json和```这种情况，需要删除
+                content = response.choices[0].message.content
+                logger.info(f"`{self.user_id}` response: {content}")
+
             if content:
                 contents = content.split("<hr/>")
                 task_data = contents[-1].strip()
@@ -111,9 +128,11 @@ class ChatSession:
                 if auto_tasks.is_violation:
                     auto_tasks.reply = "用户发送的消息包含违规内容，已被屏蔽！"
 
-                if auto_tasks.reply:
+                if auto_tasks.reply and not is_duplicate:  # 是否与上文重复
                     self.messages.assistant_message(
-                        auto_tasks.reply + "\n<hr/>\n" + auto_tasks.json(exclude={"reply"}, ensure_ascii=False),
+                        auto_tasks.reply
+                        + "\n<hr/>\n"
+                        + auto_tasks.json(exclude={"reply", "create_at"}, ensure_ascii=False),
                     )
                 return auto_tasks
         finally:

@@ -1,6 +1,5 @@
 import hashlib
 from datetime import datetime
-from functools import lru_cache
 from typing import Union, Literal, TypeAlias
 
 from strenum import StrEnum
@@ -33,11 +32,13 @@ class Context(BaseModel):
     tool_call_id: str | None = None
     priority: int = 10
     created_at: datetime = Field(default_factory=datetime.now)
+    context_md5: str | None = None
 
     @property
-    @lru_cache
     def md5(self) -> str:
-        return hashlib.md5(self.json(include={"role", "content"}).encode("utf-8")).hexdigest()
+        if self.context_md5 is None:
+            self.context_md5 = hashlib.md5(self.json(include={"role", "content"}).encode("utf-8")).hexdigest()
+        return self.context_md5
 
     async def multi_modal(self) -> ContentType:
         """多模态消息"""
@@ -94,6 +95,9 @@ class Context(BaseModel):
         if self.role == Role.tool:
             data["tool_call_id"] = self.tool_call_id
         return data
+
+    def __eq__(self, value: "Context") -> bool:
+        return self.md5 == value.md5
 
 
 class Messages(BaseModel):

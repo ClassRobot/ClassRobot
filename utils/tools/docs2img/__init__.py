@@ -3,7 +3,6 @@ from pathlib import Path
 from filetype import guess
 from httpx import AsyncClient
 from aiofiles import open as async_open
-from comtypes.client import CreateObject
 from filetype.types import DOCUMENT, document
 
 
