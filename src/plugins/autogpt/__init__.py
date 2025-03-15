@@ -7,6 +7,7 @@ from utils.roles import UserRole
 from utils.config import priority
 from nonebot.matcher import Matcher
 from nonebot.message import handle_event
+from nonebot_plugin_htmlrender import md_to_pic
 from nonebot.adapters import Bot, Event, Message
 from nonebot import logger, on_command, on_message
 from nonebot.adapters.qq.exception import ActionFailed
@@ -64,7 +65,12 @@ async def _(
 
     if auto_task.reply:
         try:
-            await matcher.send(auto_task.reply.replace(".", "⋅"))
+            # reply行数大于10时转成图片发送
+            if auto_task.reply.count("\n") < 10:
+                await matcher.send(auto_task.reply.replace(".", "⋅"))
+            else:
+                pic = UniMessage.image(raw=await md_to_pic(auto_task.reply)) + "内容过长转为图片发送！"
+                await matcher.send(pic.export_sync(adapter=target.adapter))
         except ActionFailed as e:
             logger.exception(e)
             await matcher.finish(Emoji.error + (e.message or str(e.status_code)))

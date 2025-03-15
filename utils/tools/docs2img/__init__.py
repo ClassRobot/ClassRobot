@@ -84,9 +84,7 @@ class File2Image:
         print(file_path)
         output_dir = file_path.parent / file_md5
         output_dir.mkdir(exist_ok=True, parents=True)
-        if output_dir.exists():
-            images = list(output_dir.iterdir())
-        else:
+        if output_dir.exists() or not (images := list(output_dir.iterdir())):
             try:
                 if isinstance(mime, (document.Ppt, document.Pptx)):
                     images = await ppt2img(file_path, output_dir)
@@ -105,7 +103,7 @@ class File2Image:
         return self
 
     async def upload_image(self, file_path: Path):
-        self.images.append(await upload_file(file_path))
+        self.images.append(await upload_file(file_path, file_path.parent.name + file_path.name))
 
     def __await__(self):
         return self.await_init().__await__()

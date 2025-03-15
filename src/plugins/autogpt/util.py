@@ -70,7 +70,11 @@ class ChatSession:
                 self.messages.tool_message(tool.id, response.choices[0].message.content)  # type: ignore
             elif tool.function.name == "file_model":
                 response = await self.file_model(**params)
-                self.messages.tool_message(tool.id, response.choices[0].message.content)  # type: ignore
+                if response:
+                    content = "解析成功:\n" + (response.choices[0].message.content or "")
+                else:
+                    content = "解析失败:\n改文件过大或者文件类型不正确，只能识别，ppt、doc、pdf类型的文件"
+                self.messages.tool_message(tool.id, content)
         return await client_create(self.messages, multi_modal=False)
 
     async def vision_model(self, desc: str, urls: str) -> ChatCompletion:
@@ -83,16 +87,19 @@ class ChatSession:
         return await client_create(messages, multi_modal=True)
 
     async def file_model(self, desc: str, urls: str):
-        contents: list[Content] = [Content(type="text", value=desc)]
-
+        images = []
         async with AsyncClient() as client:
             for url in json.loads(urls):
                 response = await client.get(url)
                 file_to_image = await File2Image(response.content, save_path=autogpt_dir)
-                contents.extend(Content(type="image", value=url) for url in file_to_image.images)
-        messages = Messages()
-        messages.user_message(contents)
-        return await client_create(messages, multi_modal=True)
+                images.extend(file_to_image.images)
+
+        if images:
+            contents: list[Content] = [Content(type="text", value=desc)]
+            contents.extend(Content(type="image", value=url) for url in file_to_image.images)
+            messages = Messages()
+            messages.user_message(contents)
+            return await client_create(messages, multi_modal=True)
 
     def get_command_help(self, commands: list[str]):
         helpers_string = ""
