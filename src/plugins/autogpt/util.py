@@ -99,7 +99,6 @@ class ChatSession:
             is_duplicate = self.is_last_duplicate_message(user_content)
 
             if is_duplicate:  # 是否与上文重复，重复则直接返回机器人的上一条回复
-                print("重复")
                 assistant_message = self.messages.get(Role.assistant)
                 if assistant_message and isinstance(assistant_message[-1].content, str):
                     content = assistant_message[-1].content
