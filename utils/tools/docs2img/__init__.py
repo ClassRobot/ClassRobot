@@ -1,13 +1,28 @@
+import hashlib
+from asyncio import wait
 from pathlib import Path
 
 from filetype import guess
 from httpx import AsyncClient
 from aiofiles import open as async_open
-from filetype.types import DOCUMENT, document
+from utils.tools.cos import upload_file
+from filetype.types import archive, document
+
+from .to_img import doc2img, pdf2img, ppt2img
+
+DOCUMENTS = (
+    document.Doc,
+    document.Docx,
+    document.Ppt,
+    document.Pptx,
+    archive.Pdf,
+)
 
 
 class File2Image:
-    def __init__(self, file: Path | str | bytes) -> None:
+    def __init__(self, file: Path | str | bytes, save_path: Path | None = None) -> None:
+        self.save_path = save_path  # 将数据保存在指定文件夹，之后只从这里读取
+        self.images = []
         if isinstance(file, bytes):
             self.file_bytes = file
             self.file = None
@@ -16,6 +31,14 @@ class File2Image:
             self.file = file
         else:
             raise TypeError("file must be bytes, str or Path")
+
+    async def md5(self) -> str:
+        file_bytes = await self.read_bytes()
+        return hashlib.md5(file_bytes).hexdigest()
+
+    async def mime(self):
+        file_bytes = await self.read_bytes()
+        return guess(file_bytes)
 
     async def read_bytes(self) -> bytes:
         if self.file_bytes:
@@ -32,17 +55,57 @@ class File2Image:
         else:
             raise TypeError("file must be bytes, str or Path")
 
+    async def is_processable(self) -> bool:
+        """Check if the file type can be processed by this class.
+
+        Returns:
+            bool: True if the file can be processed, False otherwise.
+        """
+        mime = await self.mime()
+        return isinstance(mime, DOCUMENTS) if mime else False
+
     async def await_init(self):
-        await self.read_bytes()
-        self.mime = guess(self.file_bytes)
-        # 检查文件是否是Document类型，否则报错
-        if self.mime not in DOCUMENT:
-            self.mime = None
+        file_bytes = await self.read_bytes()
+        mime = guess(file_bytes)
+        file_md5 = await self.md5()
+        images: list[Path] = []
+        if not isinstance(mime, DOCUMENTS):
+            return self
+
+        # save file
+
+        if self.save_path is not None:
+            file_path = self.save_path / f"{file_md5}.{mime.extension}"
+            file_path.write_bytes(file_bytes)
+        elif isinstance(self.file, Path):
+            file_path = self.file
+        else:
+            raise ValueError("save_path must be specified if file is not a Path object")
+        print(file_path)
+        output_dir = file_path.parent / file_md5
+        output_dir.mkdir(exist_ok=True, parents=True)
+        if output_dir.exists():
+            images = list(output_dir.iterdir())
+        else:
+            try:
+                if isinstance(mime, (document.Ppt, document.Pptx)):
+                    images = await ppt2img(file_path, output_dir)
+                elif isinstance(mime, (document.Doc, document.Docx)):
+                    images = await doc2img(file_path, output_dir)
+                elif isinstance(mime, archive.Pdf):
+                    images = await pdf2img(file_path, output_dir)
+            except Exception as e:
+                output_dir.rmdir()
+                raise e
+
+        if images:
+            upload_tasks = [self.upload_image(img) for img in images]
+            await wait(upload_tasks)
+
         return self
 
-    async def to_image(self):
-        if self.mime in (document.Ppt, document.Pptx):
-            ...
+    async def upload_image(self, file_path: Path):
+        self.images.append(await upload_file(file_path))
 
     def __await__(self):
         return self.await_init().__await__()

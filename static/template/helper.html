@@ -13,45 +13,31 @@
         }
 
         body {
-            width: 1200px;
+            width: 720px;
             padding: 1em;
+            background: #F3F4F6;
+            color: #1F2937;
         }
 
         li {
             list-style: none;
         }
 
-        /** 横线 */
-        hr {
-            height: 3px;
-            background-color: rgba(128, 128, 128, 0.3);
-            margin: .5em 0;
-            border: none;
-        }
-
-        .helpers {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 1em;
+        .helpers .head {
+            margin: 0 2em;
+            padding: 0 2em;
+            margin-top: 1em;
         }
 
         .helpers .card {
             flex: 1 1 calc(33.333% - 1em);
             box-sizing: border-box;
             min-height: 100px;
-            background-color: antiquewhite;
-            padding: 1em;
+            background-color: #FFFFFF;
+            padding: 2em;
             border-radius: .5em;
-        }
-
-        .box {
-            display: flex;
-            gap: 1em;
-        }
-
-        .description,
-        .params {
-            min-height: 100px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            margin: 2em;
         }
 
         .description {
@@ -62,15 +48,66 @@
             line-clamp: 5;
             -webkit-box-orient: vertical;
             flex: 1 1 auto;
-            border-right: 3px solid rgba(128, 128, 128, 0.3);
             padding-right: .5em;
+            margin-top: 1em;
+            margin-bottom: .5em;
         }
 
+        .tags,
+        .roles,
         .params {
-            flex: 0 0 100px; /* Fixed size for params */
+            display: flex;
+            margin-top: 1em;
+            flex-wrap: wrap;
+            align-items: center;
         }
+
+        .tags *,
+        .roles *,
         .params * {
             word-wrap: break-word;
+        }
+
+        .tags ul,
+        .roles ul,
+        .params ul {
+            display: flex;
+        }
+
+        .tags ul li,
+        .roles ul li,
+        .params ul li {
+            margin: 0 .5em;
+            border-radius: 1em;
+            padding: .3em 1em;
+            background-color: #E5E7EB;
+            font-weight: bold;
+        }
+
+        .tags ul li {
+            color: #5B21B6;
+            background-color: #EDE9FE;
+        }
+
+        .roles ul li {
+            color: #1E3A8A;
+            background-color: #DBEAFE;
+        }
+
+        .params ul li {
+            color: #32613a;
+            background-color: #DCFCE7;
+        }
+
+        .code {
+            background-color: #F9FAFB;
+            padding: .1em .3em;
+            border-radius: .3em;
+        }
+
+        .head .code {
+            color: #1D4ED8;
+            background-color: #DBEAFE;
         }
     </style>
 </head>
@@ -85,24 +122,49 @@
 
     {% elif helpers %}
     <div class="helpers">
+        <div class="head">
+            <h1>帮助</h1>
+            <p>通过 <span class="code">帮助 [命令名称]</span> 获取更详细的帮助信息</p>
+        </div>
         {% for data in helpers %}
         <div class="card">
             <h2>{{ data.command }}</h2>
-            <hr>
             <div class="box">
                 <div class="description">
                     {% for text in data.description.split("\n") %}
                     <p>{{ text.replace(" ", "&nbsp;") }}</p>
                     {% endfor %}
                 </div>
+                {% if data.tags %}
+                <div class="tags">
+                    <h3>命令类别:</h3>
+                    <ul>
+                        {% for tag in data.tags %}
+                        <li>{{ tag }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+                {% if data.roles %}
+                <div class="roles">
+                    <h3>可用人群:</h3>
+                    <ul>
+                        {% for role in data.roles %}
+                        <li>{{ role }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+                {% if data.params %}
                 <div class="params">
-                    <h3>参数</h3>
+                    <h3>命令参数:</h3>
                     <ul>
                         {% for param in data.params %}
                         <li>{{ param }}</li>
                         {% endfor %}
                     </ul>
                 </div>
+                {% endif %}
             </div>
         </div>
         {% endfor %}

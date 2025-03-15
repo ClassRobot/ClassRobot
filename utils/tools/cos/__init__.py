@@ -1,4 +1,5 @@
 from hashlib import md5
+from pathlib import Path
 
 from httpx import AsyncClient
 from qcloud_cos import CosS3Client
@@ -9,16 +10,10 @@ from .config import cos_config, plugin_config
 
 
 def md5_filename(file_content: bytes, upper: bool = True) -> str:
-    return (
-        md5(file_content).hexdigest().upper()
-        if upper
-        else md5(file_content).hexdigest()
-    )
+    return md5(file_content).hexdigest().upper() if upper else md5(file_content).hexdigest()
 
 
-async def upload_file(
-    file_content: bytes, file_name: str | None = None, suffix: str | None = None
-) -> str:
+async def upload_file(file_content: bytes | Path, file_name: str | None = None, suffix: str | None = None) -> str:
     """将文件上传到COS
 
     Args:
@@ -29,8 +24,12 @@ async def upload_file(
     Returns:
         str: 返回上传后的下载链接
     """
+    if isinstance(file_content, Path):
+        file_name = file_name or file_content.name
+        file_content = file_content.read_bytes()
+    else:
+        file_name = file_name or md5_filename(file_content)
     client = CosS3Client(cos_config)
-    file_name = file_name or md5_filename(file_content)
     if suffix:
         file_name += suffix
     await run_sync(client.put_object)(plugin_config.bucket, file_content, file_name)

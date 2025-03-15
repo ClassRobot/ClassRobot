@@ -48,3 +48,6 @@ task_dir.mkdir(parents=True, exist_ok=True)
 
 leave_dir = data_dir / "files"
 leave_dir.mkdir(parents=True, exist_ok=True)
+
+autogpt_dir = data_dir / "autogpt"
+autogpt_dir.mkdir(parents=True, exist_ok=True)

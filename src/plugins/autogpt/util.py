@@ -4,10 +4,13 @@ from typing import Annotated
 from datetime import datetime
 
 from nonebot import logger
+from httpx import AsyncClient
 from utils.helper import Helpers
 from nonebot.params import Depends
 from utils.llm import client_create
+from utils.config import autogpt_dir
 from utils.template import get_prompts
+from utils.tools.docs2img import File2Image
 from nonebot_plugin_alconna import UniMessage
 from utils.helper.depends import HelpersDepends
 from utils.models.depends import UserOrCreatedDepends
@@ -80,7 +83,16 @@ class ChatSession:
         return await client_create(messages, multi_modal=True)
 
     async def file_model(self, desc: str, urls: str):
-        ...
+        contents: list[Content] = [Content(type="text", value=desc)]
+
+        async with AsyncClient() as client:
+            for url in json.loads(urls):
+                response = await client.get(url)
+                file_to_image = await File2Image(response.content, save_path=autogpt_dir)
+                contents.extend(Content(type="image", value=url) for url in file_to_image.images)
+        messages = Messages()
+        messages.user_message(contents)
+        return await client_create(messages, multi_modal=True)
 
     def get_command_help(self, commands: list[str]):
         helpers_string = ""
