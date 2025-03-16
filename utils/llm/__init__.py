@@ -4,7 +4,7 @@ from nonebot import logger
 from openai import NOT_GIVEN, APIError, NotGiven, AsyncOpenAI
 
 from .config import plugin_config
-from .schema import Role, Messages
+from .message import Role, Messages
 from .excepions import LLMRequestException
 from .typings import ChatCompletion, ChatCompletionToolParam, ChatCompletionMessageParam
 

@@ -16,7 +16,7 @@ from utils.helper.depends import HelpersDepends
 from utils.models.depends import UserOrCreatedDepends
 from utils.llm.typings import ChatCompletionMessageToolCall
 from openai.types.chat.chat_completion import ChatCompletion
-from utils.llm.schema import Role, Content, Context, Messages
+from utils.llm.message import Role, Content, Context, Messages
 from utils.llm.util import json_loads, uni_message_to_contents
 
 from .functools import functools

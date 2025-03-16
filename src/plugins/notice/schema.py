@@ -4,7 +4,7 @@ from typing import Callable, Iterator, Awaitable
 
 from nonebot import logger
 from pydantic import BaseModel
-from utils.llm.schema import Content
+from utils.llm.message import Content
 from nonebot_plugin_apscheduler import scheduler
 from apscheduler.jobstores.base import JobLookupError
 from utils.models import User, Group, ScheduledNotice
@@ -56,9 +56,7 @@ class Notice(BaseModel):
         if not self.recipients:
             return users
         for recipient in self.recipients:
-            if isinstance(recipient, NoticePrivate) and (
-                user := await User.filter(id=recipient.user_id).first()
-            ):
+            if isinstance(recipient, NoticePrivate) and (user := await User.filter(id=recipient.user_id).first()):
                 users.append(user)
         return users
 
@@ -67,9 +65,7 @@ class Notice(BaseModel):
         if not self.recipients:
             return groups
         for recipient in self.recipients:
-            if isinstance(recipient, NoticeGroup) and (
-                group := await Group.filter(id=recipient.group_id).first()
-            ):
+            if isinstance(recipient, NoticeGroup) and (group := await Group.filter(id=recipient.group_id).first()):
                 groups.append(group)
         return groups
 
@@ -82,10 +78,7 @@ class Notice(BaseModel):
     @property
     def is_immediate(self) -> bool:
         """判断通知是否立即发送"""
-        return (
-            self.notice_time is None
-            or self.notice_time.timestamp() <= datetime.now().timestamp()
-        )
+        return self.notice_time is None or self.notice_time.timestamp() <= datetime.now().timestamp()
 
     @classmethod
     def loads(cls, notice: ScheduledNotice):

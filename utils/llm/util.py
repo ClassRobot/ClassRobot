@@ -5,7 +5,7 @@ from typing import Iterable
 from nonebot import logger
 from nonebot_plugin_alconna import File, Text, Image, Reply, UniMessage
 
-from .schema import Content
+from .message import Content
 
 
 def uni_message_to_contents(

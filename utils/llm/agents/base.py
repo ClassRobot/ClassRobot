@@ -4,7 +4,7 @@ from typing import Type, Union, TypedDict, overload
 
 from pydantic import BaseModel
 
-from .schema import Messages
+from ..message import Messages
 
 
 class AgentDict(TypedDict):

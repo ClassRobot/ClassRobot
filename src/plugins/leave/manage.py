@@ -7,7 +7,7 @@ from typing import List, Iterable
 
 from utils.config import leave_dir
 from utils.roles import StudentRole
-from utils.llm.schema import Content
+from utils.llm.message import Content
 from utils.llm.util import json_loads
 from utils.send import push_user_message
 from utils.llm import Messages, client_create
@@ -74,9 +74,7 @@ class AddLeave:
 
         # 如果不能获取到文件则保存一下
         if (files := await Files.get_file(file_md5)) is None:
-            files = await Files.parse_data(
-                data, leave_dir, suffix=suffix, file_md5=file_md5
-            )
+            files = await Files.parse_data(data, leave_dir, suffix=suffix, file_md5=file_md5)
 
         student_leave = await StudentLeave(
             start_time=leave.start_time,
@@ -90,26 +88,16 @@ class AddLeave:
 
     async def notice_leave(self, leave: StudentLeave):
         """将请假内容通知给班干部"""
-        if (
-            leave_config := await ClassesLeaveConfig.filter(
-                classes_id=self.student.classes_id
-            ).first()
-        ) is None:
+        if (leave_config := await ClassesLeaveConfig.filter(classes_id=self.student.classes_id).first()) is None:
             return None
         notify_role: list[str] = json.loads(leave_config.notify_role)
 
-        students = await Student.filter(
-            classes_id=self.student.classes_id, role__in=notify_role
-        ).all()
+        students = await Student.filter(classes_id=self.student.classes_id, role__in=notify_role).all()
         if students:
             logger.info(f"通知班干部")
-            messages = UniMessage.text(
-                f"学生`{self.student.name}`提交了请假申请:\n" f"申请理由: {leave.reason}"
-            )
+            messages = UniMessage.text(f"学生`{self.student.name}`提交了请假申请:\n" f"申请理由: {leave.reason}")
             messages += UniMessage.image(path=leave_dir / leave.file.name)
-            await wait(
-                [push_user_message(student.user, messages) for student in students]
-            )
+            await wait([push_user_message(student.user, messages) for student in students])
 
 
 class QueryLeave(BaseLeave):
@@ -118,9 +106,7 @@ class QueryLeave(BaseLeave):
         if self.user.student:
             return await self.user.student.get_leaves()
 
-    async def get_classes_leave(
-        self, classes: Classes | None = None
-    ) -> List[StudentLeave] | None:
+    async def get_classes_leave(self, classes: Classes | None = None) -> List[StudentLeave] | None:
         """获取以班级未单位的全部请假条
 
         Args:
@@ -151,10 +137,7 @@ class QueryLeave(BaseLeave):
     @property
     def is_classes_admin(self) -> bool:
         """判断是否为班干部"""
-        return (
-            self.user.student is not None
-            and self.user.student.role in StudentRole._member_names_
-        )
+        return self.user.student is not None and self.user.student.role in StudentRole._member_names_
 
     @property
     def is_teacher(self) -> bool:
@@ -164,13 +147,9 @@ class QueryLeave(BaseLeave):
     def leave_to_messages(self, leave_list: list[StudentLeave]) -> list[UniMessage]:
         today = datetime.now().timestamp()
         # 已结束的请假申请
-        end_leave = [
-            leave for leave in leave_list if leave.end_time.timestamp() < today
-        ]
+        end_leave = [leave for leave in leave_list if leave.end_time.timestamp() < today]
         # 未结束的请假申请
-        not_end_leave = [
-            leave for leave in leave_list if leave.end_time.timestamp() >= today
-        ]
+        not_end_leave = [leave for leave in leave_list if leave.end_time.timestamp() >= today]
 
         messages = []
         if not_end_leave:

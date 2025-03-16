@@ -1,6 +1,6 @@
 from time import time
 
-from .schema import Messages
+from .message import Messages
 from .typings import ChatCompletionToolParam
 
 chat_sessions: dict[str, "ChatSession"] = {}

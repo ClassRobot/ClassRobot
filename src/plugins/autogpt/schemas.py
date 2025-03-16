@@ -1,8 +1,8 @@
 from typing import Literal
 from datetime import datetime
 
-from utils.llm.schema import Content
 from pydantic import Field, BaseModel
+from utils.llm.message import Content
 from nonebot_plugin_alconna import UniMessage
 from utils.llm.util import uni_message_to_contents
 
