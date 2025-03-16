@@ -6,8 +6,8 @@ from nonebot.params import Depends
 from utils.llm.util import json_loads
 from utils.tools.sync import run_sync
 from utils.llm import Messages, client_create
+from utils.template import Prompt, template_to_pic
 from utils.models.depends import UserOrCreatedDepends
-from utils.template import get_prompts, template_to_pic
 from utils.tools import text_to_qrcode, bytes_to_base64
 
 from .config import map_list_path
@@ -38,7 +38,7 @@ class CampusMap:
     async def depends(user: UserOrCreatedDepends) -> "CampusMap":
         campus_map = CampusMap(user)
         content = campus_map.messages.system_message(
-            await get_prompts("campus_map.jinja", {"address": campus_map.location_keys})
+            await Prompt("campus_map").render({"address": campus_map.location_keys})
         )
         print(content.content)
         return campus_map

@@ -14,3 +14,12 @@ def get_prompts_template(name: str) -> Template:
 async def get_prompts(name: str, params: dict | None = None) -> str:
     template = get_prompts_template(name)
     return await template.render_async(**(params or {}))
+
+
+class Prompt:
+    def __init__(self, name: str) -> None:
+        self.name = name
+        self.template = get_prompts_template(f"{name}.jinja")
+
+    async def render(self, params: dict | None = None) -> str:
+        return await self.template.render_async(**(params or {}))

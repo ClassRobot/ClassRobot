@@ -6,10 +6,10 @@ from datetime import datetime
 from nonebot import logger
 from httpx import AsyncClient
 from utils.helper import Helpers
+from utils.template import Prompt
 from nonebot.params import Depends
 from utils.llm import client_create
 from utils.config import autogpt_dir
-from utils.template import get_prompts
 from utils.tools.docs2img import File2Image
 from nonebot_plugin_alconna import UniMessage
 from utils.helper.depends import HelpersDepends
@@ -25,8 +25,8 @@ from .schemas import ChatMessage, AutoTaskList
 
 
 async def get_prompt_system(helpers: Helpers) -> str:
-    prompt_system = await get_prompts(
-        "autogpt.jinja", {"helpers": helpers, "info": ("当前时间:" + datetime.now().strftime("%Y-%m-%d %H:%M:%S"))}
+    prompt_system = await Prompt("autogpt").render(
+        {"helpers": helpers, "info": ("当前时间:" + datetime.now().strftime("%Y-%m-%d %H:%M:%S"))}
     )
     return prompt_system
 
@@ -61,6 +61,7 @@ class ChatSession:
 
     async def call_tools(self, tool_calls: list[ChatCompletionMessageToolCall]) -> ChatCompletion:
         for tool in tool_calls:
+            logger.info(f"`{self.user_id}` call tool: {tool.function.name}")
             params = json.loads(tool.function.arguments)
             if tool.function.name == "get_command_help":
                 args: list[str] = params["commands"].split(",")

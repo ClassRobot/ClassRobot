@@ -128,10 +128,15 @@ class Messages(BaseModel):
         """通过角色获取消息"""
         return Messages(messages=[msg for msg in self.messages if isinstance(msg, Context) and msg.role in role])
 
+    def get_exclude(self, *role: Role) -> "Messages":
+        """通过角色排除消息"""
+        return Messages(messages=[msg for msg in self.messages if not (isinstance(msg, Context) and msg.role in role)])
+
     def text_only(self) -> bool:
         """是否只有文本消息"""
-        if isinstance(self.messages[-1], Context):
-            return self.messages[-1].text_only()
+        for msg in self:
+            if isinstance(msg, Context) and not msg.text_only():
+                return False
         return True
 
     def extend(self, messages: Union["Messages", list[Context | ChatCompletionMessage]]):
