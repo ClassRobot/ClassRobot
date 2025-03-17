@@ -76,7 +76,7 @@ async def client_create(
                 messages = await messages.build_messages(True)
             else:
                 continue
-            pprint(messages[1:])
+            # pprint(messages[1:])
         try:
             logger.opt(colors=True).info(f'LLM "<y>{llm_config.name}</y>" request messages')
             return await clients[llm_config.name].chat.completions.create(

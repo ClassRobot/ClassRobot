@@ -1,6 +1,6 @@
 import hashlib
 from datetime import datetime
-from typing import Union, Literal, TypeAlias
+from typing import Union, Literal, Iterator, TypeAlias
 
 from strenum import StrEnum
 from pydantic import Field, BaseModel
@@ -134,7 +134,7 @@ class Messages(BaseModel):
 
     def text_only(self) -> bool:
         """是否只有文本消息"""
-        for msg in self:
+        for msg in self.messages:
             if isinstance(msg, Context) and not msg.text_only():
                 return False
         return True
@@ -175,7 +175,7 @@ class Messages(BaseModel):
             self.delete_messages(0.5)
         context = Context(role=role, content=content, priority=priority, tool_call_id=tool_call_id)
         self.messages.append(context)
-        print(self.char_length(), role, self)
+        # print(self.char_length(), role, self)
         return context
 
     def add_tool(self, context: ChatCompletionMessage):
@@ -229,3 +229,6 @@ class Messages(BaseModel):
 
     def __bool__(self) -> bool:
         return bool(self.messages)
+
+    def __iter__(self) -> Iterator[Context | ChatCompletionMessage]:
+        return self.messages.__iter__()
