@@ -6,7 +6,6 @@ from utils.config import autogpt_dir
 from utils.tools.docs2img import File2Image
 
 from ..message import Role, Content
-from ..typings import ChatCompletionMessage
 from .base import Messages, BaseAgent, AgentStatus, BaseFunctionAgent
 
 
@@ -29,21 +28,16 @@ class VisionAgent(BaseFunctionAgent):
         """执行agent"""
         print(self.name())
         vision_message = messages.get(*self.roles)  # 提取需要的消息
-        context = messages[-1]
-
-        print("context", context)
-        if not (isinstance(context, ChatCompletionMessage) and context.tool_calls):
-            self.status = AgentStatus.failed
-            return messages
-
-        for tool in (i for i in context.tool_calls if i.function.name == self.name()):
+        self.status = AgentStatus.failed
+        for tool in self.call_tools(messages):
             params = self.Params.parse_raw(tool.function.arguments)
             contents: list[Content] = [Content(type="text", value=params.desc)]
             contents.extend(Content(type="image", value=url) for url in params.urls)
             vision_message.user_message(contents)
             response = await client_create(vision_message, multi_modal=True)  # 将识别后的结果返回给message
             messages.tool_message(tool.id, response.choices[0].message.content or "")
-        self.status = AgentStatus.success
+        else:
+            self.status = AgentStatus.success
         return messages
 
 
@@ -67,15 +61,9 @@ class FileAgent(BaseFunctionAgent):
         print(self.name())
         images = []
         file_message = messages.get(*self.roles)  # 提取需要的消息
-        context = messages[-1]
-
-        print("context", context)
-        if not (isinstance(context, ChatCompletionMessage) and context.tool_calls):
-            self.status = AgentStatus.failed
-            return messages
 
         async with AsyncClient() as client:
-            for tool in (i for i in context.tool_calls if i.function.name == self.name()):
+            for tool in self.call_tools(messages):
                 params = self.Params.parse_raw(tool.function.arguments)
                 for url in params.urls:
                     response = await client.get(url)
@@ -108,4 +96,32 @@ class LLMAgent(BaseAgent):
             messages.add_tool(response.choices[0].message)
         else:
             messages.assistant_message(response.choices[0].message.content or "")
+        return messages
+
+
+class SummaryAgent(BaseAgent):
+    """机器人聊天总结模块,可以帮助机器人总结对话内容"""
+
+    max_chars: int = 24000
+    """最大字符数"""
+
+    @classmethod
+    def name(cls) -> str:
+        """summary_agent"""
+        return "summary_agent"
+
+    async def execute(self, messages: Messages) -> Messages:
+        """执行agent"""
+        message_chars = messages.char_length()
+        print(self.name(), message_chars)
+        if message_chars > self.max_chars:
+            system_message = messages.get(Role.system)
+            summary_message = messages.get(Role.user, Role.assistant)  # 提取需要的消息
+            summary_message.user_message("针对之前的聊天内容进行总结,总结长度不超过2000字.")
+            response = await client_create(summary_message, multi_modal=True)
+            summary_text = response.choices[0].message.content or ""
+            messages.clear()
+            messages.extend(system_message)
+            messages.assistant_message("# 历史聊天内容总结\n" + summary_text)
+        self.status = AgentStatus.success
         return messages

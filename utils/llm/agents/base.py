@@ -1,13 +1,13 @@
 from asyncio import wait
 from abc import ABC, abstractmethod
-from typing import Type, Union, NoReturn, Optional, TypedDict, overload
+from typing import Any, Type, Union, NoReturn, Optional, Generator, TypedDict, overload
 
 from strenum import StrEnum
 from pydantic import BaseModel
 
 from ..message import Messages
-from ..typings import ChatCompletionToolParam
 from .exception import SkipAgentException, FinishAgentException
+from ..typings import ChatCompletionMessage, ChatCompletionToolParam, ChatCompletionMessageToolCall
 
 
 class AgentStatus(StrEnum):
@@ -143,3 +143,10 @@ class BaseFunctionAgent(BaseAgent):
                 "parameters": cls.parameters(),
             },
         }
+
+    def call_tools(self, message: Messages) -> Generator[ChatCompletionMessageToolCall, Any, None]:
+        context = message[-1]
+        if isinstance(context, ChatCompletionMessage) and context.tool_calls:
+            for tool in context.tool_calls:
+                if tool.function.name == self.name():
+                    yield tool

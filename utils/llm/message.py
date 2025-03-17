@@ -30,7 +30,6 @@ class Context(BaseModel):
     role: Role
     content: str | list[Content]
     tool_call_id: str | None = None
-    priority: int = 10
     created_at: datetime = Field(default_factory=datetime.now)
     context_md5: str | None = None
 
@@ -145,10 +144,6 @@ class Messages(BaseModel):
             messages = messages.messages
         self.messages.extend(messages)
 
-    @property
-    def max_length(self) -> int:
-        return 30000
-
     def char_length(self, *role: Role) -> int:
         return sum(
             len(message)
@@ -169,54 +164,26 @@ class Messages(BaseModel):
         role: Role,
         content: str | list[Content],
         tool_call_id: str | None = None,
-        priority: int = 1,
     ) -> Context:
-        if self.char_length() > self.max_length:  # 超出长度
-            self.delete_messages(0.5)
-        context = Context(role=role, content=content, priority=priority, tool_call_id=tool_call_id)
+        context = Context(role=role, content=content, tool_call_id=tool_call_id)
         self.messages.append(context)
-        # print(self.char_length(), role, self)
         return context
 
     def add_tool(self, context: ChatCompletionMessage):
         """添加工具消息"""
         self.messages.append(context)
 
-    def delete_messages(self, per: float = 0.5):
-        """删除一定比例的消息"""
-        char_length = self.char_length()
-        remaining_length = char_length - int(char_length * per)
-        # 需要删除到剩余数量
-        while char_length > remaining_length and len(self.messages) > 1:
-            # 从后往前删除消息
+    def user_message(self, content: ContentType) -> Context:
+        return self.add_message(role=Role.user, content=content)
 
-            messages = self.messages.copy()
-            messages.reverse()
-            for ctx in messages:
-                # 当删除到用户消息时停止
-                if isinstance(ctx, Context) and ctx.role == Role.user:
-                    self.remove(ctx)
-                    break
-                self.remove(ctx)
+    def system_message(self, content: ContentType) -> Context:
+        return self.add_message(role=Role.system, content=content)
 
-            char_length = self.char_length()
+    def assistant_message(self, content: ContentType) -> Context:
+        return self.add_message(role=Role.assistant, content=content)
 
-    def user_message(self, content: ContentType, priority: int = 1) -> Context:
-        return self.add_message(role=Role.user, content=content, priority=priority)
-
-    def system_message(self, content: ContentType, priority: int = 1000) -> Context:
-        return self.add_message(role=Role.system, content=content, priority=priority)
-
-    def assistant_message(self, content: ContentType, priority: int = 1) -> Context:
-        return self.add_message(role=Role.assistant, content=content, priority=priority)
-
-    def tool_message(self, tool_call_id: str, content: str, priority: int = 1) -> Context:
-        return self.add_message(
-            role=Role.tool,
-            content=content,
-            tool_call_id=tool_call_id,
-            priority=priority,
-        )
+    def tool_message(self, tool_call_id: str, content: str) -> Context:
+        return self.add_message(role=Role.tool, content=content, tool_call_id=tool_call_id)
 
     def __repr__(self) -> str:
         return self.get(Role.user, Role.assistant, Role.tool).messages.__repr__()
@@ -226,6 +193,9 @@ class Messages(BaseModel):
 
     def __getitem__(self, item: int) -> Context | ChatCompletionMessage:
         return self.messages[item]
+
+    def clear(self):
+        self.messages.clear()
 
     def __bool__(self) -> bool:
         return bool(self.messages)

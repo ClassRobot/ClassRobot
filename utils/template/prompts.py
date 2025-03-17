@@ -22,4 +22,5 @@ class Prompt:
         self.template = get_prompts_template(f"{name}.jinja")
 
     async def render(self, params: dict | None = None) -> str:
-        return await self.template.render_async(**(params or {}))
+        prompt = await self.template.render_async(**(params or {}))
+        return prompt.replace("    ", "\t").replace("，", ",").replace("。", ".").replace("？", "?").replace("！", "!")

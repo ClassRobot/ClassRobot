@@ -141,7 +141,7 @@ class Helpers(BaseModel):
             self.append(helper)
 
     def append(self, helper: Helper):
-        helper.aliases |= {helper.command}
+        helper.aliases -= {helper.command}
         if not helper.example:
             helper.example = [
                 Context(

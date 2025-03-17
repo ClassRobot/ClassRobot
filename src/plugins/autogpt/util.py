@@ -6,12 +6,13 @@ from datetime import datetime
 from utils.helper import Helpers
 from utils.template import Prompt
 from nonebot.params import Depends
+from utils.helper.agent import HelperAgent
 from nonebot_plugin_alconna import UniMessage
 from utils.helper.depends import HelpersDepends
 from utils.models.depends import UserOrCreatedDepends
 from utils.llm.message import Role, Content, Context, Messages
 from utils.llm.util import json_loads, uni_message_to_contents
-from utils.llm.agents.tools import LLMAgent, FileAgent, VisionAgent
+from utils.llm.agents.tools import LLMAgent, FileAgent, VisionAgent, SummaryAgent
 
 from .exception import SessionLockError
 from .schemas import ChatMessage, AutoTaskList
@@ -52,13 +53,6 @@ class ChatSession:
         else:
             self.messages.system_message(prompts)
 
-    def get_command_help(self, commands: list[str]):
-        helpers_string = ""
-        for command in set(commands):
-            if helper := self.helpers.get_helper(command):
-                helpers_string += helper.json(ensure_ascii=False) + "\n\n"
-        return helpers_string
-
     async def send_message(self, message: str | UniMessage | ChatMessage) -> AutoTaskList | None:
         if self.lock:
             raise SessionLockError("聊天锁已经被锁定，无法发送消息！")
@@ -70,10 +64,12 @@ class ChatSession:
             # 是否与上文重复，重复则直接返回机器人的上一条回复
             if not self.is_last_duplicate_message(user_content):
                 self.messages.user_message(user_content)
-                llm_agent = LLMAgent()
+                summary = SummaryAgent()
+                llm_agent = summary.link_to(LLMAgent)
                 llm_agent.link_to(VisionAgent).link_to(LLMAgent)
                 llm_agent.link_to(FileAgent).link_to(LLMAgent)
-                await llm_agent.invoke(self.messages)
+                llm_agent.link_to(HelperAgent).link_to(LLMAgent)
+                await summary.invoke(self.messages)
 
             # 获取最后一条消息
             last_message = self.messages[-1]

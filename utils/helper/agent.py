@@ -1,0 +1,28 @@
+from pydantic import Field, BaseModel
+from utils.llm.message import Messages
+from utils.llm.agents import BaseFunctionAgent
+
+from .config import helper_menu
+
+
+class HelperAgent(BaseFunctionAgent):
+    """帮助文档模块,详细介绍命令的使用方式,辅助机器人更好的里面命令来生成task"""
+
+    class Params(BaseModel):
+        commands: list[str] = Field(description="一个或多个命令的帮助文档")
+
+    @classmethod
+    def name(cls) -> str:
+        """helper_agent"""
+        return "helper_agent"
+
+    async def execute(self, messages: Messages) -> Messages:
+        print(self.name())
+        for tool in self.call_tools(messages):
+            params = self.Params.parse_raw(tool.function.arguments)
+            helpers: list[str] = []
+            for cmd in params.commands:
+                if helper := helper_menu.get_helper(cmd):
+                    helpers.append(helper.to_string())
+            messages.tool_message(tool.id, "\n".join(helpers))
+        return messages
