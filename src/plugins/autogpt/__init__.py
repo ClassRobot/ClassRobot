@@ -77,10 +77,10 @@ async def _(
     if not auto_task.need_confirm:
         for auto_task in auto_task.tasks:
             if chat_session.helpers.get_helper(auto_task.command):
-                new_event = event.copy()
-                new_event.__uniseg_message_id__ = str(id(new_event))
-                new_event.get_message = update_message(auto_task, target)
-                await handle_event(bot, new_event)
+                event = event.copy()
+                event.__uniseg_message_id__ = str(id(event))
+                event.get_message = update_message(auto_task, target)
+                await handle_event(bot, event)
             else:
                 await matcher.send(Emoji.error + f"无法调用`{auto_task.command}`命令")
 
