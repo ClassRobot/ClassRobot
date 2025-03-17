@@ -5,20 +5,9 @@ from nonebot.params import ArgPlainText
 from utils.models import Classes, GroupBind
 from utils.roles import JoinMethod, TeacherRole
 from nonebot_plugin_alconna import UniMessage, AlconnaMatcher
-from utils.models.depends import (
-    StudentDepends,
-    TeacherDepends,
-    UserOrCreatedDepends,
-    TeacherOrCreatedDepends,
-)
+from utils.models.depends import StudentDepends, TeacherDepends, UserOrCreatedDepends, TeacherOrCreatedDepends
 
-from .commands import (
-    add_classes_cmd,
-    exit_classes_cmd,
-    join_classes_cmd,
-    query_classes_cmd,
-    set_join_classes_cmd,
-)
+from .commands import add_classes_cmd, exit_classes_cmd, join_classes_cmd, query_classes_cmd, set_join_classes_cmd
 
 
 @add_classes_cmd.handle()
@@ -31,9 +20,7 @@ async def _(
     if not platform.is_group:
         await matcher.finish(Emoji.error + "请在群聊中使用该命令！！")
     elif classes := await Classes.get_classes(**platform.group_params):
-        await matcher.finish(
-            Emoji.error + f"这个群已经是班级群了！！\n> 班级ID: {classes.id}\n> 名称: {classes.name}"
-        )
+        await matcher.finish(Emoji.error + f"这个群已经是班级群了！！\n> 班级ID: {classes.id}\n> 名称: {classes.name}")
     if classes := await teacher.get_classes(class_name):
         # 如果教师班级已存在并且该群未绑定班级就按照名字绑定班级
         await GroupBind.bind_group(**platform.group_params, group=classes.group)
@@ -114,9 +101,7 @@ async def _(
 
     if (classes := matcher.state.get("classes")) is None:
         await matcher.finish("❌️[异常]未找到班级！！")
-    elif user.teacher is not None and user.teacher.id in [
-        tid.id for tid in classes.teacher
-    ]:
+    elif user.teacher is not None and user.teacher.id in [tid.id for tid in classes.teacher]:
         await matcher.finish("❌️您是班级的教师，无法加入该班级！！")
 
     match classes.join_method:
@@ -125,7 +110,7 @@ async def _(
             await matcher.finish(f"✅️成功加入班级[{classes.id}: {classes.name}]！！")
         case JoinMethod.apply:
             await classes.apply_join_classes(user, matcher.state.get("describe"))
-            await matcher.finish(f"✅️申请成功，请等待班主任审核！！")
+            await matcher.finish("✅️申请成功，请等待班主任审核！！")
         case JoinMethod.invite:
             await matcher.finish("❌️该班级只能通过邀请加入！！")
     await matcher.finish("❌️[异常]加入班级失败！！")
@@ -141,9 +126,7 @@ async def _(matcher: AlconnaMatcher, student: StudentDepends):
 
 
 @exit_classes_cmd.got("is_exit", prompt="您确定要退出班级吗？(yes/no)")
-async def _(
-    matcher: AlconnaMatcher, student: StudentDepends, is_exit: str = ArgPlainText()
-):
+async def _(matcher: AlconnaMatcher, student: StudentDepends, is_exit: str = ArgPlainText()):
     if is_exit.strip() != "yes":
         await matcher.finish("❌️已取消操作！！")
 

@@ -3,11 +3,14 @@ from pathlib import Path
 import pdf2image
 import comtypes.client
 
-powerpoint = comtypes.client.CreateObject("kwpp.Application")  # 使用wps的接口
-word = comtypes.client.CreateObject("kwps.Application")  # 使用wps的接口
+powerpoint = None
+word = None
 
 
 async def ppt2img(file_path: Path, output: Path) -> list[Path]:
+    global powerpoint
+    if powerpoint is None:
+        powerpoint = comtypes.client.CreateObject("kwpp.Application")
     ppt = powerpoint.Presentations.Open(str(file_path))
     ppt.SaveAs(str(output), 17)
     ppt.Close()
@@ -15,6 +18,9 @@ async def ppt2img(file_path: Path, output: Path) -> list[Path]:
 
 
 async def doc2pdf(file_path: Path, output: Path) -> Path:
+    global word
+    if word is None:
+        word = comtypes.client.CreateObject("kwps.Application")
     doc = word.Documents.Open(str(file_path))
     output.mkdir(parents=True, exist_ok=True)
     doc.SaveAs(str(output / output.stem), 17)
