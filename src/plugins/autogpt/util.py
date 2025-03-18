@@ -66,9 +66,9 @@ class ChatSession:
                 self.messages.user_message(user_content)
                 summary = SummaryAgent()
                 llm_agent = summary.link_to(LLMAgent)
-                llm_agent.link_to(VisionAgent).link_to(LLMAgent)
-                llm_agent.link_to(FileAgent).link_to(LLMAgent)
-                llm_agent.link_to(HelperAgent).link_to(LLMAgent)
+                llm_agent.link_to(VisionAgent).link_to(llm_agent)
+                llm_agent.link_to(FileAgent).link_to(llm_agent)
+                llm_agent.link_to(HelperAgent).link_to(llm_agent)
                 await summary.invoke(self.messages)
 
             # 获取最后一条消息

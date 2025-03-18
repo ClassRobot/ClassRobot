@@ -2,6 +2,7 @@ from asyncio import wait
 from abc import ABC, abstractmethod
 from typing import Any, Type, Union, NoReturn, Optional, Generator, TypedDict, overload
 
+from nonebot import logger
 from strenum import StrEnum
 from pydantic import BaseModel
 
@@ -19,6 +20,12 @@ class AgentStatus(StrEnum):
     """失败"""
     running = "running"
     """执行中"""
+    finish = "finish"
+    """结束当前agent"""
+    skip = "skip"
+    """跳过当前agent"""
+    init = "init"
+    """初始化状态"""
 
 
 class AgentDict(TypedDict):
@@ -28,9 +35,10 @@ class AgentDict(TypedDict):
 
 class BaseAgent(ABC, BaseModel):
     agents: dict[str, AgentDict] = {}
-    status: AgentStatus = AgentStatus.success
+    status: AgentStatus = AgentStatus.init
     messages: Messages = Messages()
     root_agent: Optional["BaseAgent"] = None
+    parent_agent: list["BaseAgent"] = []
 
     class Params(BaseModel):
         ...
@@ -69,14 +77,35 @@ class BaseAgent(ABC, BaseModel):
         """
         if not isinstance(agent, BaseAgent):
             agent = agent()
+        agent.parent_agent.append(self)
         agent.root_agent = self.root_agent or self
         self.agents[agent.name()] = {"agent": agent, "is_wait": is_wait}
         return agent
 
     async def invoke(self, messages: Messages):
+        """执行agent"""
+        if not self.parent_agent or any(agent.status != AgentStatus.running for agent in self.parent_agent):
+            self.messages = await self.__execute(messages)
+
+    async def __execute(self, messages: Messages):
         self.messages = messages
-        self.messages = await self.execute(messages)
-        await self.auto_next(self.messages)
+        self.status = AgentStatus.running
+        try:
+            if isinstance(self, BaseFunctionAgent) and not list(self.call_tools(messages)):
+                self.finish()
+            self.messages = await self.execute(messages)
+            self.status = AgentStatus.success
+        except FinishAgentException:
+            self.status = AgentStatus.finish
+        except SkipAgentException:
+            self.status = AgentStatus.skip
+            await self.auto_next(self.messages)
+        except Exception as error:
+            self.status = AgentStatus.failed
+            logger.exception(error)
+        else:
+            await self.auto_next(self.messages)
+        return self.messages
 
     def result(self) -> Messages:
         """获取执行结果"""
@@ -113,13 +142,12 @@ class BaseAgent(ABC, BaseModel):
         for task in all_tasks:
             await wait(task)
 
-    async def finish(self) -> NoReturn:
+    def finish(self) -> NoReturn:
         """结束agent"""
         raise FinishAgentException
 
-    async def skip(self) -> NoReturn:
+    def skip(self) -> NoReturn:
         """跳过agent, 直接执行下一个agent(这种方式下一个agent)"""
-        await self.auto_next(self.messages)
         raise SkipAgentException
 
     @abstractmethod

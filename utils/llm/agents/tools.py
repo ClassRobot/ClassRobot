@@ -6,7 +6,7 @@ from utils.config import autogpt_dir
 from utils.tools.docs2img import File2Image
 
 from ..message import Role, Content
-from .base import Messages, BaseAgent, AgentStatus, BaseFunctionAgent
+from .base import Messages, BaseAgent, BaseFunctionAgent
 
 
 class VisionAgent(BaseFunctionAgent):
@@ -28,7 +28,6 @@ class VisionAgent(BaseFunctionAgent):
         """执行agent"""
         print(self.name())
         vision_message = messages.get(*self.roles)  # 提取需要的消息
-        self.status = AgentStatus.failed
         for tool in self.call_tools(messages):
             params = self.Params.parse_raw(tool.function.arguments)
             contents: list[Content] = [Content(type="text", value=params.desc)]
@@ -36,8 +35,6 @@ class VisionAgent(BaseFunctionAgent):
             vision_message.user_message(contents)
             response = await client_create(vision_message, multi_modal=True)  # 将识别后的结果返回给message
             messages.tool_message(tool.id, response.choices[0].message.content or "")
-        else:
-            self.status = AgentStatus.success
         return messages
 
 
@@ -77,8 +74,6 @@ class FileAgent(BaseFunctionAgent):
                     messages.tool_message(tool.id, response.choices[0].message.content or "")
                 else:
                     messages.tool_message(tool.id, "解析失败:\n改文件过大或者文件类型不正确，只能识别，ppt、doc、pdf类型的文件")
-
-        self.status = AgentStatus.success
         return messages
 
 
@@ -123,5 +118,4 @@ class SummaryAgent(BaseAgent):
             messages.clear()
             messages.extend(system_message)
             messages.assistant_message("# 历史聊天内容总结\n" + summary_text)
-        self.status = AgentStatus.success
         return messages
