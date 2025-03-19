@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pdf2image
 import comtypes.client
+from utils.tools.sync import run_sync
 
 powerpoint = None
 word = None
@@ -37,7 +38,7 @@ async def doc2img(file_path: Path, output: Path) -> list[Path]:
 
 
 async def pdf2img(file_path: Path, output: Path) -> list[Path]:
-    images = pdf2image.convert_from_path(file_path)
+    images = await run_sync(pdf2image.convert_from_path)(file_path)
     output.mkdir(parents=True, exist_ok=True)
     images_path: list[Path] = []
     for i, image in enumerate(images):

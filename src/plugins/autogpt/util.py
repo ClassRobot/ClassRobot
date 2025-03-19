@@ -1,4 +1,3 @@
-import json
 from time import time
 from typing import Annotated
 from datetime import datetime
@@ -9,13 +8,13 @@ from nonebot.params import Depends
 from utils.helper.agent import HelperAgent
 from nonebot_plugin_alconna import UniMessage
 from utils.helper.depends import HelpersDepends
+from utils.llm.util import uni_message_to_contents
 from utils.models.depends import UserOrCreatedDepends
 from utils.llm.message import Role, Content, Context, Messages
-from utils.llm.util import json_loads, uni_message_to_contents
 from utils.llm.agents.tools import LLMAgent, FileAgent, VisionAgent, SummaryAgent
 
 from .exception import SessionLockError
-from .schemas import ChatMessage, AutoTaskList
+from .schema import ChatMessage, AutoTaskList
 
 
 async def get_prompt_system(helpers: Helpers) -> str:
@@ -78,21 +77,9 @@ class ChatSession:
 
             # 将内容转成task和回复用户的消息
             if content:
-                contents = content.split("<hr/>")
-                task_data = contents[-1].strip()
-                try:
-                    auto_tasks = AutoTaskList.parse_obj(json_loads(task_data))
-                    contents = contents[:-1]
-                except json.JSONDecodeError:
-                    auto_tasks = AutoTaskList()
-
-                auto_tasks.reply = "<hr/>".join(contents).strip()
-                if auto_tasks.is_violation:
-                    auto_tasks.reply = "用户发送的消息包含违规内容，已被屏蔽！"
-
+                auto_tasks = AutoTaskList.parse_str(content)
                 # 更新最后一条消息
                 last_message.content = f'{auto_tasks.reply}"\n<hr/>\n"{auto_tasks.json(exclude={"reply", "create_at"}, ensure_ascii=False)}'
-                print(self.messages)
                 return auto_tasks
         finally:
             self.lock = False

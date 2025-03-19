@@ -1,3 +1,4 @@
+import re
 from typing import Callable
 
 from utils import Emoji
@@ -14,10 +15,10 @@ from nonebot.adapters.qq.exception import ActionFailed
 from nonebot_plugin_alconna import Target, UniMsg, MsgTarget, UniMessage, SupportScope
 
 from .util import ChatSessionDepends
-from .schemas import AutoTask, AutoTaskList
+from .schema import AutoTask, AutoTaskList
 
 auto_gpt = on_message(priority=priority * 10, block=True, rule=to_me())
-clear_chat = on_command("清空聊天", priority=priority, block=True)
+clear_chat = on_command("清空聊天", aliases={"重置聊天", "聊天清空", "聊天重置"}, priority=priority, block=True)
 
 
 def update_message(task: AutoTask, target: Target) -> Callable[[], Message]:
@@ -67,10 +68,37 @@ async def _(
         try:
             # reply行数大于10时转成图片发送
             if auto_task.reply.count("\n") < 10:
-                await matcher.send(auto_task.reply.replace(".", "⋅"))
+                # Function to match image markdown pattern and extract URLs
+                pattern = r"!\[image\]\(([^)]+)\)"
+                parts = []
+                last_idx = 0
+
+                for match in re.finditer(pattern, auto_task.reply):
+                    # Add text before the match
+                    if match.start() > last_idx:
+                        parts.append(auto_task.reply[last_idx : match.start()])
+
+                # Add the URL
+                parts.append(match.group(1))
+                last_idx = match.end()
+
+                # Add remaining text
+                if last_idx < len(auto_task.reply):
+                    parts.append(auto_task.reply[last_idx:])
+
+                # Filter out empty strings
+                parts = [part for part in parts if part]
+
+                reply_message = UniMessage()
+                for part in parts:
+                    if part.startswith("http://") or part.startswith("https://"):
+                        reply_message += UniMessage.image(url=part).export_sync(adapter=target.adapter)
+                    else:
+                        reply_message += part.replace(".", "⋅")
+                await matcher.send(await reply_message.export(adapter=target.adapter))
             else:
                 pic = UniMessage.image(raw=await md_to_pic(auto_task.reply)) + "内容过长转为图片发送！"
-                await matcher.send(pic.export_sync(adapter=target.adapter))
+                await matcher.send(await pic.export(adapter=target.adapter))
         except ActionFailed as e:
             logger.exception(e)
             await matcher.finish(Emoji.error + (e.message or str(e.status_code)))

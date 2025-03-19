@@ -4,13 +4,14 @@ from httpx import AsyncClient
 from utils.llm import client_create
 from utils.config import autogpt_dir
 from utils.tools.docs2img import File2Image
+from utils.schemes.auto_task import AutoTaskList
 
 from ..message import Role, Content
 from .base import Messages, BaseAgent, BaseFunctionAgent
 
 
 class VisionAgent(BaseFunctionAgent):
-    """机器人视觉模块,可以帮助机器人识别图片中获取想要的信息"""
+    """机器人视觉模块,可以帮助机器人识别图片中获取想要的信息,但该功能不负责处理任何图片本身信息,比如P图绘画等功能无法通过这个函数实现."""
 
     roles: set[Role] = {Role.system}
     """引用哪个Role消息"""
@@ -35,6 +36,10 @@ class VisionAgent(BaseFunctionAgent):
             vision_message.user_message(contents)
             response = await client_create(vision_message, multi_modal=True)  # 将识别后的结果返回给message
             messages.tool_message(tool.id, response.choices[0].message.content or "")
+            auto_tasks = AutoTaskList.parse_str(response.choices[0].message.content or "")
+            if auto_tasks.tasks:
+                messages.assistant_message(response.choices[0].message.content or "")
+                self.finish()
         return messages
 
 

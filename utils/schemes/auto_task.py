@@ -1,10 +1,9 @@
+import json
 from typing import Literal
 from datetime import datetime
 
 from pydantic import Field, BaseModel
-from utils.llm.message import Content
-from nonebot_plugin_alconna import UniMessage
-from utils.llm.util import uni_message_to_contents
+from utils.llm.util import json_loads
 
 
 class Param(BaseModel):
@@ -36,19 +35,20 @@ class AutoTaskList(BaseModel):
     is_violation: bool = False
     "和用户在聊天过程中发现违规行为时设置为`True`。"
 
+    @classmethod
+    def parse_str(cls, text: str) -> "AutoTaskList":
+        "解析文本"
+        contents = text.split("<hr/>")
+        task_data = contents[-1].strip()
+        try:
+            auto_tasks = cls.parse_obj(json_loads(task_data))
+            contents = contents[:-1]
+        except json.JSONDecodeError:
+            auto_tasks = cls()
 
-class ChatMessage(BaseModel):
-    "用户的聊天消息"
+        auto_tasks.reply = "<hr/>".join(contents).strip()
+        if auto_tasks.is_violation:
+            auto_tasks.reply = "用户发送的消息包含违规内容，已被屏蔽！"
 
-    role: Literal["user", "help"] = "user"
-    "消息角色, user: 用户, help: 帮助文档"
-    user_id: int | None = None
-    "用户ID"
-    message: list[Content] = []
-    "消息内容"
-    create_at: datetime = Field(default_factory=datetime.now)
-    "消息创建时间"
-
-    def extend(self, message: UniMessage | str):
-        self.message.extend(uni_message_to_contents(message))
-        return self.message
+        # 更新最后一条消息
+        return auto_tasks

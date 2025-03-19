@@ -11,6 +11,10 @@ from nonebot_plugin_localstore import get_data_dir, get_cache_dir, get_config_di
 class GlobalConfig(BaseModel, extra=Extra.ignore):
     wsl_share_dir: Path | None = None
     "WSL共享目录"
+    global_proxy: str | None = None
+    "全局代理"
+    googleapis_key: str | None = None
+    "Google API Key"
 
 
 dirname = "classbot"

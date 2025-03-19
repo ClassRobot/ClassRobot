@@ -2,8 +2,11 @@ import hashlib
 from asyncio import wait
 from pathlib import Path
 
+import numpy as np
+from PIL import Image
 from filetype import guess
 from httpx import AsyncClient
+from utils.tools.sync import run_sync
 from aiofiles import open as async_open
 from utils.tools.cos import upload_file
 from filetype.types import archive, document
@@ -97,10 +100,52 @@ class File2Image:
                 raise e
 
         if images:
-            upload_tasks = [self.upload_image(img) for img in images]
+            upload_tasks = [self.upload_image(img) for img in await run_sync(self.merge_images_if_needed)(images)]
             await wait(upload_tasks)
 
         return self
+
+    def merge_images_if_needed(self, images: list[Path]) -> list[Path]:
+        """Merge images if there are more than 20 to keep the total count under 20."""
+
+        if len(images) <= 20:
+            return images
+
+        # Calculate how many images to combine per group
+        total_images = len(images)
+        images_per_group = int(np.ceil(total_images / 20))
+
+        merged_images = []
+
+        for i in range(0, total_images, images_per_group):
+            group = images[i : i + images_per_group]
+
+            if len(group) == 1:
+                merged_images.append(group[0])
+                continue
+
+            # Open images and determine the required dimensions
+            pil_images = [Image.open(img) for img in group]
+            max_width = max(img.width for img in pil_images)
+            total_height = sum(img.height for img in pil_images)
+
+            # Create a new image with the combined dimensions
+            merged_image = Image.new("RGB", (max_width, total_height), (255, 255, 255))
+
+            # Paste images vertically
+            y_offset = 0
+            for img in pil_images:
+                merged_image.paste(img, (0, y_offset))
+                y_offset += img.height
+                img.close()
+
+            # Save the merged image
+            output_path = group[0].parent / f"merged_{i//images_per_group}.png"
+            merged_image.save(output_path)
+            merged_images.append(output_path)
+        for img in (i for i in images if i not in merged_images):
+            img.unlink(missing_ok=True)
+        return merged_images
 
     async def upload_image(self, file_path: Path):
         self.images.append(await upload_file(file_path, file_path.parent.name + file_path.name))
