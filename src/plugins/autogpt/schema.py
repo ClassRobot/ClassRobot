@@ -5,6 +5,9 @@ from pydantic import Field, BaseModel
 from utils.llm.message import Content
 from nonebot_plugin_alconna import UniMessage
 from utils.llm.util import uni_message_to_contents
+from utils.schemes.auto_task import Param as Param  # noqa
+from utils.schemes.auto_task import AutoTask as AutoTask  # noqa
+from utils.schemes.auto_task import AutoTaskList as AutoTaskList  # noqa
 
 
 class ChatMessage(BaseModel):
