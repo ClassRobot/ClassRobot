@@ -89,21 +89,22 @@ class ChatSession:
 
 
 class ChatSessionManager:
-    timeout = 60 * 60 * 24  # 24小时
+    timeout = 60 * 60
 
     def __init__(self):
         self.sessions: dict[int, ChatSession] = {}
 
     # 检查是否有过期的session然后删除
-    def check_timeout(self):
+    def clear_timeout(self):
+        """清除过期的session"""
         current_time = time()
-        for session in self.sessions.values():
+        for session in list(self.sessions.values()):
             if current_time - session.update_time > self.timeout:
                 del self.sessions[session.user_id]
 
     async def get_chat_session(self, user_id: int, helpers: Helpers) -> ChatSession:
         # 检查是否有过期的session
-        self.check_timeout()
+        self.clear_timeout()
 
         if session := self.sessions.get(user_id):
             session.update_time = time()

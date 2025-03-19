@@ -68,25 +68,30 @@ async def _(
         try:
             # reply行数大于10时转成图片发送
             if auto_task.reply.count("\n") < 10:
-                # Function to match image markdown pattern and extract URLs
+                # 正则表达式查找Markdown图片格式
                 pattern = r"!\[image\]\(([^)]+)\)"
                 parts = []
                 last_idx = 0
+                matches = list(re.finditer(pattern, auto_task.reply))
 
-                for match in re.finditer(pattern, auto_task.reply):
-                    # Add text before the match
+                # 处理找到的每个匹配项
+                for match in matches:
+                    # 添加匹配前的文本
                     if match.start() > last_idx:
                         parts.append(auto_task.reply[last_idx : match.start()])
+                    # 添加图片URL
+                    parts.append(match.group(1))
+                    last_idx = match.end()
 
-                # Add the URL
-                parts.append(match.group(1))
-                last_idx = match.end()
-
-                # Add remaining text
+                # 添加最后一个匹配后的剩余文本
                 if last_idx < len(auto_task.reply):
                     parts.append(auto_task.reply[last_idx:])
 
-                # Filter out empty strings
+                # 如果没有找到任何匹配项，直接使用原始文本
+                if not matches:
+                    parts = [auto_task.reply]
+
+                # 过滤空字符串
                 parts = [part for part in parts if part]
 
                 reply_message = UniMessage()
