@@ -50,6 +50,7 @@ async def _(
     target: MsgTarget,
     chat_session: ChatSessionDepends,
 ):
+    print(target.adapter, target.scope, target.platform)
     if target.scope == SupportScope.wechat:
         await matcher.finish()
     elif chat_session.lock:

@@ -3,6 +3,7 @@ import base64
 from io import BytesIO
 from typing import Any
 from pathlib import Path
+from string import punctuation
 
 from qrcode import QRCode
 from filetype import guess_extension
@@ -170,6 +171,20 @@ def bytes_to_base64(data: bytes) -> str:
         str: base64数据
     """
     return base64.b64encode(data).decode()
+
+
+def check_punctuation(text: str, ignore: list[str] | None = None) -> bool:
+    """检查文本中是否包含标点符号
+
+    Args:
+        text (str): 文本
+
+    Returns:
+        bool: 是否包含标点符号
+    """
+    if ignore:
+        return any(i in text for i in punctuation if i not in ignore)
+    return any(i in text for i in punctuation)
 
 
 if __name__ == "__main__":

@@ -15,6 +15,9 @@ class GlobalConfig(BaseModel, extra=Extra.ignore):
     "全局代理"
     googleapis_key: str | None = None
     "Google API Key"
+    ragflow_key: str | None = None
+    "Ragflow API Key"
+    ragflow_url: str | None = None
 
 
 dirname = "classbot"

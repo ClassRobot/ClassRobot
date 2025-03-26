@@ -7,7 +7,7 @@ readme = "README.md"
 
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = ">=3.10,<3.13"
 nonebot2 = {extras = ["fastapi"], version = "^2.4.1"}
 pandas = {extras = ["tabulate"], version = "^2.2.3"}
 httpx = "^0.28.1"
@@ -17,7 +17,7 @@ imgkit = "^1.2.3"
 markdown2 = "^2.5.3"
 cryptography = "^44.0.0"
 nonebot-adapter-qq = "^1.6.2"
-nonebot-plugin-orm = {extras = ["postgresql", "asyncpg"], version = "^0.7.6"}
+nonebot-plugin-orm = {extras = ["postgresql", "asyncpg"], version = "^0.7.7"}
 nonebot-plugin-alconna = "^0.56.2"
 nonebot-plugin-animeres = "^1.0.5"
 nonebot-plugin-localstore = "^0.7.3"
@@ -47,6 +47,7 @@ pydantic = "^1.0.0"
 onnxruntime = "^1.21.0"
 pyclipper = "1.3.0.post5"
 shapely = "^1.7.0"
+ragflow-sdk = "^0.17.2"
 
 [tool.poetry.group.dev.dependencies]
 pycln = "^2.5.0"

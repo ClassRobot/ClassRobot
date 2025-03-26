@@ -3,21 +3,12 @@ from typing import TypeVar, Callable
 
 from strenum import StrEnum
 
+from .tools import check_punctuation
+
 T = TypeVar("T")
-special_characters = ("\\", "/", ":", "*", "?", '"', "<", ">", "|")
 
 
-def validate_name(name: str) -> str | None:
-    name = name.strip()
-    if name.isdigit():
-        return None
-    for c in special_characters:
-        if c in name:
-            return None
-    return name
-
-
-ValidateName = lambda name: validate_name(name)  # noqa: E731
+ValidateName = lambda name: check_punctuation(name)  # noqa: E731
 
 
 class Emoji(StrEnum):

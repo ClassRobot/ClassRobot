@@ -144,11 +144,11 @@ class BaseAgent(ABC, BaseModel):
 
     def finish(self) -> NoReturn:
         """结束agent"""
-        raise FinishAgentException
+        raise FinishAgentException("")
 
     def skip(self) -> NoReturn:
         """跳过agent, 直接执行下一个agent(这种方式下一个agent)"""
-        raise SkipAgentException
+        raise SkipAgentException("")
 
     @abstractmethod
     async def execute(self, messages: Messages) -> Messages:

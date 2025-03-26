@@ -17,10 +17,20 @@ async def get_prompts(name: str, params: dict | None = None) -> str:
 
 
 class Prompt:
-    def __init__(self, name: str) -> None:
+    def __init__(self, name: str, params: dict | None = None) -> None:
         self.name = name
+        self.params = params or {}
         self.template = get_prompts_template(f"{name}.jinja")
+        self.prompts: dict[str, Prompt] = {name: self}
 
     async def render(self, params: dict | None = None) -> str:
-        prompt = await self.template.render_async(**(params or {}))
+        prompt = await self.template.render_async(**(self.params | (params or {})))
         return prompt.replace("    ", "\t").replace("，", ",").replace("。", ".").replace("？", "?").replace("！", "!")
+
+    async def renders(self, params: dict[str, dict] | None = None) -> str:
+        params = params or {}
+        return "\n".join([await v.render(params.get(k)) for k, v in self.prompts.items()])
+
+    def __iadd__(self, other: "Prompt") -> "Prompt":
+        self.prompts.update(other.prompts)
+        return self

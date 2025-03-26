@@ -171,6 +171,8 @@ class Bind(FilterModel, Model):
     id: Mapped[PrimaryKeyInteger]
     platform_id: Mapped[str] = mapped_column(String(32), index=True, nullable=False)
     """平台ID"""
+    platform_name: Mapped[str] = mapped_column(String(255), nullable=True)
+    """平台名称"""
     account_id: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
     """平台关联ID"""
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey(User.id, ondelete="CASCADE"), nullable=False)
@@ -300,6 +302,7 @@ class GroupBind(FilterModel, Model):
     __tablename__ = "group_bind"
     id: Mapped[PrimaryKeyInteger]
     platform_id: Mapped[str] = mapped_column(String(32), index=True, nullable=False)
+    platform_name: Mapped[str] = mapped_column(String(255), nullable=True)
     channel_id: Mapped[str] = mapped_column(String(64), index=True, nullable=False, default=None)
     """频道中的子频道ID或群ID"""
     guild_id: Mapped[str] = mapped_column(String(64), index=True, nullable=True)
