@@ -11,7 +11,7 @@ from utils.helper.depends import HelpersDepends
 from utils.llm.util import uni_message_to_contents
 from utils.models.depends import UserOrCreatedDepends
 from utils.llm.message import Role, Content, Context, Messages
-from utils.llm.agents.tools import LLMAgent, FileAgent, VisionAgent, SummaryAgent
+from utils.llm.agents.tools import LLMAgent, RagAgent, FileAgent, VisionAgent, SummaryAgent
 
 from .exception import SessionLockError
 from .schema import ChatMessage, AutoTaskList
@@ -68,6 +68,7 @@ class ChatSession:
                 llm_agent.link_to(VisionAgent).link_to(llm_agent)
                 llm_agent.link_to(FileAgent).link_to(llm_agent)
                 llm_agent.link_to(HelperAgent).link_to(llm_agent)
+                llm_agent.link_to(RagAgent).link_to(llm_agent)
                 await summary.invoke(self.messages)
 
             # 获取最后一条消息

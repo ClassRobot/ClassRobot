@@ -8,6 +8,9 @@ from openai.types.chat.chat_completion_message_param import (  # noqa
 from openai.types.chat.chat_completion_message_tool_call import (  # noqa
     ChatCompletionMessageToolCall as ChatCompletionMessageToolCall,
 )
+from openai.types.chat.chat_completion_tool_choice_option_param import (  # noqa
+    ChatCompletionToolChoiceOptionParam as ChatCompletionToolChoiceOptionParam,
+)
 
 
 class ContextType(StrEnum):

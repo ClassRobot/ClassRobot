@@ -6,7 +6,12 @@ from openai import NOT_GIVEN, APIError, NotGiven, AsyncOpenAI
 from .config import plugin_config
 from .message import Role, Messages
 from .excepions import LLMRequestException
-from .typings import ChatCompletion, ChatCompletionToolParam, ChatCompletionMessageParam
+from .typings import (
+    ChatCompletion,
+    ChatCompletionToolParam,
+    ChatCompletionMessageParam,
+    ChatCompletionToolChoiceOptionParam,
+)
 
 clients: dict[str, AsyncOpenAI] = {}
 
@@ -22,6 +27,7 @@ for llm_config in plugin_config.llm_configs:
 async def client_create(
     messages: list[ChatCompletionMessageParam] | Messages | str,
     functools: list[ChatCompletionToolParam] | NotGiven | None = None,
+    tool_choice: ChatCompletionToolChoiceOptionParam | NotGiven | None = None,
     *,
     max_tokens: int = 1000,
     llm_name: str | None = None,
@@ -40,6 +46,8 @@ async def client_create(
         functools = NOT_GIVEN
     if temperature is None:
         temperature = NOT_GIVEN
+    if tool_choice is None:
+        tool_choice = NOT_GIVEN
 
     for llm_config in plugin_config.llm_configs:
         # 如果在指定了llm_name的情况下
@@ -87,6 +95,7 @@ async def client_create(
                 model=llm_config.model,
                 temperature=temperature,
                 timeout=plugin_config.llm_timeout,
+                tool_choice=tool_choice,
             )
         except APIError as e:
             logger.opt(colors=True).error(f'LLM "<y>{llm_config.name}</y>" error {e}')

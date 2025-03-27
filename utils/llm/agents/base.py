@@ -178,3 +178,7 @@ class BaseFunctionAgent(BaseAgent):
             for tool in context.tool_calls:
                 if tool.function.name == self.name():
                     yield tool
+
+
+class BaseChoiceFunctionAgent(BaseFunctionAgent):
+    ...

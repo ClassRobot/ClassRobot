@@ -118,9 +118,6 @@ class Context(ContextSchema):
         return self.md5 == value.md5
 
 
-print(Context.parse_obj({"role": "user", "content": {"type": "text", "value": "申请学校的半工半读"}}))
-
-
 class Messages(BaseModel):
     messages: list[Context | ChatCompletionMessage] = []
 

@@ -1,13 +1,19 @@
+from re import sub
+from asyncio import gather
+
 from pydantic import Field
 from openai import BaseModel
 from httpx import AsyncClient
 from utils.llm import client_create
 from utils.config import autogpt_dir
+from utils.tools.cos import upload_file
 from utils.tools.docs2img import File2Image
 from utils.schemes.auto_task import AutoTaskList
+from utils.llm.agents.ragflow.schema import ChatBotMessage
 
+from .ragflow import AsyncRagFlow
 from ..message import Role, Content
-from .base import Messages, BaseAgent, BaseFunctionAgent
+from .base import Messages, BaseAgent, BaseFunctionAgent, BaseChoiceFunctionAgent
 
 
 class VisionAgent(BaseFunctionAgent):
@@ -124,3 +130,46 @@ class SummaryAgent(BaseAgent):
             messages.extend(system_message)
             messages.assistant_message("# 历史聊天内容总结\n" + summary_text)
         return messages
+
+
+class RagAgent(BaseChoiceFunctionAgent):
+    """检索所有与学校,教育相关的内容"""
+
+    class Params(BaseModel):
+        keywords: str = Field(description="想要检索的内容的关键字")
+
+    @classmethod
+    def name(cls) -> str:
+        """rag_agent"""
+        return "rag_agent"
+
+    async def execute(self, messages: Messages) -> Messages:
+        """执行agent"""
+        print(self.name())
+        rag_session = AsyncRagFlow()
+        chatbots = await rag_session.get_chatbots()
+        session = await chatbots[0].create_session()
+        try:
+            for tool in self.call_tools(messages):
+                params = self.Params.parse_raw(tool.function.arguments)
+                reply = await session.ask(params.keywords)
+                if replace := await self.replace(reply):
+                    messages.assistant_message(replace)
+            return messages
+        finally:
+            chatbots.remove(chatbots[0])
+
+    async def replace(self, reply: ChatBotMessage) -> str:
+        if not reply.reference.chunks:
+            return ""
+
+        answer = reply.answer
+        urls = []
+
+        for ref in reply.reference.chunks:
+            image = await ref.get_image()
+            urls.append(upload_file(image, ref.image_id))
+        urls = await gather(*urls)
+
+        answer = sub(r"##(\d+)\$\$", lambda m: f"\n> 相关材料:\n> ![image]({urls[int(m.group(1))]})\n", answer)
+        return answer
