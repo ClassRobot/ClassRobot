@@ -1,5 +1,3 @@
-from pprint import pprint
-
 from nonebot import logger
 from openai import NOT_GIVEN, APIError, NotGiven, AsyncOpenAI
 

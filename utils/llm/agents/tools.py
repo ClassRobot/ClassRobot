@@ -157,7 +157,7 @@ class RagAgent(BaseChoiceFunctionAgent):
                     messages.assistant_message(replace)
             return messages
         finally:
-            chatbots.remove(chatbots[0])
+            await chatbots[0].delete_session([session.id])
 
     async def replace(self, reply: ChatBotMessage) -> str:
         if not reply.reference.chunks:
