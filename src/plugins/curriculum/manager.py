@@ -72,9 +72,7 @@ class CurriculumRender(BaseModel):
 
     # 是否是今天的课程
     def is_today(self, day: int | None = None) -> bool:
-        return self.is_current_week() and self.is_day(
-            day if day is not None else self.today.weekday() + 1
-        )
+        return self.is_current_week() and self.is_day(day if day is not None else self.today.weekday() + 1)
 
     def is_end(self) -> bool:
         """是否已经结束"""
@@ -97,9 +95,7 @@ class AddCurriculum(BaseCurriculum):
             if (config := await self.get_config()) is None:
                 config = await CurriculumConfig(user_id=self.user.id).create()
         elif self.user.student and (config := await self.get_config(True)) is None:
-            config = await CurriculumConfig(
-                classes_id=self.user.student.classes.id
-            ).create()
+            config = await CurriculumConfig(classes_id=self.user.student.classes.id).create()
         elif config is None:
             return None
 
@@ -125,9 +121,7 @@ class QueryCurriculum(BaseCurriculum):
         configs = await CurriculumConfig.filter(user_id=self.user.id).all()
         # 如果用户是学生则获取班级的课表配置
         if self.user.student:
-            configs += await CurriculumConfig.filter(
-                classes_id=self.user.student.classes.id
-            ).all()
+            configs += await CurriculumConfig.filter(classes_id=self.user.student.classes.id).all()
         return configs
 
     async def get_curriculums(self) -> dict[CurriculumType, list[Curriculum]]:
@@ -137,19 +131,13 @@ class QueryCurriculum(BaseCurriculum):
         curriculums: dict[CurriculumType, list[Curriculum]] = {}
 
         for i in await ShareCurriculumConfig.filter(user=self.user).all():
-            curriculums.setdefault(CurriculumType.share, []).extend(
-                i.config.curriculums
-            )
+            curriculums.setdefault(CurriculumType.share, []).extend(i.config.curriculums)
 
         for config in await self.get_configs():
             if config.classes_id:
-                curriculums.setdefault(CurriculumType.classes, []).extend(
-                    config.curriculums
-                )
+                curriculums.setdefault(CurriculumType.classes, []).extend(config.curriculums)
             else:
-                curriculums.setdefault(CurriculumType.private, []).extend(
-                    config.curriculums
-                )
+                curriculums.setdefault(CurriculumType.private, []).extend(config.curriculums)
         self._curriculums = curriculums
         return curriculums
 
@@ -159,9 +147,7 @@ class QueryCurriculum(BaseCurriculum):
         day_curriculums = []
         for i in chain(*curriculums.values()):
             data = i.loads()
-            if i.config.current_week in data["week"] and self.is_weekday(
-                data["weekday"]
-            ):
+            if i.config.current_week in data["week"] and self.is_weekday(data["weekday"]):
                 day_curriculums.append(i)
         return day_curriculums
 
@@ -182,15 +168,15 @@ class QueryCurriculum(BaseCurriculum):
                 else:
                     card.hr()
                 data = value.loads()
-                card.text(f"课程ID:", str(value.id))
-                card.text(f"课程周期:", ",".join(str(i) for i in data["week"]))
-                card.text(f"每周星期:", ",".join(str(i) for i in data["weekday"]))
-                card.text(f"课程节数:", ",".join(str(i) for i in data["lesson"]))
-                card.text(f"课程名称:", value.course)
+                card.text("课程ID:", str(value.id))
+                card.text("课程周期:", ",".join(str(i) for i in data["week"]))
+                card.text("每周星期:", ",".join(str(i) for i in data["weekday"]))
+                card.text("课程节数:", ",".join(str(i) for i in data["lesson"]))
+                card.text("课程名称:", value.course)
                 if value.classroom:
-                    card.text(f"课程教室:", value.classroom)
+                    card.text("课程教室:", value.classroom)
                 if value.teacher:
-                    card.text(f"授课老师:", value.teacher)
+                    card.text("授课老师:", value.teacher)
         # 获取今天的课程
         if today_curriculums := await self.get_today_curriculums():
             for i, v in enumerate(today_curriculums):
@@ -199,21 +185,19 @@ class QueryCurriculum(BaseCurriculum):
                 else:
                     card.hr()
                 data = v.loads()
-                card.text(f"课程ID:", str(v.id))
-                card.text(f"课程周期:", ",".join(str(i) for i in data["week"]))
-                card.text(f"每周星期:", ",".join(str(i) for i in data["weekday"]))
-                card.text(f"课程节数:", ",".join(str(i) for i in data["lesson"]))
-                card.text(f"课程名称:", v.course)
+                card.text("课程ID:", str(v.id))
+                card.text("课程周期:", ",".join(str(i) for i in data["week"]))
+                card.text("每周星期:", ",".join(str(i) for i in data["weekday"]))
+                card.text("课程节数:", ",".join(str(i) for i in data["lesson"]))
+                card.text("课程名称:", v.course)
                 if v.classroom:
-                    card.text(f"课程教室:", v.classroom)
+                    card.text("课程教室:", v.classroom)
                 if v.teacher:
-                    card.text(f"授课老师:", v.teacher)
+                    card.text("授课老师:", v.teacher)
         return card.render()
 
     @staticmethod
-    def curriculum_to_dict(
-        curriculum: Curriculum, type: CurriculumType, today: datetime
-    ) -> CurriculumRender:
+    def curriculum_to_dict(curriculum: Curriculum, type: CurriculumType, today: datetime) -> CurriculumRender:
         data = curriculum.loads()
         return CurriculumRender(
             id=curriculum.id,
@@ -238,9 +222,7 @@ class QueryCurriculum(BaseCurriculum):
                 max_lesson = max(max(data["lesson"]), max_lesson)
 
         renders = [
-            self.curriculum_to_dict(value, key, self.today)
-            for key, values in curriculums.items()
-            for value in values
+            self.curriculum_to_dict(value, key, self.today) for key, values in curriculums.items() for value in values
         ]
         html = await self._render_pic(renders, self.today, max_lesson)
         return html
@@ -254,10 +236,7 @@ class QueryCurriculum(BaseCurriculum):
             data = value.loads()
             max_lesson = max(max(data["lesson"]), max_lesson)
 
-        renders = [
-            cls.curriculum_to_dict(value, CurriculumType.classes, today)
-            for value in curriculums
-        ]
+        renders = [cls.curriculum_to_dict(value, CurriculumType.classes, today) for value in curriculums]
         html = await cls._render_pic(renders, today, max_lesson)
         return html
 
@@ -289,9 +268,7 @@ class QueryCurriculum(BaseCurriculum):
 
 
 class DeleteCurriculum(QueryCurriculum):
-    async def delete(
-        self, curriculum_id: list[int], is_classes: bool = False
-    ) -> list[int]:
+    async def delete(self, curriculum_id: list[int], is_classes: bool = False) -> list[int]:
         if config := await self.get_config(is_classes):
             curriculums = config.curriculums
             ids = [i.id for i in curriculums]
@@ -317,9 +294,7 @@ class SetCurriculumWeek(BaseCurriculum):
         if self.user.teacher:
             all_classes.extend([i.id for i in self.user.teacher.classes])
         if classes_id in all_classes:
-            await CurriculumConfig.filter(classes_id=classes_id).update(
-                current_week=week
-            )
+            await CurriculumConfig.filter(classes_id=classes_id).update(current_week=week)
             return True
         return False
 
@@ -329,13 +304,9 @@ class ShareCurriculum(BaseCurriculum):
         # 获取用户的课表配置
         if config := await CurriculumConfig.filter(id=config_id).first():
             # 查看是否已经分享过了
-            if await ShareCurriculumConfig.filter(
-                user=self.user, config=config
-            ).first():
+            if await ShareCurriculumConfig.filter(user=self.user, config=config).first():
                 return False
-            elif (
-                self_config := await self.get_config()
-            ) and self_config.id == config.id:
+            elif (self_config := await self.get_config()) and self_config.id == config.id:
                 return False
             await ShareCurriculumConfig(user=self.user, config=config).create()
             return True

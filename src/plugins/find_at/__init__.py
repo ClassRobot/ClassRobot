@@ -1,5 +1,5 @@
 from utils import Emoji
-from utils.models import Bind
+from utils.models import UserBind
 from utils.config import template_dir
 from nonebot.adapters import Event, qq
 from utils.session import EventSession
@@ -54,9 +54,7 @@ async def _(
     at_user = UniMessage()
 
     for user_id in find_students.user_id:
-        if user := await Bind.filter(
-            platform_id=session.platform, user_id=user_id
-        ).first():
+        if user := await UserBind.filter(platform_id=session.platform, user_id=user_id).first():
             at_user += UniMessage.at(user.account_id)
     if at_user:
         await matcher.finish(at_user)

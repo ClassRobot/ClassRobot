@@ -1,43 +1,105 @@
 from utils import Emoji
+from nonebot.adapters import Event
 from utils.tools import StringCard
+from utils.config import global_config
 from utils.session import EventSession
 from nonebot.params import ArgPlainText
-from utils.models import Classes, GroupBind
-from utils.roles import JoinMethod, TeacherRole
+from nonebot_plugin_waiter import waiter
+from utils.models import Classes, Teacher, GroupBind
 from nonebot_plugin_alconna import UniMessage, AlconnaMatcher
-from utils.models.depends import StudentDepends, TeacherDepends, UserOrCreatedDepends, TeacherOrCreatedDepends
+from utils.roles import UserRole, JoinMethod, TeacherClassesRole
+from utils.models.depends import StudentDepends, TeacherDepends, UserOrCreatedDepends
 
-from .commands import add_classes_cmd, exit_classes_cmd, join_classes_cmd, query_classes_cmd, set_join_classes_cmd
+from .commands import (
+    exit_classes_cmd,
+    join_classes_cmd,
+    query_classes_cmd,
+    create_classes_cmd,
+    delete_classes_cmd,
+    set_join_classes_cmd,
+)
 
 
-@add_classes_cmd.handle()
+@create_classes_cmd.handle()
 async def _(
     class_name: str,
     platform: EventSession,
     matcher: AlconnaMatcher,
-    teacher: TeacherOrCreatedDepends,
+    user: UserOrCreatedDepends,
 ):
-    if not platform.is_group:
+    if user.role == UserRole.student:
+        await matcher.finish(Emoji.error + "您是学生没有权限创建班级！！")
+    elif not platform.is_group:
         await matcher.finish(Emoji.error + "请在群聊中使用该命令！！")
-    elif classes := await Classes.get_classes(**platform.group_params):
+    elif classes := await Classes.get_classes(platform.platform, platform.channel_id, platform.guild_id):
         await matcher.finish(Emoji.error + f"这个群已经是班级群了！！\n> 班级ID: {classes.id}\n> 名称: {classes.name}")
+    elif platform.channel_id is None:
+        await matcher.finish(Emoji.error + "请在子频道中使用该命令！！")
+
+    teacher = user.teacher if user.teacher else await Teacher.create_teacher(user.nickname, user)
+    if len(teacher.classes) >= global_config.teacher_max_classes:
+        await matcher.finish(Emoji.error + "您所管理的班级数量已经超过上限！！")
     if classes := await teacher.get_classes(class_name):
         # 如果教师班级已存在并且该群未绑定班级就按照名字绑定班级
-        await GroupBind.bind_group(**platform.group_params, group=classes.group)
+        await GroupBind.bind_group(
+            platform_name=platform.platform_name,
+            platform_id=platform.platform,
+            channel_id=platform.channel_id,
+            guild_id=platform.guild_id,
+            group=classes.group,
+        )
         await matcher.finish(
             f"{Emoji.info}班级ID: {classes.id}\n{Emoji.info}名称:{class_name}\n{Emoji.success}与本群绑定成功!{Emoji.win}"
         )
     else:
         classes = await Classes.create_classes(
             class_name,
-            **platform.group_params,
-            user=teacher.user,
+            platform_name=platform.platform_name,
+            platform_id=platform.platform,
+            channel_id=platform.channel_id,
+            guild_id=platform.guild_id,
+            user=user,
         )
         await classes.bind_teacher(teacher)
-        await classes.update_teacher_role(teacher, TeacherRole.counselor)
+        await classes.update_teacher_role(teacher, TeacherClassesRole.counselor)
         await matcher.finish(
             f"{Emoji.info}班级ID: {classes.id}\n{Emoji.info}名称:{class_name}\n{Emoji.success}创建成功!{Emoji.win}"
         )
+
+
+@delete_classes_cmd.handle()
+async def _(
+    classes_id: int | None,
+    platform: EventSession,
+    matcher: AlconnaMatcher,
+    teacher: TeacherDepends,
+):
+    if teacher is None:
+        await matcher.finish(Emoji.error + "您还不是教师，没有可删除班级！！")
+    elif classes_id is None and platform.is_private:
+        await matcher.finish("❌️请在群聊中使用该命令或命令后面携带班级ID，例如:\n删除班级 1！！")
+
+    if classes_id is None:
+        if (classes := await teacher.get_classes(platform.platform, platform.channel_id, platform.guild_id)) is None:
+            await matcher.finish("❌️该群不是你的班级群！！")
+    else:
+        if (classes := await Classes.get_classes(classes_id)) is None:
+            await matcher.finish(f"❌️班级**{classes_id}**不存在！！")
+        elif classes.id not in [cid.id for cid in teacher.classes]:
+            await matcher.finish("❌️该班级不属于您！！")
+
+    if await classes.student_count() > 0:
+        await matcher.send("该班级中还有学生，您确定要删除吗？(yes/no)")
+
+        @waiter(waits=["message"], block=True)
+        async def is_yes(event: Event):
+            return event.get_message().extract_plain_text().lower() == "yes"
+
+        if not await is_yes.wait(timeout=60):
+            await matcher.finish("❌️已取消操作！！")
+
+    await Classes.filter(id=classes.id).delete()
+    await matcher.finish("✅️删除班级成功！！")
 
 
 @query_classes_cmd.handle()
@@ -53,7 +115,7 @@ async def _(
             card.hr()
             .text(f"班级ID: {classes.id}")
             .text(f"班级名称: {classes.name}")
-            .text(f"学生数量: {len(await classes.get_students())}")
+            .text(f"学生数量: {await classes.student_count()}")
         )
     await matcher.finish(card.render())
 
@@ -71,11 +133,15 @@ async def _(
 ):
     matcher.state["describe"] = describe
 
-    if classes_id:  # 如果有班级ID则查询班级信息
+    if user.role == UserRole.student:
+        await matcher.finish(Emoji.error + "您已经加入过别的班级了！")
+    elif user.role == UserRole.teacher:
+        await matcher.finish(Emoji.error + "您是教师没有权限加入班级！！")
+    elif classes_id:  # 如果有班级ID则查询班级信息
         if (classes := await Classes.get_classes(classes_id)) is None:
             await matcher.finish(f"❌️班级[{classes_id}]不存在！！")
     elif platform.is_group:  # 如果是群聊则查询群是否是班级群
-        if (classes := await Classes.get_classes(**platform.group_params)) is None:
+        if (classes := await Classes.get_classes(platform.platform, platform.channel_id, platform.guild_id)) is None:
             await matcher.finish("❌️该群不是班级群！！")
     else:  # 如果不是群聊则提示需要班级ID
         await matcher.finish("❌️请在群聊中使用该命令或命令后面携带班级ID，例如:\n添加班级 1！！")
@@ -104,7 +170,7 @@ async def _(
     elif user.teacher is not None and user.teacher.id in [tid.id for tid in classes.teacher]:
         await matcher.finish("❌️您是班级的教师，无法加入该班级！！")
 
-    match classes.join_method:
+    match classes.group.settings.join_method:
         case JoinMethod.direct:
             await classes.user_join_classes(user)
             await matcher.finish(f"✅️成功加入班级[{classes.id}: {classes.name}]！！")

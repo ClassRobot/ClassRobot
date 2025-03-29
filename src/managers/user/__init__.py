@@ -1,32 +1,25 @@
 from uuid import uuid4
 
+from utils import Emoji
 from utils.cache import get_cache
+from nonebot.adapters import Event
 from utils.tools import StringCard
 from nonebot.matcher import Matcher
-from utils.models import Bind, User
 from utils.session import EventSession
-from utils.roles import StudentRoleLang
+from utils.models import User, UserBind
+from utils.models.models import Teacher
+from nonebot_plugin_waiter import waiter
 from nonebot.params import ArgPlainText, EventPlainText
 from nonebot_plugin_alconna import UniMessage, AlconnaMatcher
+from utils.roles import UserRole, UserRoleLang, StudentRoleLang
 from utils.models.depends import UserDepends, UserOrCreatedDepends
 
-from .commands import (
-    token_cmd,
-    bind_user_cmd,
-    self_info_cmd,
-    # __helpers__ as __helpers__,
-)
+from .commands import token_cmd, logout_cmd, bind_user_cmd, self_info_cmd
 
 
 @self_info_cmd.handle()
 async def _(matcher: AlconnaMatcher, user: UserOrCreatedDepends):
-    card = (
-        StringCard()
-        .hr("用户信息")
-        .text(f"UID: {user.id}")
-        .text(f"昵称: {user.nickname}")
-        .text(f"账号: {user.username}")
-    )
+    card = StringCard().hr("用户信息").text(f"UID: {user.id}").text(f"昵称: {user.nickname}").text(f"账号: {user.username}")
     if user.email:
         card.text(f"邮箱: {user.email}")
     if user.phone:
@@ -41,22 +34,14 @@ async def _(matcher: AlconnaMatcher, user: UserOrCreatedDepends):
             .text(f"创建日期: {user.teacher.created_at.strftime('%Y-%m-%d')}")
         )
     if user.student is not None:
-        (
-            card.hr("学生信息")
-            .text(f"学生ID: {user.student.id}")
-            .text(f"学生昵称: {user.student.name}")
-        )
+        (card.hr("学生信息").text(f"学生ID: {user.student.id}").text(f"学生昵称: {user.student.name}"))
 
         if user.student.role in StudentRoleLang._member_names_:
             card.text(f"学生职位: {StudentRoleLang[user.student.role]}")
         else:
             card.text(f"学生职位: {user.student.role}(无效)")
 
-        (
-            card.text(f"所在班级: {user.student.classes.name}").text(
-                f"创建日期: {user.student.created_at.strftime('%Y-%m-%d')}"
-            )
-        )
+        (card.text(f"所在班级: {user.student.classes.name}").text(f"创建日期: {user.student.created_at.strftime('%Y-%m-%d')}"))
 
     if user.avatar:
         await matcher.finish(UniMessage.image(url=user.avatar) + card.render())
@@ -69,11 +54,7 @@ async def _(matcher: AlconnaMatcher, user: UserOrCreatedDepends):
     cache = get_cache()
     token = str(uuid4())
     await cache.set(token, user.id, ex=300)
-    await matcher.finish(
-        UniMessage(
-            (f"需要绑定平台请在5分钟内将下方内容粘贴到指定平台发送:\n" f"token={token}")
-        )
-    )
+    await matcher.finish(UniMessage((f"需要绑定平台请在5分钟内将下方内容粘贴到指定平台发送:\n" f"token={token}")))
 
 
 @token_cmd.handle()
@@ -97,9 +78,7 @@ async def _(
     if user is None:
         matcher.state["confirm"] = UniMessage("yes")
     else:
-        await matcher.send(
-            f"您已经在该平台绑定过[{user.id}:{user.username}]的账号，是否要重新绑定？(yes/no)"
-        )
+        await matcher.send(f"您已经在该平台绑定过[{user.id}:{user.username}]的账号，是否要重新绑定？(yes/no)")
 
 
 @token_cmd.got("confirm")
@@ -117,12 +96,60 @@ async def _(
         await matcher.finish("绑定用户不存在,可能已经被删除！")
 
     # 获取旧的绑定信息并删除
-    if bind := await Bind.get_bind(platform.platform, platform.user_id):
+    if bind := await UserBind.get_bind(platform.platform, platform.user_id):
         await bind.delete()
 
-    await Bind.bind_user(
+    await UserBind.bind_user(
         platform.platform,
         platform.user_id,
         bind_user,
     )
     await matcher.finish("绑定成功")
+
+
+@logout_cmd.handle()
+async def _(matcher: AlconnaMatcher, user: UserDepends, role: str):
+    if role not in [UserRoleLang.student, UserRoleLang.teacher, UserRoleLang.user]:
+        await matcher.finish(Emoji.error + "角色不存在！")
+
+    if user is None:
+        await matcher.finish(Emoji.error + "您没有绑定任何账号！")
+    elif role == UserRoleLang.teacher:
+        if user.teacher is None:
+            await matcher.finish(Emoji.error + "您没有绑定任何教师账号！")
+        elif user.teacher.classes:
+            await matcher.finish(Emoji.error + "请先退出班级或转让班级后再注销！")
+    elif role == UserRoleLang.student:
+        if user.student is None:
+            await matcher.finish(Emoji.error + "您没有绑定任何学生账号！")
+    elif role == UserRoleLang.user:
+        if user.teacher is not None:
+            await matcher.finish(Emoji.error + "请先注销教师账号后再注销！")
+        elif user.student is not None:
+            await matcher.finish(Emoji.error + "请先注销学生账号后再注销！")
+
+    await matcher.send(Emoji.warning + f"您确定要注销**{role}**账号吗？\n" f"注销后将无法恢复，是否继续？(yes/no)")
+
+    @waiter(waits=["message"], block=True)
+    async def listen(event: Event):
+        if event.get_message().extract_plain_text() != "yes":
+            await matcher.finish(Emoji.warning + "注销已取消！")
+            return False
+        if role == UserRoleLang.teacher and user.teacher:
+            await user.teacher.filter(id=user.teacher.id).delete()
+            return True
+        elif role == UserRoleLang.student and user.student:
+            await user.student.filter(id=user.student.id).delete()
+            return True
+        elif role == UserRoleLang.user:
+            await user.filter(id=user.id).delete()
+            return True
+        return False
+
+    response = await listen.wait(timeout=60)
+    if response is None:
+        await matcher.finish(Emoji.success + "注销响应超时取消注销！")
+    if response:
+        await matcher.finish(Emoji.success + "注销成功！")
+    else:
+        await matcher.finish(Emoji.success + "注销已取消！")

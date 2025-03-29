@@ -5,7 +5,7 @@ from utils.config import priority, comp_config
 from utils.helper import Param, Helper, UserRole, ParamMode
 from nonebot_plugin_alconna import Args, Field, Alconna, on_alconna
 
-add_classes_cmd = on_alconna(
+create_classes_cmd = on_alconna(
     Alconna(
         "添加班级",
         Args[
@@ -24,14 +24,18 @@ add_classes_cmd = on_alconna(
     block=True,
 )
 
-query_classes_cmd = on_alconna(
-    Alconna("查询班级"), aliases={"班级列表", "我的班级"}, priority=priority, block=True
+delete_classes_cmd = on_alconna(
+    Alconna("删除班级", Args["classes_id?", Optional[int]]),
+    skip_for_unmatch=False,
+    comp_config=comp_config,
+    priority=priority,
+    block=True,
 )
 
+query_classes_cmd = on_alconna(Alconna("查询班级"), aliases={"班级列表", "我的班级"}, priority=priority, block=True)
+
 join_classes_cmd = on_alconna(
-    Alconna(
-        "加入班级", Args["classes_id?", Optional[int]], Args["describe?", Optional[str]]
-    ),
+    Alconna("加入班级", Args["classes_id?", Optional[int]], Args["describe?", Optional[str]]),
     skip_for_unmatch=False,
     comp_config=comp_config,
     priority=priority,
@@ -66,7 +70,7 @@ __helpers__ = [
         description="创建一个自己的班级，创建后默认会成为该班级教师，同时也可以将已有班级与群进行绑定，一条命令只能创建一个班级！",
         aliases={"创建班级", "绑定班级"},
         params=[Param(name="班级名称")],
-        roles={UserRole.user},
+        roles={UserRole.user, UserRole.teacher},
     ),
     Helper(
         command="查询班级",

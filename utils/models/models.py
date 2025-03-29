@@ -9,22 +9,20 @@ from utils.config import data_dir, task_dir
 from nonebot_plugin_orm import Model, get_session
 from sqlalchemy.orm import Mapped, relationship, mapped_column
 from sqlalchemy import Text, String, Integer, DateTime, ForeignKey, select, update
-from utils.roles import UserRole, JoinMethod, StudentRole, TeacherRole, PoliticalStatus
+from utils.roles import UserRole, JoinMethod, StudentRole, TeacherRole, PoliticalStatus, TeacherClassesRole
 
 from .filters import FilterModel
-from .columns import CreateAt, UpdateAt, PrimaryKeyInteger
+from .columns import CreateAt, UpdateAt
 
 
 class User(FilterModel, Model):
     """用户表"""
 
-    __tablename__ = "user"
-    id: Mapped[PrimaryKeyInteger]
-    nickname: Mapped[str] = mapped_column(String(255), nullable=False)
+    nickname: Mapped[str] = mapped_column(String(64), nullable=False)
     """用户昵称"""
-    username: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    username: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
     """用户名"""
-    password: Mapped[str] = mapped_column(String(255), nullable=True)
+    password: Mapped[str] = mapped_column(String(128), nullable=True)
     """用户密码"""
     email: Mapped[str] = mapped_column(String(255), nullable=True, unique=True)
     """邮箱"""
@@ -37,10 +35,10 @@ class User(FilterModel, Model):
     created_at: Mapped[CreateAt]
     updated_at: Mapped[UpdateAt]
 
-    teacher: Mapped["Teacher"] = relationship("Teacher", lazy=False, back_populates="user")
+    teacher: Mapped[Optional["Teacher"]] = relationship("Teacher", lazy=False, back_populates="user")
     student: Mapped[Optional["Student"]] = relationship("Student", lazy=False, back_populates="user")
     """一个用户绑定一个学生"""
-    binds: Mapped[List["Bind"]] = relationship("Bind", lazy="selectin", back_populates="user")
+    binds: Mapped[List["UserBind"]] = relationship("UserBind", lazy="selectin", back_populates="user")
     """一个用户可以绑定多个表"""
 
     @property
@@ -142,16 +140,16 @@ class User(FilterModel, Model):
         """
         return await cls.filter(id=user_id).first()
 
-    async def get_bind(self, platform_id: str) -> Optional["Bind"]:
+    async def get_bind(self, platform_id: str) -> Optional["UserBind"]:
         """获取用户绑定信息
 
         Args:
             platform_id (str): 平台ID
 
         Returns:
-            Optional[Bind]: 绑定信息
+            Optional[UserBind]: 绑定信息
         """
-        return await Bind.filter(user_id=self.id, platform_id=platform_id).first()
+        return await UserBind.filter(user_id=self.id, platform_id=platform_id).first()
 
     async def get_notices(self) -> List["ScheduledNotice"]:
         """获取用户的通知任务"""
@@ -161,18 +159,16 @@ class User(FilterModel, Model):
         return await CurriculumConfig.filter(user_id=self.id).first()
 
 
-class Bind(FilterModel, Model):
+class UserBind(FilterModel, Model):
     """用户与平台绑定表
 
     - 用户与平台是一对多关系
     """
 
-    __tablename__ = "bind"
-    id: Mapped[PrimaryKeyInteger]
-    platform_id: Mapped[str] = mapped_column(String(32), index=True, nullable=False)
-    """平台ID"""
-    platform_name: Mapped[str] = mapped_column(String(255), nullable=True)
+    name: Mapped[str] = mapped_column(String(64), nullable=True)
     """平台名称"""
+    platform_id: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+    """平台ID"""
     account_id: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
     """平台关联ID"""
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey(User.id, ondelete="CASCADE"), nullable=False)
@@ -187,7 +183,7 @@ class Bind(FilterModel, Model):
         cls,
         platform_id: str,
         account_id: str,
-    ) -> Optional["Bind"]:
+    ) -> Optional["UserBind"]:
         """获取绑定信息
 
         Args:
@@ -195,7 +191,7 @@ class Bind(FilterModel, Model):
             account_id (str): 平台用户ID
 
         Returns:
-            Optional[Bind]: 绑定信息
+            Optional[UserBind]: 绑定信息
         """
         return await cls.filter(platform_id=platform_id, account_id=account_id).first()
 
@@ -223,7 +219,7 @@ class Bind(FilterModel, Model):
         platform_id: str,
         account_id: str,
         user: User,
-    ) -> "Bind":
+    ) -> "UserBind":
         """平台与用户之间的绑定
 
         Args:
@@ -232,17 +228,17 @@ class Bind(FilterModel, Model):
             user (User): 绑定的用户
 
         Returns:
-            Bind: 绑定信息
+            UserBind: 绑定信息
         """
         async with get_session() as session:
-            where_and = (Bind.platform_id == platform_id) & (Bind.account_id == account_id)
-            if bind := await session.scalar(select(Bind).where(where_and)):
+            where_and = (UserBind.platform_id == platform_id) & (UserBind.account_id == account_id)
+            if bind := await session.scalar(select(UserBind).where(where_and)):
                 # 查看之前绑定的用户是否是当前用户
                 if bind.user_id == user.id:
                     return bind
                 # 查看之前绑定的用户是否只有这一次绑定，如果是只有一次绑定则删除该用户
                 old_user = bind.user  # 获取之前绑定的用户的id
-                await session.execute(update(Bind).where(where_and).values(user=user))
+                await session.execute(update(UserBind).where(where_and).values(user=user))
                 await session.commit()
                 # 查看之前用户是否有其他绑定，如果没有则删除该用户
                 if len(old_user.binds) == 0:
@@ -262,18 +258,32 @@ class Bind(FilterModel, Model):
             await session.commit()
 
 
+class GroupSettings(FilterModel, Model):
+    """群组设置表
+
+    - 群组与设置是一对一关系
+    """
+
+    join_method: Mapped[JoinMethod] = mapped_column(String(32), nullable=True, server_default=JoinMethod.direct)
+    """群组设置"""
+    created_at: Mapped[CreateAt]
+    updated_at: Mapped[UpdateAt]
+
+
 class Group(FilterModel, Model):
     """群组表"""
 
-    __tablename__ = "group"
-    id: Mapped[PrimaryKeyInteger]
+    name: Mapped[str] = mapped_column(String(64), nullable=False)
+    """群组名称"""
     creator_id: Mapped[int] = mapped_column(Integer, ForeignKey(User.id), nullable=False)
+    settings_id: Mapped[int] = mapped_column(Integer, ForeignKey(GroupSettings.id), nullable=False)
     """创建者ID"""
     created_at: Mapped[CreateAt]
     updated_at: Mapped[UpdateAt]
 
     creator: Mapped[User] = relationship(lazy="selectin")
     """创建者信息"""
+    settings: Mapped[GroupSettings] = relationship("GroupSettings", lazy=False)
     group_binds: Mapped[List["GroupBind"]] = relationship("GroupBind", lazy="selectin", back_populates="group")
     """一个组绑定多个平台"""
 
@@ -281,16 +291,16 @@ class Group(FilterModel, Model):
     """组与班级一对一关系"""
 
     @classmethod
-    async def create_group(cls, creator: User) -> "Group":
+    async def create_group(cls, name: str, creator: User) -> "Group":
         """创建群组
-
         Args:
             creator (User): 创建者信息
 
         Returns:
             Group: 群组信息
         """
-        return await cls(creator=creator).create()
+        settings = await GroupSettings().create()
+        return await cls(name=name, creator=creator, settings=settings).create()
 
 
 class GroupBind(FilterModel, Model):
@@ -299,10 +309,10 @@ class GroupBind(FilterModel, Model):
     - 群组与平台是一对多关系
     """
 
-    __tablename__ = "group_bind"
-    id: Mapped[PrimaryKeyInteger]
-    platform_id: Mapped[str] = mapped_column(String(32), index=True, nullable=False)
-    platform_name: Mapped[str] = mapped_column(String(255), nullable=True)
+    name: Mapped[str] = mapped_column(String(64), nullable=True)
+    """平台名称"""
+    platform_id: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
+    """平台ID"""
     channel_id: Mapped[str] = mapped_column(String(64), index=True, nullable=False, default=None)
     """频道中的子频道ID或群ID"""
     guild_id: Mapped[str] = mapped_column(String(64), index=True, nullable=True)
@@ -311,11 +321,13 @@ class GroupBind(FilterModel, Model):
     created_at: Mapped[CreateAt]
     updated_at: Mapped[UpdateAt]
 
-    group: Mapped[Group] = relationship("Group", lazy="selectin", back_populates="group_binds")
+    group: Mapped[Group] = relationship("Group", lazy=False, back_populates="group_binds")
     """群组信息,一个平台绑定一个群组"""
 
     @classmethod
-    async def bind_group(cls, platform_id: str, channel_id: str, guild_id: Optional[str], group: Group) -> "GroupBind":
+    async def bind_group(
+        cls, platform_name: str, platform_id: str, channel_id: str, guild_id: Optional[str], group: Group
+    ) -> "GroupBind":
         """平台与群组之间的绑定
 
         Args:
@@ -330,6 +342,7 @@ class GroupBind(FilterModel, Model):
         group_bind = await cls(
             platform_id=platform_id,
             channel_id=channel_id,
+            name=platform_name,
             guild_id=guild_id,
             group_id=group.id,
         ).create()
@@ -337,14 +350,13 @@ class GroupBind(FilterModel, Model):
 
 
 class Files(FilterModel, Model):
-    id: Mapped[PrimaryKeyInteger]
-    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    name: Mapped[str] = mapped_column(String(128), nullable=False)
     """文件名称"""
     file_md5: Mapped[str] = mapped_column(String(32), nullable=False, unique=True)
     """文件MD5校验"""
     file_path: Mapped[str] = mapped_column(String(255), nullable=False)
     """文件路径"""
-    suffix: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    suffix: Mapped[str | None] = mapped_column(String(12), nullable=True)
     """文件后缀"""
     created_at: Mapped[CreateAt]
     """创建时间"""
@@ -436,13 +448,11 @@ class Teacher(FilterModel, Model):
     - 教师与班级是多对多关系
     """
 
-    __tablename__ = "teacher"
-    id: Mapped[PrimaryKeyInteger]
-    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    name: Mapped[str] = mapped_column(String(64), nullable=False)
     """教师姓名"""
-    user_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("user.id", ondelete="CASCADE"), nullable=False, unique=True
-    )
+    role: Mapped[TeacherRole] = mapped_column(String(64), nullable=False, server_default=TeacherRole.teacher)
+    """教师角色"""
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey(User.id, ondelete="CASCADE"), nullable=False, unique=True)
     """用户ID"""
     created_at: Mapped[CreateAt]
     updated_at: Mapped[UpdateAt]
@@ -451,7 +461,7 @@ class Teacher(FilterModel, Model):
 
     classes: Mapped[List["Classes"]] = relationship(
         "Classes",
-        secondary="teacher_classes",
+        secondary="bot_teacher_classes",
         lazy="selectin",
         back_populates="teacher",
     )
@@ -468,7 +478,10 @@ class Teacher(FilterModel, Model):
         Returns:
             Teacher: 教师信息
         """
+        print(user.role)
+        assert user.role != UserRole.student, "teacher role is not student"
         teacher = await cls(name=name, user=user).create()
+        await user.update(role=UserRole.teacher)
         return teacher
 
     @classmethod
@@ -517,11 +530,12 @@ class Teacher(FilterModel, Model):
         Returns:
             Optional["Classes"]: 班级信息
         """
+        print(platform_id, channel_id, guild_id)
         condition = TeacherClasses.teacher_id == self.id
         if isinstance(platform_id, int):
             condition &= TeacherClasses.classes_id == platform_id
         else:
-            condition &= Classes.name == platform_id
+            condition &= GroupBind.platform_id == platform_id
             if channel_id:
                 condition &= GroupBind.channel_id == channel_id
             if guild_id:
@@ -545,6 +559,38 @@ class Teacher(FilterModel, Model):
         return list(students)
 
 
+class School(FilterModel, Model):
+    """学校表"""
+
+    name: Mapped[str] = mapped_column(String(128), nullable=False, unique=True)
+    """学校名称"""
+    address: Mapped[str] = mapped_column(String(255), nullable=True)
+    """学校地址"""
+    description: Mapped[str] = mapped_column(Text, nullable=True)
+    """学校描述"""
+    created_at: Mapped[CreateAt]
+    updated_at: Mapped[UpdateAt]
+
+    colleges: Mapped[List["College"]] = relationship("College", lazy="selectin", back_populates="school")
+    """学校与学院一对多关系"""
+
+
+class College(FilterModel, Model):
+    """学院表"""
+
+    name: Mapped[str] = mapped_column(String(128), nullable=False)
+    """学院名称"""
+    school_id: Mapped[int] = mapped_column(Integer, ForeignKey(School.id, ondelete="CASCADE"), nullable=False)
+    """学校ID"""
+    description: Mapped[str] = mapped_column(Text, nullable=True)
+    """学院描述"""
+    created_at: Mapped[CreateAt]
+    updated_at: Mapped[UpdateAt]
+
+    school: Mapped[School] = relationship(lazy="selectin", back_populates="colleges")
+    """学院与学校一对多关系"""
+
+
 class Classes(FilterModel, Model):
     """班级表
 
@@ -552,15 +598,14 @@ class Classes(FilterModel, Model):
     - 班级与群组是一对一关系
     """
 
-    __tablename__ = "classes"
-    id: Mapped[PrimaryKeyInteger]
-    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    name: Mapped[str] = mapped_column(__name_pos=String(64), nullable=False)
     """班级名称"""
     group_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("group.id", ondelete="CASCADE"), nullable=False, unique=True
+        Integer, ForeignKey(Group.id, ondelete="CASCADE"), nullable=False, unique=True
     )
-    join_method: Mapped[JoinMethod] = mapped_column(String(32), nullable=True, server_default=JoinMethod.direct)
     """群组ID"""
+    college_id: Mapped[int | None] = mapped_column(Integer, ForeignKey(College.id, ondelete="CASCADE"), nullable=True)
+    """学院ID"""
     created_at: Mapped[CreateAt]
     updated_at: Mapped[UpdateAt]
 
@@ -568,7 +613,7 @@ class Classes(FilterModel, Model):
     """班级与群组一对一关系"""
     teacher: Mapped[List[Teacher]] = relationship(
         "Teacher",
-        secondary="teacher_classes",
+        secondary="bot_teacher_classes",
         lazy="selectin",
         back_populates="classes",
     )
@@ -596,6 +641,10 @@ class Classes(FilterModel, Model):
 
     async def get_students(self) -> List["Student"]:
         return await Student.filter(classes_id=self.id).all()
+
+    async def student_count(self) -> int:
+        """获取班级学生数量"""
+        return await Student.filter(classes_id=self.id).count()
 
     async def user_join_classes(self, user: User):
         """用户加入班级
@@ -657,6 +706,7 @@ class Classes(FilterModel, Model):
     async def create_classes(
         cls,
         name: str,
+        platform_name: str,
         platform_id: str,
         channel_id: str,
         guild_id: str | None,
@@ -676,8 +726,8 @@ class Classes(FilterModel, Model):
         Returns:
             Classes: 班级信息
         """
-        group = await Group.create_group(user)  # 创建群组
-        await GroupBind.bind_group(platform_id, channel_id, guild_id, group)  # 绑定群组
+        group = await Group.create_group(name, user)  # 创建群组
+        await GroupBind.bind_group(platform_name, platform_id, channel_id, guild_id, group)  # 绑定群组
         return await cls(name=name, group=group).create()  # 创建班级
 
     async def bind_teacher(self, teacher: Teacher, role: TeacherRole | None = None):
@@ -688,7 +738,7 @@ class Classes(FilterModel, Model):
         """
         await TeacherClasses.association(teacher, self)
 
-    async def update_teacher_role(self, teacher: Teacher, role: TeacherRole):
+    async def update_teacher_role(self, teacher: Teacher, role: TeacherClassesRole):
         """更新教师角色
 
         Args:
@@ -706,7 +756,6 @@ class Classes(FilterModel, Model):
 
 
 class ClassesJoinRequest(FilterModel, Model):
-    id: Mapped[PrimaryKeyInteger]
     classes_id: Mapped[int] = mapped_column(Integer, ForeignKey(Classes.id, ondelete="CASCADE"), nullable=False)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey(User.id, ondelete="CASCADE"), nullable=False)
     join_method: Mapped[JoinMethod] = mapped_column(String(32), nullable=False)
@@ -721,14 +770,14 @@ class ClassesJoinRequest(FilterModel, Model):
 class TeacherClasses(FilterModel, Model):
     """教师与班级关联表"""
 
-    __tablename__ = "teacher_classes"
-    id: Mapped[PrimaryKeyInteger]
     teacher_id: Mapped[int] = mapped_column(Integer, ForeignKey(Teacher.id, ondelete="CASCADE"), nullable=False)
     """教师ID"""
     classes_id: Mapped[int] = mapped_column(Integer, ForeignKey(Classes.id, ondelete="CASCADE"), nullable=False)
     """班级ID"""
-    role: Mapped[TeacherRole] = mapped_column(String(32), nullable=False, server_default=TeacherRole.teacher)
-    """教师角色"""
+    role: Mapped[TeacherClassesRole] = mapped_column(
+        String(32), nullable=False, server_default=TeacherClassesRole.teacher
+    )
+    """教师在班级中担任的角色"""
     created_at: Mapped[CreateAt]
     updated_at: Mapped[UpdateAt]
 
@@ -737,6 +786,7 @@ class TeacherClasses(FilterModel, Model):
         cls,
         teacher: Teacher,
         classes: Classes,
+        role: TeacherClassesRole = TeacherClassesRole.teacher,
     ):
         """教师与班级关联
 
@@ -744,30 +794,47 @@ class TeacherClasses(FilterModel, Model):
             teacher (Teacher): 教师
             classes (Classes): 班级
         """
-        teacher_classes = await cls(teacher_id=teacher.id, classes_id=classes.id).create()
+        teacher_classes = await cls(teacher_id=teacher.id, role=role, classes_id=classes.id).create()
         return teacher_classes
+
+
+class StudentExtra(FilterModel, Model):
+    """学生额外信息表"""
+
+    sex: Mapped[str] = mapped_column(String(32), nullable=True)
+    student_code: Mapped[str] = mapped_column(String(32), index=True, nullable=True)
+    """学号"""
+    dormitory: Mapped[str] = mapped_column(String(32), nullable=True)
+    """寝室号"""
+    political_status: Mapped[PoliticalStatus] = mapped_column(String(32), nullable=True)
+    """政治面貌"""
+    family_contact: Mapped[str] = mapped_column(String(11), nullable=True)
+    """家庭联系方式"""
+    updated_at: Mapped[UpdateAt]
 
 
 class Student(FilterModel, Model):
     """学生表"""
 
-    __tablename__ = "student"
-    id: Mapped[PrimaryKeyInteger]
-    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    name: Mapped[str] = mapped_column(String(64), nullable=False)
     """学生姓名"""
     classes_id: Mapped[int] = mapped_column(Integer, ForeignKey(Classes.id, ondelete="CASCADE"), nullable=False)
+    """班级ID"""
     user_id = mapped_column(Integer, ForeignKey(User.id, ondelete="CASCADE"), nullable=False, unique=True)
     role: Mapped[StudentRole] = mapped_column(String(32), nullable=False, server_default=StudentRole.student)
-    """班级ID"""
+    extra_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey(StudentExtra.id, ondelete="CASCADE"), nullable=False, unique=True
+    )
+    """学生额外信息ID"""
     created_at: Mapped[CreateAt]
     updated_at: Mapped[UpdateAt]
 
-    classes: Mapped[Classes] = relationship(lazy="selectin")
-    """学生与班级一对多关系"""
+    classes: Mapped[Classes] = relationship(lazy=False)
+    """学生与班级一对一关系"""
     user: Mapped[User] = relationship(lazy=False, back_populates="student")
     """学生与用户一对一关系"""
-    extra: Mapped[Optional["StudentExtra"]] = relationship(lazy="selectin", back_populates="student", uselist=False)
-    """学生额外信息"""
+    extra: Mapped[StudentExtra] = relationship(lazy=False)
+    """学生与额外信息一对一关系"""
 
     async def create_extra(self, **kwargs):
         if self.extra is None:
@@ -785,7 +852,8 @@ class Student(FilterModel, Model):
         Returns:
             Student: 学生信息
         """
-        student = await cls(name=name, classes=classes, user=user).create()
+        extra = await StudentExtra().create()  # 创建学生额外信息
+        student = await cls(name=name, classes=classes, user=user, extra=extra).create()
         return student
 
     async def update_classes(self, classes: Classes):
@@ -806,45 +874,19 @@ class Student(FilterModel, Model):
         return await StudentLeave.filter(student_id=self.id).all()
 
 
-class StudentExtra(FilterModel, Model):
-    """学生额外信息表"""
-
-    __tablename__ = "student_extra"
-    id: Mapped[PrimaryKeyInteger]
-    student_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey(Student.id, ondelete="CASCADE"), nullable=False, unique=True
-    )
-    sex: Mapped[str] = mapped_column(String(32), nullable=True)
-    student_code: Mapped[str] = mapped_column(String(32), index=True, nullable=True)
-    """学号"""
-    dormitory: Mapped[str] = mapped_column(String(32), nullable=True)
-    """寝室号"""
-    political_status: Mapped[PoliticalStatus] = mapped_column(String(32), nullable=True)
-    """政治面貌"""
-    family_contact: Mapped[str] = mapped_column(String(11), nullable=True)
-    """家庭联系方式"""
-    updated_at: Mapped[UpdateAt]
-
-    student: Mapped[Student] = relationship(lazy="selectin", back_populates="extra")
-
-
 class Tasks(FilterModel, Model):
     """任务表"""
 
-    __tablename__ = "tasks"
-    id: Mapped[PrimaryKeyInteger]
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     """任务名称"""
     classes_id: Mapped[int] = mapped_column(Integer, ForeignKey(Classes.id, ondelete="CASCADE"), nullable=False)
     """班级ID"""
     creator_id: Mapped[int] = mapped_column(Integer, ForeignKey(User.id, ondelete="CASCADE"), nullable=False)
     """创建者ID"""
-    creator_role: Mapped[TeacherRole] = mapped_column(String(32), nullable=False, server_default=TeacherRole.teacher)
-    """创建者角色"""
     created_at: Mapped[CreateAt]
     updated_at: Mapped[UpdateAt]
 
-    classes: Mapped[Classes] = relationship(lazy="selectin")
+    classes: Mapped[Classes] = relationship(lazy=False)
     """任务与班级一对多关系"""
     creator: Mapped[User] = relationship(lazy=False)
 
@@ -908,8 +950,6 @@ class Tasks(FilterModel, Model):
 class TaskCommits(FilterModel, Model):
     """任务文件表"""
 
-    __tablename__ = "task_files"
-    id: Mapped[PrimaryKeyInteger]
     task_id: Mapped[int] = mapped_column(Integer, ForeignKey(Tasks.id, ondelete="CASCADE"), nullable=False)
     """任务ID"""
     file_id: Mapped[int] = mapped_column(Integer, ForeignKey(Files.id), nullable=False, unique=True)
@@ -934,7 +974,6 @@ class TaskCommits(FilterModel, Model):
 
 
 class ScheduledNotice(FilterModel, Model):
-    id: Mapped[PrimaryKeyInteger]
     creator_id: Mapped[int] = mapped_column(Integer, ForeignKey(User.id, ondelete="CASCADE"), nullable=False)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     """通知标题"""
@@ -950,7 +989,6 @@ class ScheduledNotice(FilterModel, Model):
 
 # 班级或学生课表配置项
 class CurriculumConfig(FilterModel, Model):
-    id: Mapped[PrimaryKeyInteger]
     classes_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey(Classes.id, ondelete="CASCADE"), nullable=True, unique=True
     )
@@ -975,7 +1013,6 @@ class CurriculumConfig(FilterModel, Model):
 
 # 共享课表
 class ShareCurriculumConfig(FilterModel, Model):
-    id: Mapped[PrimaryKeyInteger]
     config_id: Mapped[int] = mapped_column(Integer, ForeignKey(CurriculumConfig.id, ondelete="CASCADE"), nullable=False)
     """用户ID"""
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey(User.id, ondelete="CASCADE"), nullable=False)
@@ -989,7 +1026,6 @@ class ShareCurriculumConfig(FilterModel, Model):
 
 # 课表
 class Curriculum(FilterModel, Model):
-    id: Mapped[PrimaryKeyInteger]
     config_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey(CurriculumConfig.id, ondelete="CASCADE"),
@@ -1024,7 +1060,6 @@ class Curriculum(FilterModel, Model):
 
 
 class ClassesLeaveConfig(FilterModel, Model):
-    id: Mapped[PrimaryKeyInteger]
     classes_id: Mapped[int] = mapped_column(
         Integer, ForeignKey(Classes.id, ondelete="CASCADE"), nullable=False, unique=True
     )
@@ -1036,7 +1071,6 @@ class ClassesLeaveConfig(FilterModel, Model):
 
 
 class StudentLeave(FilterModel, Model):
-    id: Mapped[PrimaryKeyInteger]
     start_time: Mapped[datetime] = mapped_column(DateTime, nullable=True)
     """请假开始时间"""
     end_time: Mapped[datetime] = mapped_column(DateTime, nullable=True)
@@ -1062,8 +1096,6 @@ class StudentLeave(FilterModel, Model):
 class EducationSystem(FilterModel, Model):
     """教学系统表"""
 
-    __tablename__ = "education_system"
-    id: Mapped[PrimaryKeyInteger]
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey(User.id, ondelete="CASCADE"), nullable=False)
     """关联的用户ID"""
     account: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)

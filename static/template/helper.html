@@ -145,16 +145,18 @@
                     </ul>
                 </div>
                 {% endif %}
-                {% if data.roles %}
                 <div class="roles">
                     <h3>可用人群:</h3>
                     <ul>
+                        {% if data.roles %}
                         {% for role in data.roles %}
                         <li>{{ role }}</li>
                         {% endfor %}
+                        {% else %}
+                        <li>ALL</li>
+                        {% endif %}
                     </ul>
                 </div>
-                {% endif %}
                 {% if data.params %}
                 <div class="params">
                     <h3>命令参数:</h3>

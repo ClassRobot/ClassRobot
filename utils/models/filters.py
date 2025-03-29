@@ -1,14 +1,10 @@
 from typing import TYPE_CHECKING, Any, Type, Generic, TypeVar, Optional, Generator
 
+from sqlalchemy.orm import Mapped
 from nonebot_plugin_orm import Model, get_session
-from sqlalchemy import (
-    Select,
-    ScalarResult,
-    ColumnExpressionArgument,
-    delete,
-    select,
-    update,
-)
+from sqlalchemy import Select, ScalarResult, ColumnExpressionArgument, func, delete, select, update
+
+from .columns import PrimaryKeyInteger
 
 T = TypeVar("T")
 
@@ -59,9 +55,7 @@ class Filter(Generic[T]):
         self.options: list[ColumnExpressionArgument[bool]] = (options or []).copy()
         self.refresh_model: list[Model] = []
 
-    def filter(
-        self, *where_clause: ColumnExpressionArgument[bool], **kwargs: Any
-    ) -> "Filter[T]":
+    def filter(self, *where_clause: ColumnExpressionArgument[bool], **kwargs: Any) -> "Filter[T]":
         self.options.extend(where_clause)
         select_option = None
         for key in kwargs:
@@ -91,27 +85,34 @@ class Filter(Generic[T]):
 
     async def update(self, **kwargs: Any):
         async with get_session() as session:
-            result = await session.execute(
-                update(self.model).where(*self.options).values(**kwargs)
-            )
+            result = await session.execute(update(self.model).where(*self.options).values(**kwargs))
             await session.commit()
             for model in self.refresh_model:
                 await session.refresh(model)
             return result
+
+    async def count(self) -> int:
+        async with get_session() as session:
+            return await session.scalar(select(func.count()).select_from(self.model).where(*self.options)) or 0
 
     async def all(self) -> list[T]:
         return list(await self.scalars())
 
     async def exists(self) -> bool:
         async with get_session() as session:
-            return bool(
-                await session.scalar(
-                    select(select(self.model).where(*self.options).exists())
-                )
-            )
+            return bool(await session.scalar(select(select(self.model).where(*self.options).exists())))
 
 
 class FilterModel:
+    id: Mapped[PrimaryKeyInteger]
+
+    def __init_subclass__(cls, **kwargs) -> None:
+        if not getattr(cls, "__tablename__", None):
+            name = cls.__name__
+            snake_case = "".join(["_" + c.lower() if c.isupper() else c for c in name]).lstrip("_")
+            setattr(cls, "__tablename__", "bot_" + snake_case)
+        return super().__init_subclass__(**kwargs)
+
     @classmethod
     def filter(cls, *where_clause: ColumnExpressionArgument[bool], **kwargs: Any):
         return Filter[cls](cls).filter(*where_clause, **kwargs)
@@ -124,8 +125,8 @@ class FilterModel:
             return self
 
     async def update(self, **kwargs: Any):
-        await self.filter(id=self.id).update(**kwargs)  # type: ignore
-        return await self.filter(id=self.id).first()  # type: ignore
+        await self.filter(id=self.id).update(**kwargs)
+        return await self.filter(id=self.id).first()
 
     @classmethod
     @property

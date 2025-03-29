@@ -18,6 +18,9 @@ class GlobalConfig(BaseModel, extra=Extra.ignore):
     ragflow_key: str | None = None
     "Ragflow API Key"
     ragflow_url: str | None = None
+    "Ragflow API URL"
+    teacher_max_classes: int = 6
+    "教师最大班级数量"
 
 
 dirname = "classbot"

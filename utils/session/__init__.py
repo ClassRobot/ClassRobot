@@ -29,14 +29,6 @@ class BaseSession(BaseModel):
     def is_guild(self) -> bool:
         return self.guild_id is not None
 
-    @property
-    def group_params(self) -> dict:
-        return {
-            "platform_id": self.platform,
-            "channel_id": self.channel_id,
-            "guild_id": self.guild_id,
-        }
-
 
 class GroupSession(BaseSession):
     channel_id: str

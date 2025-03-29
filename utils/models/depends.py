@@ -6,7 +6,7 @@ from nonebot.typing import T_State
 from nonebot_plugin_alconna import At, UniMessage
 from utils.session import EventSession, GroupEventSession
 from nonebot_plugin_userinfo import UserInfo, EventUserInfo
-from utils.models import Bind, User, Classes, Student, Teacher
+from utils.models import User, Classes, Student, Teacher, UserBind
 
 default_nickname = "user"
 
@@ -18,7 +18,7 @@ async def get_user_depends(
     """通过平台与用户信息获取用户"""
     if user := state.get("_user_model"):
         return user
-    elif user := await Bind.get_user(platform.platform, platform.user_id):
+    elif user := await UserBind.get_user(platform.platform, platform.user_id):
         state["_user_model"] = user
         return user
 
@@ -37,9 +37,7 @@ async def get_user_or_create_depends(
         if user_info:
             avatar = user_info.user_avatar
             user = await User.create_user(
-                nickname="".join(
-                    (user_info.user_name.strip() or default_nickname).split()
-                ),
+                nickname="".join((user_info.user_name.strip() or default_nickname).split()),
                 username=username,
                 avatar=avatar.get_url() if avatar else None,
             )
@@ -48,7 +46,7 @@ async def get_user_or_create_depends(
                 nickname=default_nickname,
                 username=username,
             )
-        await Bind.bind_user(platform.platform, platform.user_id, user)
+        await UserBind.bind_user(platform.platform, platform.user_id, user)
     return user
 
 
@@ -59,9 +57,7 @@ async def at_users_depends(messages: UniMessage, platform: EventSession) -> list
     """通过消息获取@的用户"""
     users: list[User] = []
     for message in messages:
-        if isinstance(message, At) and (
-            user := await Bind.get_user(platform.platform, message.target)
-        ):
+        if isinstance(message, At) and (user := await UserBind.get_user(platform.platform, message.target)):
             users.append(user)
     return users
 
@@ -87,9 +83,7 @@ async def get_classes(
     platform: GroupEventSession,
 ) -> Classes | None:
     """通过平台与群来查看是否是班级群"""
-    return await Classes.get_classes(
-        platform.platform, platform.channel_id, platform.guild_id
-    )
+    return await Classes.get_classes(platform.platform, platform.channel_id, platform.guild_id)
 
 
 ClassesDepends = Annotated[Classes | None, Depends(get_classes)]
@@ -101,9 +95,7 @@ async def teacher_classes(
 ) -> Classes | None:
     """查看当前群是否是教师的班级"""
     if teacher:
-        return await teacher.get_classes(
-            platform.platform, platform.channel_id, platform.guild_id
-        )
+        return await teacher.get_classes(platform.platform, platform.channel_id, platform.guild_id)
     return None
 
 

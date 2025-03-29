@@ -5,7 +5,7 @@ class UserRole(StrEnum):
     """用户角色"""
 
     user = "user"
-    """普通用户"""
+    """用户"""
     admin = "admin"
     """管理员"""
     student = "student"
@@ -19,24 +19,24 @@ class UserRole(StrEnum):
 class UserRoleLang(StrEnum):
     """用户角色"""
 
-    user = "普通用户"
-    """普通用户"""
+    user = "用户"
+    """用户"""
 
     admin = "管理员"
     """管理员"""
+
+    teacher = "教师"
+    """教师"""
+
+    student = "学生"
+    """学生"""
 
 
 class TeacherRole(StrEnum):
     """教师角色"""
 
-    counselor = "counselor"
-    """辅导员"""
-
-    homeroom = "homeroom"
-    """班主任"""
-
     teacher = "teacher"
-    """任课老师"""
+    """老师"""
 
 
 class TeacherRoleLang(StrEnum):
@@ -49,6 +49,19 @@ class TeacherRoleLang(StrEnum):
     """班主任"""
 
     teacher = "任课老师"
+    """任课老师"""
+
+
+class TeacherClassesRole(StrEnum):
+    """教师在班级角色"""
+
+    counselor = "counselor"
+    """辅导员"""
+
+    homeroom = "homeroom"
+    """班主任"""
+
+    teacher = "teacher"
     """任课老师"""
 
 
