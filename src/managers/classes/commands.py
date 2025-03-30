@@ -84,4 +84,16 @@ __helpers__ = [
         params=[Param(name="班级ID", mode=ParamMode.OPTIONAL)],
         roles={UserRole.user},
     ),
+    Helper(
+        command="退出班级",
+        description="退出当前班级",
+        roles={UserRole.student},
+    ),
+    Helper(
+        command="删除班级",
+        description="删除自己的班级",
+        aliases={"解散班级"},
+        params=[Param(name="班级ID", mode=ParamMode.OPTIONAL)],
+        roles={UserRole.teacher},
+    ),
 ]

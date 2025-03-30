@@ -26,7 +26,7 @@ async def _(
     video_url, img_url = None, None
     matches = pattern.findall(text)
     if matches:
-        await target.send(Emoji.success + "正在解析视频，请稍等...")
+        await target.send(Emoji.loading + "正在解析视频，请稍等...")
     for match in matches:
         try:
             if not video_url and not img_url and (data := await get_video_url(match)):

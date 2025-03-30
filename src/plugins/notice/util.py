@@ -45,9 +45,9 @@ async def notice_work(notice: Notice, creator: User | None = None):
             logger.error("遭遇错误，无法获取通知创建者")
             return
 
-        message = UniMessage(f"[有您的通知消息]\n[发送人用户ID: {creator.id} | {creator.nickname}]\n") + contents_to_uni_message(
-            notice.messages
-        )
+        message = UniMessage(
+            f"**有您的通知消息**\n\n**发送人用户ID: {creator.id} | {creator.nickname}**\n\n"
+        ) + contents_to_uni_message(notice.messages)
 
         users = await notice.get_notice_users()
         groups = await notice.get_notice_groups()
@@ -92,8 +92,8 @@ class NoticeSession:
         self.messages.system_message(prompt + f"\n当前时间: {datetime.now()}\n当前用户ID: {user.id}")
         self.user_ids = [self.user.id]
         self.group_ids = []
-        self.student_df = None
-        self.classes_df = None
+        self.student_df: DataFrame | None = None
+        self.classes_df: DataFrame | None = None
 
     async def call(self, message: UniMessage) -> Notices | None:
         try:

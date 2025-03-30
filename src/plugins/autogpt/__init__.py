@@ -53,6 +53,7 @@ async def _(
     print(target.adapter, target.scope, target.platform)
     # if target.scope == SupportScope.wechat:
     #     await matcher.finish()
+    print(message)
     if chat_session.lock:
         await matcher.finish(Emoji.error + "我知道你很急，但是你先别急，等我处理完你的上一条消息。")
     try:
@@ -98,13 +99,13 @@ async def _(
                 reply_message = UniMessage()
                 for part in parts:
                     if part.startswith("http://") or part.startswith("https://"):
-                        reply_message += UniMessage.image(url=part).export_sync(adapter=target.adapter)
+                        reply_message += await UniMessage.image(url=part).export(adapter=target.adapter, bot=bot)
                     else:
                         reply_message += part.replace(".", "⋅")
-                await matcher.send(await reply_message.export(adapter=target.adapter))
+                await matcher.send(await reply_message.export(adapter=target.adapter, bot=bot))
             else:
-                pic = UniMessage.image(raw=await md_to_pic(auto_task.reply)) + "内容过长转为图片发送！"
-                await matcher.send(await pic.export(adapter=target.adapter))
+                pic = UniMessage.image(raw=await md_to_pic(auto_task.reply)) + UniMessage.text("文字太长已转为图片发送")
+                await matcher.send(await pic.export(adapter=target.adapter, bot=bot))
         except ActionFailed as e:
             logger.exception(e)
             await matcher.finish(Emoji.error + (e.message or str(e.status_code)))

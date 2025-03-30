@@ -137,3 +137,8 @@ class FilterModel:
         async with get_session() as session:
             await session.refresh(self)
             return self
+
+    async def delete(self):
+        async with get_session() as session:
+            await session.delete(self)
+            await session.commit()

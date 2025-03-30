@@ -13,7 +13,7 @@ async def get_video_url(url: str) -> dict | None:
         video = data["data"]["video"]
         pprint(video)
         if video.get("play_addr"):
-            result["video"] = video["play_addr"]["url_list"][0]
+            result["video"] = video["play_addr"]["url_list"][-1]
         if video.get("cover"):
             result["image"] = video["cover"]["url_list"][0]
         return result or None

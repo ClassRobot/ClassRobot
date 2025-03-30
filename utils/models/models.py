@@ -251,12 +251,6 @@ class UserBind(FilterModel, Model):
             await session.refresh(bind)
             return bind
 
-    async def delete(self):
-        """删除绑定"""
-        async with get_session() as session:
-            await session.delete(self)
-            await session.commit()
-
 
 class GroupSettings(FilterModel, Model):
     """群组设置表
@@ -438,7 +432,7 @@ class Files(FilterModel, Model):
     async def delete(self):
         """输出文件，同时删除本地文件"""
         self.path.unlink(True)
-        await self.filter(id=self.id).delete()
+        await super().delete()
 
 
 class Teacher(FilterModel, Model):
