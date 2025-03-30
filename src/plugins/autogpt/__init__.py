@@ -51,9 +51,9 @@ async def _(
     chat_session: ChatSessionDepends,
 ):
     print(target.adapter, target.scope, target.platform)
-    if target.scope == SupportScope.wechat:
-        await matcher.finish()
-    elif chat_session.lock:
+    # if target.scope == SupportScope.wechat:
+    #     await matcher.finish()
+    if chat_session.lock:
         await matcher.finish(Emoji.error + "我知道你很急，但是你先别急，等我处理完你的上一条消息。")
     try:
         auto_task = await chat_session.send_message(message)

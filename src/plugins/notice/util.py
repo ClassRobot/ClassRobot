@@ -45,9 +45,9 @@ async def notice_work(notice: Notice, creator: User | None = None):
             logger.error("遭遇错误，无法获取通知创建者")
             return
 
-        message = UniMessage(
-            f"[有您的通知消息]\n[发送人用户ID: {creator.id} | {creator.nickname}]\n"
-        ) + contents_to_uni_message(notice.messages)
+        message = UniMessage(f"[有您的通知消息]\n[发送人用户ID: {creator.id} | {creator.nickname}]\n") + contents_to_uni_message(
+            notice.messages
+        )
 
         users = await notice.get_notice_users()
         groups = await notice.get_notice_groups()
@@ -89,11 +89,11 @@ class NoticeSession:
     def __init__(self, user: User):
         self.user = user
         self.messages = Messages()
-        self.messages.system_message(
-            prompt + f"\n当前时间: {datetime.now()}\n当前用户ID: {user.id}"
-        )
+        self.messages.system_message(prompt + f"\n当前时间: {datetime.now()}\n当前用户ID: {user.id}")
         self.user_ids = [self.user.id]
         self.group_ids = []
+        self.student_df = None
+        self.classes_df = None
 
     async def call(self, message: UniMessage) -> Notices | None:
         try:
@@ -105,17 +105,11 @@ class NoticeSession:
                 for tool in response.choices[0].message.tool_calls:
                     match (tool.function.name):
                         case "get_self_id":
-                            self.messages.tool_message(
-                                tool.id, await self.get_self_id()
-                            )
+                            self.messages.tool_message(tool.id, await self.get_self_id())
                         case "get_classmates":
-                            self.messages.tool_message(
-                                tool.id, await self.get_classmates()
-                            )
+                            self.messages.tool_message(tool.id, await self.get_classmates())
                         case "get_classes":
-                            self.messages.tool_message(
-                                tool.id, await self.get_classes()
-                            )
+                            self.messages.tool_message(tool.id, await self.get_classes())
                 response = await client_create(self.messages)
                 content = response.choices[0].message.content
 
@@ -152,16 +146,18 @@ class NoticeSession:
             students += await self.user.student.get_classmates()
         if self.user.teacher:
             students += await self.user.teacher.get_students()
-        students_df = students_to_df(students).drop_duplicates()
-        self.user_ids = students_df["user_id"].tolist() + [self.user.id]
-        return students_df.to_json(orient="records", force_ascii=False)
+        self.students_df = students_to_df(students).drop_duplicates()
+        self.user_ids = self.students_df["user_id"].tolist() + [self.user.id]
+        return self.students_df.to_json(orient="records", force_ascii=False)
 
     async def get_classes(self):
+        if self.classes_df is not None:
+            return self.classes_df.to_json(orient="records", force_ascii=False)
         classes = []
         if self.user.student:
             classes.append(self.user.student.classes)
         if self.user.teacher:
             classes += self.user.teacher.classes
-        classes_df = classes_to_df(classes).drop_duplicates()
-        self.group_ids = classes_df["group_id"].tolist()
-        return classes_df.to_json(orient="records", force_ascii=False)
+        self.classes_df = classes_to_df(classes).drop_duplicates()
+        self.group_ids = self.classes_df["group_id"].tolist()
+        return self.classes_df.to_json(orient="records", force_ascii=False)

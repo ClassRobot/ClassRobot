@@ -1,19 +1,11 @@
-import json
 from uuid import uuid4
 
 from utils import Emoji, cache
-from utils.tools import StringCard
 from nonebot_plugin_alconna import UniMessage, AlconnaMatcher
 
 from .util import range_parser
 from . import interval as interval  # noqa
-from .commands import (
-    set_week_cmd,
-    add_curriculum,
-    del_curriculum,
-    query_curriculum,
-    share_curriculum,
-)
+from .commands import set_week_cmd, add_curriculum, del_curriculum, query_curriculum, share_curriculum
 from .depends import (
     AddCurriculumDepends,
     QueryCurriculumDepends,
@@ -24,14 +16,10 @@ from .depends import (
 
 
 @add_curriculum.handle()
-async def _(
-    matcher: AlconnaMatcher, add_curriculum: AddCurriculumDepends, values: list[str]
-):
+async def _(matcher: AlconnaMatcher, add_curriculum: AddCurriculumDepends, values: list[str]):
     value_length = len(values)
     if value_length < 4:
-        await matcher.finish(
-            Emoji.error + "至少具备[周期] [星期几] [第几节课] [课程名称]四个参数,其次[教室(可选)] [老师(可选)]"
-        )
+        await matcher.finish(Emoji.error + "至少具备[周期] [星期几] [第几节课] [课程名称]四个参数,其次[教室(可选)] [老师(可选)]")
 
     is_classes = values[0] == "班级"
     if is_classes:
@@ -55,9 +43,7 @@ async def _(
     if curriculum := await add_curriculum.add(
         weeks, weekdays, lessons, course_name, classroom, teacher, is_classes=is_classes
     ):
-        await matcher.finish(
-            Emoji.success + f"[{curriculum.id}: {curriculum.course}]添加成功\n"
-        )
+        await matcher.finish(Emoji.success + f"[{curriculum.id}: {curriculum.course}]添加成功\n")
     else:
         await matcher.finish(Emoji.error + "添加失败,请检查参数是否正确")
 
@@ -85,9 +71,7 @@ async def _(
     ids = await delete_curriculum.delete(values_int, is_classes=is_classes)
 
     if ids:
-        await matcher.finish(
-            Emoji.error + f"以下由于不是您创建的课程无法删除: {', '.join(str(i) for i in ids)}"
-        )
+        await matcher.finish(Emoji.error + f"以下由于不是您创建的课程无法删除: {', '.join(str(i) for i in ids)}")
     await matcher.finish(Emoji.success + "删除成功")
 
 
@@ -116,9 +100,7 @@ async def _(
             await cache.set(share_id, str(user_config.id), ex=180)
         else:
             await matcher.finish(Emoji.error + "您没有自己的课表可以分享")
-        await matcher.finish(
-            Emoji.success + f"您的课表分享ID为: {share_id}\n对方输入: `分享课表+ID`即可获取,有效期为3分钟"
-        )
+        await matcher.finish(Emoji.success + f"您的课表分享ID为: {share_id}\n对方输入: `分享课表+ID`即可获取,有效期为3分钟")
     elif config_id := await cache.get(share_id):
         config_id = int(config_id)
         result = await share_curriculum.share(config_id)

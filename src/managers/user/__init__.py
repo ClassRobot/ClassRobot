@@ -7,11 +7,10 @@ from utils.tools import StringCard
 from nonebot.matcher import Matcher
 from utils.session import EventSession
 from utils.models import User, UserBind
-from utils.models.models import Teacher
 from nonebot_plugin_waiter import waiter
+from utils.roles import UserRoleLang, StudentRoleLang
 from nonebot.params import ArgPlainText, EventPlainText
 from nonebot_plugin_alconna import UniMessage, AlconnaMatcher
-from utils.roles import UserRole, UserRoleLang, StudentRoleLang
 from utils.models.depends import UserDepends, UserOrCreatedDepends
 
 from .commands import token_cmd, logout_cmd, bind_user_cmd, self_info_cmd
