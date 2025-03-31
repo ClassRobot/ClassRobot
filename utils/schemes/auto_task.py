@@ -7,32 +7,32 @@ from utils.llm.util import json_loads
 
 
 class Param(BaseModel):
+    """命令参数"""
+
     type: Literal["text", "image"]
-    separate: bool = False
-    "命令和参数是否需要分开发送,例如`帮助`命令和`查询班级`参数需要分两次发送时候为True"
-    value: str
-    "如果是image则为url"
+    separate: bool = Field(default=False, description="命令和参数是否需要分开发送,例如`帮助`命令和`查询班级`参数需要分两次发送时候为True")
+    value: str = Field(description="如果是image则为url")
 
 
 class AutoTask(BaseModel):
     "AI帮助用户自动执行任务"
 
-    command: str
+    command: str = Field(description="命令名称")
     "用户的话语中可能想要执行的命令(重点:该命令必须是机器人所具备的命令)"
-    params: list[Param] = []
+    params: list[Param] = Field(description="命令参数")
     "命令的参数"
 
 
 class AutoTaskList(BaseModel):
     "机器人回复内容，自动任务列表"
 
-    reply: str | None = None
+    reply: str | None = Field(default=None, description="机器人回复内容")
     create_at: datetime = Field(default_factory=datetime.now)
-    tasks: list[AutoTask] = []
+    tasks: list[AutoTask] = Field(default=[], description="自动任务列表")
     "用户的话语中可能想要执行的命令(重点:该命令必须是命令列表中的命令)"
-    need_confirm: bool = False
+    need_confirm: bool = Field(default=False, description="用户意图不明确的情况下询问用户确认")
     "当不确定用户意图的情况下设置为`True`,然后询问用户确认。"
-    is_violation: bool = False
+    is_violation: bool = Field(default=False, description="用户发送的消息包含违规内容")
     "和用户在聊天过程中发现违规行为时设置为`True`。"
 
     @classmethod

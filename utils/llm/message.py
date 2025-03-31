@@ -7,8 +7,6 @@ from pydantic import Field, BaseModel
 
 from .typings import ChatCompletionMessage, ChatCompletionMessageParam
 
-# from pydantic.json_schema import SkipJsonSchema
-
 
 class Role(StrEnum):
     user = "user"
@@ -27,12 +25,12 @@ class Content(BaseModel):
         return len(self.value)
 
 
-ContentType: TypeAlias = str | list[Content]
+ContentType: TypeAlias = str | list[Content] | Content
 
 
 class ContextSchema(BaseModel):
     role: Role = Field(description="消息角色")
-    content: list[Content] | str | Content = Field(description="消息内容")
+    content: ContentType = Field(description="消息内容")
 
 
 class Context(ContextSchema):
@@ -52,12 +50,8 @@ class Context(ContextSchema):
         """多模态消息"""
         if isinstance(self.content, str):
             return self.content
-        elif isinstance(self.content, Content):
-            content = [self.content]
-        else:
-            content = self.content
         data = []
-        for msg in content:
+        for msg in [self.content] if isinstance(self.content, Content) else self.content:
             if msg.type == "image":
                 data.append(
                     {
@@ -69,7 +63,6 @@ class Context(ContextSchema):
                 )
             elif msg.type == "text":
                 data.append({"type": "text", "text": msg.value})
-
             if msg.type != "text":
                 data.append({"type": "text", "text": f"![{msg.type}]({msg.value})"})
         return data
@@ -78,19 +71,15 @@ class Context(ContextSchema):
         """单模态消息"""
         if isinstance(self.content, str):
             return self.content
-        elif isinstance(self.content, Content):
-            content = [self.content]
-        else:
-            content = self.content
 
-        contents = []
-        for msg in content:
+        data = []
+        for msg in [self.content] if isinstance(self.content, Content) else self.content:
             if msg.type == "text":
-                contents.append(msg.value)
+                data.append(msg.value)
             else:
                 # 采用md的img格式
-                contents.append(f"![{msg.type}]({msg.value})")
-        return "\n".join(contents)
+                data.append(f"![{msg.type}]({msg.value})")
+        return "\n".join(data)
 
     def text_only(self) -> bool:
         """是否只有文本消息"""
@@ -181,7 +170,7 @@ class Messages(BaseModel):
     def add_message(
         self,
         role: Role,
-        content: str | list[Content],
+        content: ContentType,
         tool_call_id: str | None = None,
     ) -> Context:
         context = Context(role=role, content=content, tool_call_id=tool_call_id)

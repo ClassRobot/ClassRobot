@@ -27,7 +27,7 @@ async def client_create(
     functools: list[ChatCompletionToolParam] | NotGiven | None = None,
     tool_choice: ChatCompletionToolChoiceOptionParam | NotGiven | None = None,
     *,
-    max_tokens: int = 1000,
+    max_tokens: int = 2048,
     llm_name: str | None = None,
     multi_modal: bool | None = None,
     temperature: float | NotGiven | None = None,

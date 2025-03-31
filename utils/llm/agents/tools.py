@@ -6,14 +6,16 @@ from openai import BaseModel
 from httpx import AsyncClient
 from utils.llm import client_create
 from utils.config import autogpt_dir
+from utils.llm.util import json_loads
 from utils.tools.cos import upload_file
+from utils.helper.schemes import Helpers
+from utils.template.prompts import Prompt
 from utils.tools.docs2img import File2Image
-from utils.schemes.auto_task import AutoTaskList
 from utils.llm.agents.ragflow.schema import ChatBotMessage
 
 from .ragflow import AsyncRagFlow
-from ..message import Role, Content
-from .base import Messages, BaseAgent, BaseFunctionAgent, BaseChoiceFunctionAgent
+from .base import Messages, BaseAgent, BaseFunctionAgent
+from ..message import Role, Content, Context, ContextSchema
 
 
 class VisionAgent(BaseFunctionAgent):
@@ -42,10 +44,6 @@ class VisionAgent(BaseFunctionAgent):
             vision_message.user_message(contents)
             response = await client_create(vision_message, multi_modal=True)  # 将识别后的结果返回给message
             messages.tool_message(tool.id, response.choices[0].message.content or "")
-            auto_tasks = AutoTaskList.parse_str(response.choices[0].message.content or "")
-            if auto_tasks.tasks:
-                messages.assistant_message(response.choices[0].message.content or "")
-                self.finish()
         return messages
 
 
@@ -108,7 +106,7 @@ class LLMAgent(BaseAgent):
 class SummaryAgent(BaseAgent):
     """机器人聊天总结模块,可以帮助机器人总结对话内容"""
 
-    max_chars: int = 24000
+    max_chars: int = 20480
     """最大字符数"""
 
     @classmethod
@@ -123,8 +121,8 @@ class SummaryAgent(BaseAgent):
         if message_chars > self.max_chars:
             system_message = messages.get(Role.system)
             summary_message = messages.get(Role.user, Role.assistant)  # 提取需要的消息
-            summary_message.user_message("针对之前的聊天内容进行总结,总结长度不超过2000字.")
-            response = await client_create(summary_message, multi_modal=True)
+            summary_message.user_message("针对之前的聊天内容进行总结,总结长度不超过<4000字.")
+            response = await client_create(summary_message, multi_modal=True, max_tokens=4096)
             summary_text = response.choices[0].message.content or ""
             messages.clear()
             messages.extend(system_message)
@@ -132,37 +130,66 @@ class SummaryAgent(BaseAgent):
         return messages
 
 
-class RagAgent(BaseChoiceFunctionAgent):
-    """检索所有与学校,教育相关的内容"""
+class ExtractAgent(BaseAgent):
+    """从用户的历史聊天中提取出关键的信息然后交给llm进行处理"""
 
-    class Params(BaseModel):
-        keywords: str = Field(description="想要检索的内容的关键字")
+    @classmethod
+    def name(cls) -> str:
+        """extract_agent"""
+        return "extract_agent"
+
+    async def execute(self, messages: Messages):
+        """执行agent"""
+        print(self.name())
+        extract_message = Messages()
+        extract = Prompt("extract")
+        extract_message.system_message(await extract.render())
+        extract_message.extend(messages.get(Role.system, Role.user, Role.assistant))
+        output = await Prompt("output").render(
+            {
+                "output": ContextSchema.schema_json(ensure_ascii=False),
+                "returns": ContextSchema(
+                    role=Role.user,
+                    content=[
+                        Content(type="text", value="图中内容"),
+                        Content(type="image", value="http://example.com/image.png"),
+                    ],
+                ).json(ensure_ascii=False),
+            }
+        )
+        extract_message.system_message(output)
+        response = await client_create(extract_message, multi_modal=False, max_tokens=4096)
+        text = response.choices[0].message.content or ""
+        print(json_loads(text))
+        return Context.parse_obj(json_loads(text))
+
+
+class RagAgent(BaseAgent):
+    """检索所有与学校,教育相关的内容"""
 
     @classmethod
     def name(cls) -> str:
         """rag_agent"""
         return "rag_agent"
 
-    async def execute(self, messages: Messages) -> Messages:
+    async def execute(self, messages: Context) -> str | None:
         """执行agent"""
-        print(self.name())
         rag_session = AsyncRagFlow()
         chatbots = await rag_session.get_chatbots()
         session = await chatbots[0].create_session()
         try:
-            for tool in self.call_tools(messages):
-                params = self.Params.parse_raw(tool.function.arguments)
-                reply = await session.ask(params.keywords)
-                if replace := await self.replace(reply):
-                    messages.assistant_message(replace)
-            return messages
+            reply = await session.ask(question=messages.single_modal())
+            if replace := await self.replace(reply):
+                return replace
         finally:
             await chatbots[0].delete_session([session.id])
 
     async def replace(self, reply: ChatBotMessage) -> str:
         if not reply.reference.chunks:
             return ""
-
+        elif not reply.answer or reply.answer == "null":
+            return ""
+        print(reply.answer)
         answer = reply.answer
         urls = []
 
@@ -173,3 +200,22 @@ class RagAgent(BaseChoiceFunctionAgent):
 
         answer = sub(r"##(\d+)\$\$", lambda m: f"\n> 相关材料:\n> ![image]({urls[int(m.group(1))]})\n", answer)
         return answer
+
+
+class AutoTaskAgent(BaseAgent):
+    """自动任务模块,可以帮助机器人自动执行一些任务"""
+
+    helpers: Helpers
+
+    @classmethod
+    def name(cls) -> str:
+        """auto_task_agent"""
+        return "auto_task_agent"
+
+    async def execute(self, context: Context) -> str | None:
+        """执行agent"""
+        messages = self.messages.get(Role.system)
+        messages.system_message(await Prompt("auto_task").render({"helpers": self.helpers}))
+        messages.user_message(context.content)
+        response = await client_create(messages)
+        return response.choices[0].message.content

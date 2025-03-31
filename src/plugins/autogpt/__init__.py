@@ -53,7 +53,6 @@ async def _(
     print(target.adapter, target.scope, target.platform)
     # if target.scope == SupportScope.wechat:
     #     await matcher.finish()
-    print(message)
     if chat_session.lock:
         await matcher.finish(Emoji.error + "我知道你很急，但是你先别急，等我处理完你的上一条消息。")
     try:

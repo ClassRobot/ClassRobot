@@ -1,3 +1,4 @@
+from time import time
 from typing import Any, List, Optional
 
 from pydantic import Field, BaseModel
@@ -112,7 +113,7 @@ class MessageReference(BaseModel):
 class ChatBotMessage(BaseModel):
     answer: str
     audio_binary: Optional[bytes] = None
-    created_at: float = Field(description="Unix timestamp of creation time")
+    created_at: float = Field(description="Unix timestamp of creation time", default_factory=time)
     id: str
     prompt: str
     reference: MessageReference

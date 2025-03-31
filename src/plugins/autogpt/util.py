@@ -1,17 +1,17 @@
 from time import time
+from asyncio import gather
 from typing import Annotated
 from datetime import datetime
 
 from utils.helper import Helpers
 from utils.template import Prompt
 from nonebot.params import Depends
-from utils.helper.agent import HelperAgent
 from nonebot_plugin_alconna import UniMessage
 from utils.helper.depends import HelpersDepends
 from utils.llm.util import uni_message_to_contents
 from utils.models.depends import UserOrCreatedDepends
 from utils.llm.message import Role, Content, Context, Messages
-from utils.llm.agents.tools import LLMAgent, RagAgent, FileAgent, VisionAgent, SummaryAgent
+from utils.llm.agents.tools import RagAgent, ExtractAgent, SummaryAgent, AutoTaskAgent
 
 from .exception import SessionLockError
 from .schema import ChatMessage, AutoTaskList
@@ -62,14 +62,15 @@ class ChatSession:
 
             # 是否与上文重复，重复则直接返回机器人的上一条回复
             if not self.is_last_duplicate_message(user_content):
+                self.messages = await SummaryAgent().execute(self.messages)
                 self.messages.user_message(user_content)
-                summary = SummaryAgent()
-                llm_agent = summary.link_to(LLMAgent)
-                llm_agent.link_to(VisionAgent).link_to(llm_agent)
-                llm_agent.link_to(FileAgent).link_to(llm_agent)
-                llm_agent.link_to(HelperAgent).link_to(llm_agent)
-                llm_agent.link_to(RagAgent).link_to(llm_agent)
-                await summary.invoke(self.messages)
+                extract = await ExtractAgent().execute(self.messages)
+                tasks = []
+                tasks.append(RagAgent().execute(extract))
+                tasks.append(AutoTaskAgent(helpers=self.helpers, messages=self.messages).execute(extract))
+                results = [i for i in await gather(*tasks) if i is not None]
+                if results:
+                    self.messages.assistant_message(results[0])
 
             # 获取最后一条消息
             last_message = self.messages[-1]

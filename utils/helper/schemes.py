@@ -133,7 +133,6 @@ class Helpers(BaseModel):
     def get_roles_helpers(self, *roles: UserRole) -> "Helpers":
         """包含role的helper"""
         helpers = Helpers()
-        set_roles = set(roles)
         helpers.extend(helper for helper in self.helpers if not helper.roles or helper.roles.issubset(roles))
         return helpers
 
