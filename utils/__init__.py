@@ -8,7 +8,7 @@ from .tools import check_punctuation
 T = TypeVar("T")
 
 
-ValidateName = lambda name: check_punctuation(name)  # noqa: E731
+ValidateName = lambda name: (None if name.isdigit() or check_punctuation(name) else name)  # noqa: E731
 
 
 class Emoji(StrEnum):

@@ -29,6 +29,8 @@ ContentType: TypeAlias = str | list[Content] | Content
 
 
 class ContextSchema(BaseModel):
+    """输出消息的上下文"""
+
     role: Role = Field(description="消息角色")
     content: ContentType = Field(description="消息内容")
 

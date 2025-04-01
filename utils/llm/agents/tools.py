@@ -14,8 +14,8 @@ from utils.tools.docs2img import File2Image
 from utils.llm.agents.ragflow.schema import ChatBotMessage
 
 from .ragflow import AsyncRagFlow
+from ..message import Role, Content, Context
 from .base import Messages, BaseAgent, BaseFunctionAgent
-from ..message import Role, Content, Context, ContextSchema
 
 
 class VisionAgent(BaseFunctionAgent):
@@ -141,27 +141,22 @@ class ExtractAgent(BaseAgent):
     async def execute(self, messages: Messages):
         """执行agent"""
         print(self.name())
-        extract_message = Messages()
         extract = Prompt("extract")
-        extract_message.system_message(await extract.render())
-        extract_message.extend(messages.get(Role.system, Role.user, Role.assistant))
-        output = await Prompt("output").render(
-            {
-                "output": ContextSchema.schema_json(ensure_ascii=False),
-                "returns": ContextSchema(
-                    role=Role.user,
-                    content=[
-                        Content(type="text", value="图中内容"),
-                        Content(type="image", value="http://example.com/image.png"),
-                    ],
-                ).json(ensure_ascii=False),
-            }
-        )
-        extract_message.system_message(output)
-        response = await client_create(extract_message, multi_modal=False, max_tokens=4096)
+        self.messages.system_message(await extract.render({"history": self.message_to_string(messages)}))
+        response = await client_create(self.messages, multi_modal=False, max_tokens=4096)
         text = response.choices[0].message.content or ""
+        print(text)
         print(json_loads(text))
         return Context.parse_obj(json_loads(text))
+
+    def message_to_string(self, messages: Messages) -> str:
+        """将消息转换为字符串"""
+        message_str = ""
+        message = messages.get(Role.system, Role.user, Role.assistant)
+        for msg in message:
+            if isinstance(msg, Context):
+                message_str += f"\n<{msg.role}>\n%s\n</{msg.role}>\n" % msg.single_modal()
+        return message_str
 
 
 class RagAgent(BaseAgent):
@@ -203,7 +198,7 @@ class RagAgent(BaseAgent):
 
 
 class AutoTaskAgent(BaseAgent):
-    """自动任务模块,可以帮助机器人自动执行一些任务"""
+    """自动任务模块,可以帮助用户自动执行一些命令"""
 
     helpers: Helpers
 

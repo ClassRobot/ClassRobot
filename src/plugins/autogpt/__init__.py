@@ -12,10 +12,10 @@ from nonebot_plugin_htmlrender import md_to_pic
 from nonebot.adapters import Bot, Event, Message
 from nonebot import logger, on_command, on_message
 from nonebot.adapters.qq.exception import ActionFailed
-from nonebot_plugin_alconna import Target, UniMsg, MsgTarget, UniMessage, SupportScope
+from nonebot_plugin_alconna import Target, UniMsg, MsgTarget, UniMessage
 
-from .util import ChatSessionDepends
 from .schema import AutoTask, AutoTaskList
+from .util import ChatSessionDepends, markdown_to_message
 
 auto_gpt = on_message(priority=priority * 10, block=True, rule=to_me())
 clear_chat = on_command("清空聊天", aliases={"重置聊天", "聊天清空", "聊天重置"}, priority=priority, block=True)
@@ -51,8 +51,6 @@ async def _(
     chat_session: ChatSessionDepends,
 ):
     print(target.adapter, target.scope, target.platform)
-    # if target.scope == SupportScope.wechat:
-    #     await matcher.finish()
     if chat_session.lock:
         await matcher.finish(Emoji.error + "我知道你很急，但是你先别急，等我处理完你的上一条消息。")
     try:
@@ -69,39 +67,7 @@ async def _(
         try:
             # reply行数大于10时转成图片发送
             if auto_task.reply.count("\n") < 10:
-                # 正则表达式查找Markdown图片格式
-                pattern = r"!\[image\]\(([^)]+)\)"
-                parts = []
-                last_idx = 0
-                matches = list(re.finditer(pattern, auto_task.reply))
-
-                # 处理找到的每个匹配项
-                for match in matches:
-                    # 添加匹配前的文本
-                    if match.start() > last_idx:
-                        parts.append(auto_task.reply[last_idx : match.start()])
-                    # 添加图片URL
-                    parts.append(match.group(1))
-                    last_idx = match.end()
-
-                # 添加最后一个匹配后的剩余文本
-                if last_idx < len(auto_task.reply):
-                    parts.append(auto_task.reply[last_idx:])
-
-                # 如果没有找到任何匹配项，直接使用原始文本
-                if not matches:
-                    parts = [auto_task.reply]
-
-                # 过滤空字符串
-                parts = [part for part in parts if part]
-
-                reply_message = UniMessage()
-                for part in parts:
-                    if part.startswith("http://") or part.startswith("https://"):
-                        reply_message += await UniMessage.image(url=part).export(adapter=target.adapter, bot=bot)
-                    else:
-                        reply_message += part.replace(".", "⋅")
-                await matcher.send(await reply_message.export(adapter=target.adapter, bot=bot))
+                await matcher.send(await markdown_to_message(auto_task.reply).export(adapter=target.adapter, bot=bot))
             else:
                 pic = UniMessage.image(raw=await md_to_pic(auto_task.reply)) + UniMessage.text("文字太长已转为图片发送")
                 await matcher.send(await pic.export(adapter=target.adapter, bot=bot))
@@ -116,7 +82,7 @@ async def _(
                 event.get_message = update_message(auto_task, target)
                 await handle_event(bot, event)
             else:
-                await matcher.send(Emoji.error + f"无法调用`{auto_task.command}`命令")
+                await matcher.send(Emoji.error + f"无法调用`{auto_task.command}`命令，因为该命令不存在！")
 
 
 __helpers__ = [

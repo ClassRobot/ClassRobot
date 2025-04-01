@@ -1,3 +1,4 @@
+import re
 from time import time
 from asyncio import gather
 from typing import Annotated
@@ -16,12 +17,49 @@ from utils.llm.agents.tools import RagAgent, ExtractAgent, SummaryAgent, AutoTas
 from .exception import SessionLockError
 from .schema import ChatMessage, AutoTaskList
 
+pattern = r"!\[image\]\(([^)]+)\)"
+
 
 async def get_prompt_system(helpers: Helpers) -> str:
     prompt_system = await Prompt("autogpt").render(
         {"helpers": helpers, "info": ("当前时间:" + datetime.now().strftime("%Y-%m-%d %H:%M:%S"))}
     )
     return prompt_system
+
+
+def markdown_to_message(text: str):
+    # 正则表达式查找Markdown图片格式
+    parts = []
+    last_idx = 0
+    matches = list(re.finditer(pattern, text))
+
+    # 处理找到的每个匹配项
+    for match in matches:
+        # 添加匹配前的文本
+        if match.start() > last_idx:
+            parts.append(text[last_idx : match.start()])
+        # 添加图片URL
+        parts.append(match.group(1))
+        last_idx = match.end()
+
+    # 添加最后一个匹配后的剩余文本
+    if last_idx < len(text):
+        parts.append(text[last_idx:])
+
+    # 如果没有找到任何匹配项，直接使用原始文本
+    if not matches:
+        parts = [text]
+
+    # 过滤空字符串
+    parts = [part for part in parts if part]
+
+    reply_message = UniMessage()
+    for part in parts:
+        if part.startswith("http://") or part.startswith("https://"):
+            reply_message += UniMessage.image(url=part)
+        else:
+            reply_message += part.replace(".", "⋅")
+    return reply_message
 
 
 class ChatSession:

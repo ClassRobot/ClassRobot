@@ -13,7 +13,7 @@ create_classes_cmd = on_alconna(
             ValidateName,
             Field(
                 completion=tip("请输入班级名称"),
-                unmatch_tips=tip("名称不能为纯数字"),
+                unmatch_tips=tip("名称不能为纯数字或携带特殊字符"),
             ),
         ],
     ),

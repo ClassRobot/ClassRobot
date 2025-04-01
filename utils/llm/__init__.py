@@ -30,7 +30,7 @@ async def client_create(
     max_tokens: int = 2048,
     llm_name: str | None = None,
     multi_modal: bool | None = None,
-    temperature: float | NotGiven | None = None,
+    temperature: float | NotGiven | None = 0.1,
 ) -> ChatCompletion:
     """Create LLM client
 
