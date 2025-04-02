@@ -11,7 +11,7 @@ from .download import get_video_url
 
 template_dir = get_cache_dir("douyin")
 
-pattern_str = r"https://(?:www\.iesdouyin\.com/share/video/[\d-]+|v\.douyin\.com/[\w-]+)/?"
+pattern_str = r"https://(?:(?:www\.iesdouyin\.com/share/video/[\d-]+)|(?:[a-zA-Z0-9]+\.douyin\.com/[\w-]+))/?"
 pattern = re.compile(pattern_str)
 douyin_url_cmd = on_regex(pattern_str, priority=priority)
 

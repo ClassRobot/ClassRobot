@@ -2,7 +2,7 @@ from nonebot import logger
 from openai import NOT_GIVEN, APIError, NotGiven, AsyncOpenAI
 
 from .config import plugin_config
-from .message import Role, Messages
+from .message import LLMRole, Messages
 from .excepions import LLMRequestException
 from .typings import (
     ChatCompletion,
@@ -71,7 +71,7 @@ async def client_create(
         if isinstance(messages, str):
             text = messages
             messages = Messages()
-            messages.add_message(role=Role.user, content=text)
+            messages.add_message(role=LLMRole.user, content=text)
 
         if isinstance(messages, Messages):
             # 如果要求只使用单模态，或者消息只有文本

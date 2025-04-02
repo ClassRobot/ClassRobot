@@ -11,7 +11,7 @@ from nonebot_plugin_alconna import UniMessage
 from utils.helper.depends import HelpersDepends
 from utils.llm.util import uni_message_to_contents
 from utils.models.depends import UserOrCreatedDepends
-from utils.llm.message import Role, Content, Context, Messages
+from utils.llm.message import Content, Context, LLMRole, Messages
 from utils.llm.agents.tools import RagAgent, ExtractAgent, SummaryAgent, AutoTaskAgent
 
 from .exception import SessionLockError
@@ -71,8 +71,8 @@ class ChatSession:
         self.helpers = helpers
 
     def is_last_duplicate_message(self, contents: list[Content]) -> bool:
-        user_content = Context(role=Role.user, content=contents)
-        user_message = self.messages.get(Role.user)
+        user_content = Context(role=LLMRole.user, content=contents)
+        user_message = self.messages.get(LLMRole.user)
         if user_message and user_message[-1] == user_content:
             return True
         return False
@@ -85,7 +85,7 @@ class ChatSession:
         """
         self.helpers = helpers
         prompts = await get_prompt_system(helpers)
-        if self.messages and self.messages[0].role == Role.system:
+        if self.messages and self.messages[0].role == LLMRole.system:
             self.messages[0].content = prompts
         else:
             self.messages.system_message(prompts)
@@ -112,7 +112,7 @@ class ChatSession:
 
             # 获取最后一条消息
             last_message = self.messages[-1]
-            if last_message.role == Role.assistant and isinstance(last_message, Context):
+            if last_message.role == LLMRole.assistant and isinstance(last_message, Context):
                 content = last_message.single_modal()
 
             # 将内容转成task和回复用户的消息

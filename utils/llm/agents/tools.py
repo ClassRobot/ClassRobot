@@ -14,14 +14,14 @@ from utils.tools.docs2img import File2Image
 from utils.llm.agents.ragflow.schema import ChatBotMessage
 
 from .ragflow import AsyncRagFlow
-from ..message import Role, Content, Context
+from ..message import Content, Context, LLMRole
 from .base import Messages, BaseAgent, BaseFunctionAgent
 
 
 class VisionAgent(BaseFunctionAgent):
     """机器人视觉模块,可以帮助机器人识别图片中获取想要的信息,但该功能不负责处理任何图片本身信息,比如P图绘画等功能无法通过这个函数实现."""
 
-    roles: set[Role] = {Role.system}
+    roles: set[LLMRole] = {LLMRole.system}
     """引用哪个Role消息"""
 
     class Params(BaseModel):
@@ -50,7 +50,7 @@ class VisionAgent(BaseFunctionAgent):
 class FileAgent(BaseFunctionAgent):
     """机器人文件模块,可以帮助机器人解析文件"""
 
-    roles: set[Role] = {Role.system}
+    roles: set[LLMRole] = {LLMRole.system}
     """引用哪个Role消息"""
 
     class Params(BaseModel):
@@ -93,7 +93,7 @@ class LLMAgent(BaseAgent):
         return "llm_agent"
 
     async def execute(self, messages: Messages) -> Messages:
-        if messages[-1].role == Role.assistant:
+        if messages[-1].role == LLMRole.assistant:
             return messages
         response = await client_create(messages, self.functions(), multi_modal=False)
         if response.choices[0].message.tool_calls:
@@ -119,8 +119,8 @@ class SummaryAgent(BaseAgent):
         message_chars = messages.char_length()
         print(self.name(), message_chars)
         if message_chars > self.max_chars:
-            system_message = messages.get(Role.system)
-            summary_message = messages.get(Role.user, Role.assistant)  # 提取需要的消息
+            system_message = messages.get(LLMRole.system)
+            summary_message = messages.get(LLMRole.user, LLMRole.assistant)  # 提取需要的消息
             summary_message.user_message("针对之前的聊天内容进行总结,总结长度不超过<4000字.")
             response = await client_create(summary_message, multi_modal=True, max_tokens=4096)
             summary_text = response.choices[0].message.content or ""
@@ -152,7 +152,7 @@ class ExtractAgent(BaseAgent):
     def message_to_string(self, messages: Messages) -> str:
         """将消息转换为字符串"""
         message_str = ""
-        message = messages.get(Role.system, Role.user, Role.assistant)
+        message = messages.get(LLMRole.system, LLMRole.user, LLMRole.assistant)
         for msg in message:
             if isinstance(msg, Context):
                 message_str += f"\n<{msg.role}>\n%s\n</{msg.role}>\n" % msg.single_modal()
@@ -209,7 +209,7 @@ class AutoTaskAgent(BaseAgent):
 
     async def execute(self, context: Context) -> str | None:
         """执行agent"""
-        messages = self.messages.get(Role.system)
+        messages = self.messages.get(LLMRole.system)
         messages.system_message(await Prompt("auto_task").render({"helpers": self.helpers}))
         messages.user_message(context.content)
         response = await client_create(messages)

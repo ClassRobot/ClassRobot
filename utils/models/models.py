@@ -252,6 +252,38 @@ class UserBind(FilterModel, Model):
             return bind
 
 
+class School(FilterModel, Model):
+    """学校表"""
+
+    name: Mapped[str] = mapped_column(String(128), nullable=False, unique=True)
+    """学校名称"""
+    address: Mapped[str] = mapped_column(String(255), nullable=True)
+    """学校地址"""
+    description: Mapped[str] = mapped_column(Text, nullable=True)
+    """学校描述"""
+    created_at: Mapped[CreateAt]
+    updated_at: Mapped[UpdateAt]
+
+    colleges: Mapped[List["College"]] = relationship("College", lazy="selectin", back_populates="school")
+    """学校与学院一对多关系"""
+
+
+class College(FilterModel, Model):
+    """学院表"""
+
+    name: Mapped[str] = mapped_column(String(128), nullable=False)
+    """学院名称"""
+    school_id: Mapped[int] = mapped_column(Integer, ForeignKey(School.id, ondelete="CASCADE"), nullable=False)
+    """学校ID"""
+    description: Mapped[str] = mapped_column(Text, nullable=True)
+    """学院描述"""
+    created_at: Mapped[CreateAt]
+    updated_at: Mapped[UpdateAt]
+
+    school: Mapped[School] = relationship(lazy="selectin", back_populates="colleges")
+    """学院与学校一对多关系"""
+
+
 class GroupSettings(FilterModel, Model):
     """群组设置表
 
@@ -270,8 +302,12 @@ class Group(FilterModel, Model):
     name: Mapped[str] = mapped_column(String(64), nullable=False)
     """群组名称"""
     creator_id: Mapped[int] = mapped_column(Integer, ForeignKey(User.id), nullable=False)
-    settings_id: Mapped[int] = mapped_column(Integer, ForeignKey(GroupSettings.id), nullable=False)
     """创建者ID"""
+    settings_id: Mapped[int] = mapped_column(Integer, ForeignKey(GroupSettings.id), nullable=False)
+    school_id: Mapped[int | None] = mapped_column(Integer, ForeignKey(School.id), nullable=True)
+    """学校ID"""
+    college_id: Mapped[int | None] = mapped_column(Integer, ForeignKey(College.id), nullable=True)
+
     created_at: Mapped[CreateAt]
     updated_at: Mapped[UpdateAt]
 
@@ -448,6 +484,10 @@ class Teacher(FilterModel, Model):
     """教师角色"""
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey(User.id, ondelete="CASCADE"), nullable=False, unique=True)
     """用户ID"""
+    school_id: Mapped[int | None] = mapped_column(Integer, ForeignKey(School.id, ondelete="CASCADE"), nullable=True)
+    """学校ID"""
+    college_id: Mapped[int | None] = mapped_column(Integer, ForeignKey(College.id, ondelete="CASCADE"), nullable=True)
+    """学院ID"""
     created_at: Mapped[CreateAt]
     updated_at: Mapped[UpdateAt]
 
@@ -551,38 +591,6 @@ class Teacher(FilterModel, Model):
         """获取教师所在班级的学生信息"""
         students = await Student.select.join(Classes).join(TeacherClasses).where(TeacherClasses.teacher_id == self.id)
         return list(students)
-
-
-class School(FilterModel, Model):
-    """学校表"""
-
-    name: Mapped[str] = mapped_column(String(128), nullable=False, unique=True)
-    """学校名称"""
-    address: Mapped[str] = mapped_column(String(255), nullable=True)
-    """学校地址"""
-    description: Mapped[str] = mapped_column(Text, nullable=True)
-    """学校描述"""
-    created_at: Mapped[CreateAt]
-    updated_at: Mapped[UpdateAt]
-
-    colleges: Mapped[List["College"]] = relationship("College", lazy="selectin", back_populates="school")
-    """学校与学院一对多关系"""
-
-
-class College(FilterModel, Model):
-    """学院表"""
-
-    name: Mapped[str] = mapped_column(String(128), nullable=False)
-    """学院名称"""
-    school_id: Mapped[int] = mapped_column(Integer, ForeignKey(School.id, ondelete="CASCADE"), nullable=False)
-    """学校ID"""
-    description: Mapped[str] = mapped_column(Text, nullable=True)
-    """学院描述"""
-    created_at: Mapped[CreateAt]
-    updated_at: Mapped[UpdateAt]
-
-    school: Mapped[School] = relationship(lazy="selectin", back_populates="colleges")
-    """学院与学校一对多关系"""
 
 
 class Classes(FilterModel, Model):
@@ -814,6 +822,7 @@ class Student(FilterModel, Model):
     """学生姓名"""
     classes_id: Mapped[int] = mapped_column(Integer, ForeignKey(Classes.id, ondelete="CASCADE"), nullable=False)
     """班级ID"""
+
     user_id = mapped_column(Integer, ForeignKey(User.id, ondelete="CASCADE"), nullable=False, unique=True)
     role: Mapped[StudentRole] = mapped_column(String(32), nullable=False, server_default=StudentRole.student)
     extra_id: Mapped[int | None] = mapped_column(

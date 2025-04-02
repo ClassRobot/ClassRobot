@@ -1,5 +1,3 @@
-from pprint import pprint
-
 from httpx import AsyncClient
 
 tiktokio = "http://localhost:3680/api/hybrid/video_data"
@@ -11,7 +9,6 @@ async def get_video_url(url: str) -> dict | None:
         response = await client.get(tiktokio, params={"url": url, "minimal": False})
         data = response.json()
         video = data["data"]["video"]
-        pprint(video)
         if video.get("play_addr"):
             result["video"] = video["play_addr"]["url_list"][-1]
         if video.get("cover"):

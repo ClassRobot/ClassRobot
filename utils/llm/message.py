@@ -8,7 +8,7 @@ from pydantic import Field, BaseModel
 from .typings import ChatCompletionMessage, ChatCompletionMessageParam
 
 
-class Role(StrEnum):
+class LLMRole(StrEnum):
     user = "user"
     tool = "tool"
     system = "system"
@@ -31,7 +31,7 @@ ContentType: TypeAlias = str | list[Content] | Content
 class ContextSchema(BaseModel):
     """输出消息的上下文"""
 
-    role: Role = Field(description="消息角色")
+    role: LLMRole = Field(description="消息角色")
     content: ContentType = Field(description="消息内容")
 
 
@@ -101,7 +101,7 @@ class Context(ContextSchema):
 
     def dict(self):
         data = super().dict(include={"role", "content"})
-        if self.role == Role.tool:
+        if self.role == LLMRole.tool:
             data["tool_call_id"] = self.tool_call_id
         return data
 
@@ -133,11 +133,11 @@ class Messages(BaseModel):
             messages.append(msg_dict or ctx)
         return messages
 
-    def get(self, *role: Role) -> "Messages":
+    def get(self, *role: LLMRole) -> "Messages":
         """通过角色获取消息"""
         return Messages(messages=[msg for msg in self.messages if isinstance(msg, Context) and msg.role in role])
 
-    def get_exclude(self, *role: Role) -> "Messages":
+    def get_exclude(self, *role: LLMRole) -> "Messages":
         """通过角色排除消息"""
         return Messages(messages=[msg for msg in self.messages if not (isinstance(msg, Context) and msg.role in role)])
 
@@ -154,7 +154,7 @@ class Messages(BaseModel):
             messages = messages.messages
         self.messages.extend(messages)
 
-    def char_length(self, *role: Role) -> int:
+    def char_length(self, *role: LLMRole) -> int:
         return sum(
             len(message)
             for message in self.messages
@@ -162,7 +162,7 @@ class Messages(BaseModel):
         )
 
     def remove(self, obj: int | Context | ChatCompletionMessage):
-        if isinstance(obj, Context) and obj.role == Role.system:
+        if isinstance(obj, Context) and obj.role == LLMRole.system:
             return
         if isinstance(obj, int):
             self.messages.pop(obj)
@@ -171,7 +171,7 @@ class Messages(BaseModel):
 
     def add_message(
         self,
-        role: Role,
+        role: LLMRole,
         content: ContentType,
         tool_call_id: str | None = None,
     ) -> Context:
@@ -184,19 +184,19 @@ class Messages(BaseModel):
         self.messages.append(context)
 
     def user_message(self, content: ContentType) -> Context:
-        return self.add_message(role=Role.user, content=content)
+        return self.add_message(role=LLMRole.user, content=content)
 
     def system_message(self, content: ContentType) -> Context:
-        return self.add_message(role=Role.system, content=content)
+        return self.add_message(role=LLMRole.system, content=content)
 
     def assistant_message(self, content: ContentType) -> Context:
-        return self.add_message(role=Role.assistant, content=content)
+        return self.add_message(role=LLMRole.assistant, content=content)
 
     def tool_message(self, tool_call_id: str, content: str) -> Context:
-        return self.add_message(role=Role.tool, content=content, tool_call_id=tool_call_id)
+        return self.add_message(role=LLMRole.tool, content=content, tool_call_id=tool_call_id)
 
     def __repr__(self) -> str:
-        return self.get(Role.user, Role.assistant, Role.tool).messages.__repr__()
+        return self.get(LLMRole.user, LLMRole.assistant, LLMRole.tool).messages.__repr__()
 
     def __str__(self) -> str:
         return self.__repr__()
