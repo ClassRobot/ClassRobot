@@ -1,8 +1,8 @@
 """empty message
 
-迁移 ID: ed13facfbb38
+迁移 ID: 583947e21b3d
 父迁移: 
-创建时间: 2025-04-03 19:00:11.511295
+创建时间: 2025-04-04 01:58:23.798007
 
 """
 from __future__ import annotations
@@ -12,7 +12,7 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "ed13facfbb38"
+revision: str = "583947e21b3d"
 down_revision: str | Sequence[str] | None = None
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
@@ -129,25 +129,6 @@ def upgrade(name: str = "") -> None:
             ondelete="CASCADE",
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_bot_college")),
-        info={"bind_key": "models"},
-    )
-    op.create_table(
-        "bot_curricula_schedule",
-        sa.Column("shool_id", sa.Integer(), nullable=True),
-        sa.Column(
-            "created_at", sa.DateTime(), server_default=sa.text("now()"), nullable=False
-        ),
-        sa.Column(
-            "updated_at", sa.DateTime(), server_default=sa.text("now()"), nullable=False
-        ),
-        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
-        sa.ForeignKeyConstraint(
-            ["shool_id"],
-            ["bot_school.id"],
-            name=op.f("fk_bot_curricula_schedule_shool_id_bot_school"),
-            ondelete="CASCADE",
-        ),
-        sa.PrimaryKeyConstraint("id", name=op.f("pk_bot_curricula_schedule")),
         info={"bind_key": "models"},
     )
     op.create_table(
@@ -451,6 +432,41 @@ def upgrade(name: str = "") -> None:
         info={"bind_key": "models"},
     )
     op.create_table(
+        "bot_curricula_timetable",
+        sa.Column("user_id", sa.Integer(), nullable=True),
+        sa.Column("classes_id", sa.Integer(), nullable=True),
+        sa.Column("school_id", sa.Integer(), nullable=True),
+        sa.Column("week", sa.Integer(), nullable=False),
+        sa.Column("timetable", sa.JSON(), server_default="[]", nullable=False),
+        sa.Column(
+            "created_at", sa.DateTime(), server_default=sa.text("now()"), nullable=False
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(), server_default=sa.text("now()"), nullable=False
+        ),
+        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
+        sa.ForeignKeyConstraint(
+            ["classes_id"],
+            ["bot_classes.id"],
+            name=op.f("fk_bot_curricula_timetable_classes_id_bot_classes"),
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["school_id"],
+            ["bot_school.id"],
+            name=op.f("fk_bot_curricula_timetable_school_id_bot_school"),
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["user_id"],
+            ["bot_user.id"],
+            name=op.f("fk_bot_curricula_timetable_user_id_bot_user"),
+            ondelete="CASCADE",
+        ),
+        sa.PrimaryKeyConstraint("id", name=op.f("pk_bot_curricula_timetable")),
+        info={"bind_key": "models"},
+    )
+    op.create_table(
         "bot_student",
         sa.Column("name", sa.String(length=64), nullable=False),
         sa.Column("classes_id", sa.Integer(), nullable=False),
@@ -555,12 +571,13 @@ def upgrade(name: str = "") -> None:
     op.create_table(
         "bot_curricula",
         sa.Column("config_id", sa.Integer(), nullable=False),
-        sa.Column("week", sa.String(length=255), nullable=False),
-        sa.Column("weekday", sa.String(length=255), nullable=False),
-        sa.Column("lesson", sa.String(length=255), nullable=False),
+        sa.Column("weeks", sa.JSON(), server_default="[]", nullable=False),
+        sa.Column("weekday", sa.JSON(), server_default="[]", nullable=False),
+        sa.Column("lesson", sa.JSON(), server_default="[]", nullable=False),
         sa.Column("course", sa.String(length=255), nullable=False),
         sa.Column("teacher", sa.String(length=64), nullable=True),
         sa.Column("classroom", sa.String(length=255), nullable=True),
+        sa.Column("location", sa.String(length=255), nullable=True),
         sa.Column(
             "created_at", sa.DateTime(), server_default=sa.text("now()"), nullable=False
         ),
@@ -694,6 +711,7 @@ def downgrade(name: str = "") -> None:
     op.drop_table("bot_teacher_classes")
     op.drop_table("bot_tasks")
     op.drop_table("bot_student")
+    op.drop_table("bot_curricula_timetable")
     op.drop_table("bot_curricula_config")
     op.drop_table("bot_classes_leave_config")
     op.drop_table("bot_classes_join_request")
@@ -713,7 +731,6 @@ def downgrade(name: str = "") -> None:
     op.drop_table("bot_user_bind")
     op.drop_table("bot_scheduled_notice")
     op.drop_table("bot_education_system")
-    op.drop_table("bot_curricula_schedule")
     op.drop_table("bot_college")
     op.drop_table("bot_user")
     with op.batch_alter_table("bot_student_extra", schema=None) as batch_op:

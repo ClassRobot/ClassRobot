@@ -1,4 +1,3 @@
-import json
 from hashlib import md5
 from pathlib import Path
 from datetime import datetime
@@ -8,7 +7,7 @@ from utils.tools import get_file_suffix
 from utils.config import data_dir, task_dir
 from nonebot_plugin_orm import Model, get_session
 from sqlalchemy.orm import Mapped, relationship, mapped_column
-from sqlalchemy import Text, String, Integer, DateTime, ForeignKey, select, update
+from sqlalchemy import JSON, Text, String, Integer, DateTime, ForeignKey, select, update
 from utils.roles import UserRole, JoinMethod, StudentRole, TeacherRole, PoliticalStatus, TeacherClassesRole
 
 from .filters import FilterModel
@@ -988,11 +987,20 @@ class ScheduledNotice(FilterModel, Model):
     """创建者信息"""
 
 
-class CurriculaSchedule(FilterModel, Model):
-    """课程表信息表"""
+class CurriculaTimetable(FilterModel, Model):
+    """课程表时间表"""
 
-    shool_id: Mapped[int | None] = mapped_column(Integer, ForeignKey(School.id, ondelete="CASCADE"), nullable=True)
+    user_id: Mapped[int | None] = mapped_column(Integer, ForeignKey(User.id, ondelete="CASCADE"), nullable=True)
+    """用户ID"""
+    classes_id: Mapped[int | None] = mapped_column(Integer, ForeignKey(Classes.id, ondelete="CASCADE"), nullable=True)
+    """班级ID"""
+    school_id: Mapped[int | None] = mapped_column(Integer, ForeignKey(School.id, ondelete="CASCADE"), nullable=True)
     """学校ID"""
+    week: Mapped[int] = mapped_column(Integer, nullable=False)
+    """周数"""
+    timetable: Mapped[list[str]] = mapped_column(JSON, nullable=False, server_default="[]")
+    """课程表内容"""
+
     created_at: Mapped[CreateAt]
     updated_at: Mapped[UpdateAt]
 
@@ -1052,11 +1060,11 @@ class Curricula(FilterModel, Model):
         ForeignKey(CurriculaConfig.id, ondelete="CASCADE"),
         nullable=False,
     )
-    week: Mapped[str] = mapped_column(String(255), nullable=False)
+    weeks: Mapped[list[int]] = mapped_column(JSON, nullable=False, server_default="[]")
     """周几"""
-    weekday: Mapped[str] = mapped_column(String(255), nullable=False)
+    weekday: Mapped[list[int]] = mapped_column(JSON, nullable=False, server_default="[]")
     """星期几"""
-    lesson: Mapped[str] = mapped_column(String(255), nullable=False)
+    lesson: Mapped[list[int]] = mapped_column(JSON, nullable=False, server_default="[]")
     """第几节课"""
     course: Mapped[str] = mapped_column(String(255), index=True, nullable=False)
     """课程名称"""
@@ -1064,18 +1072,13 @@ class Curricula(FilterModel, Model):
     """教师"""
     classroom: Mapped[str | None] = mapped_column(String(255), nullable=True)
     """教室"""
+    location: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    """地点"""
     created_at: Mapped[CreateAt]
     updated_at: Mapped[UpdateAt]
 
     async def get_teacher(self) -> Teacher | None:
         return await Teacher.filter(name=self.teacher).first()
-
-    def loads(self) -> dict[Literal["week", "weekday", "lesson"], list[int]]:
-        return {
-            "week": json.loads(self.week),
-            "weekday": json.loads(self.weekday),
-            "lesson": json.loads(self.lesson),
-        }
 
 
 class ClassesLeaveConfig(FilterModel, Model):

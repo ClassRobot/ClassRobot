@@ -60,7 +60,7 @@ class CurriculaSchema(BaseModel):
     next_countdown: NextCountdown
     next_course: Course
     today_course: list[Course]
-    this_week_course: list[list[Course]]
+    this_week_course: list[list[Course | None]]
 
     class Config:
         extra = Extra.forbid
@@ -74,18 +74,12 @@ class CurriculaSchema(BaseModel):
             return None
 
         today = datetime.now()
-        weekday = today.weekday() + 1
         current_week = config.current_week
-        this_week_course = [[]] * 7
+        this_week_course: list[list[Course | None]] = list([] for _ in repeat(None, 7))  # 课程表
 
         for curr in curricula:
-            data = curr.loads()
-            weeks = data["week"]
-            weekdays = data["weekday"]  # 星期几上课
-            lessons = data["lesson"]
-            if current_week in weeks:  # 本周课程
-                for wd, le in product(weekdays, lessons):
-                    print(le, wd)
+            if current_week in curr.weeks:  # 本周课程
+                for wd, le in product(curr.weekday, curr.lesson):
                     if len(times) > le >= 0:
                         ctime = f"{times[le - 1][0]}-{times[le - 1][1]}"
                     else:
@@ -101,7 +95,7 @@ class CurriculaSchema(BaseModel):
                             location=curr.classroom,
                         ),
                     )
-        today_course: list[Course] = this_week_course[weekday - 1]
+        today_course: list[Course] = [i for i in this_week_course[today.weekday()] if i is not None]
 
         next_course = None
         next_countdown = None
@@ -165,5 +159,5 @@ class CurriculaSchema(BaseModel):
         data[row][col] = course
 
     async def render(self) -> bytes:
-        open("data.json", "w", encoding="utf-8").write(self.json(ensure_ascii=False, indent=4))
+        # open("data.json", "w", encoding="utf-8").write(self.json(ensure_ascii=False, indent=4))
         return await template_to_pic("md.html", {"data": self})

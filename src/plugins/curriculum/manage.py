@@ -1,4 +1,3 @@
-import json
 from datetime import datetime
 
 from utils.models import User, Curricula, CurriculaConfig, ShareCurriculaConfig
@@ -29,7 +28,7 @@ class BaseCurricula:
 class AddCurricula(BaseCurricula):
     async def add(
         self,
-        week: list[int],
+        weeks: list[int],
         weekday: list[int],
         lesson: list[int],
         course: str,
@@ -41,9 +40,9 @@ class AddCurricula(BaseCurricula):
             config = await CurriculaConfig(user=self.user).create()
 
         return await Curricula(
-            week=json.dumps(week),
-            weekday=json.dumps(weekday),
-            lesson=json.dumps(lesson),
+            weeks=weeks,
+            weekday=weekday,
+            lesson=lesson,
             course=course,
             teacher=teacher,
             classroom=classroom,
