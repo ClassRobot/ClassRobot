@@ -22,13 +22,13 @@ class User(FilterModel, Model):
     """用户昵称"""
     username: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
     """用户名"""
-    password: Mapped[str] = mapped_column(String(128), nullable=True)
+    password: Mapped[str | None] = mapped_column(String(128), nullable=True)
     """用户密码"""
-    email: Mapped[str] = mapped_column(String(255), nullable=True, unique=True)
+    email: Mapped[str | None] = mapped_column(String(255), nullable=True, unique=True)
     """邮箱"""
-    avatar: Mapped[str] = mapped_column(String(255), nullable=True)
+    avatar: Mapped[str | None] = mapped_column(String(255), nullable=True)
     """头像"""
-    phone: Mapped[str] = mapped_column(String(11), nullable=True, unique=True)
+    phone: Mapped[str | None] = mapped_column(String(11), nullable=True, unique=True)
     """手机号"""
     role: Mapped[UserRole] = mapped_column(String(32), nullable=False, server_default=UserRole.user)
     """用户角色"""
@@ -155,8 +155,8 @@ class User(FilterModel, Model):
         """获取用户的通知任务"""
         return await ScheduledNotice.filter(user_id=self.id).all()
 
-    async def get_curriculum_config(self) -> Optional["CurriculumConfig"]:
-        return await CurriculumConfig.filter(user_id=self.id).first()
+    async def get_curricula_config(self) -> Optional["CurriculaConfig"]:
+        return await CurriculaConfig.filter(user_id=self.id).first()
 
 
 class UserBind(FilterModel, Model):
@@ -750,9 +750,6 @@ class Classes(FilterModel, Model):
 
         await TeacherClasses.filter(teacher_id=teacher.id, classes_id=self.id).update(role=role)
 
-    async def get_curriculum_config(self) -> Optional["CurriculumConfig"]:
-        return await CurriculumConfig.filter(classes_id=self.id).first()
-
     async def get_leaves(self) -> list["StudentLeave"]:
         return await StudentLeave.filter(classes_id=self.id).all()
 
@@ -822,7 +819,8 @@ class Student(FilterModel, Model):
     """学生姓名"""
     classes_id: Mapped[int] = mapped_column(Integer, ForeignKey(Classes.id, ondelete="CASCADE"), nullable=False)
     """班级ID"""
-
+    school_id: Mapped[int | None] = mapped_column(Integer, ForeignKey(School.id, ondelete="CASCADE"), nullable=True)
+    """学校ID"""
     user_id = mapped_column(Integer, ForeignKey(User.id, ondelete="CASCADE"), nullable=False, unique=True)
     role: Mapped[StudentRole] = mapped_column(String(32), nullable=False, server_default=StudentRole.student)
     extra_id: Mapped[int | None] = mapped_column(
@@ -990,8 +988,19 @@ class ScheduledNotice(FilterModel, Model):
     """创建者信息"""
 
 
+class CurriculaSchedule(FilterModel, Model):
+    """课程表信息表"""
+
+    shool_id: Mapped[int | None] = mapped_column(Integer, ForeignKey(School.id, ondelete="CASCADE"), nullable=True)
+    """学校ID"""
+    created_at: Mapped[CreateAt]
+    updated_at: Mapped[UpdateAt]
+
+
 # 班级或学生课表配置项
-class CurriculumConfig(FilterModel, Model):
+class CurriculaConfig(FilterModel, Model):
+    name: Mapped[str | None] = mapped_column(String(64), nullable=True, unique=True)
+    """课表配置项名称，一般是班级名称"""
     classes_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey(Classes.id, ondelete="CASCADE"), nullable=True, unique=True
     )
@@ -1002,21 +1011,30 @@ class CurriculumConfig(FilterModel, Model):
     """用户ID"""
     current_week: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
     """当前周"""
-    is_notify: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
+    is_notify: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     """是否开启课前通知"""
-    curriculums: Mapped[List["Curriculum"]] = relationship("Curriculum", lazy="selectin", back_populates="config")
-    """课表信息"""
+    school_id: Mapped[int | None] = mapped_column(Integer, ForeignKey(School.id, ondelete="CASCADE"), nullable=True)
+    """学校ID"""
     create_at: Mapped[CreateAt]
     update_at: Mapped[UpdateAt]
 
     user: Mapped[User | None] = relationship(lazy=False)
     classes: Mapped[Classes | None] = relationship(lazy=False)
-    share_config: Mapped[list["CurriculumConfig"]] = relationship("ShareCurriculumConfig", lazy="selectin")
+    share_config: Mapped[list["CurriculaConfig"]] = relationship("ShareCurriculaConfig", lazy="selectin")
+
+    @classmethod
+    async def query(cls, name: str):
+        """查询课表配置项(待修改,后续需要增加学校ID)"""
+        return await cls.filter(name=name, user_id=None).first()
+
+    async def get_curricula(self) -> list["Curricula"]:
+        """获取配置项中的所有课表"""
+        return await Curricula.filter(config_id=self.id).all()
 
 
 # 共享课表
-class ShareCurriculumConfig(FilterModel, Model):
-    config_id: Mapped[int] = mapped_column(Integer, ForeignKey(CurriculumConfig.id, ondelete="CASCADE"), nullable=False)
+class ShareCurriculaConfig(FilterModel, Model):
+    config_id: Mapped[int] = mapped_column(Integer, ForeignKey(CurriculaConfig.id, ondelete="CASCADE"), nullable=False)
     """用户ID"""
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey(User.id, ondelete="CASCADE"), nullable=False)
     """用户ID"""
@@ -1024,17 +1042,16 @@ class ShareCurriculumConfig(FilterModel, Model):
     update_at: Mapped[UpdateAt]
 
     user: Mapped[User] = relationship(lazy=False)
-    config: Mapped[CurriculumConfig] = relationship(lazy=False, back_populates="share_config")
+    config: Mapped[CurriculaConfig] = relationship(lazy=False, back_populates="share_config")
 
 
 # 课表
-class Curriculum(FilterModel, Model):
+class Curricula(FilterModel, Model):
     config_id: Mapped[int] = mapped_column(
         Integer,
-        ForeignKey(CurriculumConfig.id, ondelete="CASCADE"),
+        ForeignKey(CurriculaConfig.id, ondelete="CASCADE"),
         nullable=False,
     )
-    """用户ID"""
     week: Mapped[str] = mapped_column(String(255), nullable=False)
     """周几"""
     weekday: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -1043,13 +1060,12 @@ class Curriculum(FilterModel, Model):
     """第几节课"""
     course: Mapped[str] = mapped_column(String(255), index=True, nullable=False)
     """课程名称"""
-    teacher: Mapped[str] = mapped_column(String(255), nullable=True)
+    teacher: Mapped[str | None] = mapped_column(String(64), nullable=True)
     """教师"""
-    classroom: Mapped[str] = mapped_column(String(255), nullable=True)
+    classroom: Mapped[str | None] = mapped_column(String(255), nullable=True)
     """教室"""
     created_at: Mapped[CreateAt]
     updated_at: Mapped[UpdateAt]
-    config: Mapped["CurriculumConfig"] = relationship(lazy=False, back_populates="curriculums")
 
     async def get_teacher(self) -> Teacher | None:
         return await Teacher.filter(name=self.teacher).first()
@@ -1105,6 +1121,8 @@ class EducationSystem(FilterModel, Model):
     """教学系统账号"""
     password: Mapped[str] = mapped_column(String(255), nullable=False)
     """教学系统密码"""
+    school_id: Mapped[int] = mapped_column(Integer, ForeignKey(School.id, ondelete="CASCADE"), nullable=True)
+    """学校ID"""
     created_at: Mapped[CreateAt]
     updated_at: Mapped[UpdateAt]
 

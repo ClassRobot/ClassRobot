@@ -1,8 +1,8 @@
 """empty message
 
-迁移 ID: 0b14a3e3db26
+迁移 ID: ed13facfbb38
 父迁移: 
-创建时间: 2025-03-29 16:45:33.387230
+创建时间: 2025-04-03 19:00:11.511295
 
 """
 from __future__ import annotations
@@ -12,7 +12,7 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "0b14a3e3db26"
+revision: str = "ed13facfbb38"
 down_revision: str | Sequence[str] | None = None
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
@@ -132,10 +132,8 @@ def upgrade(name: str = "") -> None:
         info={"bind_key": "models"},
     )
     op.create_table(
-        "bot_education_system",
-        sa.Column("user_id", sa.Integer(), nullable=False),
-        sa.Column("account", sa.String(length=255), nullable=False),
-        sa.Column("password", sa.String(length=255), nullable=False),
+        "bot_curricula_schedule",
+        sa.Column("shool_id", sa.Integer(), nullable=True),
         sa.Column(
             "created_at", sa.DateTime(), server_default=sa.text("now()"), nullable=False
         ),
@@ -143,6 +141,34 @@ def upgrade(name: str = "") -> None:
             "updated_at", sa.DateTime(), server_default=sa.text("now()"), nullable=False
         ),
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
+        sa.ForeignKeyConstraint(
+            ["shool_id"],
+            ["bot_school.id"],
+            name=op.f("fk_bot_curricula_schedule_shool_id_bot_school"),
+            ondelete="CASCADE",
+        ),
+        sa.PrimaryKeyConstraint("id", name=op.f("pk_bot_curricula_schedule")),
+        info={"bind_key": "models"},
+    )
+    op.create_table(
+        "bot_education_system",
+        sa.Column("user_id", sa.Integer(), nullable=False),
+        sa.Column("account", sa.String(length=255), nullable=False),
+        sa.Column("password", sa.String(length=255), nullable=False),
+        sa.Column("school_id", sa.Integer(), nullable=True),
+        sa.Column(
+            "created_at", sa.DateTime(), server_default=sa.text("now()"), nullable=False
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(), server_default=sa.text("now()"), nullable=False
+        ),
+        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
+        sa.ForeignKeyConstraint(
+            ["school_id"],
+            ["bot_school.id"],
+            name=op.f("fk_bot_education_system_school_id_bot_school"),
+            ondelete="CASCADE",
+        ),
         sa.ForeignKeyConstraint(
             ["user_id"],
             ["bot_user.id"],
@@ -151,31 +177,6 @@ def upgrade(name: str = "") -> None:
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_bot_education_system")),
         sa.UniqueConstraint("account"),
-        info={"bind_key": "models"},
-    )
-    op.create_table(
-        "bot_group",
-        sa.Column("name", sa.String(length=64), nullable=False),
-        sa.Column("creator_id", sa.Integer(), nullable=False),
-        sa.Column("settings_id", sa.Integer(), nullable=False),
-        sa.Column(
-            "created_at", sa.DateTime(), server_default=sa.text("now()"), nullable=False
-        ),
-        sa.Column(
-            "updated_at", sa.DateTime(), server_default=sa.text("now()"), nullable=False
-        ),
-        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
-        sa.ForeignKeyConstraint(
-            ["creator_id"],
-            ["bot_user.id"],
-            name=op.f("fk_bot_group_creator_id_bot_user"),
-        ),
-        sa.ForeignKeyConstraint(
-            ["settings_id"],
-            ["bot_group_settings.id"],
-            name=op.f("fk_bot_group_settings_id_bot_group_settings"),
-        ),
-        sa.PrimaryKeyConstraint("id", name=op.f("pk_bot_group")),
         info={"bind_key": "models"},
     )
     op.create_table(
@@ -193,30 +194,6 @@ def upgrade(name: str = "") -> None:
             ondelete="CASCADE",
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_bot_scheduled_notice")),
-        info={"bind_key": "models"},
-    )
-    op.create_table(
-        "bot_teacher",
-        sa.Column("name", sa.String(length=64), nullable=False),
-        sa.Column(
-            "role", sa.String(length=64), server_default="teacher", nullable=False
-        ),
-        sa.Column("user_id", sa.Integer(), nullable=False),
-        sa.Column(
-            "created_at", sa.DateTime(), server_default=sa.text("now()"), nullable=False
-        ),
-        sa.Column(
-            "updated_at", sa.DateTime(), server_default=sa.text("now()"), nullable=False
-        ),
-        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
-        sa.ForeignKeyConstraint(
-            ["user_id"],
-            ["bot_user.id"],
-            name=op.f("fk_bot_teacher_user_id_bot_user"),
-            ondelete="CASCADE",
-        ),
-        sa.PrimaryKeyConstraint("id", name=op.f("pk_bot_teacher")),
-        sa.UniqueConstraint("user_id"),
         info={"bind_key": "models"},
     )
     op.create_table(
@@ -249,6 +226,81 @@ def upgrade(name: str = "") -> None:
             batch_op.f("ix_bot_user_bind_platform_id"), ["platform_id"], unique=False
         )
 
+    op.create_table(
+        "bot_group",
+        sa.Column("name", sa.String(length=64), nullable=False),
+        sa.Column("creator_id", sa.Integer(), nullable=False),
+        sa.Column("settings_id", sa.Integer(), nullable=False),
+        sa.Column("school_id", sa.Integer(), nullable=True),
+        sa.Column("college_id", sa.Integer(), nullable=True),
+        sa.Column(
+            "created_at", sa.DateTime(), server_default=sa.text("now()"), nullable=False
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(), server_default=sa.text("now()"), nullable=False
+        ),
+        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
+        sa.ForeignKeyConstraint(
+            ["college_id"],
+            ["bot_college.id"],
+            name=op.f("fk_bot_group_college_id_bot_college"),
+        ),
+        sa.ForeignKeyConstraint(
+            ["creator_id"],
+            ["bot_user.id"],
+            name=op.f("fk_bot_group_creator_id_bot_user"),
+        ),
+        sa.ForeignKeyConstraint(
+            ["school_id"],
+            ["bot_school.id"],
+            name=op.f("fk_bot_group_school_id_bot_school"),
+        ),
+        sa.ForeignKeyConstraint(
+            ["settings_id"],
+            ["bot_group_settings.id"],
+            name=op.f("fk_bot_group_settings_id_bot_group_settings"),
+        ),
+        sa.PrimaryKeyConstraint("id", name=op.f("pk_bot_group")),
+        info={"bind_key": "models"},
+    )
+    op.create_table(
+        "bot_teacher",
+        sa.Column("name", sa.String(length=64), nullable=False),
+        sa.Column(
+            "role", sa.String(length=64), server_default="teacher", nullable=False
+        ),
+        sa.Column("user_id", sa.Integer(), nullable=False),
+        sa.Column("school_id", sa.Integer(), nullable=True),
+        sa.Column("college_id", sa.Integer(), nullable=True),
+        sa.Column(
+            "created_at", sa.DateTime(), server_default=sa.text("now()"), nullable=False
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(), server_default=sa.text("now()"), nullable=False
+        ),
+        sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
+        sa.ForeignKeyConstraint(
+            ["college_id"],
+            ["bot_college.id"],
+            name=op.f("fk_bot_teacher_college_id_bot_college"),
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["school_id"],
+            ["bot_school.id"],
+            name=op.f("fk_bot_teacher_school_id_bot_school"),
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["user_id"],
+            ["bot_user.id"],
+            name=op.f("fk_bot_teacher_user_id_bot_user"),
+            ondelete="CASCADE",
+        ),
+        sa.PrimaryKeyConstraint("id", name=op.f("pk_bot_teacher")),
+        sa.UniqueConstraint("user_id"),
+        info={"bind_key": "models"},
+    )
     op.create_table(
         "bot_classes",
         sa.Column("name", sa.String(length=64), nullable=False),
@@ -360,11 +412,13 @@ def upgrade(name: str = "") -> None:
         info={"bind_key": "models"},
     )
     op.create_table(
-        "bot_curriculum_config",
+        "bot_curricula_config",
+        sa.Column("name", sa.String(length=64), nullable=True),
         sa.Column("classes_id", sa.Integer(), nullable=True),
         sa.Column("user_id", sa.Integer(), nullable=True),
         sa.Column("current_week", sa.Integer(), server_default="1", nullable=False),
-        sa.Column("is_notify", sa.Integer(), server_default="1", nullable=False),
+        sa.Column("is_notify", sa.Integer(), server_default="0", nullable=False),
+        sa.Column("school_id", sa.Integer(), nullable=True),
         sa.Column(
             "create_at", sa.DateTime(), server_default=sa.text("now()"), nullable=False
         ),
@@ -375,17 +429,24 @@ def upgrade(name: str = "") -> None:
         sa.ForeignKeyConstraint(
             ["classes_id"],
             ["bot_classes.id"],
-            name=op.f("fk_bot_curriculum_config_classes_id_bot_classes"),
+            name=op.f("fk_bot_curricula_config_classes_id_bot_classes"),
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["school_id"],
+            ["bot_school.id"],
+            name=op.f("fk_bot_curricula_config_school_id_bot_school"),
             ondelete="CASCADE",
         ),
         sa.ForeignKeyConstraint(
             ["user_id"],
             ["bot_user.id"],
-            name=op.f("fk_bot_curriculum_config_user_id_bot_user"),
+            name=op.f("fk_bot_curricula_config_user_id_bot_user"),
             ondelete="CASCADE",
         ),
-        sa.PrimaryKeyConstraint("id", name=op.f("pk_bot_curriculum_config")),
+        sa.PrimaryKeyConstraint("id", name=op.f("pk_bot_curricula_config")),
         sa.UniqueConstraint("classes_id"),
+        sa.UniqueConstraint("name"),
         sa.UniqueConstraint("user_id"),
         info={"bind_key": "models"},
     )
@@ -393,6 +454,7 @@ def upgrade(name: str = "") -> None:
         "bot_student",
         sa.Column("name", sa.String(length=64), nullable=False),
         sa.Column("classes_id", sa.Integer(), nullable=False),
+        sa.Column("school_id", sa.Integer(), nullable=True),
         sa.Column("user_id", sa.Integer(), nullable=False),
         sa.Column(
             "role", sa.String(length=32), server_default="student", nullable=False
@@ -415,6 +477,12 @@ def upgrade(name: str = "") -> None:
             ["extra_id"],
             ["bot_student_extra.id"],
             name=op.f("fk_bot_student_extra_id_bot_student_extra"),
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ["school_id"],
+            ["bot_school.id"],
+            name=op.f("fk_bot_student_school_id_bot_school"),
             ondelete="CASCADE",
         ),
         sa.ForeignKeyConstraint(
@@ -485,13 +553,13 @@ def upgrade(name: str = "") -> None:
         info={"bind_key": "models"},
     )
     op.create_table(
-        "bot_curriculum",
+        "bot_curricula",
         sa.Column("config_id", sa.Integer(), nullable=False),
         sa.Column("week", sa.String(length=255), nullable=False),
         sa.Column("weekday", sa.String(length=255), nullable=False),
         sa.Column("lesson", sa.String(length=255), nullable=False),
         sa.Column("course", sa.String(length=255), nullable=False),
-        sa.Column("teacher", sa.String(length=255), nullable=True),
+        sa.Column("teacher", sa.String(length=64), nullable=True),
         sa.Column("classroom", sa.String(length=255), nullable=True),
         sa.Column(
             "created_at", sa.DateTime(), server_default=sa.text("now()"), nullable=False
@@ -502,20 +570,20 @@ def upgrade(name: str = "") -> None:
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
         sa.ForeignKeyConstraint(
             ["config_id"],
-            ["bot_curriculum_config.id"],
-            name=op.f("fk_bot_curriculum_config_id_bot_curriculum_config"),
+            ["bot_curricula_config.id"],
+            name=op.f("fk_bot_curricula_config_id_bot_curricula_config"),
             ondelete="CASCADE",
         ),
-        sa.PrimaryKeyConstraint("id", name=op.f("pk_bot_curriculum")),
+        sa.PrimaryKeyConstraint("id", name=op.f("pk_bot_curricula")),
         info={"bind_key": "models"},
     )
-    with op.batch_alter_table("bot_curriculum", schema=None) as batch_op:
+    with op.batch_alter_table("bot_curricula", schema=None) as batch_op:
         batch_op.create_index(
-            batch_op.f("ix_bot_curriculum_course"), ["course"], unique=False
+            batch_op.f("ix_bot_curricula_course"), ["course"], unique=False
         )
 
     op.create_table(
-        "bot_share_curriculum_config",
+        "bot_share_curricula_config",
         sa.Column("config_id", sa.Integer(), nullable=False),
         sa.Column("user_id", sa.Integer(), nullable=False),
         sa.Column(
@@ -527,17 +595,17 @@ def upgrade(name: str = "") -> None:
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
         sa.ForeignKeyConstraint(
             ["config_id"],
-            ["bot_curriculum_config.id"],
-            name=op.f("fk_bot_share_curriculum_config_config_id_bot_curriculum_config"),
+            ["bot_curricula_config.id"],
+            name=op.f("fk_bot_share_curricula_config_config_id_bot_curricula_config"),
             ondelete="CASCADE",
         ),
         sa.ForeignKeyConstraint(
             ["user_id"],
             ["bot_user.id"],
-            name=op.f("fk_bot_share_curriculum_config_user_id_bot_user"),
+            name=op.f("fk_bot_share_curricula_config_user_id_bot_user"),
             ondelete="CASCADE",
         ),
-        sa.PrimaryKeyConstraint("id", name=op.f("pk_bot_share_curriculum_config")),
+        sa.PrimaryKeyConstraint("id", name=op.f("pk_bot_share_curricula_config")),
         info={"bind_key": "models"},
     )
     op.create_table(
@@ -618,15 +686,15 @@ def downgrade(name: str = "") -> None:
     # ### commands auto generated by Alembic - please adjust! ###
     op.drop_table("bot_task_commits")
     op.drop_table("bot_student_leave")
-    op.drop_table("bot_share_curriculum_config")
-    with op.batch_alter_table("bot_curriculum", schema=None) as batch_op:
-        batch_op.drop_index(batch_op.f("ix_bot_curriculum_course"))
+    op.drop_table("bot_share_curricula_config")
+    with op.batch_alter_table("bot_curricula", schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f("ix_bot_curricula_course"))
 
-    op.drop_table("bot_curriculum")
+    op.drop_table("bot_curricula")
     op.drop_table("bot_teacher_classes")
     op.drop_table("bot_tasks")
     op.drop_table("bot_student")
-    op.drop_table("bot_curriculum_config")
+    op.drop_table("bot_curricula_config")
     op.drop_table("bot_classes_leave_config")
     op.drop_table("bot_classes_join_request")
     with op.batch_alter_table("bot_group_bind", schema=None) as batch_op:
@@ -636,15 +704,16 @@ def downgrade(name: str = "") -> None:
 
     op.drop_table("bot_group_bind")
     op.drop_table("bot_classes")
+    op.drop_table("bot_teacher")
+    op.drop_table("bot_group")
     with op.batch_alter_table("bot_user_bind", schema=None) as batch_op:
         batch_op.drop_index(batch_op.f("ix_bot_user_bind_platform_id"))
         batch_op.drop_index(batch_op.f("ix_bot_user_bind_account_id"))
 
     op.drop_table("bot_user_bind")
-    op.drop_table("bot_teacher")
     op.drop_table("bot_scheduled_notice")
-    op.drop_table("bot_group")
     op.drop_table("bot_education_system")
+    op.drop_table("bot_curricula_schedule")
     op.drop_table("bot_college")
     op.drop_table("bot_user")
     with op.batch_alter_table("bot_student_extra", schema=None) as batch_op:

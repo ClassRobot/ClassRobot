@@ -4,43 +4,26 @@ from nonebot.params import Depends
 from nonebot_plugin_alconna import AlconnaMatcher
 from utils.models.depends import UserOrCreatedDepends
 
-from .manager import (
-    AddCurriculum,
-    BaseCurriculum,
-    QueryCurriculum,
-    ShareCurriculum,
-    DeleteCurriculum,
-    SetCurriculumWeek,
-)
+from .manage import AddCurricula, BaseCurricula, QueryCurricula, ShareCurricula, DeleteCurricula, SetCurriculaWeek
 
 
-def curriculum_depends(bc: type[BaseCurriculum]):
-    async def _(matcher: AlconnaMatcher, user: UserOrCreatedDepends) -> BaseCurriculum:
+def curricula_depends(bc: type[BaseCurricula]):
+    async def _(matcher: AlconnaMatcher, user: UserOrCreatedDepends) -> BaseCurricula:
         return matcher.state.setdefault(f"_{bc.__name__}", bc(user))
 
     return _
 
 
-AddCurriculumDepends = Annotated[
-    AddCurriculum, Depends(curriculum_depends(AddCurriculum))
-]
+AddCurriculaDepends = Annotated[AddCurricula, Depends(curricula_depends(AddCurricula))]
 
 
-QueryCurriculumDepends = Annotated[
-    QueryCurriculum, Depends(curriculum_depends(QueryCurriculum))
-]
+QueryCurriculaDepends = Annotated[QueryCurricula, Depends(curricula_depends(QueryCurricula))]
 
 
-DeleteCurriculumDepends = Annotated[
-    DeleteCurriculum, Depends(curriculum_depends(DeleteCurriculum))
-]
+DeleteCurriculaDepends = Annotated[DeleteCurricula, Depends(curricula_depends(DeleteCurricula))]
 
 
-SetCurriculumWeekDepends = Annotated[
-    SetCurriculumWeek, Depends(curriculum_depends(SetCurriculumWeek))
-]
+SetCurriculaWeekDepends = Annotated[SetCurriculaWeek, Depends(curricula_depends(SetCurriculaWeek))]
 
 
-ShareCurriculumDepends = Annotated[
-    ShareCurriculum, Depends(curriculum_depends(ShareCurriculum))
-]
+ShareCurriculaDepends = Annotated[ShareCurricula, Depends(curricula_depends(ShareCurricula))]

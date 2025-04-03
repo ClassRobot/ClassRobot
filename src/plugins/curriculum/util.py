@@ -1,5 +1,19 @@
 import re
 
+times = [
+    ["08:30", "09:15"],
+    ["09:20", "10:05"],
+    ["10:25", "11:10"],
+    ["11:15", "12:00"],
+    ["14:00", "14:45"],
+    ["14:50", "15:35"],
+    ["15:55", "16:40"],
+    ["16:45", "17:30"],
+    ["19:00", "19:45"],
+    ["19:50", "20:35"],
+    ["20:40", "21:25"],
+]
+
 
 # 解析1-13+1这种范围
 def range_parser(range_str: str) -> list[int]:
@@ -25,9 +39,7 @@ def range_parser(range_str: str) -> list[int]:
         matches = list(matches[0])
         if len(matches) == 2 or not matches[2]:
             matches[2] = 0
-        range_list.extend(
-            range(int(matches[0]), int(matches[1]) + 1, int(matches[2]) + 1)
-        )
+        range_list.extend(range(int(matches[0]), int(matches[1]) + 1, int(matches[2]) + 1))
     return range_list
 
 

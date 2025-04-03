@@ -1,6 +1,7 @@
 from re import sub
 from asyncio import gather
 
+from nonebot import logger
 from pydantic import Field
 from openai import BaseModel
 from httpx import AsyncClient
@@ -169,28 +170,32 @@ class RagAgent(BaseAgent):
 
     async def execute(self, messages: Context) -> str | None:
         """执行agent"""
-        rag_session = AsyncRagFlow()
-        chatbots = await rag_session.get_chatbots()
-        session = await chatbots[0].create_session()
         try:
-            reply = await session.ask(question=messages.single_modal())
-            if replace := await self.replace(reply):
-                return replace
-        finally:
-            await chatbots[0].delete_session([session.id])
+            rag_session = AsyncRagFlow()
+            chatbots = await rag_session.get_chatbots()
+            session = await chatbots[0].create_session()
+            try:
+                reply = await session.ask(question=messages.single_modal())
+                if replace := await self.replace(reply):
+                    return replace
+            finally:
+                await chatbots[0].delete_session([session.id])
+        except Exception as e:
+            logger.exception(e)
+            return None
 
-    async def replace(self, reply: ChatBotMessage) -> str:
-        if not reply.reference.chunks:
-            return ""
-        elif not reply.answer or reply.answer == "null":
-            return ""
+    async def replace(self, reply: ChatBotMessage) -> str | None:
+        if not reply.reference.chunks or reply.reference.total == 0 or not reply.answer or reply.answer == "null":
+            return None
         print(reply.answer)
         answer = reply.answer
         urls = []
 
         for ref in reply.reference.chunks:
             image = await ref.get_image()
-            urls.append(upload_file(image, ref.image_id))
+            urls.append(await upload_file(image, ref.image_id))
+        if not urls:
+            return None
         urls = await gather(*urls)
 
         answer = sub(r"##(\d+)\$\$", lambda m: f"\n> 相关材料:\n> ![image]({urls[int(m.group(1))]})\n", answer)

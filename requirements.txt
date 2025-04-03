@@ -80,6 +80,12 @@ asyncpg==0.30.0 ; python_version >= "3.10" and python_version < "3.13" \
     --hash=sha256:f86b0e2cd3f1249d6fe6fd6cfe0cd4538ba994e2d8249c0491925629b9104d0f \
     --hash=sha256:fb622c94db4e13137c4c7f98834185049cc50ee01d8f657ef898b6407c7b9c50 \
     --hash=sha256:fd4406d09208d5b4a14db9a9dbb311b6d7aeeab57bded7ed2f8ea41aeef39b34
+beautifulsoup4==4.13.3 ; python_version >= "3.10" and python_version < "3.13" \
+    --hash=sha256:1bd32405dacc920b42b83ba01644747ed77456a65760e285fbc47633ceddaf8b \
+    --hash=sha256:99045d7d3f08f91f0d656bc9b7efbae189426cd913d830294a15eefa0ea4df16
+bs4==0.0.2 ; python_version >= "3.10" and python_version < "3.13" \
+    --hash=sha256:a48685c58f50fe127722417bae83fe6badf500d54b55f7e39ffe43b798653925 \
+    --hash=sha256:abf8742c0805ef7f662dce4b51cca104cffe52b835238afc169142ab9b3fbccc
 cachetools==5.5.2 ; python_version >= "3.10" and python_version < "3.13" \
     --hash=sha256:1a661caa9175d26759571b2e19580f9d6393969e5dfca11fdb1f947a23e640d4 \
     --hash=sha256:d26a22bcc62eb95c3beabd9f1ee5e820d3d2704fe2967cbe350e20c8ffcd3f0a
@@ -1601,6 +1607,9 @@ six==1.17.0 ; python_version >= "3.10" and python_version < "3.13" \
 sniffio==1.3.1 ; python_version >= "3.10" and python_version < "3.13" \
     --hash=sha256:2f6da418d1f1e0fddd844478f41680e794e6051915791a034ff65e5f100525a2 \
     --hash=sha256:f4324edc670a0f49750a81b895f35c3adb843cca46f0530f79fc1babb23789dc
+soupsieve==2.6 ; python_version >= "3.10" and python_version < "3.13" \
+    --hash=sha256:e2e68417777af359ec65daac1057404a3c8a5455bb8abc36f1a9866ab1a51abb \
+    --hash=sha256:e72c4ff06e4fb6e4b5a9f0f55fe6e81514581fca1515028625d0f299c602ccc9
 sqlalchemy==2.0.39 ; python_version >= "3.10" and python_version < "3.13" \
     --hash=sha256:018ee97c558b499b58935c5a152aeabf6d36b3d55d91656abeb6d93d663c0c4c \
     --hash=sha256:01da15490c9df352fbc29859d3c7ba9cd1377791faeeb47c100832004c99472c \

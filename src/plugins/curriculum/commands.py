@@ -25,7 +25,7 @@ input_help = """具体输入格式如下:
 - 1-5+1,6 表示1,3,5,6
 """
 
-add_curriculum = on_alconna(
+add_curricula = on_alconna(
     Alconna(
         "添加课表",
         Args[
@@ -39,7 +39,7 @@ add_curriculum = on_alconna(
     skip_for_unmatch=False,
     comp_config=comp_config,
 )
-del_curriculum = on_alconna(
+del_curricula = on_alconna(
     Alconna(
         "删除课表",
         Args[
@@ -53,13 +53,13 @@ del_curriculum = on_alconna(
     skip_for_unmatch=False,
     comp_config=comp_config,
 )
-query_curriculum = on_alconna(
-    Alconna("查询课表"),
+query_curricula = on_alconna(
+    Alconna("查询课表", Args["classes?", str | None]),
     aliases={"查看课表"},
     block=True,
     priority=priority,
 )
-share_curriculum = on_alconna(
+share_curricula = on_alconna(
     Alconna(
         "分享课表",
         Args["share_id?", str | None],
