@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>课表</title>
+    <style>
+        body {
+            width: 800px;
+        }
+        * {
+            margin: 2px;
+            padding: 0;
+        }
+
+        .box {
+            padding: 1.75em;
+            width: 300px;
+            background-color: rgb(226, 223, 223);
+            box-shadow: 0 0 6px gray;
+            display: flex;
+            border-radius: 20px;
+            gap: 1em;
+            position: relative;
+            top: 15px;
+        }
+
+        .date {
+            text-align: center;
+            font-weight: bold;
+            letter-spacing: 0.2em;
+            font-size: 1.15em;
+        }
+
+        .month {
+            line-height: 1.5em;
+            font-size: 1.8em;
+            font-weight: bold;
+        }
+
+        .next-countdown {
+            padding: 1.75em;
+            width: 340px;
+            height: 108px;
+            background-color: rgb(226, 223, 223);
+            box-shadow: 0 0 6px gray;
+            border-radius: 20px;
+            gap: 1em;
+            position: relative;
+            left: 400px;
+            top: -152px
+        }
+
+        .title {
+            font-size: 20px;
+        }
+
+        .time {
+            width: 2.0em;
+            height: 2.0em;
+            position: relative;
+            top: 8px;
+        }
+
+        .person {
+            width: 1.5em;
+            height: 1.5em;
+            position: relative;
+            top: 8px;
+        }
+
+        .place {
+            width: 1.5em;
+            height: 1.5em;
+            position: relative;
+            top: 8px;
+        }
+
+        .percentage-bar {
+            height: 10px;
+            width: 330px;
+            background-color: #f0f0f0;
+            border-radius: 5px;
+        }
+
+        .percentage {
+            height: 100%;
+            background-color: #4a5691;
+            border-radius: 5px;
+            width: 75%;
+        }
+
+        .next-course {
+            background-color: #182338;
+            color: white;
+            padding: 1.75em;
+            box-shadow: 0 0 6px gray;
+            border-radius: 20px;
+            gap: 1em;
+            position: relative;
+            top: -115px;
+        }
+
+        .today-course {
+            padding: 1.75em;
+            background-color: rgb(226, 223, 223);
+            box-shadow: 0 0 6px gray;
+            border-radius: 20px;
+            gap: 1em;
+            position: relative;
+            top: -78px;
+        }
+
+        .one {
+            border-color: #383d74;
+            border-style: solid;
+            border-width: 0 0 0 10px;
+        }
+
+        p {
+            margin-bottom: 0.5rem;
+        }
+
+        .classbox {
+            padding: 1.75em;
+            background-color: rgb(226, 223, 223);
+            box-shadow: 0 0 6px gray;
+            border-radius: 20px;
+            gap: 1em;
+            position: relative;
+            top: -40px;
+        }
+
+        .container {
+            display: flex;
+            gap: 3em;
+        }
+
+        .circle {
+            padding: 1.5em;
+            background-color: rgb(277, 198, 163);
+            border-radius: 100px;
+            width: 30px;
+            text-align: center;
+        }
+
+        .lessons {
+            padding: 1.5em;
+            background-color: #66b3ff;
+            display: flex;
+            gap: 3em;
+            border-radius: 50px;
+        }
+
+        .lesson-name {
+            font-weight: bold;
+            margin-bottom: 5px;
+            display: block;
+        }
+
+        .lesson-location {
+            font-size: 1em;
+            color: #555;
+            display: block;
+        }
+
+        body {
+            max-width: 800px;
+            background-color: rgb(68, 78, 126);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="box">
+        <div class="date">
+            <div>{{ data.current_week.year }}</div>
+            <div class="month">{{ data.current_week.month }}</div>
+            <div>{{ data.current_week.day }}日</div>
+        </div>
+        <div style="display:grid;justify-content:center;align-items:center">
+            <h1>{{ data.current_week.week_number }}周教学周</h1><br>
+            <h2 style="color: #565da4;text-align:center">{{ data.current_week.weekday }}</h2>
+        </div>
+    </div>
+
+    <div class="next-countdown">
+        <div class="course-header">
+            <h1>距离下节课</h1>
+        </div>
+        <img src="time.png" alt="" class="time"><span style="font-size: 28px;font-weight: bold;">{{
+            data.next_countdown.time_remaining }}</span>
+        <div class="percentage-bar">
+            <div class="percentage" style="width: {{ data.next_countdown.percentage * 100 }}%;"></div>
+        </div>
+    </div>
+
+    <div class="next-course">
+        <div class="course-header">
+            <h2>下节课</h2>
+        </div>
+        <h1>{{ data.next_course.name }}</h1>
+        <img src="用户.png" alt="" class="person"><span>{{ data.next_course.teacher }}</span><br>
+        <img src="导航.png" alt="" class="place"><span>{{ data.next_course.location }}</span>
+    </div>
+
+    <div class="today-course">
+        <div class="course-header">
+            <h1>今日课程</h1><br>
+        </div>
+        <ul>
+            {% for course in data.today_course %}
+            <div class="one">
+                <p style="font-size: 24px;font-weight: bold;padding-left: 10px;">{{ course.name }}</p>
+                <p style="padding-left: 10px;">{{ course.teacher }}&nbsp;&nbsp;{{ course.time }}</p>
+                <p style="padding-left: 10px;">{{ course.location }}</p>
+            </div>
+            <br>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <div class="classbox">
+        <h2>本周课程</h2>
+        <table>
+            <thead class="container">
+                <tr>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                </tr>
+                <tr>
+                    <th class="circle">M</th>
+                    <th class="circle">T</th>
+                    <th class="circle">W</th>
+                    <th class="circle">T</th>
+                    <th class="circle">F</th>
+                    <th class="circle">S</th>
+                    <th class="circle">S</th>
+                </tr>
+            </thead>
+            <tbody class="lessons">
+                {% set times = ['08:00-09:40', '10:05-10:50','14.30-15.35', '15:55-17:40', '19:00-20:30'] %}
+                {% for time in times %}
+                <tr>
+                    <td class="time">{{ time }}</td>
+                    {% for day in ['M','T1','W','T2','F','S1','S2']%}
+                    <td>
+                        {% for lesson in data.this_week_course[day]%}
+                        {% if lesson.time == time %}
+                        <div class="lesson-name">{{ lesson.name }}</div>
+                        <div class="lesson-location">{{ lesson.location }}</div>
+                        {% endif %}
+                        {% endfor %}
+                    </td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+</body>
+
+</html>

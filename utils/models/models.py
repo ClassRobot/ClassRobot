@@ -1007,7 +1007,7 @@ class CurriculaTimetable(FilterModel, Model):
 
 # 班级或学生课表配置项
 class CurriculaConfig(FilterModel, Model):
-    name: Mapped[str | None] = mapped_column(String(64), nullable=True, unique=True)
+    name: Mapped[str | None] = mapped_column(String(64), nullable=True, unique=False, index=True)
     """课表配置项名称，一般是班级名称"""
     classes_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey(Classes.id, ondelete="CASCADE"), nullable=True, unique=True

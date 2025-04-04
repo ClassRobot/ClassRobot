@@ -1,8 +1,8 @@
 """empty message
 
-迁移 ID: 583947e21b3d
+迁移 ID: d6b966cf170d
 父迁移: 
-创建时间: 2025-04-04 01:58:23.798007
+创建时间: 2025-04-04 22:23:38.429608
 
 """
 from __future__ import annotations
@@ -12,7 +12,7 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "583947e21b3d"
+revision: str = "d6b966cf170d"
 down_revision: str | Sequence[str] | None = None
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
@@ -427,10 +427,14 @@ def upgrade(name: str = "") -> None:
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_bot_curricula_config")),
         sa.UniqueConstraint("classes_id"),
-        sa.UniqueConstraint("name"),
         sa.UniqueConstraint("user_id"),
         info={"bind_key": "models"},
     )
+    with op.batch_alter_table("bot_curricula_config", schema=None) as batch_op:
+        batch_op.create_index(
+            batch_op.f("ix_bot_curricula_config_name"), ["name"], unique=False
+        )
+
     op.create_table(
         "bot_curricula_timetable",
         sa.Column("user_id", sa.Integer(), nullable=True),
@@ -712,6 +716,9 @@ def downgrade(name: str = "") -> None:
     op.drop_table("bot_tasks")
     op.drop_table("bot_student")
     op.drop_table("bot_curricula_timetable")
+    with op.batch_alter_table("bot_curricula_config", schema=None) as batch_op:
+        batch_op.drop_index(batch_op.f("ix_bot_curricula_config_name"))
+
     op.drop_table("bot_curricula_config")
     op.drop_table("bot_classes_leave_config")
     op.drop_table("bot_classes_join_request")

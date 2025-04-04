@@ -74,7 +74,6 @@ async def _(
     matcher: AlconnaMatcher,
     set_week_cmd: SetCurriculaWeekDepends,
     week: int,
-    classes_id: int | None = None,
 ):
     if await set_week_cmd.set_week(week):
         await matcher.finish(Emoji.success + f"设置成功,当前周为第{week}周")

@@ -16,7 +16,7 @@ class BaseCurricula:
 
     async def get_classes_config(self, name: str | None) -> CurriculaConfig | None:
         if name:
-            return await CurriculaConfig.filter(classes__name=name).first()
+            return await CurriculaConfig.filter(name=name).first()
         elif self.user.student:
             return await CurriculaConfig.filter(classes=self.user.student.classes).first()
         return None

@@ -160,4 +160,4 @@ class CurriculaSchema(BaseModel):
 
     async def render(self) -> bytes:
         # open("data.json", "w", encoding="utf-8").write(self.json(ensure_ascii=False, indent=4))
-        return await template_to_pic("md.html", {"data": self})
+        return await template_to_pic("curricula.html", {"data": self})
