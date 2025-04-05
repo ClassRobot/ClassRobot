@@ -36,8 +36,8 @@ class CurrentWeek(BaseModel):
 
     year: int
     week_number: int
-    month: int
-    day: int
+    month: str
+    day: str
     weekday: str
 
     class Config:
@@ -84,6 +84,13 @@ class CurriculaSchema(BaseModel):
                         ctime = f"{times[le - 1][0]}-{times[le - 1][1]}"
                     else:
                         ctime = "00:00-00:00"
+                    # Check if the course has already ended
+                    course_end_time = datetime.strptime(ctime.split("-")[1], "%H:%M")
+                    course_end_time = today.replace(
+                        hour=course_end_time.hour, minute=course_end_time.minute, second=0, microsecond=0
+                    )
+                    is_ended = today > course_end_time
+
                     cls.insert_list(
                         this_week_course,
                         wd - 1,
@@ -93,6 +100,7 @@ class CurriculaSchema(BaseModel):
                             teacher=curr.teacher,
                             time=ctime,
                             location=curr.classroom,
+                            end=is_ended,
                         ),
                     )
         today_course: list[Course] = [i for i in this_week_course[today.weekday()] if i is not None]
@@ -111,9 +119,11 @@ class CurriculaSchema(BaseModel):
                 next_course = course
                 time_remaining = end_time - today
                 percentage = ((today - start_time) / (end_time - start_time) * 100) if end_time != start_time else 100
+                # Determine if we're in class or the class has ended
+
                 next_countdown = NextCountdown(
-                    title=next_course.name,
-                    time_remaining=str(time_remaining),
+                    title="距离下节课",
+                    time_remaining=f"{time_remaining.seconds//3600:02d}:{(time_remaining.seconds//60)%60:02d}:{time_remaining.seconds%60:02d}",
                     percentage=percentage,
                 )
                 break
@@ -122,8 +132,8 @@ class CurriculaSchema(BaseModel):
             current_week=CurrentWeek(
                 year=today.year,
                 week_number=current_week,
-                month=today.month,
-                day=today.day,
+                month="%02d" % today.month,
+                day="%02d" % today.day,
                 weekday=weekday_chinese[today.weekday()],
             ),
             next_course=next_course
