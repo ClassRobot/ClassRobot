@@ -1,7 +1,7 @@
 from utils import Emoji
 from nonebot_plugin_alconna import AlconnaMatcher
 
-from .scheme import edu_logins
+from .schema import edu_logins
 from .commands import login_edu_cmd
 
 

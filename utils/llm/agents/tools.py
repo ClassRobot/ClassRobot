@@ -8,8 +8,8 @@ from httpx import AsyncClient
 from utils.llm import client_create
 from utils.config import autogpt_dir
 from utils.llm.util import json_loads
+from utils.helper.schema import Helpers
 from utils.tools.cos import upload_file
-from utils.helper.schemes import Helpers
 from utils.template.prompts import Prompt
 from utils.tools.docs2img import File2Image
 from utils.llm.agents.ragflow.schema import ChatBotMessage

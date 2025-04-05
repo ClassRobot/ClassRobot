@@ -1,11 +1,11 @@
 from utils.roles import UserRole
 
 from .config import helper_menu
-from .schemes import Helper as Helper
-from .schemes import Context as Context
-from .schemes import Helpers as Helpers
-from .schemes import Param as Param  # noqa
-from .schemes import ParamMode as ParamMode
+from .schema import Helper as Helper
+from .schema import Context as Context
+from .schema import Helpers as Helpers
+from .schema import Param as Param  # noqa
+from .schema import ParamMode as ParamMode
 
 __all__ = [
     "Param",

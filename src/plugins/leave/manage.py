@@ -15,7 +15,7 @@ from nonebot_plugin_alconna import Image, UniMessage
 from utils.tools import download_file, get_url_suffix
 from utils.models import User, Files, Classes, Student, StudentLeave, ClassesLeaveConfig
 
-from .schemes import Leave
+from .schema import Leave
 from .prompt import plugin_prompt
 
 
