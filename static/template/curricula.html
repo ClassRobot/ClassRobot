@@ -6,9 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>课表</title>
     <style>
-        body {
-            width: 800px;
-        }
         * {
             margin: 2px;
             padding: 0;
@@ -17,7 +14,7 @@
         .box {
             padding: 1.75em;
             width: 300px;
-            background-color: rgb(226, 223, 223);
+            background-color: rgb(233, 231, 231);
             box-shadow: 0 0 6px gray;
             display: flex;
             border-radius: 20px;
@@ -41,14 +38,14 @@
 
         .next-countdown {
             padding: 1.75em;
-            width: 340px;
+            width: 350px;
             height: 108px;
-            background-color: rgb(226, 223, 223);
+            background-color: rgb(233, 231, 231);
             box-shadow: 0 0 6px gray;
             border-radius: 20px;
             gap: 1em;
             position: relative;
-            left: 400px;
+            left: 390px;
             top: -152px
         }
 
@@ -79,41 +76,47 @@
 
         .percentage-bar {
             height: 10px;
-            width: 330px;
-            background-color: #f0f0f0;
+            width: 340px;
+            background-color: #fafafa;
             border-radius: 5px;
         }
 
         .percentage {
             height: 100%;
-            background-color: #4a5691;
+            background-color: #244582;
             border-radius: 5px;
             width: 75%;
         }
 
         .next-course {
-            background-color: #182338;
+            background-color: #244582;
             color: white;
             padding: 1.75em;
             box-shadow: 0 0 6px gray;
             border-radius: 20px;
             gap: 1em;
             position: relative;
-            top: -115px;
+            top: -123px;
         }
 
         .today-course {
             padding: 1.75em;
-            background-color: rgb(226, 223, 223);
+            background-color: rgb(233, 231, 231);
             box-shadow: 0 0 6px gray;
             border-radius: 20px;
             gap: 1em;
             position: relative;
-            top: -78px;
+            top: -95px;
         }
 
         .one {
-            border-color: #383d74;
+            border-color: #1616af;
+            border-style: solid;
+            border-width: 0 0 0 10px;
+        }
+
+        .finished_course {
+            border-color: #f82828;
             border-style: solid;
             border-width: 0 0 0 10px;
         }
@@ -124,50 +127,62 @@
 
         .classbox {
             padding: 1.75em;
-            background-color: rgb(226, 223, 223);
+            background-color: rgb(233, 231, 231);
             box-shadow: 0 0 6px gray;
             border-radius: 20px;
             gap: 1em;
             position: relative;
-            top: -40px;
+            top: -63px;
+        }
+
+        .active {
+            background-color: #333;
+            color: white;
         }
 
         .container {
             display: flex;
-            gap: 3em;
+            gap: 1.5em;
         }
 
         .circle {
             padding: 1.5em;
-            background-color: rgb(277, 198, 163);
+            border: none;
             border-radius: 100px;
-            width: 30px;
-            text-align: center;
+            background-color: #cac5c5;
+            cursor: pointer;
+            font-size: 1rem;
         }
 
         .lessons {
             padding: 1.5em;
-            background-color: #66b3ff;
+            background-color: #cac5c5;
             display: flex;
             gap: 3em;
             border-radius: 50px;
         }
 
-        .lesson-name {
-            font-weight: bold;
-            margin-bottom: 5px;
-            display: block;
+        .two {
+            border-color: #1616af;
+            border-style: solid;
+            border-width: 0 0 0 15px;
         }
 
-        .lesson-location {
-            font-size: 1em;
-            color: #555;
-            display: block;
+        .lesson-box {
+            background-color: #97bfd1;
+            border-radius: 5px;
+            padding: 0.8em;
+            margin-bottom: 0.3em;
+            white-space: pre-line;
+            width: 100px;
         }
 
         body {
             max-width: 800px;
-            background-color: rgb(68, 78, 126);
+            background-color: rgb(250, 250, 248);
+            font-family: Arial, Helvetica, sans-serif;
+            font-weight: normal;
+            font-style: normal;
         }
     </style>
 </head>
@@ -180,8 +195,9 @@
             <div>{{ data.current_week.day }}日</div>
         </div>
         <div style="display:grid;justify-content:center;align-items:center">
-            <h1>{{ data.current_week.week_number }}周教学周</h1><br>
-            <h2 style="color: #565da4;text-align:center">{{ data.current_week.weekday }}</h2>
+            <div style="font-size: 35px;font-weight: bold">{{ data.current_week.week_number }}周教学周</div><br>
+            <h2 style="font-size: 25px;font-weight: bold;color: #4555cb;text-align:center">{{ data.current_week.weekday
+                }}</h2>
         </div>
     </div>
 
@@ -198,7 +214,7 @@
 
     <div class="next-course">
         <div class="course-header">
-            <h2>下节课</h2>
+            <div style="font-size: 25px">下节课</div>
         </div>
         <h1>{{ data.next_course.name }}</h1>
         <img src="用户.png" alt="" class="person"><span>{{ data.next_course.teacher }}</span><br>
@@ -211,7 +227,8 @@
         </div>
         <ul>
             {% for course in data.today_course %}
-            <div class="one">
+            {% set end_time_str = course.time.split('-')[1] %}
+            <div class="one {% if current_time > end_time_str %}finished-course{% endif %}">
                 <p style="font-size: 24px;font-weight: bold;padding-left: 10px;">{{ course.name }}</p>
                 <p style="padding-left: 10px;">{{ course.teacher }}&nbsp;&nbsp;{{ course.time }}</p>
                 <p style="padding-left: 10px;">{{ course.location }}</p>
@@ -226,36 +243,31 @@
         <table>
             <thead class="container">
                 <tr>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                    <td></td>
-                </tr>
-                <tr>
-                    <th class="circle">M</th>
-                    <th class="circle">T</th>
-                    <th class="circle">W</th>
-                    <th class="circle">T</th>
-                    <th class="circle">F</th>
-                    <th class="circle">S</th>
-                    <th class="circle">S</th>
+                    <th></th>
+                    {% for day in data.this_week_course %}
+                    <th class="circle {% if day == data.current_week.weekday[0] %}active{% endif %}">{{day}}</th>
+                    {% endfor %}
                 </tr>
             </thead>
-            <tbody class="lessons">
-                {% set times = ['08:00-09:40', '10:05-10:50','14.30-15.35', '15:55-17:40', '19:00-20:30'] %}
-                {% for time in times %}
+            <tbody class="lesson">
+                {% for i in range(1,9) %}
                 <tr>
-                    <td class="time">{{ time }}</td>
-                    {% for day in ['M','T1','W','T2','F','S1','S2']%}
+                    <td class="two">{{i}}</td>
+                    {% for day in data.this_week_course %}
+                    {% set course = data.this_week_course[day][i - 1] %}
                     <td>
-                        {% for lesson in data.this_week_course[day]%}
-                        {% if lesson.time == time %}
-                        <div class="lesson-name">{{ lesson.name }}</div>
-                        <div class="lesson-location">{{ lesson.location }}</div>
-                        {% endif %}
-                        {% endfor %}
+                        {% if course %}
                     </td>
+                    <td>
+                        <div class="lesson-box">
+                            {{ course.name }}<br>
+                            {{ course.teacher }}<br>
+                            {{ course.location }}<br>
+                        </div>
+                    </td>
+                    {% else %}
+                    <td></td>
+                    {% endif %}
                     {% endfor %}
                 </tr>
                 {% endfor %}
