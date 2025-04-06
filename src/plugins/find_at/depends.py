@@ -9,9 +9,7 @@ from utils.models.depends import StudentDepends, TeacherDepends
 from .util import students_to_df
 
 
-async def get_student_classmates(
-    matcher: Matcher, student: StudentDepends
-) -> set[Student]:
+async def get_student_classmates(matcher: Matcher, student: StudentDepends) -> set[Student]:
     name = "_student_classmates"
     if name in matcher.state:
         return matcher.state[name]
@@ -24,9 +22,7 @@ async def get_student_classmates(
 StudentClassmates = Annotated[set[Student], Depends(get_student_classmates)]
 
 
-async def get_teacher_students(
-    matcher: Matcher, teacher: TeacherDepends
-) -> set[Student]:
+async def get_teacher_students(matcher: Matcher, teacher: TeacherDepends) -> set[Student]:
     name = "_teacher_students"
     if name in matcher.state:
         return matcher.state[name]
@@ -39,9 +35,7 @@ async def get_teacher_students(
 TeacherStudents = Annotated[set[Student], Depends(get_teacher_students)]
 
 
-async def get_students(
-    classmates: StudentClassmates, students: TeacherStudents
-) -> set[Student]:
+async def get_students(classmates: StudentClassmates, students: TeacherStudents) -> set[Student]:
     return students | classmates
 
 

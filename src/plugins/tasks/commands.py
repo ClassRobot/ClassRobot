@@ -1,16 +1,7 @@
 from utils.config import priority, comp_config
 from utils import ValidateName, tip, alias_product
 from utils.helper import Param, Helper, UserRole, ParamMode
-from nonebot_plugin_alconna import (
-    Args,
-    File,
-    Field,
-    Image,
-    Other,
-    Alconna,
-    MultiVar,
-    on_alconna,
-)
+from nonebot_plugin_alconna import Args, File, Field, Image, Other, Alconna, MultiVar, on_alconna
 
 push_task_alias = alias_product(["上传", "提交"], ["作业", "任务"])
 push_task_cmd = on_alconna(
