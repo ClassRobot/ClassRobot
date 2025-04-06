@@ -48,6 +48,7 @@
             display: flex;
             text-align: center;
             gap: 1em;
+            align-items: center;
         }
 
         .head .left .week {
@@ -73,9 +74,14 @@
             font-weight: bold;
         }
 
+        .head .right {
+            padding-left: 2rem;
+            padding-right: 2rem;
+        }
+
         .head .right>div {
             font-size: 2rem;
-            margin: 6px 0;
+            margin: 8px 0;
         }
 
 
@@ -129,21 +135,26 @@
             margin-bottom: 0.5rem;
         }
 
-        .timetable {
-            padding: 1.75em;
-            border-radius: 20px;
-        }
-
         .timetable table {
             width: 100%;
+            margin-top: 1em;
             text-align: center;
-            border-collapse: collapse;
             table-layout: fixed;
             font-size: 1.3rem;
+            border-spacing: 10px 6px;
         }
 
         .timetable table tbody td {
-            height: 100px;
+            vertical-align: middle;
+            height: 4em;
+        }
+
+        .course {
+            font-size: .8em;
+            background-color: rgba(255, 255, 255, 0.678);
+            border-radius: 1em;
+            padding: .5em;
+            box-shadow: 0 0 6px #00000020;
         }
 
         .lessons {
@@ -151,13 +162,18 @@
             background-color: #cac5c5;
         }
 
-        table thead td .week {
-            height: 12px;
-            width: 12px;
-            padding: 2em;
+        .lesson-number {
+            background-color: #244582;
+            color: white;
+            font-size: .7em;
+            min-height: 2em;
+        }
+
+        table thead td .table-week {
+            padding: .2em;
+            font-size: 1.5em;
             border-radius: 50px;
             background-color: #DBDDDE;
-            display: inline-block;
             font-weight: bold;
         }
     </style>
@@ -224,7 +240,7 @@
 
     <div class="today-course card">
         <div class="course-header">
-            <h1>今日课程</h1>
+            <h2>今日课程</h2>
         </div>
         {% for course in data.today_course %}
         <div class="one {{ 'end' if course.end else '' }}">
@@ -240,19 +256,26 @@
         <table>
             <thead>
                 <tr>
+                    {% set weeks = ["M", "T", "W", "T", "F", "S", "S"] %}
+                    <td style="width: 1em;"></td>
                     {% for index in range(data.this_week_course | length) %}
                     <td>
-                        <div class="week">{{ index + 1 }}</div>
+                        <div class="table-week">{{ weeks[index] }}</div>
                     </td>
                     {% endfor %}
                 </tr>
             </thead>
             <tbody class="lesson">
-                {% for index in range(data.this_week_course[0] | length) %}
+                {% for index in range(8) %}
                 <tr>
+                    <td class="lesson-number">{{ index + 1 }}</td>
                     {% for rows in data.this_week_course %}
                     {% if rows[index] %}
-                    <td>{{ rows[index].name }}</td>
+                    <td class="course">
+                        {{ rows[index].name }}
+                        <br>
+                        <font color="gray" style="font-size: .8em;">{{ rows[index].location }}</font>
+                    </td>
                     {% else %}
                     <td></td>
                     {% endif %}

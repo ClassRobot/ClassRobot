@@ -1,3 +1,4 @@
+from random import choice
 from datetime import datetime
 from itertools import repeat, product
 
@@ -7,6 +8,15 @@ from utils.models import Curricula, CurriculaConfig
 
 from .util import times
 
+colors = [
+    "#BEDCEB",
+    "#A9B3D1",
+    "#EDD3D7",
+    "#C2CCC5",
+    "#CCCCCC",
+    "#7A7D68",
+    "#CFDBBE",
+]
 weekday_chinese = [
     "星期一",
     "星期二",
@@ -26,6 +36,10 @@ class Course(BaseModel):
     time: str
     location: str | None
     end: bool = Field(default=False)
+
+    def md5(self) -> str:
+        """课程md5"""
+        return f"{self.name}{self.teacher}{self.location}"
 
     class Config:
         extra = Extra.forbid
@@ -54,6 +68,28 @@ class NextCountdown(BaseModel):
     class Config:
         extra = Extra.forbid
 
+    @classmethod
+    def calc(cls, title: str, first_date: str, today: datetime, last_date: str):
+        """计算下节课或上课倒计时
+
+        Args:
+            title (str): 标题
+            first_date (str): 上次时间(可能是上课可能是下课但一定是比today早的时间)
+            today (datetime): 当前时间
+            last_date (str): 下次时间(可能是上课可能是下课但一定是比today晚的时间)
+        """
+        first_hour, first_minute = first_date.split(":")
+        first_datetime = today.replace(hour=int(first_hour), minute=int(first_minute), second=0, microsecond=0)
+        last_hour, last_minute = last_date.split(":")
+        last_datetime = today.replace(hour=int(last_hour), minute=int(last_minute), second=0, microsecond=0)
+        remaining = last_datetime - today  # 得到剩余时间
+        percentage = (today - first_datetime) / (last_datetime - first_datetime) * 100
+        return cls(
+            title=title,
+            time_remaining=f"{remaining.seconds//3600:02d}:{(remaining.seconds//60)%60:02d}:{remaining.seconds%60:02d}",
+            percentage=percentage,
+        )
+
 
 class CurriculaSchema(BaseModel):
     current_week: CurrentWeek
@@ -74,64 +110,58 @@ class CurriculaSchema(BaseModel):
             return None
 
         today = datetime.now()
-        current_week = config.current_week
         this_week_course: list[list[Course | None]] = list([] for _ in repeat(None, 7))  # 课程表
 
         for curr in curricula:
-            if current_week in curr.weeks:  # 本周课程
-                for wd, le in product(curr.weekday, curr.lesson):
-                    if len(times) > le >= 0:
-                        ctime = f"{times[le - 1][0]}-{times[le - 1][1]}"
-                    else:
-                        ctime = "00:00-00:00"
-                    # Check if the course has already ended
-                    course_end_time = datetime.strptime(ctime.split("-")[1], "%H:%M")
-                    course_end_time = today.replace(
-                        hour=course_end_time.hour, minute=course_end_time.minute, second=0, microsecond=0
-                    )
-                    is_ended = today > course_end_time
-
-                    cls.insert_list(
-                        this_week_course,
-                        wd - 1,
-                        le - 1,
-                        Course(
-                            name=curr.course,
-                            teacher=curr.teacher,
-                            time=ctime,
-                            location=curr.classroom,
-                            end=is_ended,
-                        ),
-                    )
+            if config.current_week not in curr.weeks:  # 本周课程
+                continue
+            for wd, le in product(curr.weekday, curr.lesson):
+                ctime = f"{times[le - 1][0]}-{times[le - 1][1]}" if len(times) > le >= 0 else "00:00-00:00"
+                hour, minute = ctime.split("-")[1].split(":")
+                cls.insert_list(
+                    this_week_course,
+                    wd - 1,
+                    le - 1,
+                    Course(
+                        name=curr.course,
+                        teacher=curr.teacher,
+                        time=ctime,
+                        location=curr.classroom,
+                        end=today > today.replace(hour=int(hour), minute=int(minute), second=0, microsecond=0),
+                    ),
+                )
         today_course: list[Course] = [i for i in this_week_course[today.weekday()] if i is not None]
 
         next_course = None
         next_countdown = None
         for course in today_course:
             # 根据time字段的区间判断当前是否是下课或上课时间，还有多久上下课
-            if course.time == "00:00-00:00":
+            first_date = "00:00"  # 比today早的时间
+            if course.time == "00:00-00:00" or course.end:
+                first_date = course.time.split("-")[1]
                 continue
-            start_time = datetime.strptime(course.time.split("-")[0], "%H:%M")
-            end_time = datetime.strptime(course.time.split("-")[1], "%H:%M")
-            start_time = today.replace(hour=start_time.hour, minute=start_time.minute, second=0, microsecond=0)
-            end_time = today.replace(hour=end_time.hour, minute=end_time.minute, second=0, microsecond=0)
-            if start_time < today < end_time:
-                next_course = course
-                time_remaining = end_time - today
-                percentage = ((today - start_time) / (end_time - start_time) * 100) if end_time != start_time else 100
-                # Determine if we're in class or the class has ended
-
-                next_countdown = NextCountdown(
-                    title="距离下节课",
-                    time_remaining=f"{time_remaining.seconds//3600:02d}:{(time_remaining.seconds//60)%60:02d}:{time_remaining.seconds%60:02d}",
-                    percentage=percentage,
+            next_course = course
+            start_date = course.time.split("-")[0]
+            hour, minute = start_date.split(":")  # 上课时间
+            if today < today.replace(hour=int(hour), minute=int(minute), second=0, microsecond=0):  # 说明还没上课
+                next_countdown = NextCountdown.calc(
+                    title="距离上课时间",
+                    first_date=first_date,
+                    today=today,
+                    last_date=start_date,
                 )
-                break
-
+            else:
+                next_countdown = NextCountdown.calc(
+                    title="距离下课时间",
+                    first_date=start_date,
+                    today=today,
+                    last_date=course.time.split("-")[1],
+                )
+            break
         return cls(
             current_week=CurrentWeek(
                 year=today.year,
-                week_number=current_week,
+                week_number=config.current_week,
                 month="%02d" % today.month,
                 day="%02d" % today.day,
                 weekday=weekday_chinese[today.weekday()],
@@ -140,14 +170,14 @@ class CurriculaSchema(BaseModel):
             or Course(
                 name="没有课程",
                 time="00:00-00:00",
-                location=None,
-                teacher=None,
+                location="无",
+                teacher="无",
             ),
             next_countdown=next_countdown
             or NextCountdown(
-                title="没有课程",
-                time_remaining="0",
-                percentage=0.0,
+                title="今日课程结束",
+                time_remaining="00:00:00",
+                percentage=100.0,
             ),
             today_course=today_course,
             this_week_course=this_week_course,
@@ -170,4 +200,9 @@ class CurriculaSchema(BaseModel):
 
     async def render(self) -> bytes:
         # open("data.json", "w", encoding="utf-8").write(self.json(ensure_ascii=False, indent=4))
-        return await template_to_pic("curricula.html", {"data": self})
+        return await template_to_pic("curricula.html", {"data": self, "random_color": self.random_color})
+
+    @staticmethod
+    def random_color() -> str:
+        """随机颜色"""
+        return choice(colors)
