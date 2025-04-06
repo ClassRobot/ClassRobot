@@ -7,14 +7,12 @@ from nonebot.matcher import Matcher
 from nonebot.adapters import Message
 from utils.models import ScheduledNotice
 from utils.models.depends import UserOrCreatedDepends
-from nonebot_plugin_alconna import AlconnaMatcher, UniMsg, UniMessage
-
+from nonebot_plugin_alconna import UniMsg, UniMessage, AlconnaMatcher
 
 from .schema import Notice
 from .util import notice_work
-from .commands import notice_cmd, delete_notice_cmd, query_notice_cmd
-from .depends import DeleteNoticeDepends, NoticeSessionDepends, QueryNoticeDepends
-
+from .commands import notice_cmd, query_notice_cmd, delete_notice_cmd
+from .depends import QueryNoticeDepends, DeleteNoticeDepends, NoticeSessionDepends
 
 # --------------------------------- 创建通知 ---------------------------------
 
@@ -40,9 +38,7 @@ async def _(
     if notices := await notice_session.call(notice_message):
         print(notices)
         if notices.reply:
-            await matcher.send(
-                (Emoji.error + notices.reply) if notices.is_invalid else notices.reply
-            )
+            await matcher.send((Emoji.error + notices.reply) if notices.is_invalid else notices.reply)
         if notices.is_invalid:
             await matcher.finish()
         await notices.create_all(user)
@@ -71,9 +67,7 @@ async def _(matcher: AlconnaMatcher, query_notice: QueryNoticeDepends):
 
 
 @delete_notice_cmd.handle()
-async def _(
-    matcher: AlconnaMatcher, delete_notice: DeleteNoticeDepends, notice_id: list[str]
-):
+async def _(matcher: AlconnaMatcher, delete_notice: DeleteNoticeDepends, notice_id: list[str]):
     if not (notice_ids := [int(nid) for nid in notice_id if nid.isdigit()]):
         await matcher.finish(Emoji.error + "您需要输入通知ID(NID)才能删除")
 

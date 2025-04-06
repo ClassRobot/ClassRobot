@@ -13,21 +13,8 @@ from nonebot.adapters import Bot, Event, MessageTemplate
 from nonebot_plugin_alconna import UniMessage, AlconnaMatcher
 from utils.models.depends import UserDepends, StudentDepends, UserOrCreatedDepends
 
-from .commands import (
-    push_task_cmd,
-    query_task_cmd,
-    create_task_cmd,
-    delete_task_cmd,
-    export_task_cmd,
-)
-from .util import (
-    TaskFile,
-    TaskManager,
-    FileDataDepends,
-    PushTaskManager,
-    TaskManagerDepends,
-    task_manager_depends,
-)
+from .commands import push_task_cmd, query_task_cmd, create_task_cmd, delete_task_cmd, export_task_cmd
+from .util import TaskFile, TaskManager, FileDataDepends, PushTaskManager, TaskManagerDepends, task_manager_depends
 
 
 # --------------------------------- 创建任务 ---------------------------------
@@ -98,9 +85,7 @@ async def _(
 
 # --------------------------------- 删除任务 ---------------------------------
 @delete_task_cmd.handle()
-async def _(
-    matcher: AlconnaMatcher, task_name: str | None, task_manager: TaskManagerDepends
-):
+async def _(matcher: AlconnaMatcher, task_name: str | None, task_manager: TaskManagerDepends):
     if task_name is None:
         if not task_manager:
             await matcher.finish(Emoji.error + "您还未创建任务呢！")
@@ -142,9 +127,7 @@ async def _(
         await matcher.finish(Emoji.error + "您所在的班级还未创建任务呢！")
 
     if "task_name" not in matcher.state:
-        matcher.state["task_list"] = await task_manager.submit_tasks.to_card(
-            Emoji.info + "输入任务ID或名称提交"
-        )
+        matcher.state["task_list"] = await task_manager.submit_tasks.to_card(Emoji.info + "输入任务ID或名称提交")
 
 
 @push_task_cmd.got("task_name", MessageTemplate("{task_list}"))
@@ -221,14 +204,11 @@ async def _(
 
     await matcher.send(Emoji.info + "打包文件后导出，请稍等...")
     try:
-        if not await bot_upload_file(
-            bot, event, download_url.split("/")[-1], download_url
-        ):
+        if not await bot_upload_file(bot, event, download_url.split("/")[-1], download_url):
             await matcher.send(UniMessage.file(url=download_url))
     except Exception as e:
         logger.exception(e)
         await matcher.finish(
-            UniMessage(Emoji.warning("文件发送失败，可以尝试扫码下载"))
-            + UniMessage.image(raw=text_to_qrcode(download_url))
+            UniMessage(Emoji.warning("文件发送失败，可以尝试扫码下载")) + UniMessage.image(raw=text_to_qrcode(download_url))
         )
         # await matcher.finish(Emoji.warning("文件发送失败，可以尝试从链接中下载", download_url, sep="\n"))

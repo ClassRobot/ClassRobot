@@ -8,9 +8,7 @@ from .util import NoticeSession
 from .manage import QueryNotice, DeleteNotice
 
 
-async def get_notice_session(
-    matcher: Matcher, user: UserOrCreatedDepends
-) -> NoticeSession:
+async def get_notice_session(matcher: Matcher, user: UserOrCreatedDepends) -> NoticeSession:
     notice_session = matcher.state.setdefault("_notice_session", NoticeSession(user))
     return notice_session
 
@@ -18,18 +16,14 @@ async def get_notice_session(
 NoticeSessionDepends = Annotated[NoticeSession, Depends(get_notice_session)]
 
 
-async def query_notice_depends(
-    matcher: Matcher, user: UserOrCreatedDepends
-) -> QueryNotice:
+async def query_notice_depends(matcher: Matcher, user: UserOrCreatedDepends) -> QueryNotice:
     return matcher.state.setdefault("_query_notice", QueryNotice(user))
 
 
 QueryNoticeDepends = Annotated[QueryNotice, Depends(dependency=query_notice_depends)]
 
 
-async def delete_notice_depends(
-    matcher: Matcher, user: UserOrCreatedDepends
-) -> DeleteNotice:
+async def delete_notice_depends(matcher: Matcher, user: UserOrCreatedDepends) -> DeleteNotice:
     return matcher.state.setdefault("_delete_notice", DeleteNotice(user))
 
 

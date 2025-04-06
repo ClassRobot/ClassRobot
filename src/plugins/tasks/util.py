@@ -175,9 +175,7 @@ class TaskManager:
             # 如果没有任务列表，则在数据库中查找
             task_name_or_id = int(task_name) if task_name.isdigit() else task_name
             if self.user.student:
-                if select_task := await self.user.student.classes.get_task(
-                    task_name_or_id
-                ):
+                if select_task := await self.user.student.classes.get_task(task_name_or_id):
                     self.select_task = select_task
                     return True
             if self.user.teacher:
@@ -192,9 +190,7 @@ class TaskManager:
         commits = await self.select_task.get_commits()
         if not commits:
             return None
-        zip_path = (
-            task_dir / f"{self.select_task.classes.name}-{self.select_task.name}.zip"
-        )
+        zip_path = task_dir / f"{self.select_task.classes.name}-{self.select_task.name}.zip"
         zip_path.parent.mkdir(parents=True, exist_ok=True)
         with ZipFile(zip_path, "w") as zip_file:
             for commit in commits:
@@ -211,9 +207,7 @@ class TaskManager:
         """是否选择了任务"""
         return self._select_task is not None
 
-    async def commits(
-        self, task: Tasks | None = None
-    ) -> tuple[tuple[Student, ...], tuple[Student, ...]]:
+    async def commits(self, task: Tasks | None = None) -> tuple[tuple[Student, ...], tuple[Student, ...]]:
         """r任务已提交和未提交的学生
 
         Args:
@@ -228,9 +222,7 @@ class TaskManager:
             return tuple(), tuple()
         submitted = tuple(commit.student for commit in await task.get_commits())
         submitted_names = tuple(student.name for student in submitted)
-        not_submitted = tuple(
-            student for student in students if student.name not in submitted_names
-        )
+        not_submitted = tuple(student for student in students if student.name not in submitted_names)
         return submitted, not_submitted
 
     async def delete(self, task: Tasks | None = None):
@@ -344,9 +336,7 @@ async def get_file_data(
             name=file_id,
             path=new_path,
         )
-    elif (
-        isinstance(task_manager.task_file, File | Image) and task_manager.task_file.url
-    ):
+    elif isinstance(task_manager.task_file, File | Image) and task_manager.task_file.url:
         return FileData(
             name=task_manager.task_file.name,
             data=await download_file(task_manager.task_file.url),
