@@ -39,9 +39,13 @@ async def _(matcher: AlconnaMatcher, values: list[str | Image]):
     )
     if isinstance(document_bytes, str):
         document_bytes = document_bytes.encode("utf-8")
-    download_qrcode: bytes = text_to_qrcode(await upload_file(document_bytes, suffix=".docx"))
+    download_qrcode: bytes = text_to_qrcode(
+        await upload_file(document_bytes, suffix=".docx")
+    )
     html += footer(download_qrcode)
     await matcher.finish(
         UniMessage.text(Emoji.success + "生成成功！图片预览，图片右下角扫码免费下载！")
-        + UniMessage.image(raw=await html_to_pic(html, viewport={"width": 1080, "height": 10}))
+        + UniMessage.image(
+            raw=await html_to_pic(html, viewport={"width": 1080, "height": 10})
+        )
     )

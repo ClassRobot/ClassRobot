@@ -9,7 +9,9 @@ from .commands import add_leave_cmd, query_leave_cmd, delete_leave_cmd
 
 
 @add_leave_cmd.handle()
-async def _(matcher: AlconnaMatcher, leave_reason: list[str | Image], add_leave: AddLeaveDepends):
+async def _(
+    matcher: AlconnaMatcher, leave_reason: list[str | Image], add_leave: AddLeaveDepends
+):
     print(leave_reason)
     add_leave.add_message(leave_reason)  # 将消息保存
     if add_leave.image_url:  # 查看用户消息是否有添加图片
@@ -57,7 +59,9 @@ async def _(matcher: AlconnaMatcher, query_leave: QueryLeaveDepends):
 
 # --------------------------------- 删除请假 ---------------------------------
 @delete_leave_cmd.handle()
-async def _(matcher: AlconnaMatcher, leave_id: list[str], query_leave: QueryLeaveDepends):
+async def _(
+    matcher: AlconnaMatcher, leave_id: list[str], query_leave: QueryLeaveDepends
+):
     leave_list = None
     leave_ids = [int(leave_id) for leave_id in leave_id]
     if not leave_ids:

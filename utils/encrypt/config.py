@@ -1,4 +1,4 @@
-from pydantic import Extra, BaseModel
+from pydantic import BaseModel, Extra
 
 
 class EncryptConfig(BaseModel, extra=Extra.ignore):
