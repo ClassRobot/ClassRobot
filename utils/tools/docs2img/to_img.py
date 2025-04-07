@@ -1,11 +1,16 @@
 from pathlib import Path
 
 import pdf2image
-import comtypes.client
+from nonebot import logger
 from utils.tools.sync import run_sync
 
 powerpoint = None
 word = None
+
+try:
+    import comtypes.client
+except Exception as err:
+    logger.exception(err)
 
 
 async def ppt2img(file_path: Path, output: Path) -> list[Path]:
