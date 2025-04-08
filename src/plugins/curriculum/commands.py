@@ -55,7 +55,7 @@ del_curricula = on_alconna(
 )
 query_curricula = on_alconna(
     Alconna("查询课表", Args["classes?", str | None]),
-    aliases={"查看课表"},
+    aliases={"查看课表", "课表查询", "我的课表"},
     block=True,
     priority=priority,
 )
@@ -101,6 +101,10 @@ __helpers__ = [
     ),
     Helper(
         command="查询课表",
-        description="查询自己和自己相关的课表",
+        aliases={"查看课表", "课表查询", "我的课表"},
+        params=[
+            Param(name="班级名称", mode=ParamMode.OPTIONAL),
+        ],
+        description="不添加班级名称则查询本人课表。",
     ),
 ]

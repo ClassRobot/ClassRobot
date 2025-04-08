@@ -99,16 +99,17 @@ class ChatSession:
             user_content = message.message if isinstance(message, ChatMessage) else uni_message_to_contents(message)
 
             # 是否与上文重复，重复则直接返回机器人的上一条回复
-            if not self.is_last_duplicate_message(user_content):
-                self.messages = await SummaryAgent().execute(self.messages)
-                self.messages.user_message(user_content)
-                extract = await ExtractAgent().execute(self.messages)
-                tasks = []
-                tasks.append(RagAgent().execute(extract))
-                tasks.append(AutoTaskAgent(helpers=self.helpers, messages=self.messages).execute(extract))
-                results = [i for i in await gather(*tasks) if i is not None]
-                if results:
-                    self.messages.assistant_message(results[0])
+            # if not self.is_last_duplicate_message(user_content):
+            self.messages = await SummaryAgent().execute(self.messages)
+            self.messages.user_message(user_content)
+            extract = await ExtractAgent().execute(self.messages)
+            tasks = (
+                RagAgent().execute(extract),
+                AutoTaskAgent(helpers=self.helpers, messages=self.messages).execute(extract),
+            )
+            results = tuple(i for i in await gather(*tasks) if i is not None)
+            if results:
+                self.messages.assistant_message(results[0])
 
             # 获取最后一条消息
             last_message = self.messages[-1]
