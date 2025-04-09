@@ -53,8 +53,11 @@ class AddCurricula(BaseCurricula):
 class QueryCurricula(BaseCurricula):
     async def query(self, name: str | None = None) -> None | CurriculaSchema:
         """调用该方法来查询课表"""
-        if name is None and (user_config := await self.get_user_config()):
-            return await CurriculaSchema.prase(user_config, await user_config.get_curricula())
+        if name is None:
+            if user_config := await self.get_user_config():
+                return await CurriculaSchema.prase(user_config, await user_config.get_curricula())
+            elif share_config := await self.get_share_config():
+                return await CurriculaSchema.prase(share_config[0], await share_config[0].get_curricula())
         if config := await self.get_classes_config(name) if name else await self.get_user_config():
             return await CurriculaSchema.prase(config, await config.get_curricula())
 
@@ -81,9 +84,11 @@ class SetCurriculaWeek(BaseCurricula):
 
 
 class ShareCurricula(BaseCurricula):
-    async def share(self, config_id: int) -> None | bool:
+    async def share(self, config_id: int | CurriculaConfig) -> None | bool:
         # 获取用户的课表配置
-        if config := await CurriculaConfig.filter(id=config_id).first():
+        if isinstance(config_id, CurriculaConfig):
+            config = config_id
+        if isinstance(config, CurriculaConfig) or (config := await CurriculaConfig.filter(id=config_id).first()):
             # 查看是否已经分享过了
             if await ShareCurriculaConfig.filter(user=self.user, config=config).first():
                 return False

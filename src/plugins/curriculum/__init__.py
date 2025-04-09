@@ -1,6 +1,7 @@
 from uuid import uuid4
 
 from utils import Emoji, cache
+from utils.models.models import CurriculaConfig
 from nonebot_plugin_alconna import UniMessage, AlconnaMatcher
 
 from .util import range_parser
@@ -45,6 +46,7 @@ async def _(matcher: AlconnaMatcher, add_curricula: AddCurriculaDepends, values:
 async def _(matcher: AlconnaMatcher, query_curricula: QueryCurriculaDepends, classes: str | None):
     if table := await query_curricula.query(classes):
         await matcher.finish(UniMessage.image(raw=await table.render()))
+
     await matcher.finish(Emoji.error + "没有找到你需要的课表！")
 
 
@@ -96,6 +98,14 @@ async def _(
         await matcher.finish(Emoji.success + f"您的课表分享ID为: {share_id}\n对方输入: `分享课表+ID`即可获取,有效期为3分钟")
     elif config_id := await cache.get(share_id):
         config_id = int(config_id)
+        result = await share_curricula.share(config_id)
+        if result:
+            await matcher.finish(Emoji.success + "获取成功")
+        elif result is False:
+            await matcher.finish(Emoji.error + "获取失败,您已经拥有该课表")
+        else:
+            await matcher.finish(Emoji.error + "获取失败,课表不存在")
+    elif config_id := await CurriculaConfig.filter(name=share_id).first():
         result = await share_curricula.share(config_id)
         if result:
             await matcher.finish(Emoji.success + "获取成功")

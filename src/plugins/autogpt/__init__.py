@@ -11,6 +11,7 @@ from nonebot_plugin_htmlrender import md_to_pic
 from nonebot.adapters import Bot, Event, Message
 from nonebot import logger, on_command, on_message
 from nonebot.adapters.qq.exception import ActionFailed
+from nonebot.adapters.onebot.v12.exception import NetworkError
 from nonebot_plugin_alconna import Target, UniMsg, MsgTarget, UniMessage
 
 from .schema import AutoTask, AutoTaskList
@@ -53,6 +54,7 @@ async def _(
     if chat_session.lock:
         await matcher.finish(Emoji.error + "我知道你很急，但是你先别急，等我处理完你的上一条消息。")
     try:
+        await matcher.send("思考中...")
         auto_task = await chat_session.send_message(message)
     except Exception as e:
         logger.exception(e)
@@ -73,6 +75,9 @@ async def _(
         except ActionFailed as e:
             logger.exception(e)
             await matcher.finish(Emoji.error + (e.message or str(e.status_code)))
+        except NetworkError as e:
+            logger.exception(e)
+            await matcher.finish(Emoji.error + "内部异常, 请重试！")
     if not auto_task.need_confirm:
         for auto_task in auto_task.tasks:
             if chat_session.helpers.get_helper(auto_task.command):

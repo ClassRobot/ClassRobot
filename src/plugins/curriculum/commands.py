@@ -64,7 +64,7 @@ share_curricula = on_alconna(
         "分享课表",
         Args["share_id?", str | None],
     ),
-    aliases={"分享课程表", "分享课程", "共享课程", "共享课程表"},
+    aliases={"分享课程表", "分享课程", "共享课程", "共享课表", "绑定课表"},
     block=True,
     priority=priority,
     skip_for_unmatch=False,
@@ -105,6 +105,7 @@ __helpers__ = [
         params=[
             Param(name="班级名称", mode=ParamMode.OPTIONAL),
         ],
+        ai_description="参数只支持班级名称查询，不支持日期查询，当用户携带班级名称时则通过班级名称查询，比如查询`计算机1班`这时候参数为`计算机1班`，如果不携带班级名称则查询本人课表并且查询本人课表不需要携带任何参数，只需输入`查询课表`即可",
         description="不添加班级名称则查询本人课表。",
     ),
 ]

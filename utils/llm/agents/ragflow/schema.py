@@ -1,6 +1,7 @@
 from time import time
 from typing import Any, List, Optional
 
+from nonebot import logger
 from pydantic import Field, BaseModel
 
 from .client import rag_client, file_client
@@ -95,7 +96,10 @@ class Chunk(BaseModel):
     positions: List[List[int]]
     url: Optional[str] = None
 
-    async def get_image(self) -> bytes:
+    async def get_image(self) -> bytes | None:
+        if not self.image_id:
+            logger.error(f"ragflow chunk error url: {self.url}; image_id: {self.image_id};")
+            return None
         response = await file_client.get(f"/document/image/{self.image_id}")
         try:
             data = response.json()

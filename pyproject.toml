@@ -18,7 +18,7 @@ markdown2 = "^2.5.3"
 cryptography = "^44.0.0"
 nonebot-adapter-qq = "^1.6.2"
 nonebot-plugin-orm = {extras = ["postgresql", "asyncpg"], version = "^0.7.7"}
-nonebot-plugin-alconna = "^0.56.2"
+nonebot-plugin-alconna = "^0.57.0"
 nonebot-plugin-animeres = "^1.0.5"
 nonebot-plugin-localstore = "^0.7.3"
 nonebot-plugin-blockwords = "^0.2.1"

@@ -2346,14 +2346,14 @@ reference = "tencent"
 
 [[package]]
 name = "nonebot-plugin-alconna"
-version = "0.56.2"
+version = "0.57.0"
 description = "Alconna Adapter for Nonebot"
 optional = false
 python-versions = ">=3.9"
 groups = ["main"]
 files = [
-    {file = "nonebot_plugin_alconna-0.56.2-py3-none-any.whl", hash = "sha256:8ae64d023b82bd9196121b47d1f04a5cccb057eedd73a9bb8b6abcf9cbce5f30"},
-    {file = "nonebot_plugin_alconna-0.56.2.tar.gz", hash = "sha256:a7b521fb648f5b35febd3c120bd79cf71de3c44a805d06ed0257fbc61cb270e8"},
+    {file = "nonebot_plugin_alconna-0.57.0-py3-none-any.whl", hash = "sha256:6c4bcce1a9aa176244b4c011b19b1cea00269c4c6794cd4e90d8dd7990ec3ec9"},
+    {file = "nonebot_plugin_alconna-0.57.0.tar.gz", hash = "sha256:7a9a4bf373f3f6836611dbde1a0917b84441a534dd6f2b20dae3ba6fff142858"},
 ]
 
 [package.dependencies]
@@ -5178,4 +5178,4 @@ reference = "tencent"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.13"
-content-hash = "cacc9b6de2c36919d2f5644a19e563abff24de1f48dd49f8443d954abc981d84"
+content-hash = "a75fc675cfed3e3ae2747fc3c4bb6074f05e4599e3a19ebc434657c3c0122bc8"

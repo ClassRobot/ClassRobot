@@ -43,6 +43,7 @@ comp_config = CompConfig(
     lite=False,
     hides={"exit"},
     disables={"tab", "enter"},
+    block=True,
 )
 alc_config.default_namespace.compact = True
 data_dir: Path = get_data_dir(dirname)

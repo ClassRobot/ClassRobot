@@ -12,7 +12,7 @@ from utils.helper.schema import Helpers
 from utils.tools.cos import upload_file
 from utils.template.prompts import Prompt
 from utils.tools.docs2img import File2Image
-from utils.llm.agents.ragflow.schema import ChatBotMessage
+from utils.llm.agents.ragflow.schema import Chunk, ChatBotMessage
 
 from .ragflow import AsyncRagFlow
 from ..message import Content, Context, LLMRole
@@ -189,17 +189,18 @@ class RagAgent(BaseAgent):
             return None
         print(reply.answer)
         answer = reply.answer
-        urls = []
-
-        for ref in reply.reference.chunks:
-            image = await ref.get_image()
-            urls.append(await upload_file(image, ref.image_id))
-        if not urls:
+        if not (urls := tuple(self.upload_file(ref) for ref in reply.reference.chunks)):
             return None
+        print(urls)
         urls = await gather(*urls)
 
         answer = sub(r"##(\d+)\$\$", lambda m: f"\n> 相关材料:\n> ![image]({urls[int(m.group(1))]})\n", answer)
         return answer
+
+    async def upload_file(self, ref: Chunk) -> str:
+        if image := await ref.get_image():
+            return await upload_file(image, ref.image_id)
+        return ""
 
 
 class AutoTaskAgent(BaseAgent):
