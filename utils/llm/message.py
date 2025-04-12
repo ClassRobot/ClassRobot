@@ -99,8 +99,11 @@ class Context(ContextSchema):
             return len(self.content.encode("utf-8"))
         return sum(len(msg) for msg in self.content)
 
-    def dict(self):
-        data = super().dict(include={"role", "content"})
+    def dict(self, *args, **kwargs) -> dict:
+        data = super().dict(
+            *args,
+            **(kwargs | {"include": {"role", "content"}}),
+        )
         if self.role == LLMRole.tool:
             data["tool_call_id"] = self.tool_call_id
         return data
@@ -110,7 +113,7 @@ class Context(ContextSchema):
 
 
 class Messages(BaseModel):
-    messages: list[Context | ChatCompletionMessage] = []
+    messages: list[Context | ChatCompletionMessage] = Field(default_factory=list)
 
     async def build_messages(self, is_multi_modal: bool = False) -> list[ChatCompletionMessageParam]:
         """打包消息

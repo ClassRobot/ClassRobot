@@ -132,7 +132,7 @@ class SummaryAgent(BaseAgent):
 
 
 class ExtractAgent(BaseAgent):
-    """从用户的历史聊天中提取出关键的信息然后交给llm进行处理"""
+    """信息抽取: 从用户的历史聊天中提取出关键的信息然后交给大语言模型进行处理"""
 
     @classmethod
     def name(cls) -> str:
@@ -147,17 +147,12 @@ class ExtractAgent(BaseAgent):
         response = await client_create(self.messages, multi_modal=False, max_tokens=4096)
         text = response.choices[0].message.content or ""
         print(text)
-        print(json_loads(text))
         return Context.parse_obj(json_loads(text))
 
     def message_to_string(self, messages: Messages) -> str:
         """将消息转换为字符串"""
-        message_str = ""
         message = messages.get(LLMRole.system, LLMRole.user, LLMRole.assistant)
-        for msg in message:
-            if isinstance(msg, Context):
-                message_str += f"\n<{msg.role}>\n%s\n</{msg.role}>\n" % msg.single_modal()
-        return message_str
+        return message.json(ensure_ascii=False)
 
 
 class RagAgent(BaseAgent):

@@ -7,7 +7,7 @@ from utils.tools import get_file_suffix
 from utils.config import data_dir, task_dir
 from nonebot_plugin_orm import Model, get_session
 from sqlalchemy.orm import Mapped, relationship, mapped_column
-from sqlalchemy import JSON, Text, String, Integer, DateTime, ForeignKey, select, update
+from sqlalchemy import JSON, Text, String, Boolean, Integer, DateTime, ForeignKey, select, update
 from utils.roles import UserRole, JoinMethod, StudentRole, TeacherRole, PoliticalStatus, TeacherClassesRole
 
 from .filters import FilterModel
@@ -39,6 +39,7 @@ class User(FilterModel, Model):
     """一个用户绑定一个学生"""
     binds: Mapped[List["UserBind"]] = relationship("UserBind", lazy="selectin", back_populates="user")
     """一个用户可以绑定多个表"""
+    is_admin: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="0")
 
     @property
     def roles(self) -> list[UserRole]:
@@ -65,11 +66,6 @@ class User(FilterModel, Model):
     async def get_groups(self) -> List["Group"]:
         """获取到用户创建的所有群组"""
         return await Group.filter(creator_id=self.id).all()
-
-    @property
-    def is_admin(self) -> bool:
-        """是否是管理员"""
-        return self.role == UserRole.admin
 
     def check_password(self, password: str) -> bool:
         """检查密码
@@ -310,7 +306,7 @@ class Group(FilterModel, Model):
     created_at: Mapped[CreateAt]
     updated_at: Mapped[UpdateAt]
 
-    creator: Mapped[User] = relationship(lazy="selectin")
+    creator: Mapped[User] = relationship(lazy=False)
     """创建者信息"""
     settings: Mapped[GroupSettings] = relationship("GroupSettings", lazy=False)
     group_binds: Mapped[List["GroupBind"]] = relationship("GroupBind", lazy="selectin", back_populates="group")
