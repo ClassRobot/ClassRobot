@@ -109,6 +109,7 @@ class ChatSession:
             )
             results = tuple(i for i in await gather(*tasks) if i is not None)
             if results:
+                print("send", results[0])
                 self.messages.assistant_message(results[0])
 
             # 获取最后一条消息

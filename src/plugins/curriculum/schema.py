@@ -1,6 +1,6 @@
 from random import choice
-from datetime import datetime
 from itertools import repeat, product
+from datetime import datetime, timedelta
 
 from utils.template import template_to_pic
 from pydantic import Extra, Field, BaseModel
@@ -8,15 +8,6 @@ from utils.models import Curricula, CurriculaConfig
 
 from .util import times
 
-colors = [
-    "#BEDCEB",
-    "#A9B3D1",
-    "#EDD3D7",
-    "#C2CCC5",
-    "#CCCCCC",
-    "#7A7D68",
-    "#CFDBBE",
-]
 weekday_chinese = [
     "星期一",
     "星期二",
@@ -102,16 +93,23 @@ class CurriculaSchema(BaseModel):
         extra = Extra.forbid
 
     @classmethod
-    async def prase(cls, config: CurriculaConfig, curricula: list[Curricula] | None = None):
+    async def prase(cls, config: CurriculaConfig, curricula: list[Curricula] | None = None, day: int = 0):
         if curricula is None:
             curricula = await config.get_curricula()
 
         if not curricula:
             return None
-
-        today = datetime.now()
         this_week_course: list[list[Course | None]] = list([] for _ in repeat(None, 7))  # 课程表
-
+        today = datetime.now()  # 今天的日期
+        if day >= 0:
+            add_week = (today.weekday() + day) // 7  # 今天是星期几+天数
+            today += timedelta(days=day)  # 今天的日期加上天数
+            config.current_week += add_week
+        else:
+            add_week = (6 - today.weekday() + -day) // 7
+            today += timedelta(days=day)  # 今天的日期加上天数
+            config.current_week -= add_week
+        config.current_week = max(1, config.current_week)  # 当前周数不能小于1
         for curr in curricula:
             if config.current_week not in curr.weeks:  # 本周课程
                 continue

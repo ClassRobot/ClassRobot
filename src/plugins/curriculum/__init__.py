@@ -43,8 +43,14 @@ async def _(matcher: AlconnaMatcher, add_curricula: AddCurriculaDepends, values:
 
 
 @query_curricula.handle()
-async def _(matcher: AlconnaMatcher, query_curricula: QueryCurriculaDepends, classes: str | None):
-    if table := await query_curricula.query(classes):
+async def _(matcher: AlconnaMatcher, query_curricula: QueryCurriculaDepends, classes: str | None, day: int):
+    if classes is not None:
+        try:
+            day = int(classes)
+            classes = None
+        except ValueError:
+            pass
+    if table := await query_curricula.query(classes, day):
         await matcher.finish(UniMessage.image(raw=await table.render()))
 
     await matcher.finish(Emoji.error + "没有找到你需要的课表！")

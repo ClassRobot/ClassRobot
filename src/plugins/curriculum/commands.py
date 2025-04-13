@@ -54,7 +54,7 @@ del_curricula = on_alconna(
     comp_config=comp_config,
 )
 query_curricula = on_alconna(
-    Alconna("查询课表", Args["classes?", str | None]),
+    Alconna("查询课表", Args["classes?", str | None], Args["day?", int, Field(default=0)]),
     aliases={"查看课表", "课表查询", "我的课表"},
     block=True,
     priority=priority,
@@ -104,8 +104,22 @@ __helpers__ = [
         aliases={"查看课表", "课表查询", "我的课表"},
         params=[
             Param(name="班级名称", mode=ParamMode.OPTIONAL),
+            Param(name="天数", mode=ParamMode.OPTIONAL),
         ],
-        ai_description="参数只支持班级名称查询，不支持日期查询，当用户携带班级名称时则通过班级名称查询，比如查询`计算机1班`这时候参数为`计算机1班`，如果不携带班级名称则查询本人课表并且查询本人课表不需要携带任何参数，只需输入`查询课表`即可",
-        description="不添加班级名称则查询本人课表。",
+        description=(
+            "可以通过班级名称日期来查询课表,在不写班级名称的情况下查询的是本人课表,班级名称后面携带数字，如果是正数表示后面几天，如果是复数表示前面几天。\n"
+            "例如: 查询课表 // 表示查询本人当天课表\n"
+            "查询课表 软件1班 // 表示查询软件1班当天课表\n"
+            "查询课表 软件1班 1 // 表示查询软件1班明天的课表\n"
+            "查询课表 1 // 表示查询本人明天课表"
+        ),
+    ),
+    Helper(
+        command="分享课表",
+        aliases={"分享课程表", "分享课程", "共享课程", "共享课表", "绑定课表"},
+        description="分享自己的课表给其他人,如果没有参数则生成自己的share_id,如果有参数则获取指定的课表",
+        params=[
+            Param(name="分享ID/班级名称", mode=ParamMode.OPTIONAL),
+        ],
     ),
 ]

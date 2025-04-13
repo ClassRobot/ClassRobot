@@ -51,15 +51,15 @@ class AddCurricula(BaseCurricula):
 
 
 class QueryCurricula(BaseCurricula):
-    async def query(self, name: str | None = None) -> None | CurriculaSchema:
+    async def query(self, name: str | None = None, day: int = 0) -> None | CurriculaSchema:
         """调用该方法来查询课表"""
         if name is None:
             if user_config := await self.get_user_config():
-                return await CurriculaSchema.prase(user_config, await user_config.get_curricula())
+                return await CurriculaSchema.prase(user_config, await user_config.get_curricula(), day)
             elif share_config := await self.get_share_config():
-                return await CurriculaSchema.prase(share_config[0], await share_config[0].get_curricula())
+                return await CurriculaSchema.prase(share_config[0], await share_config[0].get_curricula(), day)
         if config := await self.get_classes_config(name) if name else await self.get_user_config():
-            return await CurriculaSchema.prase(config, await config.get_curricula())
+            return await CurriculaSchema.prase(config, await config.get_curricula(), day)
 
 
 class DeleteCurricula(QueryCurricula):
