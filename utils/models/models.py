@@ -8,7 +8,7 @@ from utils.config import data_dir, task_dir
 from nonebot_plugin_orm import Model, get_session
 from sqlalchemy.orm import Mapped, relationship, mapped_column
 from sqlalchemy import JSON, Text, String, Boolean, Integer, DateTime, ForeignKey, select, update
-from utils.roles import UserRole, JoinMethod, StudentRole, TeacherRole, PoliticalStatus, TeacherClassesRole
+from utils.roles import UserRole, JoinMethod, LeaveStatus, StudentRole, TeacherRole, PoliticalStatus, TeacherClassesRole
 
 from .filters import FilterModel
 from .columns import CreateAt, UpdateAt
@@ -1089,11 +1089,11 @@ class ClassesLeaveConfig(FilterModel, Model):
 
 
 class StudentLeave(FilterModel, Model):
-    start_time: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+    start_date: Mapped[datetime] = mapped_column(DateTime, nullable=True)
     """请假开始时间"""
-    end_time: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+    end_date: Mapped[datetime] = mapped_column(DateTime, nullable=True)
     """请假结束时间"""
-    reason: Mapped[str] = mapped_column(String(255), nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
     """请假原因"""
     classes_id: Mapped[int] = mapped_column(Integer, ForeignKey(Classes.id, ondelete="CASCADE"), nullable=False)
     """班级ID"""
@@ -1109,6 +1109,34 @@ class StudentLeave(FilterModel, Model):
     file: Mapped[Files] = relationship(lazy=False)
     student: Mapped[Student] = relationship(lazy=False)
     classes: Mapped[Classes] = relationship(lazy=False)
+
+    async def get_approval(self) -> List["StudentLeaveApproval"]:
+        """获取请假审批信息"""
+        return await StudentLeaveApproval.filter(leave_id=self.id).all()
+
+
+class StudentLeaveApproval(FilterModel, Model):
+    """请假审批表"""
+
+    leave_id: Mapped[int] = mapped_column(Integer, ForeignKey(StudentLeave.id, ondelete="CASCADE"), nullable=False)
+    """请假ID"""
+    approver_id: Mapped[int] = mapped_column(Integer, ForeignKey(User.id, ondelete="CASCADE"), nullable=False)
+    """审批人ID"""
+    status: Mapped[LeaveStatus] = mapped_column(String(16), nullable=False)
+    """审批状态"""
+    comment: Mapped[str] = mapped_column(Text, nullable=True)
+    """审批意见"""
+
+    created_at: Mapped[CreateAt]
+    updated_at: Mapped[UpdateAt]
+
+    leave: Mapped[StudentLeave] = relationship(lazy=False)
+    approver: Mapped[User] = relationship(lazy=False)
+
+    @property
+    def is_pass(self) -> bool:
+        """是否通过"""
+        return self.status == LeaveStatus.leave_pass
 
 
 class EducationSystem(FilterModel, Model):

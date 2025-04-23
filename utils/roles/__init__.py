@@ -32,6 +32,19 @@ class UserRoleLang(StrEnum):
     """学生"""
 
 
+class LeaveStatus(StrEnum):
+    """请假状态"""
+
+    leave = "leave"
+    """请假中"""
+
+    leave_pass = "leave_pass"
+    """请假通过"""
+
+    leave_reject = "leave_reject"
+    """请假拒绝"""
+
+
 class TeacherRole(StrEnum):
     """教师角色"""
 

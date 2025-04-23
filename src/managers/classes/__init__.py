@@ -6,8 +6,8 @@ from utils.session import EventSession
 from nonebot.params import ArgPlainText
 from nonebot_plugin_waiter import waiter
 from utils.models import Classes, Teacher, GroupBind
-from nonebot_plugin_alconna import UniMessage, AlconnaMatcher
 from utils.roles import UserRole, JoinMethod, TeacherClassesRole
+from nonebot_plugin_alconna import File, UniMessage, AlconnaMatcher
 from utils.models.depends import StudentDepends, TeacherDepends, UserOrCreatedDepends
 
 from .commands import (
@@ -16,8 +16,17 @@ from .commands import (
     query_classes_cmd,
     create_classes_cmd,
     delete_classes_cmd,
+    import_classes_cmd,
     set_join_classes_cmd,
 )
+
+
+@import_classes_cmd.handle()
+async def _(
+    matcher: AlconnaMatcher,
+    import_file: File,
+):
+    print(import_file, import_file.url)
 
 
 @create_classes_cmd.handle()

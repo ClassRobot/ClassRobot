@@ -266,7 +266,7 @@
                 </tr>
             </thead>
             <tbody class="lesson">
-                {% for index in range(8) %}
+                {% for index in range(data.this_week_course[0]|length) %}
                 <tr>
                     <td class="lesson-number">{{ index + 1 }}</td>
                     {% for rows in data.this_week_course %}

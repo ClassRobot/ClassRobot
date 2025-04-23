@@ -23,6 +23,7 @@ class GlobalConfig(BaseModel, extra=Extra.ignore):
     "教师最大班级数量"
 
 
+priority = 100
 dirname = "classbot"
 # lang.set("completion", "node", "")
 # lang.set("completion", "prompt_select", "")
@@ -45,6 +46,12 @@ comp_config = CompConfig(
     disables={"tab", "enter"},
     block=True,
 )
+alcoona_kwargs = {
+    "comp_config": comp_config,
+    "priority": priority,
+    "skip_for_unmatch": False,
+    "block": True,
+}
 alc_config.default_namespace.compact = True
 data_dir: Path = get_data_dir(dirname)
 cache_dir: Path = get_cache_dir(dirname)
@@ -52,7 +59,6 @@ config_dir: Path = get_config_dir(dirname)
 static_dir: Path = Path().cwd() / "static"
 prompts_dir = static_dir / "prompts"
 template_dir = static_dir / "template"
-priority = 100
 
 task_dir = data_dir / "tasks"
 task_dir.mkdir(parents=True, exist_ok=True)

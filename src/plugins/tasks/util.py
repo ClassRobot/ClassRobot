@@ -107,9 +107,9 @@ class TaskList(list[Tasks]):
         card = StringCard(title)
         for task in self:
             creator = task.creator
-            if task.creator_role == "student":
-                nickname = creator.student.name  # type: ignore
-            elif task.creator_role == "teacher":
+            if creator.student:
+                nickname = creator.student.name
+            elif creator.teacher:
                 nickname = creator.teacher.name
             else:
                 nickname = creator.nickname

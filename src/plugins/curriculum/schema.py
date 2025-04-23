@@ -1,4 +1,3 @@
-from random import choice
 from itertools import repeat, product
 from datetime import datetime, timedelta
 
@@ -198,9 +197,4 @@ class CurriculaSchema(BaseModel):
 
     async def render(self) -> bytes:
         # open("data.json", "w", encoding="utf-8").write(self.json(ensure_ascii=False, indent=4))
-        return await template_to_pic("curricula.html", {"data": self, "random_color": self.random_color})
-
-    @staticmethod
-    def random_color() -> str:
-        """随机颜色"""
-        return choice(colors)
+        return await template_to_pic("curricula.html", {"data": self})

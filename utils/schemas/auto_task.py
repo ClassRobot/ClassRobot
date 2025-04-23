@@ -41,7 +41,10 @@ class AutoTaskList(BaseModel):
         contents = text.split("<hr/>")
         task_data = contents[-1].strip()
         try:
-            auto_tasks = cls.parse_obj(json_loads(task_data))
+            data = json_loads(task_data)
+            if isinstance(data, list):
+                data = data[0]
+            auto_tasks = cls.parse_obj(data)
             contents = contents[:-1]
         except json.JSONDecodeError:
             auto_tasks = cls()
