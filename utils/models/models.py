@@ -1077,13 +1077,17 @@ class Curricula(FilterModel, Model):
         return await Teacher.filter(name=self.teacher).first()
 
 
-class ClassesLeaveConfig(FilterModel, Model):
+class LeaveConfig(FilterModel, Model):
     classes_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey(Classes.id, ondelete="CASCADE"), nullable=False, unique=True
+        Integer, ForeignKey(Classes.id, ondelete="CASCADE"), nullable=True, unique=True
     )
     """班级ID"""
-    notify_role: Mapped[str] = mapped_column(String(255), nullable=False, server_default="[]")
-    """通知给指定角色"""
+    school_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey(School.id, ondelete="CASCADE"), nullable=True, unique=True
+    )
+    """学校ID"""
+    workflow: Mapped[list] = mapped_column(JSON, nullable=False, server_default="[]")
+    """审批工作流"""
     create_at: Mapped[CreateAt]
     update_at: Mapped[UpdateAt]
 
