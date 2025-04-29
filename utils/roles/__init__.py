@@ -43,6 +43,9 @@ class LeaveStatus(StrEnum):
 
     leave_reject = "leave_reject"
     """请假拒绝"""
+    
+    leave_pending = "leave_pending"
+    """请假申请中"""
 
 
 class TeacherRole(StrEnum):

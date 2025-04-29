@@ -153,6 +153,10 @@ class User(FilterModel, Model):
     async def get_curricula_config(self) -> Optional["CurriculaConfig"]:
         return await CurriculaConfig.filter(user_id=self.id).first()
 
+    async def get_approvals(self) -> List["StudentLeaveApproval"]:
+        """获取需要审批人审批的信息"""
+        return await StudentLeaveApproval.filter(approver_id=self.id).all()
+
 
 class UserBind(FilterModel, Model):
     """用户与平台绑定表
@@ -1092,6 +1096,30 @@ class LeaveConfig(FilterModel, Model):
     update_at: Mapped[UpdateAt]
 
 
+class LeaveWorkflow(FilterModel, Model):
+    """请假审批流程
+    当用户创建请假申请会从审批流程中获取审批人生成请假审批表
+    """
+
+    less_day: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    """小于多少天进入该审批流程"""
+    classes_id: Mapped[int] = mapped_column(Integer, ForeignKey(Classes.id, ondelete="CASCADE"), nullable=False)
+    """班级的请假申请表"""
+    shool_id: Mapped[int] = mapped_column(Integer, ForeignKey(School.id, ondelete="CASCADE"), nullable=False)
+    """学校的请假申请表"""
+    order: Mapped[list] = mapped_column(JSON, nullable=False, server_default="[]")
+    """审批顺序(用户ID)"""
+
+    async def order_users(self)-> list[User]:
+        users = []
+        for uid in self.order:
+            if user := User.filter(id=uid).first():
+                users.append(user)
+            else:
+                raise ValueError("用户不存在")
+        return users
+
+
 class StudentLeave(FilterModel, Model):
     start_date: Mapped[datetime] = mapped_column(DateTime, nullable=True)
     """请假开始时间"""
@@ -1101,9 +1129,7 @@ class StudentLeave(FilterModel, Model):
     """请假原因"""
     classes_id: Mapped[int] = mapped_column(Integer, ForeignKey(Classes.id, ondelete="CASCADE"), nullable=False)
     """班级ID"""
-    student_id: Mapped[int] = mapped_column(
-        Integer, __type_pos=ForeignKey(Student.id, ondelete="CASCADE"), nullable=False
-    )
+    student_id: Mapped[int] = mapped_column(Integer, ForeignKey(Student.id, ondelete="CASCADE"), nullable=False)
     """用户ID"""
     file_id: Mapped[int] = mapped_column(Integer, ForeignKey(Files.id, ondelete="CASCADE"), nullable=False)
     """请假条文件ID"""
@@ -1114,14 +1140,53 @@ class StudentLeave(FilterModel, Model):
     student: Mapped[Student] = relationship(lazy=False)
     classes: Mapped[Classes] = relationship(lazy=False)
 
+    @property
+    def leave_day(self) -> int:
+        """请假天数,只要是超过当天则+1"""
+        leave_date = self.end_date - self.start_date
+        return leave_date.days
+
     async def get_approval(self) -> List["StudentLeaveApproval"]:
         """获取请假审批信息"""
         return await StudentLeaveApproval.filter(leave_id=self.id).all()
+
+    async def create_approval(self):
+        """创建请假审批信息"""
+
+        if self.student.school_id:
+            leave_workflows = await LeaveWorkflow.filter(shool_id=self.student.school_id).all()
+        elif self.student.classes_id:
+            leave_workflows = await LeaveWorkflow.filter(classes_id=self.student.classes_id).all()
+        else:
+            raise ValueError("异常请假申请,没有班级或学校ID")
+
+        if not leave_workflows:
+            raise ValueError("没有请假审批流程")
+        leave_approvals = []
+        for workflow in leave_workflows:
+            # 如果请假天数大于审批流程的天数则跳过
+            if self.leave_day > workflow.less_day:
+                continue
+            for approver in await workflow.order_users():
+                if (leave_approval := await StudentLeaveApproval.filter(
+                    leave_id=self.id,
+                    approver_id=approver.id,
+                ).first()) is None:
+                    leave_approval = await StudentLeaveApproval(
+                        leave_id=self.id,
+                        approver_id=approver.id,
+                        workflow_id=workflow.id,
+                        status=LeaveStatus.leave_pending,
+                    ).create()
+                leave_approvals.append(leave_approval)
+            return leave_approvals
 
 
 class StudentLeaveApproval(FilterModel, Model):
     """请假审批表"""
 
+    workflow_id: Mapped[int] = mapped_column(Integer, ForeignKey(LeaveWorkflow.id, ondelete="CASCADE"), nullable=False)
+    """请假审批流程ID"""
     leave_id: Mapped[int] = mapped_column(Integer, ForeignKey(StudentLeave.id, ondelete="CASCADE"), nullable=False)
     """请假ID"""
     approver_id: Mapped[int] = mapped_column(Integer, ForeignKey(User.id, ondelete="CASCADE"), nullable=False)
@@ -1135,7 +1200,11 @@ class StudentLeaveApproval(FilterModel, Model):
     updated_at: Mapped[UpdateAt]
 
     leave: Mapped[StudentLeave] = relationship(lazy=False)
+    """请假审批表与请假申请表一对多关系"""
     approver: Mapped[User] = relationship(lazy=False)
+    """请假审批表与用户一对一关系"""
+    workflow: Mapped[LeaveWorkflow] = relationship(lazy=False)
+    """请假审批表与请假审批流程一对多关系"""
 
     @property
     def is_pass(self) -> bool:
