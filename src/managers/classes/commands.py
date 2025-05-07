@@ -1,12 +1,15 @@
 from typing import Optional
 
-from utils import ValidateName, tip
+from utils import ValidateName, FileOrOtherFile, tip
 from utils.helper import Param, Helper, UserRole, ParamMode
 from utils.config import priority, comp_config, alcoona_kwargs
-from nonebot_plugin_alconna import Args, File, Field, Other, Alconna, on_alconna
+from nonebot_plugin_alconna import Args, Field, Alconna, on_alconna
 
 import_classes_cmd = on_alconna(
-    Alconna("导入班级", Args["import_file", File | Other, Field(completion=tip("给要导入的班级文件发我吧！"))]),
+    Alconna(
+        "导入班级",
+        Args["import_file", FileOrOtherFile, Field(completion=tip("请发送导入班级表格"))],
+    ),
     **alcoona_kwargs,
 )
 

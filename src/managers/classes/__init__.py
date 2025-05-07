@@ -1,13 +1,15 @@
+import hashlib
+
 from utils import Emoji
 from nonebot.adapters import Event
-from utils.tools import StringCard
-from utils.config import global_config
 from utils.session import EventSession
 from nonebot.params import ArgPlainText
 from nonebot_plugin_waiter import waiter
+from utils.config import temp_dir, global_config
 from utils.models import Classes, Teacher, GroupBind
 from utils.roles import UserRole, JoinMethod, TeacherClassesRole
-from nonebot_plugin_alconna import File, Other, UniMessage, AlconnaMatcher
+from nonebot_plugin_alconna import File, UniMessage, AlconnaMatcher
+from utils.tools import StringCard, download_file, get_url_suffix, get_file_suffix
 from utils.models.depends import StudentDepends, TeacherDepends, UserOrCreatedDepends
 
 from .commands import (
@@ -24,9 +26,17 @@ from .commands import (
 @import_classes_cmd.handle()
 async def _(
     matcher: AlconnaMatcher,
-    import_file: File | Other,
+    import_file: File,
 ):
     print(type(import_file), import_file.dump())
+    if not import_file.url:
+        await matcher.finish(Emoji.error + "无法获取视频链接！！")
+    data = await download_file(import_file.url)
+    md5 = hashlib.md5(data).hexdigest()
+    suffix = get_url_suffix(import_file.url) or get_file_suffix(data)
+    to_path = temp_dir / (f"{md5}.{suffix}" if suffix else md5)
+    await download_file(data, to_path=to_path)
+    print(to_path, to_path.exists())
 
 
 @create_classes_cmd.handle()

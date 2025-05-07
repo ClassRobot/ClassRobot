@@ -1,5 +1,6 @@
 from utils import tip
 from utils.config import alcoona_kwargs
+from utils.extensions import AdminExtension
 from nonebot_plugin_alconna import Args, Field, Alconna, on_alconna
 
 add_school = on_alconna(
@@ -9,6 +10,7 @@ add_school = on_alconna(
         Args["address?", str | None, Field(default=None)],
     ),
     **alcoona_kwargs,
+    extensions=[AdminExtension],
 )
 add_college = on_alconna(
     Alconna(
@@ -17,4 +19,5 @@ add_college = on_alconna(
         Args["college_name", str, Field(completion=tip("请输入学院名称"))],
     ),
     **alcoona_kwargs,
+    extensions=[AdminExtension],
 )

@@ -2,6 +2,7 @@ import itertools
 from typing import TypeVar, Callable
 
 from strenum import StrEnum
+from nonebot_plugin_alconna import File, Other
 
 from .tools import check_punctuation
 
@@ -35,6 +36,22 @@ class Emoji(StrEnum):
 
 def tip(msg: T) -> Callable[..., T]:
     return lambda *_: msg
+
+
+def file_or_other_file(file: File | Other) -> File:
+    print("file_or_other_file", file)
+
+    if isinstance(file, File):
+        return file
+    elif isinstance(file, Other):
+        return File(
+            name=file.origin.data["file_name"],
+            url=file.origin.data["url"],
+            id=file.origin.data["file_id"],
+        )
+
+
+FileOrOtherFile = lambda file: file_or_other_file(file)  # noqa: E731
 
 
 def alias_product(*args: list[str]):

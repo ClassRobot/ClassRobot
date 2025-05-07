@@ -1,9 +1,9 @@
 import re
 import base64
 from io import BytesIO
-from typing import Any
 from pathlib import Path
 from string import punctuation
+from typing import Any, overload
 
 from qrcode import QRCode
 from filetype import guess_extension
@@ -78,6 +78,19 @@ class StringCard:
         return bool(self.card)
 
 
+@overload
+async def download_file(
+    uri: bytes,
+    *,
+    headers: dict[str, str] | None = None,
+    params: dict[str, Any] | None = None,
+    to_path: str | Path,
+) -> bytes:
+    """下载文件"""
+    ...
+
+
+@overload
 async def download_file(
     uri: str,
     *,
@@ -86,6 +99,21 @@ async def download_file(
     to_path: str | Path | None = None,
 ) -> bytes:
     """下载文件"""
+    ...
+
+
+async def download_file(
+    uri: str | bytes,
+    *,
+    headers: dict[str, str] | None = None,
+    params: dict[str, Any] | None = None,
+    to_path: str | Path | None = None,
+) -> bytes:
+    """下载文件"""
+    if not isinstance(uri, str):
+        assert to_path, "to_path is required when uri is bytes"
+        Path(to_path).write_bytes(uri)
+        return uri
     async with get_new_page() as page:
         response = await page.request.get(uri, headers=headers, params=params)
         body = await response.body()

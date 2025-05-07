@@ -60,6 +60,9 @@ static_dir: Path = Path().cwd() / "static"
 prompts_dir = static_dir / "prompts"
 template_dir = static_dir / "template"
 
+temp_dir = data_dir / "temp"
+temp_dir.mkdir(parents=True, exist_ok=True)
+
 task_dir = data_dir / "tasks"
 task_dir.mkdir(parents=True, exist_ok=True)
 
