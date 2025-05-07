@@ -98,6 +98,18 @@ class AddLeave:
         #     messages += UniMessage.image(path=leave_dir / leave.file.name)
         #     await wait([push_user_message(student.user, messages) for student in students])
 
+    # 创建审批流程
+    async def create_approval(self, leave: StudentLeave):
+        """创建审批流程"""
+        # if (leave_config := await LeaveConfig.filter(classes_id=self.student.classes_id).first()) is None:
+        #     return None
+        # notify_role: list[str] = json.loads(leave_config.notify_role)
+        # students = await Student.filter(classes_id=self.student.classes_id, role__in=notify_role).all()
+        # if students:
+        #     logger.info("通知班干部")
+        #     messages = UniMessage.text(f"学生`{self.student.name}`提交了请假申请:\n" f"申请理由: {leave.reason}")
+        #     messages += UniMessage.image(path=leave_dir / leave.file.name)
+        #     await wait([push_user_message(student.user, messages) for student in students])
 
 class QueryLeave(BaseLeave):
     async def get_student_leave(self) -> List[StudentLeave] | None:
