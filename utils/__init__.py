@@ -39,8 +39,6 @@ def tip(msg: T) -> Callable[..., T]:
 
 
 def file_or_other_file(file: File | Other) -> File:
-    print("file_or_other_file", file)
-
     if isinstance(file, File):
         return file
     elif isinstance(file, Other):

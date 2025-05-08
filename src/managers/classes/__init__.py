@@ -1,5 +1,7 @@
 import hashlib
+from io import BytesIO
 
+import pandas as pd
 from utils import Emoji
 from nonebot.adapters import Event
 from utils.session import EventSession
@@ -12,6 +14,7 @@ from nonebot_plugin_alconna import File, UniMessage, AlconnaMatcher
 from utils.tools import StringCard, download_file, get_url_suffix, get_file_suffix
 from utils.models.depends import StudentDepends, TeacherDepends, UserOrCreatedDepends
 
+from .util import rename
 from .commands import (
     exit_classes_cmd,
     join_classes_cmd,
@@ -28,7 +31,6 @@ async def _(
     matcher: AlconnaMatcher,
     import_file: File,
 ):
-    print(type(import_file), import_file.dump())
     if not import_file.url:
         await matcher.finish(Emoji.error + "无法获取视频链接！！")
     data = await download_file(import_file.url)
@@ -36,7 +38,11 @@ async def _(
     suffix = get_url_suffix(import_file.url) or get_file_suffix(data)
     to_path = temp_dir / (f"{md5}.{suffix}" if suffix else md5)
     await download_file(data, to_path=to_path)
-    print(to_path, to_path.exists())
+    df = pd.read_excel(BytesIO(data))
+    df.columns = df.columns.map(rename)
+    print(df.columns)
+    print(df.head())
+    # print(to_path, to_path.exists())
 
 
 @create_classes_cmd.handle()

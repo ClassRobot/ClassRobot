@@ -87,7 +87,6 @@ async def download_file(
     to_path: str | Path,
 ) -> bytes:
     """下载文件"""
-    ...
 
 
 @overload
@@ -99,7 +98,6 @@ async def download_file(
     to_path: str | Path | None = None,
 ) -> bytes:
     """下载文件"""
-    ...
 
 
 async def download_file(
