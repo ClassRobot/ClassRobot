@@ -1,20 +1,17 @@
-import hashlib
-from io import BytesIO
-
-import pandas as pd
 from utils import Emoji
 from nonebot.adapters import Event
+from utils.tools import StringCard
+from utils.config import global_config
 from utils.session import EventSession
 from nonebot.params import ArgPlainText
 from nonebot_plugin_waiter import waiter
-from utils.config import temp_dir, global_config
-from utils.models import Classes, Teacher, GroupBind
+from nonebot_plugin_alconna import UniMessage, AlconnaMatcher
 from utils.roles import UserRole, JoinMethod, TeacherClassesRole
-from nonebot_plugin_alconna import File, UniMessage, AlconnaMatcher
-from utils.tools import StringCard, download_file, get_url_suffix, get_file_suffix
+from utils.models import Group, School, Classes, College, Teacher, GroupBind
 from utils.models.depends import StudentDepends, TeacherDepends, UserOrCreatedDepends
 
-from .util import rename
+from .depends import ImportDataFrame
+from .util import student_column_renames, student_column_required
 from .commands import (
     exit_classes_cmd,
     join_classes_cmd,
@@ -27,22 +24,34 @@ from .commands import (
 
 
 @import_classes_cmd.handle()
-async def _(
-    matcher: AlconnaMatcher,
-    import_file: File,
-):
-    if not import_file.url:
-        await matcher.finish(Emoji.error + "无法获取视频链接！！")
-    data = await download_file(import_file.url)
-    md5 = hashlib.md5(data).hexdigest()
-    suffix = get_url_suffix(import_file.url) or get_file_suffix(data)
-    to_path = temp_dir / (f"{md5}.{suffix}" if suffix else md5)
-    await download_file(data, to_path=to_path)
-    df = pd.read_excel(BytesIO(data))
-    df.columns = df.columns.map(rename)
+async def _(matcher: AlconnaMatcher, df: ImportDataFrame, user: UserOrCreatedDepends):
     print(df.columns)
     print(df.head())
-    # print(to_path, to_path.exists())
+
+    # 检索出不在student_column_renames中的列
+    if missing_columns := student_column_required - set(df.columns):
+        await matcher.finish(Emoji.error + f"缺少列: {', '.join(student_column_renames[i][0] for i in missing_columns)}")
+
+    for school_name, school_df in df.groupby("school"):
+        if not (school := await School.filter(name=school_name).first()):
+            await matcher.finish(Emoji.error + f"学校`{school_name}`不存在")
+        # 检查college是否存在于数据库
+        for college_name, college_df in school_df.groupby("college"):
+            if not (college := await College.filter(name=college_name, school=school).first()):
+                college = await College(name=college_name, school=school).create()
+            for classes_name, classes_df in college_df.groupby("classes"):
+                # 检查班级是否存在于数据库，不存在则创建
+                if not (classes := await Classes.filter(name=classes_name, college_id=college.id).first()):
+                    # 获取班级中的专业
+                    if "major" not in classes_df or classes_df.major.isnull().all():
+                        major = None
+                    else:
+                        major = classes_df.major.unique()
+                        major = major[0] if len(major) == 1 else None
+
+                    group = await Group.create_group(str(classes_name), user)
+                    classes = await Classes(name=classes_name, group=group, college_id=college.id, major=major).create()
+                print(classes, classes_df)
 
 
 @create_classes_cmd.handle()

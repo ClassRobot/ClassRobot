@@ -142,3 +142,37 @@ class FilterModel:
         async with get_session() as session:
             await session.delete(self)
             await session.commit()
+
+    @classmethod
+    async def build_create(cls, data: list[dict[str, Any] | Model]) -> list[Model]:
+        models: list[Model] = []
+        async with get_session() as session:
+            for item in data:
+                if isinstance(item, dict):
+                    model = cls(**item)
+                else:
+                    model = item
+                if not isinstance(model, Model):
+                    raise TypeError(f"Invalid model type: {type(model)}")
+                session.add(model)
+                models.append(model)
+            if models:
+                try:
+                    await session.commit()
+                except Exception as e:
+                    await session.rollback()
+                    raise e
+                for model in models:
+                    await session.refresh(model)
+        return models
+
+    @classmethod
+    async def build_delete(cls, data: list[Model]):
+        async with get_session() as session:
+            for model in data:
+                await session.delete(model)
+            try:
+                await session.commit()
+            except Exception as e:
+                await session.rollback()
+                raise e
