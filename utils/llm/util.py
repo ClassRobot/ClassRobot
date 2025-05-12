@@ -32,6 +32,7 @@ def uni_message_to_contents(
             if isinstance(msg.msg, str):
                 contexts.append(Content(type="text", value=msg.msg))
             else:
+                print(msg.msg)
                 contexts.extend(uni_message_to_contents(messages=UniMessage.generate_sync(message=msg.msg)))
             contexts.append(Content(type="text", value="</reference_message>"))
     return contexts

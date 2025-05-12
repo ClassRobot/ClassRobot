@@ -4,6 +4,7 @@ from utils.tools import StringCard
 from utils.config import global_config
 from utils.session import EventSession
 from nonebot.params import ArgPlainText
+from utils.models.models import Student
 from nonebot_plugin_waiter import waiter
 from nonebot_plugin_alconna import UniMessage, AlconnaMatcher
 from utils.roles import UserRole, JoinMethod, TeacherClassesRole
@@ -25,8 +26,8 @@ from .commands import (
 
 @import_classes_cmd.handle()
 async def _(matcher: AlconnaMatcher, df: ImportDataFrame, user: UserOrCreatedDepends):
-    print(df.columns)
-    print(df.head())
+    # print(df.columns)
+    # print(df.head())
 
     # 检索出不在student_column_renames中的列
     if missing_columns := student_column_required - set(df.columns):
@@ -51,7 +52,16 @@ async def _(matcher: AlconnaMatcher, df: ImportDataFrame, user: UserOrCreatedDep
 
                     group = await Group.create_group(str(classes_name), user)
                     classes = await Classes(name=classes_name, group=group, college_id=college.id, major=major).create()
-                print(classes, classes_df)
+
+                for index, value in classes_df.iterrows():
+                    print(index, value)
+                    student = await Student.filter(student_code=value["student_code"]).first()
+                    # student = await Student.create_student(
+                    #     name=value["name"],
+                    #     classes=classes,
+
+                    # )
+                # print(classes, classes_df)
 
 
 @create_classes_cmd.handle()

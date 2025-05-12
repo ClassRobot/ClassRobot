@@ -199,7 +199,7 @@ class Messages(BaseModel):
         return self.add_message(role=LLMRole.tool, content=content, tool_call_id=tool_call_id)
 
     def __repr__(self) -> str:
-        return self.get(LLMRole.user, LLMRole.assistant, LLMRole.tool).messages.__repr__()
+        return self.messages.__repr__()
 
     def __str__(self) -> str:
         return self.__repr__()

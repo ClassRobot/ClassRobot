@@ -210,8 +210,9 @@ class AutoTaskAgent(BaseAgent):
 
     async def execute(self, context: Context) -> str | None:
         """执行agent"""
-        messages = self.messages.get(LLMRole.system, LLMRole.user, LLMRole.assistant)
+        messages = self.messages.get(LLMRole.system)
         messages.system_message(await Prompt("auto_task").render({"helpers": self.helpers}))
-        # messages.user_message(context.content)
+        messages.extend(self.messages.get(LLMRole.user, LLMRole.assistant))
+        print(messages)
         response = await client_create(messages)
         return response.choices[0].message.content
