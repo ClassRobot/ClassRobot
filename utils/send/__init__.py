@@ -22,7 +22,7 @@ async def push_user_message(user: User, message: UniMessage, skip_after_first: b
 
 async def push_group_message(group: Group, message: UniMessage, skip_after_first: bool = False):
     """推送给群所绑定的所有平台发送消息"""
-    for bind in group.group_binds:
+    for bind in await group.get_binds():
         adapter_name = SupportAdapter[bind.platform_id.split(".")[0]]
         for bot in await get_bot(adapter=adapter_name):
             try:

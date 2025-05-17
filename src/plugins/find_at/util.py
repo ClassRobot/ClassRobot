@@ -44,7 +44,7 @@ def student_to_dict(student: Student) -> dict:
     if student.extra:
         data.update(
             {
-                "sex": student.extra.sex,
+                "sex": student.user.gender,
                 "dormitory": student.extra.dormitory,
                 "student_code": student.extra.student_code,
                 "family_contact": student.extra.family_contact,
