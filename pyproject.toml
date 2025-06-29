@@ -11,7 +11,7 @@ python = ">=3.12,<3.13"
 nonebot2 = {extras = ["httpx", "fastapi", "aiohttp"], version = "^2.4.2"}
 pandas = {extras = ["tabulate"], version = "^2.3.0"}
 nonebot-adapter-onebot = "^2.4.6"
-nonebot-plugin-orm = {extras = ["postgresql", "asyncpg"], version = "^0.8.1"}
+nonebot-plugin-orm = {extras = ["postgresql", "asyncpg", "aiosqlite"], version = "^0.8.1"}
 nonebot-plugin-alconna = "^0.58.5"
 nonebot-plugin-animeres = "^1.0.5"
 nonebot-plugin-localstore = "^0.7.4"

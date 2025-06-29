@@ -3,7 +3,11 @@ from nonebot_plugin_alconna import AlconnaMatcher
 
 from .schema import edu_logins
 from .commands import login_edu_cmd
-from . import login_hide as login_hide  # noqa: F401
+
+try:
+    from . import login_hide as login_hide  # noqa: F401
+except ImportError:
+    ...
 
 
 @login_edu_cmd.handle()
