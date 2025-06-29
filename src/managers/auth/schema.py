@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 
 from pydantic import Field, BaseModel
 
-edu_logins: list["type[BaseEduLogin]"] = []
+edu_logins: dict[str, "type[BaseEduLogin]"] = {}
 
 
 class BaseEduLogin(BaseModel, ABC):

@@ -1,5 +1,7 @@
+import os
 from pathlib import Path
 
+import certifi
 from tarina import lang
 from nonebot import get_driver
 from pydantic import Extra, BaseModel
@@ -23,6 +25,7 @@ class GlobalConfig(BaseModel, extra=Extra.ignore):
     "教师最大班级数量"
 
 
+os.environ["SSL_CERT_FILE"] = certifi.where()
 priority = 100
 dirname = "classbot"
 # lang.set("completion", "node", "")

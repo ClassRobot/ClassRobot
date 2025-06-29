@@ -1,4 +1,4 @@
-from aioredis import Redis
+from utils.packges.aioredis import Redis
 
 from .config import plugin_config
 

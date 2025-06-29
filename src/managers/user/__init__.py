@@ -53,7 +53,7 @@ async def _(matcher: AlconnaMatcher, user: UserOrCreatedDepends):
     cache = get_cache()
     token = str(uuid4())
     await cache.set(token, user.id, ex=300)
-    await matcher.finish(UniMessage((f"需要绑定平台请在5分钟内将下方内容粘贴到指定平台发送:\n" f"token={token}")))
+    await matcher.finish(UniMessage(f"需要绑定平台请在5分钟内将下方内容粘贴到指定平台发送:\ntoken={token}"))
 
 
 @token_cmd.handle()

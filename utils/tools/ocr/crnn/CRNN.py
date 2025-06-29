@@ -26,7 +26,7 @@ class CRNNHandle:
     def __init__(self, model_path: Union[str, Path, None] = None):
         if model_path is None:
             model_path = current_path / "models" / "crnn_lite_lstm.onnx"
-        self.sess = rt.InferenceSession(model_path)
+        self.sess = rt.InferenceSession(str(model_path))
 
     def predict(self, image):
         """
