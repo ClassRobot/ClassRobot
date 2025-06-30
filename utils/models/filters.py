@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING, Any, Type, Generic, TypeVar, Optional, Generator
 
 from sqlalchemy.orm import Mapped
+from sqlalchemy.exc import InvalidRequestError
 from nonebot_plugin_orm import Model, get_session
 from sqlalchemy import Select, ScalarResult, ColumnExpressionArgument, func, delete, select, update
 
@@ -134,8 +135,12 @@ class FilterModel:
         return SelectFilter[cls](cls)
 
     async def refresh(self):
-        async with get_session() as session:
-            await session.refresh(self)
+        try:
+            async with get_session() as session:
+                await session.refresh(self)
+                return self
+        except InvalidRequestError as e:
+            print(f"Error refreshing model {self}: {e}")
             return self
 
     async def delete(self):

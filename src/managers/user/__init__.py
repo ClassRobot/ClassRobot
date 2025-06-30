@@ -40,7 +40,11 @@ async def _(matcher: AlconnaMatcher, user: UserOrCreatedDepends):
         else:
             card.text(f"学生职位: {user.student.role}(无效)")
 
-        (card.text(f"所在班级: {user.student.classes.name}").text(f"创建日期: {user.student.created_at.strftime('%Y-%m-%d')}"))
+        (
+            card.text(f"班级ID: {user.student.classes.id}")
+            .text(f"班级名称: {user.student.classes.name}")
+            .text(f"创建日期: {user.student.created_at.strftime(r'%Y-%m-%d')}")
+        )
 
     if user.avatar:
         await matcher.finish(UniMessage.image(url=user.avatar) + card.render())

@@ -315,7 +315,7 @@ class Group(FilterModel, Model):
     """创建者信息"""
     settings: Mapped[GroupSettings] = relationship("GroupSettings", lazy=False)
 
-    classes: Mapped["Classes"] = relationship("Classes", lazy="selectin", back_populates="group")
+    classes: Mapped["Classes"] = relationship(lazy=False, back_populates="group")
     """组与班级一对一关系"""
 
     @classmethod
@@ -613,7 +613,7 @@ class Classes(FilterModel, Model):
     created_at: Mapped[CreateAt]
     updated_at: Mapped[UpdateAt]
 
-    group: Mapped[Group] = relationship(lazy="selectin", back_populates="classes")
+    group: Mapped[Group] = relationship(lazy=False, back_populates="classes")
     """班级与群组一对一关系"""
     teacher: Mapped[List[Teacher]] = relationship(
         "Teacher",
@@ -839,9 +839,8 @@ class Student(FilterModel, Model):
         """
 
         student = await cls(name=name, classes=classes, user=user, school_id=school_id).create()
-        extra = await StudentExtra(student_id=student.id).create()  # 创建学生额外信息
-        await extra.update_extra(**kwargs)
-        return await student.refresh()
+        await StudentExtra(student=student).create()  # 创建学生额外信息
+        return student
 
     async def update_classes(self, classes: Classes):
         """更新班级信息

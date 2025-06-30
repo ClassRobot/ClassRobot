@@ -12,7 +12,7 @@ async def add_leave_depends(matcher: Matcher, student: StudentDepends) -> AddLea
     if student:
         return matcher.state.setdefault("_add_leave", AddLeave(student))
     else:
-        await matcher.finish(Emoji.error + "您还未绑定学生信息！！")
+        await matcher.finish(Emoji.error + "您还未绑定学生信息，请假是学生相关功能！！")
 
 
 AddLeaveDepends = Annotated[AddLeave, Depends(dependency=add_leave_depends)]
@@ -20,7 +20,7 @@ AddLeaveDepends = Annotated[AddLeave, Depends(dependency=add_leave_depends)]
 
 async def query_leave_depends(matcher: Matcher, user: UserDepends):
     if user is None:
-        await matcher.finish(Emoji.error + "没有与您相关信息！")
+        await matcher.finish(Emoji.error + "没有与您相关请假信息！")
     return matcher.state.setdefault("_query_leave", QueryLeave(user))
 
 

@@ -43,6 +43,7 @@ async def _(
 
 @query_leave_cmd.handle()
 async def _(matcher: AlconnaMatcher, query_leave: QueryLeaveDepends):
+    leave_list = None
     if query_leave.is_classes_admin:
         leave_list = await query_leave.get_classes_leave()
     elif query_leave.is_student:
@@ -52,7 +53,7 @@ async def _(matcher: AlconnaMatcher, query_leave: QueryLeaveDepends):
         for msg in query_leave.leave_to_messages(leave_list):
             await matcher.send(msg)
     else:
-        await matcher.finish(Emoji.error + "您没有可查询请假条")
+        await matcher.finish(Emoji.error + "您没有可查询请假信息")
 
 
 # --------------------------------- 删除请假 ---------------------------------

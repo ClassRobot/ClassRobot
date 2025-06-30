@@ -233,9 +233,10 @@ async def _(
 async def _(matcher: AlconnaMatcher, student: StudentDepends):
     if student is None:
         await matcher.finish("❌️您还未加入班级！！")
+    await matcher.send(f"您当前所在班级为**{student.classes.name}**，班级ID为**{student.classes.id}**，" "是否要退出该班级？(yes/no)")
 
 
-@exit_classes_cmd.got("is_exit", prompt="您确定要退出班级吗？(yes/no)")
+@exit_classes_cmd.got("is_exit")
 async def _(matcher: AlconnaMatcher, student: StudentDepends, is_exit: str = ArgPlainText()):
     if is_exit.strip() != "yes":
         await matcher.finish("❌️已取消操作！！")
