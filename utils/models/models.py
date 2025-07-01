@@ -1164,6 +1164,7 @@ class StudentLeave(FilterModel, Model):
 
     async def create_approval(self):
         """创建请假审批信息"""
+        leave_approvals = []
 
         if self.student.school_id:
             leave_workflows = await LeaveWorkflow.filter(shool_id=self.student.school_id).all()
@@ -1174,7 +1175,6 @@ class StudentLeave(FilterModel, Model):
 
         if not leave_workflows:
             raise ValueError("没有请假审批流程")
-        leave_approvals = []
         for workflow in leave_workflows:
             # 如果请假天数大于审批流程的天数则跳过
             if self.leave_day > workflow.less_day:

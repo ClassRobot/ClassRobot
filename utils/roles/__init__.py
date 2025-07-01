@@ -1,5 +1,7 @@
 from strenum import StrEnum
 
+from .school import StudentRoleLang as StudentRoleLang
+
 
 class UserRole(StrEnum):
     """用户角色"""
@@ -43,7 +45,7 @@ class LeaveStatus(StrEnum):
 
     leave_reject = "leave_reject"
     """请假拒绝"""
-    
+
     leave_pending = "leave_pending"
     """请假申请中"""
 
@@ -115,43 +117,6 @@ class StudentRole(StrEnum):
     """文艺委员"""
 
     student = "student"
-    """学生"""
-
-
-class StudentRoleLang(StrEnum):
-    """学生角色"""
-
-    monitor = "班长"
-    """班长"""
-
-    vice_monitor = "副班长"
-    """副班长"""
-
-    secretary = "团支书"
-    """团支书"""
-
-    study = "学习委员"
-    """学习委员"""
-
-    life = "生活委员"
-    """生活委员"""
-
-    sports = "体育委员"
-    """体育委员"""
-
-    organization = "组织委员"
-    """组织委员"""
-
-    mental = "心理委员"
-    """心理委员"""
-
-    publicity = "宣传委员"
-    """宣传委员"""
-
-    arts = "文艺委员"
-    """文艺委员"""
-
-    student = "学生"
     """学生"""
 
 

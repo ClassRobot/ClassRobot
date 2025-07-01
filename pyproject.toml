@@ -72,6 +72,7 @@ plugin_dirs = [
     "src/managers",
     "src/plugins",
     "src/others",
+    "src/routers",
 ]
 adapters = [
     {name = "OneBot V11", module_name = "nonebot.adapters.onebot.v11"},
