@@ -87,9 +87,8 @@ async def _(
     if not auto_task.need_confirm:
         for auto_task in auto_task.tasks:
             if chat_session.helpers.get_helper(auto_task.command):
-                # Replay planned commands through NoneBot's normal event dispatcher so
-                # generated actions still go through the same matcher and depends flow
-                # as if the user had typed the command manually.
+                # 将 AI 规划出的命令重新投递给 NoneBot 原生事件分发，
+                # 让后续 matcher 和 depends 仍按用户手动输入命令时的流程执行。
                 event = event.copy()
                 event.__uniseg_message_id__ = str(id(event))
                 event.get_message = update_message(auto_task, target)

@@ -1,3 +1,5 @@
+from asyncio import gather
+from base64 import b64encode
 from io import BytesIO
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeAlias
@@ -284,3 +286,70 @@ class MarkdownToImageSkill(BaseProjectSkill):
         from nonebot_plugin_htmlrender import html_to_pic
 
         return await html_to_pic(html, viewport=viewport or {"width": 1080, "height": 10})
+
+
+class ImageGenerationSkill(BaseProjectSkill):
+    """封装文生图、图生图相关的 skill 运行时能力。"""
+
+    skill_name = "image-generation"
+
+    async def generate(self, items: list[Any]) -> list[dict[str, Any]]:
+        """根据文本和图片输入生成图片结果。
+
+        参数:
+            items (list[Any]): 输入的文本片段或图片对象列表。
+
+        返回:
+            list[dict[str, Any]]: 绘图服务返回的响应片段列表。
+        """
+        from filetype import guess
+        from filetype.types import IMAGE
+        from httpx import AsyncClient
+        from nonebot_plugin_alconna import Image, Text
+        from nonebot_plugin_htmlrender import get_new_page
+
+        from utils.config import global_config
+
+        parts: list[dict[str, Any]] = []
+        wait_images = []
+
+        async def request_image(item: Image) -> None:
+            """将输入图片下载并转换为绘图接口可接受的内联数据。"""
+            if item.url is None:
+                return
+            image_response = await page.request.get(item.url)
+            image_bytes = await image_response.body()
+            image_b64 = b64encode(image_bytes).decode()
+            mime_type = guess(image_bytes)
+            if mime_type in IMAGE:
+                parts.append({"inline_data": {"mime_type": mime_type.MIME, "data": image_b64}})
+
+        async with get_new_page() as page:
+            for item in items:
+                if isinstance(item, Text):
+                    parts.append({"text": str(item)})
+                elif isinstance(item, Image):
+                    wait_images.append(request_image(item))
+            if wait_images:
+                await gather(*wait_images)
+
+        async with AsyncClient(
+            base_url="https://generativelanguage.googleapis.com/v1beta",
+            proxy=global_config.global_proxy,
+            timeout=600,
+        ) as client:
+            response = await client.post(
+                "/models/gemini-2.0-flash-exp-image-generation:generateContent",
+                params={"key": global_config.googleapis_key},
+                headers={"Content-Type": "application/json"},
+                json={
+                    "contents": [{"parts": parts}],
+                    "generationConfig": {"responseModalities": ["Text", "Image"]},
+                },
+            )
+
+        data = response.json()
+        try:
+            return data["candidates"][0]["content"]["parts"]
+        except KeyError as error:
+            raise ValueError(data) from error

@@ -1,6 +1,5 @@
 import re
 from time import time
-from asyncio import gather
 from typing import Annotated
 from datetime import datetime
 
@@ -9,12 +8,11 @@ from utils.template import Prompt
 from nonebot.params import Depends
 from nonebot_plugin_alconna import UniMessage
 from utils.helper.depends import HelpersDepends
-from utils.llm.util import uni_message_to_contents
 from utils.models.depends import UserOrCreatedDepends
 from utils.llm.message import Content, Context, LLMRole, Messages
-from utils.llm.agents.tools import RagAgent, ExtractAgent, SummaryAgent, AutoTaskAgent
 
 from .exception import SessionLockError
+from .pipeline import MessageProcessingPipeline
 from .schema import ChatMessage, AutoTaskList
 
 pattern = r"!\[image\]\(([^)]+)\)"
@@ -35,8 +33,7 @@ async def get_prompt_system(helpers: Helpers) -> str:
     return prompt_system
 
 
-def markdown_to_message(text: str):
-    # 正则表达式查找Markdown图片格式
+def markdown_to_message(text: str) -> UniMessage:
     """将 Markdown 文本转换为 `UniMessage` 消息对象。
 
     参数:
@@ -45,28 +42,23 @@ def markdown_to_message(text: str):
     返回:
         UniMessage: 适合直接发送的统一消息对象。
     """
-    parts = []
+    parts: list[str] = []
     last_idx = 0
     matches = list(re.finditer(pattern, text))
 
-    # 处理找到的每个匹配项
+    # 按顺序拆分文本片段和 Markdown 图片地址。
     for match in matches:
-        # 添加匹配前的文本
         if match.start() > last_idx:
             parts.append(text[last_idx : match.start()])
-        # 添加图片URL
         parts.append(match.group(1))
         last_idx = match.end()
 
-    # 添加最后一个匹配后的剩余文本
     if last_idx < len(text):
         parts.append(text[last_idx:])
 
-    # 如果没有找到任何匹配项，直接使用原始文本
     if not matches:
         parts = [text]
 
-    # 过滤空字符串
     parts = [part for part in parts if part]
 
     reply_message = UniMessage()
@@ -79,7 +71,12 @@ def markdown_to_message(text: str):
 
 
 class ChatSession:
-    """封装聊天会话状态与行为。"""
+    """封装单个用户的聊天会话状态与消息处理行为。
+
+    该类负责维护用户会话上下文、系统提示词、会话锁以及
+    AutoGPT 主流程调用入口。
+    """
+
     def __init__(self, user_id: int, helpers: Helpers) -> None:
         """初始化实例。
 
@@ -108,15 +105,15 @@ class ChatSession:
             return True
         return False
 
-    async def update_helpers(self, helpers: Helpers):
+    async def update_helpers(self, helpers: Helpers) -> None:
         """更新会话可用的帮助信息并刷新系统提示词。
 
         参数:
             helpers (Helpers): 当前用户可见的帮助信息集合。
         """
         self.helpers = helpers
-        # The system prompt is assembled from the helpers visible to the current user,
-        # so role changes and newly loaded commands must refresh the first message.
+        # 系统提示词依赖当前用户可见的命令集合，
+        # 因此角色变化或 skill 热加载后都需要刷新首条 system 消息。
         prompts = await get_prompt_system(helpers)
         if self.messages and self.messages[0].role == LLMRole.system:
             self.messages[0].content = prompts
@@ -136,40 +133,14 @@ class ChatSession:
             raise SessionLockError("聊天锁已经被锁定，无法发送消息！")
         try:
             self.lock = True
-            content = None
-            user_content = message.message if isinstance(message, ChatMessage) else uni_message_to_contents(message)
-
-            # The chat pipeline is: trim long history, append the latest user turn,
-            # extract a compact structured context, then run retrieval and command
-            # planning in parallel against that reduced context.
-            self.messages = await SummaryAgent().execute(self.messages)
-            self.messages.user_message(user_content)
-            extract = await ExtractAgent().execute(self.messages)
-            tasks = (
-                RagAgent().execute(extract),
-                AutoTaskAgent(helpers=self.helpers, messages=self.messages).execute(extract),
-            )
-            results = tuple(i for i in await gather(*tasks) if i is not None)
-            if results:
-                print("send", results[0])
-                self.messages.assistant_message(results[0])
-
-            # 获取最后一条消息
-            last_message = self.messages[-1]
-            if last_message.role == LLMRole.assistant and isinstance(last_message, Context):
-                content = last_message.single_modal()
-
-            # 将内容转成task和回复用户的消息
-            if content:
-                auto_tasks = AutoTaskList.parse_str(content)
-                # Persist the human-readable reply together with the generated task
-                # payload so later turns can see what the planner already decided.
-                last_message.content = f'{auto_tasks.reply}"\n<hr/>\n"{auto_tasks.json(exclude={"reply", "create_at"}, ensure_ascii=False)}'
-                return auto_tasks
+            pipeline = MessageProcessingPipeline(helpers=self.helpers, messages=self.messages)
+            auto_tasks = await pipeline.process(message)
+            self.messages = pipeline.messages
+            return auto_tasks
         finally:
             self.lock = False
 
-    def clear(self):
+    def clear(self) -> None:
         """从会话管理器中移除当前会话。"""
         chat_session_manager.sessions.pop(self.user_id, None)
 
@@ -178,12 +149,11 @@ class ChatSessionManager:
     """管理聊天会话的生命周期、缓存与超时清理。"""
     timeout = 60 * 60
 
-    def __init__(self):
+    def __init__(self) -> None:
         """初始化实例。"""
         self.sessions: dict[int, ChatSession] = {}
 
-    # 检查是否有过期的session然后删除
-    def clear_timeout(self):
+    def clear_timeout(self) -> None:
         """清理长时间未活动的会话。"""
         current_time = time()
         for session in list(self.sessions.values()):
@@ -191,7 +161,6 @@ class ChatSessionManager:
                 del self.sessions[session.user_id]
 
     async def get_chat_session(self, user_id: int, helpers: Helpers) -> ChatSession:
-        # 检查是否有过期的session
         """获取用户会话，不存在则创建并刷新帮助上下文。
 
         参数:

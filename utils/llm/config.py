@@ -8,6 +8,10 @@ class LLMConfig(BaseModel, extra=Extra.ignore):
     key: str
     url: str
     model: str
+    priority: int = 0
+    """模型路由优先级，数值越大越优先。"""
+    tasks: list[str] = []
+    """偏好的任务类型，用于路由时优先匹配。"""
     multi_modal: bool = False
     """是否支持多模态"""
     supports_functools: bool = False

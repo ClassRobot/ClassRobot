@@ -47,3 +47,29 @@
 - 能力边界优先以 skill 表达，再决定底层代码落在 `utils/tools/` 还是其他共享模块
 - 明显拼写错误直接收敛到统一命名，避免同义目录和文件长期并存
 - 优先做低风险收敛，再考虑后续把 `utils/` 进一步拆成更清晰的领域模块
+- 平台消息如何流经权限、流水线、Agent 与数据库，统一参考 [消息处理流程](../guides/message-processing-flow.md)
+
+## 面向总架构图的放置建议
+
+如果后续按“接入层 -> Agent 核心层 -> Skill 层 -> 数据基础设施层”继续扩展，建议遵循下面的放置方式：
+
+- 接入层
+  - 当前优先放在 `src/plugins/`、`src/others/`、`src/routers/`
+  - 未来如果引入 FastAPI，可逐步收敛到独立 `gateway/`、`interfaces/` 或 `src/routers/http/`
+- Agent 核心层
+  - 当前优先放在 `src/plugins/autogpt/`、`utils/llm/agents/`、`utils/session/`
+  - 例如消息流水线、Planner、记忆层、上下文编排
+- Skill 层
+  - 元数据放在 `skills/`
+  - 运行时注册与绑定放在 `utils/skills/`
+  - 底层可复用实现仍放在 `utils/tools/` 或其他基础设施模块
+- 数据与基础设施层
+  - ORM 与业务数据放在 `utils/models/`
+  - 知识检索接入放在 `utils/llm/agents/ragflow/`
+  - 对象存储、OCR、文档处理等放在 `utils/tools/`
+
+推荐做法：
+
+- 先按层放置代码，再决定是否要新增目录名
+- 优先保证职责边界正确，不要一开始就为了“看起来高级”做大规模目录迁移
+- 未来如果代码量继续增长，再把这些边界从“约定”升级成更显式的目录结构

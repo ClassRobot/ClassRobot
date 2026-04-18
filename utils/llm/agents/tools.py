@@ -5,8 +5,9 @@ from nonebot import logger
 from pydantic import Field
 from openai import BaseModel
 from httpx import AsyncClient
-from utils.llm import client_create
+from utils.llm import LLMTaskType, client_create
 from utils.config import autogpt_dir
+from utils.schemas.auto_task import AutoTaskList
 from utils.skills import document_to_image_skill
 from utils.llm.util import json_loads
 from utils.helper.schema import Helpers
@@ -51,7 +52,11 @@ class VisionAgent(BaseFunctionAgent):
             contents: list[Content] = [Content(type="text", value=params.desc)]
             contents.extend(Content(type="image", value=url) for url in params.urls)
             vision_message.user_message(contents)
-            response = await client_create(vision_message, multi_modal=True)  # 将识别后的结果返回给message
+            response = await client_create(
+                vision_message,
+                multi_modal=True,
+                task_type=LLMTaskType.vision,
+            )  # 将识别后的结果返回给message
             messages.tool_message(tool.id, response.choices[0].message.content or "")
         return messages
 
@@ -98,7 +103,11 @@ class FileAgent(BaseFunctionAgent):
                     contents: list[Content] = [Content(type="text", value=params.desc)]
                     contents.extend(Content(type="image", value=url) for url in file_to_image.images)
                     file_message.user_message(contents)
-                    response = await client_create(file_message, multi_modal=True)
+                    response = await client_create(
+                        file_message,
+                        multi_modal=True,
+                        task_type=LLMTaskType.vision,
+                    )
                     messages.tool_message(tool.id, response.choices[0].message.content or "")
                 else:
                     messages.tool_message(tool.id, "解析失败:\n改文件过大或者文件类型不正确，只能识别，ppt、doc、pdf类型的文件")
@@ -128,7 +137,12 @@ class LLMAgent(BaseAgent):
         """
         if messages[-1].role == LLMRole.assistant:
             return messages
-        response = await client_create(messages, self.functions(), multi_modal=False)
+        response = await client_create(
+            messages,
+            self.functions(),
+            multi_modal=False,
+            task_type=LLMTaskType.tool,
+        )
         if response.choices[0].message.tool_calls:
             messages.add_tool(response.choices[0].message)
         else:
@@ -162,7 +176,12 @@ class SummaryAgent(BaseAgent):
             system_message = messages.get(LLMRole.system)
             summary_message = messages.get(LLMRole.user, LLMRole.assistant)  # 提取需要的消息
             summary_message.user_message("针对之前的聊天内容进行总结,总结长度不超过<4000字.")
-            response = await client_create(summary_message, multi_modal=True, max_tokens=4096)
+            response = await client_create(
+                summary_message,
+                multi_modal=True,
+                max_tokens=4096,
+                task_type=LLMTaskType.summary,
+            )
             summary_text = response.choices[0].message.content or ""
             # Keep the original system prompt, but collapse the long-running dialogue
             # into a single assistant summary to cap token growth across sessions.
@@ -191,10 +210,16 @@ class ExtractAgent(BaseAgent):
         """
         print(self.name())
         extract = Prompt("extract")
+        extract_messages = Messages()
         # Extraction compresses free-form dialogue into a structured context that can
         # be shared by retrieval and task planning without replaying all history.
-        self.messages.system_message(await extract.render({"history": self.message_to_string(messages)}))
-        response = await client_create(self.messages, multi_modal=False, max_tokens=4096)
+        extract_messages.system_message(await extract.render({"history": self.message_to_string(messages)}))
+        response = await client_create(
+            extract_messages,
+            multi_modal=False,
+            max_tokens=4096,
+            task_type=LLMTaskType.extract,
+        )
         text = response.choices[0].message.content or ""
         print(text)
         return Context.parse_obj(json_loads(text))
@@ -290,20 +315,28 @@ class AutoTaskAgent(BaseAgent):
         """返回自动任务智能体的注册名称。"""
         return "auto_task_agent"
 
-    async def execute(self, context: Context) -> str | None:
-        """根据上下文生成自动任务规划结果。
+    async def execute(self, context: Context, knowledge: str | None = None) -> AutoTaskList:
+        """根据抽取上下文与补充知识生成最终任务规划结果。
 
         参数:
             context (Context): 由抽取智能体生成的结构化上下文。
+            knowledge (str | None): 检索补充知识。
 
         返回:
-            str | None: 模型生成的任务规划结果文本。
+            AutoTaskList: 模型生成并解析后的任务规划结果。
         """
-        messages = self.messages.get(LLMRole.system)
-        # Task planning only sees the helper-constrained system prompt plus the chat
-        # history, which keeps generated commands aligned with real plugin abilities.
-        messages.system_message(await Prompt("auto_task").render({"helpers": self.helpers}))
-        messages.extend(self.messages.get(LLMRole.user, LLMRole.assistant))
-        print(messages)
-        response = await client_create(messages)
-        return response.choices[0].message.content
+        planning_messages = Messages()
+        planning_messages.extend(self.messages.get(LLMRole.system))
+        planning_messages.system_message(
+            await Prompt("auto_task").render(
+                {
+                    "helpers": self.helpers,
+                    "context": context.single_modal(),
+                    "knowledge": knowledge,
+                }
+            )
+        )
+        planning_messages.user_message(context.content)
+        print(planning_messages)
+        response = await client_create(planning_messages, task_type=LLMTaskType.plan)
+        return AutoTaskList.parse_str(response.choices[0].message.content or "")

@@ -16,4 +16,5 @@
 - `migrations/`: 数据库迁移
 - `docs/`: 说明文档
 
-更详细的目录约定见 `docs/project-structure.md`。
+更详细的目录约定见 `docs/getting-started/project-structure.md`。
+更完整的文档入口见 `docs/README.md`。

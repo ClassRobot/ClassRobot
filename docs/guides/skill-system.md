@@ -22,6 +22,54 @@
 - `markdown-to-image`
   - 职责：将 Markdown 转换为 HTML 或图片
   - 运行时入口：`utils.skills.markdown_to_image_skill`
+- `image-generation`
+  - 职责：处理文生图、图生图等图片生成请求
+  - 运行时入口：`utils.skills.image_generation_skill`
+
+## 面向文件处理的 skill 划分建议
+
+如果未来要做“上传文档后自动理解、抽取、重排、导出新文件”这类能力，建议继续按 skill 边界拆分，不要把所有逻辑都塞进一个文件工具类。
+
+推荐拆分方式：
+
+- `document-to-image`
+  - 负责把 Word、PPT、PDF 标准化成图片
+  - 适合文档预览、多模态理解、OCR 前处理
+- `document-reader`
+  - 负责读取文档结构化内容
+  - 例如标题、段落、表格、图片、样式信息
+- `document-formatter`
+  - 负责修改文档样式并保存新文件
+  - 例如论文格式、通知格式、作业模板格式
+
+建议原则：
+
+- “看懂文件” 与 “改写文件” 分开建 skill
+- `FileAgent` 更适合调度读取类 skill，不适合直接承担所有排版细节
+- 涉及真实文件写回、样式修改、导出新文档时，优先新增独立 formatter skill
+- 如果只是为了让模型看懂文档内容，优先继续复用 `document-to-image`
+
+## 面向多媒体生成的 skill 划分建议
+
+如果未来要做海报生成、插画生成、封面图生成、图生图改写这类能力，建议把“提示词规划”和“底层生图接口”分开。
+
+推荐拆分方式：
+
+- `image-generation`
+  - 负责真正调用底层绘图接口
+  - 输入可以是文本、图片或图片加文本
+  - 输出应是图片字节、图片链接或服务端响应片段
+- `poster-designer` 或其他上层 Agent
+  - 负责理解用户需求
+  - 负责扩写 Prompt、选择风格、判断是否需要多轮生成
+  - 负责决定是否把结果上传到 COS、OSS、CDN
+
+建议原则：
+
+- “生成图片” 适合作为 skill
+- “理解需求并规划提示词” 更适合作为 Agent
+- 图片上传、消息回发属于平台出口层，不建议塞进 skill
+- 当前命令层可以继续复用 skill，但底层绘图能力应只有一个统一入口
 
 ## 目录约定
 
@@ -203,9 +251,10 @@ image = qr_code_skill.encode("https://example.com")
 
 ## 当前内置 skill 参考
 
-可以直接参考这四个目录：
+可以直接参考这些目录：
 
 - `skills/document-to-image/`
+- `skills/image-generation/`
 - `skills/ocr/`
 - `skills/qr-code/`
 - `skills/markdown-to-image/`

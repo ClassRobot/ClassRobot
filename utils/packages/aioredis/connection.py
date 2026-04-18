@@ -1388,7 +1388,7 @@ class ConnectKwargs(TypedDict, total=False):
     path: str
 
 
-def parse_url(url: str) -> ConnectKw参数:
+def parse_url(url: str) -> ConnectKwargs:
     """解析链接。"""
     parsed: ParseResult = urlparse(url)
     kwargs: ConnectKwargs = {}

@@ -1,14 +1,16 @@
+from uuid import uuid4
+from datetime import datetime
+
 from utils import Emoji
 from nonebot.adapters import Event
 from utils.tools import StringCard
 from utils.config import global_config
 from utils.session import EventSession
 from nonebot.params import ArgPlainText
-from utils.models.models import Student
 from nonebot_plugin_waiter import waiter
 from nonebot_plugin_alconna import UniMessage, AlconnaMatcher
-from utils.roles import UserRole, JoinMethod, TeacherClassesRole
-from utils.models import Group, School, Classes, College, Teacher, GroupBind
+from utils.roles import UserRole, JoinMethod, JoinMethodLang, TeacherClassesRole
+from utils.models import Group, User, School, Classes, College, Major, Teacher, GroupBind, Student, StudentExtra, ClassesJoinRequest
 from utils.models.depends import StudentDepends, TeacherDepends, UserOrCreatedDepends
 
 from .depends import ImportDataFrame
@@ -21,53 +23,438 @@ from .commands import (
     delete_classes_cmd,
     import_classes_cmd,
     set_join_classes_cmd,
+    query_join_request_cmd,
+    review_join_request_cmd,
 )
+
+
+JOIN_METHOD_MAPPING = {
+    "direct": JoinMethod.direct,
+    "直接": JoinMethod.direct,
+    "直接通过": JoinMethod.direct,
+    "apply": JoinMethod.apply,
+    "申请": JoinMethod.apply,
+    "申请加入": JoinMethod.apply,
+    "invite": JoinMethod.invite,
+    "邀请": JoinMethod.invite,
+    "邀请加入": JoinMethod.invite,
+}
+
+JOIN_REQUEST_ACTION_MAPPING = {
+    "通过": "approve",
+    "同意": "approve",
+    "approve": "approve",
+    "pass": "approve",
+    "拒绝": "reject",
+    "驳回": "reject",
+    "reject": "reject",
+}
+
+
+def get_join_method_label(join_method: str | None) -> str:
+    """返回班级加入方式的展示文案。"""
+    if join_method and join_method in JoinMethodLang._member_names_:
+        return str(JoinMethodLang[join_method])
+    return join_method or "未设置"
+
+
+def normalize_cell(value) -> str | None:
+    """将导入数据中的单元格规范化为字符串。"""
+    if value is None:
+        return None
+    if isinstance(value, str):
+        value = value.strip()
+        return value or None
+    if isinstance(value, float):
+        if value != value:
+            return None
+        if value.is_integer():
+            return str(int(value))
+    try:
+        if value != value:
+            return None
+    except TypeError:
+        pass
+    return str(value).strip() or None
+
+
+def normalize_datetime(value) -> datetime | None:
+    """规范化日期时间字段。"""
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value
+    if hasattr(value, "to_pydatetime"):
+        return value.to_pydatetime()
+
+    text = normalize_cell(value)
+    if text is None:
+        return None
+
+    for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%Y.%m.%d", "%Y-%m-%d %H:%M:%S"):
+        try:
+            return datetime.strptime(text, fmt)
+        except ValueError:
+            continue
+    return None
+
+
+async def get_student_by_student_code(student_code: str | None) -> Student | None:
+    """通过学号查询学生。"""
+    if student_code is None:
+        return None
+    extra = await StudentExtra.filter(student_code=student_code).first()
+    return extra.student if extra else None
+
+
+async def build_user_update_payload(user: User, row: dict[str, str | datetime | None]) -> tuple[dict, int]:
+    """构建用户更新数据，并跳过冲突字段。"""
+    payload = {}
+    skipped_conflicts = 0
+
+    nickname = row.get("name")
+    if nickname and nickname != user.nickname:
+        payload["nickname"] = nickname
+
+    gender = row.get("sex")
+    if gender and gender != user.gender:
+        payload["gender"] = gender
+
+    birthday = row.get("birthday")
+    if birthday and birthday != user.birthday:
+        payload["birthday"] = birthday
+
+    email = row.get("email")
+    if email:
+        exists = await User.filter(email=email).first()
+        if exists is None or exists.id == user.id:
+            if email != user.email:
+                payload["email"] = email
+        else:
+            skipped_conflicts += 1
+
+    phone = row.get("phone")
+    if phone:
+        exists = await User.filter(phone=phone).first()
+        if exists is None or exists.id == user.id:
+            if phone != user.phone:
+                payload["phone"] = phone
+        else:
+            skipped_conflicts += 1
+
+    return payload, skipped_conflicts
+
+
+async def render_join_request_card(title: str, requests: list[ClassesJoinRequest]) -> str:
+    """渲染入班申请卡片。"""
+    card = StringCard(title)
+    for request in requests:
+        current_classes = request.user.student.classes.name if request.user.student else "未加入班级"
+        (
+            card.hr()
+            .text(f"申请ID: {request.id}")
+            .text(f"申请人: {request.user.nickname}")
+            .text(f"目标班级: [{request.classes.id}] {request.classes.name}")
+            .text(f"当前班级: {current_classes}")
+            .text(f"申请方式: {get_join_method_label(request.join_method)}")
+            .text(f"申请时间: {request.created_at.strftime('%Y-%m-%d %H:%M')}")
+        )
+        if request.describe:
+            card.text(f"申请说明: {request.describe}")
+    return card.render()
+
+
+async def resolve_teacher_request_scope(
+    matcher: AlconnaMatcher,
+    teacher: Teacher | None,
+    platform: EventSession,
+    classes_id: int | None,
+) -> list[Classes]:
+    """解析教师查看入班申请时的班级范围。"""
+    if teacher is None or not teacher.classes:
+        await matcher.finish(Emoji.warning + "您还未创建班级！！")
+
+    if classes_id is not None:
+        classes = await teacher.get_classes(classes_id)
+        if classes is None:
+            await matcher.finish(Emoji.error + f"班级[{classes_id}]不存在，或不属于您管理。")
+        return [classes]
+
+    if platform.is_group:
+        classes = await teacher.get_classes(platform.platform, platform.channel_id, platform.guild_id)
+        if classes is not None:
+            return [classes]
+
+    return list(teacher.classes)
+
+
+async def resolve_class_scope(
+    matcher: AlconnaMatcher,
+    teacher: Teacher | None,
+    school_name: str | None,
+    college_name: str | None,
+    major_name: str | None,
+) -> tuple[School | None, College | None, Major | None]:
+    """解析班级所属的学校、学院和专业。"""
+    school = teacher.school if teacher and teacher.school_id else None
+    college = teacher.college if teacher and teacher.college_id else None
+    major = None
+
+    if school_name:
+        school_name = school_name.strip()
+        school = await School.filter(name=school_name).first()
+        if school is None:
+            await matcher.finish(Emoji.error + f"学校`{school_name}`不存在！")
+        if teacher and teacher.school_id and teacher.school_id != school.id:
+            await matcher.finish(Emoji.error + f"您的教师归属学校为`{teacher.school.name}`，不能跨学校创建班级！")
+
+    if college_name:
+        college_name = college_name.strip()
+        if school is None:
+            await matcher.finish(Emoji.error + "指定学院前请先提供学校名称，或先为教师设置学校归属。")
+        college = await College.filter(name=college_name, school_id=school.id).first()
+        if college is None:
+            await matcher.finish(Emoji.error + f"学院`{college_name}`不存在于学校`{school.name}`下！")
+        if teacher and teacher.college_id and teacher.college_id != college.id:
+            await matcher.finish(Emoji.error + f"您的教师归属学院为`{teacher.college.name}`，不能跨学院创建班级！")
+    elif college and school and college.school_id != school.id:
+        college = None
+
+    if major_name:
+        major_name = major_name.strip()
+        if college is None:
+            await matcher.finish(Emoji.error + "指定专业前请先提供学院名称，或先为教师设置学院归属。")
+        major = await Major.filter(name=major_name, college_id=college.id).first()
+        if major is None:
+            await matcher.finish(Emoji.error + f"专业`{major_name}`不存在于学院`{college.name}`下，请先添加专业。")
+
+    return school, college, major
+
+
+async def ensure_teacher_scope(teacher: Teacher, school: School | None, college: College | None) -> Teacher:
+    """尽量把教师的归属补齐到学校和学院。"""
+    payload = {}
+    if school and teacher.school_id is None:
+        payload["school_id"] = school.id
+    if college and teacher.college_id is None:
+        payload["college_id"] = college.id
+    if payload:
+        teacher = await teacher.update(**payload)
+    return teacher
+
+
+async def render_classes_card(title: str, classes_list: list[Classes]) -> str:
+    """渲染班级信息卡片。"""
+    card = StringCard(title)
+    for classes in classes_list:
+        school_name = classes.school.name if classes.school else "未设置"
+        college_name = classes.college.name if classes.college else "未设置"
+        major_name = classes.major_ref.name if classes.major_ref else (classes.major or "未设置")
+        (
+            card.hr()
+            .text(f"班级ID: {classes.id}")
+            .text(f"班级名称: {classes.name}")
+            .text(f"学校: {school_name}")
+            .text(f"学院: {college_name}")
+            .text(f"专业: {major_name}")
+            .text(f"学生数量: {await classes.student_count()}")
+            .text(f"加入方式: {get_join_method_label(classes.group.settings.join_method)}")
+        )
+    return card.render()
 
 
 @import_classes_cmd.handle()
 async def _(matcher: AlconnaMatcher, df: ImportDataFrame, user: UserOrCreatedDepends):
-    # print(df.columns)
-    # print(df.head())
-
-    # 检索出不在student_column_renames中的列
-    """处理当前命令或事件逻辑。"""
+    """批量导入班级与学生信息。"""
+    if df is None:
+        await matcher.finish(Emoji.error + "未识别到有效的导入文件，请重新上传 Excel 文件。")
+    if user.role == UserRole.student:
+        await matcher.finish(Emoji.error + "您是学生，没有权限导入班级信息！！")
     if missing_columns := student_column_required - set(df.columns):
         await matcher.finish(Emoji.error + f"缺少列: {', '.join(student_column_renames[i][0] for i in missing_columns)}")
 
-    for school_name, school_df in df.groupby("school"):
-        if not (school := await School.filter(name=school_name).first()):
+    normalized_rows: list[dict[str, str | datetime | None]] = []
+    invalid_rows: list[str] = []
+    for index, row in df.iterrows():
+        normalized_row = {
+            "name": normalize_cell(row.get("name")),
+            "student_code": normalize_cell(row.get("student_id")),
+            "school": normalize_cell(row.get("school")),
+            "college": normalize_cell(row.get("college")),
+            "classes": normalize_cell(row.get("classes")),
+            "major": normalize_cell(row.get("major")),
+            "sex": normalize_cell(row.get("sex")),
+            "nation": normalize_cell(row.get("nation")),
+            "phone": normalize_cell(row.get("phone")),
+            "email": normalize_cell(row.get("email")) if "email" in df.columns else None,
+            "political_status": normalize_cell(row.get("political_status")),
+            "family_address": normalize_cell(row.get("family_address")),
+            "family_contact": normalize_cell(row.get("family_contact")),
+            "dormitory": normalize_cell(row.get("dormitory")),
+            "birthday": normalize_datetime(row.get("birthday")),
+        }
+        missing = [
+            student_column_renames[column][0]
+            for column in student_column_required
+            if normalized_row["student_code" if column == "student_id" else column] is None
+        ]
+        if missing:
+            invalid_rows.append(f"第{index + 2}行缺少字段: {', '.join(missing)}")
+            continue
+        normalized_rows.append(normalized_row)
+
+    if invalid_rows:
+        await matcher.finish(Emoji.error + "导入数据存在空值问题：\n" + "\n".join(invalid_rows[:10]))
+
+    teacher = user.teacher
+    summary = {
+        "created_classes": 0,
+        "updated_classes": 0,
+        "bound_classes": 0,
+        "created_students": 0,
+        "updated_students": 0,
+        "skipped_user_conflicts": 0,
+    }
+
+    grouped: dict[str, dict[str, dict[str, list[dict[str, str | datetime | None]]]]] = {}
+    for row in normalized_rows:
+        grouped.setdefault(row["school"], {}).setdefault(row["college"], {}).setdefault(row["classes"], []).append(row)
+
+    for school_name, college_map in grouped.items():
+        school = await School.filter(name=school_name).first()
+        if school is None:
             await matcher.finish(Emoji.error + f"学校`{school_name}`不存在")
-        # 检查college是否存在于数据库
-        for college_name, college_df in school_df.groupby("college"):
-            if not (college := await College.filter(name=college_name, school=school).first()):
-                college = await College(name=college_name, school=school).create()
-            for classes_name, classes_df in college_df.groupby("classes"):
-                # 检查班级是否存在于数据库，不存在则创建
-                if not (classes := await Classes.filter(name=classes_name, college_id=college.id).first()):
-                    # 获取班级中的专业
-                    if "major" not in classes_df or classes_df.major.isnull().all():
-                        major = None
-                    else:
-                        major = classes_df.major.unique()
-                        major = major[0] if len(major) == 1 else None
 
+        if teacher is None:
+            teacher = await Teacher.create_teacher(user.nickname, user, school_id=school.id)
+        elif teacher.school_id is None:
+            teacher = await teacher.update(school_id=school.id)
+        elif teacher.school_id != school.id:
+            await matcher.finish(Emoji.error + f"您的教师归属学校为`{teacher.school.name}`，不能导入其他学校的数据。")
+
+        for college_name, classes_map in college_map.items():
+            college = await College.filter(name=college_name, school_id=school.id).first()
+            if college is None:
+                college = await College(name=college_name, school_id=school.id).create()
+
+            if teacher.college_id is not None and teacher.college_id != college.id:
+                await matcher.finish(Emoji.error + f"您的教师归属学院为`{teacher.college.name}`，不能导入其他学院的数据。")
+
+            for classes_name, rows in classes_map.items():
+                major_values = sorted({row["major"] for row in rows if row["major"]})
+                if len(major_values) > 1:
+                    await matcher.finish(
+                        Emoji.error + f"班级`{classes_name}`存在多个专业值：{'、'.join(major_values)}，请先整理导入表。"
+                    )
+                major_name = major_values[0] if major_values else None
+                major = await Major.get_or_create_major(major_name, college) if major_name else None
+
+                classes = await Classes.filter(name=classes_name, college_id=college.id).first()
+                if classes is None:
                     group = await Group.create_group(str(classes_name), user)
-                    classes = await Classes(name=classes_name, group=group, college_id=college.id, major=major).create()
+                    classes = await Classes(
+                        name=classes_name,
+                        group=group,
+                        school_id=school.id,
+                        college_id=college.id,
+                        major=major_name,
+                        major_id=major.id if major else None,
+                    ).create()
+                    await classes.bind_teacher(teacher)
+                    await classes.update_teacher_role(teacher, TeacherClassesRole.counselor)
+                    summary["created_classes"] += 1
+                    summary["bound_classes"] += 1
+                else:
+                    if classes.school_id is not None and classes.school_id != school.id:
+                        await matcher.finish(
+                            Emoji.error + f"班级`{classes_name}`已归属学校`{classes.school.name}`，与导入数据冲突。"
+                        )
+                    if classes.major_id is not None and major is not None and classes.major_id != major.id:
+                        current_major = classes.major_ref.name if classes.major_ref else (classes.major or "未设置")
+                        await matcher.finish(
+                            Emoji.error + f"班级`{classes_name}`已绑定专业`{current_major}`，与导入数据冲突。"
+                        )
 
-                for index, value in classes_df.iterrows():
-                    print(index, value)
-                    student = await Student.filter(student_code=value["student_code"]).first()
-                    # student = await Student.create_student(
-                    #     name=value["name"],
-                    #     classes=classes,
+                    payload = {}
+                    if classes.school_id is None:
+                        payload["school_id"] = school.id
+                    if classes.college_id is None:
+                        payload["college_id"] = college.id
+                    if major_name and classes.major is None:
+                        payload["major"] = major_name
+                    if major and classes.major_id is None:
+                        payload["major_id"] = major.id
+                    if payload:
+                        classes = await classes.update(**payload)
+                        summary["updated_classes"] += 1
 
-                    # )
-                # print(classes, classes_df)
+                    teacher_ids = [item.id for item in classes.teacher]
+                    if teacher.id not in teacher_ids:
+                        if teacher_ids:
+                            await matcher.finish(
+                                Emoji.error + f"班级`{classes_name}`已存在且不归您管理，无法导入该班级的学生数据。"
+                            )
+                        await classes.bind_teacher(teacher)
+                        await classes.update_teacher_role(teacher, TeacherClassesRole.counselor)
+                        summary["bound_classes"] += 1
+
+                for row in rows:
+                    student = await get_student_by_student_code(row["student_code"])
+                    if student is None:
+                        new_user = await User.create_user(nickname=row["name"], username=uuid4().hex[:16])
+                        student = await Student.create_student(row["name"], classes, new_user, school_id=school.id)
+                        summary["created_students"] += 1
+                    else:
+                        payload = {}
+                        if row["name"] and row["name"] != student.name:
+                            payload["name"] = row["name"]
+                        if student.classes_id != classes.id:
+                            payload["classes_id"] = classes.id
+                        if student.school_id != school.id:
+                            payload["school_id"] = school.id
+                        if payload:
+                            student = await student.update(**payload)
+                        summary["updated_students"] += 1
+
+                    extra = student.extra if student.extra else await StudentExtra(student=student).create()
+                    extra_payload = {}
+                    for field in (
+                        "student_code",
+                        "dormitory",
+                        "political_status",
+                        "family_contact",
+                        "family_address",
+                        "nation",
+                    ):
+                        value = row.get(field)
+                        if value and value != getattr(extra, field):
+                            extra_payload[field] = value
+                    if extra_payload:
+                        await extra.update(**extra_payload)
+
+                    user_payload, skipped_conflicts = await build_user_update_payload(student.user, row)
+                    summary["skipped_user_conflicts"] += skipped_conflicts
+                    if user_payload:
+                        await student.user.update(**user_payload)
+
+    await matcher.finish(
+        Emoji.success
+        + "班级导入完成！\n"
+        + f"{Emoji.info}创建班级: {summary['created_classes']}\n"
+        + f"{Emoji.info}更新班级: {summary['updated_classes']}\n"
+        + f"{Emoji.info}绑定班级: {summary['bound_classes']}\n"
+        + f"{Emoji.info}创建学生: {summary['created_students']}\n"
+        + f"{Emoji.info}更新学生: {summary['updated_students']}\n"
+        + f"{Emoji.info}跳过重复手机号/邮箱: {summary['skipped_user_conflicts']}"
+    )
 
 
 @create_classes_cmd.handle()
 async def _(
     class_name: str,
+    school_name: str | None,
+    college_name: str | None,
+    major_name: str | None,
     platform: EventSession,
     matcher: AlconnaMatcher,
     user: UserOrCreatedDepends,
@@ -82,10 +469,42 @@ async def _(
     elif platform.channel_id is None:
         await matcher.finish(Emoji.error + "请在子频道中使用该命令！！")
 
-    teacher = user.teacher if user.teacher else await Teacher.create_teacher(user.nickname, user)
+    teacher = user.teacher
+    school, college, major = await resolve_class_scope(matcher, teacher, school_name, college_name, major_name)
+    if teacher is None:
+        teacher = await Teacher.create_teacher(
+            user.nickname,
+            user,
+            school_id=school.id if school else None,
+            college_id=college.id if college else None,
+        )
+    else:
+        teacher = await ensure_teacher_scope(teacher, school, college)
     if len(teacher.classes) >= global_config.teacher_max_classes:
         await matcher.finish(Emoji.error + "您所管理的班级数量已经超过上限！！")
     if classes := await teacher.get_classes(class_name):
+        payload = {}
+        if school:
+            if classes.school_id and classes.school_id != school.id:
+                await matcher.finish(Emoji.error + f"班级`{class_name}`已归属于学校`{classes.school.name}`，不能重新绑定到其他学校。")
+            if classes.school_id is None:
+                payload["school_id"] = school.id
+        if college:
+            if classes.college_id and classes.college_id != college.id:
+                await matcher.finish(
+                    Emoji.error + f"班级`{class_name}`已归属于学院`{classes.college.name}`，不能重新绑定到其他学院。"
+                )
+            if classes.college_id is None:
+                payload["college_id"] = college.id
+        if major:
+            if classes.major_id and classes.major_id != major.id:
+                current_major = classes.major_ref.name if classes.major_ref else (classes.major or "未设置")
+                await matcher.finish(Emoji.error + f"班级`{class_name}`已绑定专业`{current_major}`，不能重新绑定到其他专业。")
+            if classes.major_id is None:
+                payload["major_id"] = major.id
+                payload["major"] = major.name
+        if payload:
+            classes = await classes.update(**payload)
         # 如果教师班级已存在并且该群未绑定班级就按照名字绑定班级
         await GroupBind.bind_group(
             platform_name=platform.platform_name,
@@ -94,9 +513,7 @@ async def _(
             guild_id=platform.guild_id,
             group=classes.group,
         )
-        await matcher.finish(
-            f"{Emoji.info}班级ID: {classes.id}\n{Emoji.info}名称:{class_name}\n{Emoji.success}与本群绑定成功!{Emoji.win}"
-        )
+        await matcher.finish(await render_classes_card("班级绑定成功", [classes]))
     else:
         classes = await Classes.create_classes(
             class_name,
@@ -105,12 +522,14 @@ async def _(
             channel_id=platform.channel_id,
             guild_id=platform.guild_id,
             user=user,
+            school_id=school.id if school else teacher.school_id,
+            college_id=college.id if college else teacher.college_id,
+            major=major.name if major else None,
+            major_id=major.id if major else None,
         )
         await classes.bind_teacher(teacher)
         await classes.update_teacher_role(teacher, TeacherClassesRole.counselor)
-        await matcher.finish(
-            f"{Emoji.info}班级ID: {classes.id}\n{Emoji.info}名称:{class_name}\n{Emoji.success}创建成功!{Emoji.win}"
-        )
+        await matcher.finish(await render_classes_card("班级创建成功", [classes]))
 
 
 @delete_classes_cmd.handle()
@@ -146,27 +565,83 @@ async def _(
         if not await is_yes.wait(timeout=60):
             await matcher.finish("❌️已取消操作！！")
 
-    await Classes.filter(id=classes.id).delete()
+    await classes.group.delete()
     await matcher.finish("✅️删除班级成功！！")
 
 
 @query_classes_cmd.handle()
 async def _(
+    classes_id: int | None,
     teacher: TeacherDepends,
     matcher: AlconnaMatcher,
 ):
     """处理当前命令或事件逻辑。"""
     if teacher is None or not teacher.classes:
         await matcher.finish(Emoji.warning + "您还未创建班级！！")
-    card = StringCard("您所创建班级如下")
-    for classes in teacher.classes:
-        (
-            card.hr()
-            .text(f"班级ID: {classes.id}")
-            .text(f"班级名称: {classes.name}")
-            .text(f"学生数量: {await classes.student_count()}")
+    if classes_id is not None:
+        classes = await teacher.get_classes(classes_id)
+        if classes is None:
+            await matcher.finish(Emoji.error + f"班级[{classes_id}]不存在，或不属于您管理。")
+        await matcher.finish(await render_classes_card("班级详情", [classes]))
+    await matcher.finish(await render_classes_card("您所管理的班级如下", list(teacher.classes)))
+
+
+@query_join_request_cmd.handle()
+async def _(
+    classes_id: int | None,
+    teacher: TeacherDepends,
+    platform: EventSession,
+    matcher: AlconnaMatcher,
+):
+    """查询入班申请。"""
+    classes_list = await resolve_teacher_request_scope(matcher, teacher, platform, classes_id)
+    requests: list[ClassesJoinRequest] = []
+    for classes in classes_list:
+        requests.extend(await classes.get_join_requests())
+
+    if not requests:
+        title = "当前班级暂无待处理入班申请" if len(classes_list) == 1 else "当前没有待处理入班申请"
+        await matcher.finish(Emoji.success + title)
+
+    requests.sort(key=lambda item: item.created_at)
+    title = f"入班申请 | {classes_list[0].name}" if len(classes_list) == 1 else "入班申请列表"
+    await matcher.finish(await render_join_request_card(title, requests))
+
+
+@review_join_request_cmd.handle()
+async def _(
+    matcher: AlconnaMatcher,
+    teacher: TeacherDepends,
+    request_id: int,
+    action: str,
+):
+    """处理入班申请。"""
+    if teacher is None or not teacher.classes:
+        await matcher.finish(Emoji.warning + "您还未创建班级！！")
+
+    request = await ClassesJoinRequest.filter(id=request_id).first()
+    if request is None:
+        await matcher.finish(Emoji.error + f"入班申请[{request_id}]不存在。")
+
+    if request.classes.id not in [classes.id for classes in teacher.classes]:
+        await matcher.finish(Emoji.error + "该入班申请不属于您管理的班级。")
+
+    normalized_action = JOIN_REQUEST_ACTION_MAPPING.get(action.strip().lower())
+    if normalized_action is None:
+        await matcher.finish(Emoji.error + "处理结果只支持：通过 或 拒绝。")
+
+    if normalized_action == "approve":
+        if request.user.student and request.user.student.classes_id == request.classes_id:
+            await request.delete()
+            await matcher.finish(Emoji.warning + "该用户已经在班级中，已自动清理重复申请。")
+        await request.classes.user_join_classes(request.user)
+        await request.delete()
+        await matcher.finish(
+            Emoji.success + f"已通过申请[{request.id}]，用户`{request.user.nickname}`已加入班级`{request.classes.name}`。"
         )
-    await matcher.finish(card.render())
+
+    await request.delete()
+    await matcher.finish(Emoji.success + f"已拒绝申请[{request.id}]。")
 
 
 # --------------------------------- 加入班级 ---------------------------------
@@ -194,7 +669,7 @@ async def _(
         if (classes := await Classes.get_classes(platform.platform, platform.channel_id, platform.guild_id)) is None:
             await matcher.finish("❌️该群不是班级群！！")
     else:  # 如果不是群聊则提示需要班级ID
-        await matcher.finish("❌️请在群聊中使用该命令或命令后面携带班级ID，例如:\n添加班级 1！！")
+        await matcher.finish("❌️请在群聊中使用该命令或命令后面携带班级ID，例如:\n加入班级 1！！")
 
     if user.student is not None:  # 已经是学生说明已经加入过班级
         if user.student.classes_id == classes.id:
@@ -267,31 +742,42 @@ async def _(
     join_method: str | None,
     platform: EventSession,
 ):
-    # 纠正classes_id和join_method
     """处理当前命令或事件逻辑。"""
-    if join_method is not None and join_method.isdigit():
-        ...
-    # if classes_id is not None and join_method is not None:
-    #     if classes_id.isdigit():    # 当classes_id为数字时
-    #         if join_method.isdigit():   # 当join_method也为数字时
-    #             await matcher.finish("❌️加入班级方式不能为数字！！")
-    #         elif join_method_dict.get(join_method) is None:
-    #             await matcher.finish("❌️加入班级方式不存在！！\n只支持设置为：" + "、".join(join_method_dict.keys()))
+    if teacher is None or not teacher.classes:
+        await matcher.finish("❌️您还未创建班级！！")
 
-    # if teacher is None or not teacher.classes:
-    #     await matcher.finish("❌️您还未创建班级！！")
-    # elif (
-    #     classes_id is None and platform.is_private
-    # ):  # 如果未携带班级ID且是私聊则提示需要班级ID
-    #     await matcher.finish(
-    #         "❌️请在群聊中使用该命令或命令后面携带班级ID与加入方式，例如:\n修改班级加入方式 1 申请加入！！"
-    #     )
-    # elif (
-    #     platform.is_group
-    #     and classes_id is None
-    #     and (classes := await teacher.get_classes(**platform.group_params)) is None
-    # ):  # 如果是群聊则查询群是否是班级群
-    #     await matcher.finish("❌️该群不是您管辖的班级群！！")
+    if classes_id and classes_id.strip() in JOIN_METHOD_MAPPING and join_method is None:
+        join_method = classes_id
+        classes_id = None
 
-    # if classes_id is not None and not classes_id.isdigit():
-    #     await matcher.finish("❌️班级ID必须为数字！！")
+    if join_method is None:
+        await matcher.finish("❌️请提供加入方式，例如：修改班级加入方式 1 申请加入")
+
+    join_method_value = JOIN_METHOD_MAPPING.get(join_method.strip().lower())
+    if join_method_value is None:
+        await matcher.finish("❌️加入班级方式不存在！！\n只支持设置为：直接通过、申请加入、邀请加入")
+
+    classes: Classes | None = None
+    if classes_id is None:
+        if platform.is_private:
+            await matcher.finish("❌️私聊中请携带班级ID，例如：修改班级加入方式 1 申请加入")
+        classes = await teacher.get_classes(platform.platform, platform.channel_id, platform.guild_id)
+        if classes is None:
+            await matcher.finish("❌️当前群不是您管理的班级群！！")
+    else:
+        if not classes_id.isdigit():
+            await matcher.finish("❌️班级ID必须为数字！！")
+        classes = await Classes.get_classes(int(classes_id))
+        if classes is None:
+            await matcher.finish(f"❌️班级[{classes_id}]不存在！！")
+        if classes.id not in [cid.id for cid in teacher.classes]:
+            await matcher.finish("❌️该班级不属于您！！")
+
+    if classes.group.settings.join_method == join_method_value:
+        await matcher.finish(f"❌️当前班级加入方式已经是：{get_join_method_label(join_method_value)}")
+
+    await classes.group.settings.update(join_method=join_method_value)
+    await matcher.finish(
+        Emoji.success
+        + f"已将班级[{classes.id}: {classes.name}]的加入方式修改为：{get_join_method_label(join_method_value)}"
+    )

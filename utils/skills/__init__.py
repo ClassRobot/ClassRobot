@@ -1,6 +1,6 @@
 from .base import BaseProjectSkill, SkillManifest
 from .registry import SkillRegistry, skill_registry
-from .runtime import DocumentToImageSkill, MarkdownToImageSkill, OCRSkill, QRCodeSkill
+from .runtime import DocumentToImageSkill, ImageGenerationSkill, MarkdownToImageSkill, OCRSkill, QRCodeSkill
 
 
 class LazySkillProxy:
@@ -64,14 +64,21 @@ def get_markdown_to_image_skill() -> MarkdownToImageSkill:
     return skill_registry.get("markdown-to-image", MarkdownToImageSkill)
 
 
+def get_image_generation_skill() -> ImageGenerationSkill:
+    """获取图片生成 skill。"""
+    return skill_registry.get("image-generation", ImageGenerationSkill)
+
+
 document_to_image_skill = LazySkillProxy(get_document_to_image_skill)
 ocr_skill = LazySkillProxy(get_ocr_skill)
 qr_code_skill = LazySkillProxy(get_qr_code_skill)
 markdown_to_image_skill = LazySkillProxy(get_markdown_to_image_skill)
+image_generation_skill = LazySkillProxy(get_image_generation_skill)
 
 __all__ = [
     "BaseProjectSkill",
     "DocumentToImageSkill",
+    "ImageGenerationSkill",
     "MarkdownToImageSkill",
     "OCRSkill",
     "QRCodeSkill",
@@ -79,10 +86,12 @@ __all__ = [
     "SkillRegistry",
     "document_to_image_skill",
     "get_document_to_image_skill",
+    "get_image_generation_skill",
     "get_markdown_to_image_skill",
     "get_ocr_skill",
     "get_qr_code_skill",
     "get_skill",
+    "image_generation_skill",
     "load_skill",
     "load_skills",
     "markdown_to_image_skill",

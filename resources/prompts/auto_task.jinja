@@ -46,6 +46,20 @@ Reply user message here.
 Json format AutoTaskList here.
 
 
+## 当前抽取出的上下文
+
+{{ context }}
+
+
+## 可用补充资料
+
+{% if knowledge %}
+{{ knowledge }}
+{% else %}
+无补充资料,请仅依据上下文和命令列表进行规划.
+{% endif %}
+
+
 ## 机器人所具备的命令
 
 ### 命令说明
