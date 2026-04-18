@@ -8,6 +8,7 @@ from .config import helper_menu
 
 
 def user_helpers(user: UserOrCreatedDepends) -> Helpers:
+    """返回当前用户可使用的帮助信息集合。"""
     return helper_menu.get_roles_helpers(*user.roles)
 
 

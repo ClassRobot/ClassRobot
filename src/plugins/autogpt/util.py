@@ -21,6 +21,14 @@ pattern = r"!\[image\]\(([^)]+)\)"
 
 
 async def get_prompt_system(helpers: Helpers) -> str:
+    """根据当前可用命令生成 AutoGPT 系统提示词。
+
+    参数:
+        helpers (Helpers): 当前用户可见的帮助信息集合。
+
+    返回:
+        str: 渲染后的系统提示词文本。
+    """
     prompt_system = await Prompt("autogpt").render(
         {"helpers": helpers, "info": ("当前时间:" + datetime.now().strftime("%Y-%m-%d %H:%M:%S"))}
     )
@@ -29,6 +37,14 @@ async def get_prompt_system(helpers: Helpers) -> str:
 
 def markdown_to_message(text: str):
     # 正则表达式查找Markdown图片格式
+    """将 Markdown 文本转换为 `UniMessage` 消息对象。
+
+    参数:
+        text (str): 包含文本和 Markdown 图片语法的原始内容。
+
+    返回:
+        UniMessage: 适合直接发送的统一消息对象。
+    """
     parts = []
     last_idx = 0
     matches = list(re.finditer(pattern, text))
@@ -63,7 +79,14 @@ def markdown_to_message(text: str):
 
 
 class ChatSession:
+    """封装聊天会话状态与行为。"""
     def __init__(self, user_id: int, helpers: Helpers) -> None:
+        """初始化实例。
+
+        参数:
+            user_id (int): 用户标识。
+            helpers (Helpers): 帮助信息集合。
+        """
         self.update_time = time()
         self.user_id = user_id
         self.lock = False  # 聊天锁，防止一轮聊天还没结束又开始新的聊天
@@ -71,6 +94,14 @@ class ChatSession:
         self.helpers = helpers
 
     def is_last_duplicate_message(self, contents: list[Content]) -> bool:
+        """检查即将发送的用户消息是否与上一条重复。
+
+        参数:
+            contents (list[Content]): 当前待发送的消息内容列表。
+
+        返回:
+            bool: 如果与最后一条用户消息一致则返回 `True`。
+        """
         user_content = Context(role=LLMRole.user, content=contents)
         user_message = self.messages.get(LLMRole.user)
         if user_message and user_message[-1] == user_content:
@@ -78,12 +109,14 @@ class ChatSession:
         return False
 
     async def update_helpers(self, helpers: Helpers):
-        """更新helper信息
+        """更新会话可用的帮助信息并刷新系统提示词。
 
-        Args:
-            helpers (Helpers): 帮助信息
+        参数:
+            helpers (Helpers): 当前用户可见的帮助信息集合。
         """
         self.helpers = helpers
+        # The system prompt is assembled from the helpers visible to the current user,
+        # so role changes and newly loaded commands must refresh the first message.
         prompts = await get_prompt_system(helpers)
         if self.messages and self.messages[0].role == LLMRole.system:
             self.messages[0].content = prompts
@@ -91,6 +124,14 @@ class ChatSession:
             self.messages.system_message(prompts)
 
     async def send_message(self, message: str | UniMessage | ChatMessage) -> AutoTaskList | None:
+        """处理用户消息并执行 AutoGPT 主流程。
+
+        参数:
+            message (str | UniMessage | ChatMessage): 用户输入的原始消息。
+
+        返回:
+            AutoTaskList | None: 解析出的自动任务结果，不可生成时返回 `None`。
+        """
         if self.lock:
             raise SessionLockError("聊天锁已经被锁定，无法发送消息！")
         try:
@@ -98,8 +139,9 @@ class ChatSession:
             content = None
             user_content = message.message if isinstance(message, ChatMessage) else uni_message_to_contents(message)
 
-            # 是否与上文重复，重复则直接返回机器人的上一条回复
-            # if not self.is_last_duplicate_message(user_content):
+            # The chat pipeline is: trim long history, append the latest user turn,
+            # extract a compact structured context, then run retrieval and command
+            # planning in parallel against that reduced context.
             self.messages = await SummaryAgent().execute(self.messages)
             self.messages.user_message(user_content)
             extract = await ExtractAgent().execute(self.messages)
@@ -120,25 +162,29 @@ class ChatSession:
             # 将内容转成task和回复用户的消息
             if content:
                 auto_tasks = AutoTaskList.parse_str(content)
-                # 更新最后一条消息
+                # Persist the human-readable reply together with the generated task
+                # payload so later turns can see what the planner already decided.
                 last_message.content = f'{auto_tasks.reply}"\n<hr/>\n"{auto_tasks.json(exclude={"reply", "create_at"}, ensure_ascii=False)}'
                 return auto_tasks
         finally:
             self.lock = False
 
     def clear(self):
+        """从会话管理器中移除当前会话。"""
         chat_session_manager.sessions.pop(self.user_id, None)
 
 
 class ChatSessionManager:
+    """管理聊天会话的生命周期、缓存与超时清理。"""
     timeout = 60 * 60
 
     def __init__(self):
+        """初始化实例。"""
         self.sessions: dict[int, ChatSession] = {}
 
     # 检查是否有过期的session然后删除
     def clear_timeout(self):
-        """清除过期的session"""
+        """清理长时间未活动的会话。"""
         current_time = time()
         for session in list(self.sessions.values()):
             if current_time - session.update_time > self.timeout:
@@ -146,6 +192,15 @@ class ChatSessionManager:
 
     async def get_chat_session(self, user_id: int, helpers: Helpers) -> ChatSession:
         # 检查是否有过期的session
+        """获取用户会话，不存在则创建并刷新帮助上下文。
+
+        参数:
+            user_id (int): 当前用户标识。
+            helpers (Helpers): 当前用户可见的帮助信息集合。
+
+        返回:
+            ChatSession: 已准备好系统提示词的聊天会话对象。
+        """
         self.clear_timeout()
 
         if session := self.sessions.get(user_id):
@@ -158,6 +213,7 @@ class ChatSessionManager:
 
 
 async def get_chat_session(user: UserOrCreatedDepends, helpers: HelpersDepends) -> ChatSession:
+    """获取当前用户对应的聊天会话依赖对象。"""
     chat_session = await chat_session_manager.get_chat_session(user.id, helpers)
     return chat_session
 

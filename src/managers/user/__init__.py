@@ -18,6 +18,7 @@ from .commands import token_cmd, logout_cmd, bind_user_cmd, self_info_cmd
 
 @self_info_cmd.handle()
 async def _(matcher: AlconnaMatcher, user: UserOrCreatedDepends):
+    """处理当前命令或事件逻辑。"""
     card = StringCard().hr("用户信息").text(f"UID: {user.id}").text(f"昵称: {user.nickname}").text(f"账号: {user.username}")
     if user.email:
         card.text(f"邮箱: {user.email}")
@@ -54,6 +55,7 @@ async def _(matcher: AlconnaMatcher, user: UserOrCreatedDepends):
 @bind_user_cmd.handle()
 async def _(matcher: AlconnaMatcher, user: UserOrCreatedDepends):
     # 生成随机token写入缓存作为key，user_id作为value，超时时间为5分钟
+    """处理当前命令或事件逻辑。"""
     cache = get_cache()
     token = str(uuid4())
     await cache.set(token, user.id, ex=300)
@@ -67,6 +69,7 @@ async def _(
     token: str = EventPlainText(),
 ):
     # 切割开头的token=，获取token
+    """处理当前命令或事件逻辑。"""
     token = token.strip()[6:]
     cache = get_cache()
     bind_user_id = await cache.get(token)
@@ -90,6 +93,7 @@ async def _(
     platform: EventSession,
     confirm: str = ArgPlainText(),
 ):
+    """处理当前命令或事件逻辑。"""
     if confirm.strip().lower() != "yes":
         await matcher.finish("已取消绑定")
 
@@ -112,6 +116,7 @@ async def _(
 
 @logout_cmd.handle()
 async def _(matcher: AlconnaMatcher, user: UserDepends, role: str):
+    """处理当前命令或事件逻辑。"""
     if role not in [UserRoleLang.student, UserRoleLang.teacher, UserRoleLang.user]:
         await matcher.finish(Emoji.error + "角色不存在！")
 
@@ -135,6 +140,7 @@ async def _(matcher: AlconnaMatcher, user: UserDepends, role: str):
 
     @waiter(waits=["message"], block=True)
     async def listen(event: Event):
+        """监听并处理用户登录事件。"""
         if event.get_message().extract_plain_text() != "yes":
             await matcher.finish(Emoji.warning + "注销已取消！")
             return False

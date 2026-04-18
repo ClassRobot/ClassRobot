@@ -8,6 +8,7 @@ from .commands import set_cmd
 
 @set_cmd.handle()
 async def _(matcher: AlconnaMatcher, values: list[str], student: StudentDepends):
+    """处理当前命令或事件逻辑。"""
     if student is None:
         await matcher.finish(Emoji.error + "您还未绑定学生信息！！")
 

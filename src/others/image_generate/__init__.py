@@ -13,6 +13,7 @@ from .commands import image_generate_cmd
 
 @image_generate_cmd.handle()
 async def _(matcher: AlconnaMatcher, values: list[Text | Image], session: ChatSessionDepends):
+    """处理当前命令或事件逻辑。"""
     print(values)
     await matcher.send(Emoji.loading + "正在生成图片...")
     try:

@@ -9,15 +9,23 @@ from aioredis.exceptions import TimeoutError, ReadOnlyError, ResponseError, Conn
 
 
 class MasterNotFoundError(ConnectionError):
+    """表示masternotfounderror异常。"""
     pass
 
 
 class SlaveNotFoundError(ConnectionError):
+    """表示slavenotfounderror异常。"""
     pass
 
 
 class SentinelManagedConnection(SSLConnection):
+    """处理sentinelmanagedconnection相关逻辑。"""
     def __init__(self, **kwargs):
+        """初始化实例。
+
+        参数:
+            kwargs (**Any): 可变关键字参数。
+        """
         self.connection_pool = kwargs.pop("connection_pool")
         if not kwargs.pop("ssl", False):
             # use constructor from Connection class
@@ -27,6 +35,7 @@ class SentinelManagedConnection(SSLConnection):
             super().__init__(**kwargs)
 
     def __repr__(self):
+        """返回调试字符串表示。"""
         pool = self.connection_pool
         s = f"{self.__class__.__name__}<service={pool.service_name}"
         if self.host:
@@ -35,6 +44,11 @@ class SentinelManagedConnection(SSLConnection):
         return s + ">"
 
     async def connect_to(self, address):
+        """处理connect相关逻辑。
+
+        参数:
+            address (Any): address。
+        """
         self.host, self.port = address
         await super().connect()
         if self.connection_pool.check_connection:
@@ -43,6 +57,7 @@ class SentinelManagedConnection(SSLConnection):
                 raise ConnectionError("PING failed")
 
     async def connect(self):
+        """处理connect相关逻辑。"""
         if self._reader:
             return  # already connected
         if self.connection_pool.is_master:
@@ -56,6 +71,7 @@ class SentinelManagedConnection(SSLConnection):
             raise SlaveNotFoundError  # Never be here
 
     async def read_response(self):
+        """读取response。"""
         try:
             return await super().read_response()
         except ReadOnlyError:
@@ -79,6 +95,13 @@ class SentinelConnectionPool(ConnectionPool):
     """
 
     def __init__(self, service_name, sentinel_manager, **kwargs):
+        """初始化实例。
+
+        参数:
+            service_name (Any): service名称。
+            sentinel_manager (Any): sentinelmanager。
+            kwargs (**Any): 可变关键字参数。
+        """
         kwargs["connection_class"] = kwargs.get("connection_class", SentinelManagedConnection)
         self.is_master = kwargs.pop("is_master", True)
         self.check_connection = kwargs.pop("check_connection", False)
@@ -90,18 +113,26 @@ class SentinelConnectionPool(ConnectionPool):
         self.slave_rr_counter = None
 
     def __repr__(self):
+        """返回调试字符串表示。"""
         return f"{self.__class__.__name__}" f"<service={self.service_name}({self.is_master and 'master' or 'slave'})>"
 
     def reset(self):
+        """处理重置相关逻辑。"""
         super().reset()
         self.master_address = None
         self.slave_rr_counter = None
 
     def owns_connection(self, connection: Connection):
+        """处理ownsconnection相关逻辑。
+
+        参数:
+            connection (Connection): connection。
+        """
         check = not self.is_master or (self.is_master and self.master_address == (connection.host, connection.port))
         return check and super().owns_connection(connection)
 
     async def get_master_address(self):
+        """获取masteraddress。"""
         master_address = await self.sentinel_manager.discover_master(self.service_name)
         if self.is_master:
             if self.master_address != master_address:
@@ -112,7 +143,7 @@ class SentinelConnectionPool(ConnectionPool):
         return master_address
 
     async def rotate_slaves(self) -> AsyncIterator:
-        """Round-robin slave balancer"""
+        """处理rotateslaves相关逻辑。"""
         slaves = await self.sentinel_manager.discover_slaves(self.service_name)
         if slaves:
             if self.slave_rr_counter is None:
@@ -167,6 +198,14 @@ class Sentinel:
     ):
         # if sentinel_kwargs isn't defined, use the socket_* options from
         # connection_kwargs
+        """初始化实例。
+
+        参数:
+            sentinels (Any): sentinels。
+            min_other_sentinels (Any): minothersentinels。
+            sentinel_kwargs (Any): sentinel关键字参数。
+            connection_kwargs (**Any): connection关键字参数。
+        """
         if sentinel_kwargs is None:
             sentinel_kwargs = {k: v for k, v in connection_kwargs.items() if k.startswith("socket_")}
         self.sentinel_kwargs = sentinel_kwargs
@@ -176,6 +215,7 @@ class Sentinel:
         self.connection_kwargs = connection_kwargs
 
     def __repr__(self):
+        """返回调试字符串表示。"""
         sentinel_addresses = []
         for sentinel in self.sentinels:
             sentinel_addresses.append(
@@ -185,6 +225,15 @@ class Sentinel:
         return f"{self.__class__.__name__}<sentinels=[{','.join(sentinel_addresses)}]>"
 
     def check_master_state(self, state: dict, service_name: str) -> bool:
+        """检查masterstate。
+
+        参数:
+            state (dict): state。
+            service_name (str): service名称。
+
+        返回:
+            bool: 表示是否成功。
+        """
         if not state["is_master"] or state["is_sdown"] or state["is_odown"]:
             return False
         # Check if our sentinel doesn't see other nodes
@@ -193,12 +242,10 @@ class Sentinel:
         return True
 
     async def discover_master(self, service_name: str):
-        """
-        Asks sentinel servers for the Redis master's address corresponding
-        to the service labeled ``service_name``.
+        """Asks sentinel servers for the Redis master's address corresponding
 
-        Returns a pair (address, port) or raises MasterNotFoundError if no
-        master is found.
+        参数:
+            service_name (str): service名称。
         """
         for sentinel_no, sentinel in enumerate(self.sentinels):
             try:
@@ -216,7 +263,14 @@ class Sentinel:
         raise MasterNotFoundError(f"No master found for {service_name!r}")
 
     def filter_slaves(self, slaves: Iterable[Mapping]) -> Sequence[Tuple[EncodableT, EncodableT]]:
-        """Remove slaves that are in an ODOWN or SDOWN state"""
+        """过滤slaves。
+
+        参数:
+            slaves (Iterable[Mapping]): slaves。
+
+        返回:
+            Sequence[Tuple[EncodableT, EncodableT]]: 返回处理结果。
+        """
         slaves_alive = []
         for slave in slaves:
             if slave["is_odown"] or slave["is_sdown"]:
@@ -225,7 +279,14 @@ class Sentinel:
         return slaves_alive
 
     async def discover_slaves(self, service_name: str) -> Sequence[Tuple[EncodableT, EncodableT]]:
-        """Returns a list of alive slaves for service ``service_name``"""
+        """处理discoverslaves相关逻辑。
+
+        参数:
+            service_name (str): service名称。
+
+        返回:
+            Sequence[Tuple[EncodableT, EncodableT]]: 返回处理结果。
+        """
         for sentinel in self.sentinels:
             try:
                 slaves = await sentinel.sentinel_slaves(service_name)
@@ -243,27 +304,13 @@ class Sentinel:
         connection_pool_class: Type[SentinelConnectionPool] = SentinelConnectionPool,
         **kwargs,
     ):
-        """
-        Returns a redis client instance for the ``service_name`` master.
+        """Returns a redis client instance for the ``service_name`` master.
 
-        A :py:class:`~redis.sentinel.SentinelConnectionPool` class is
-        used to retrive the master's address before establishing a new
-        connection.
-
-        NOTE: If the master's address has changed, any cached connections to
-        the old master are closed.
-
-        By default clients will be a :py:class:`~redis.Redis` instance.
-        Specify a different class to the ``redis_class`` argument if you
-        desire something different.
-
-        The ``connection_pool_class`` specifies the connection pool to
-        use.  The :py:class:`~redis.sentinel.SentinelConnectionPool`
-        will be used by default.
-
-        All other keyword arguments are merged with any connection_kwargs
-        passed to this class and passed to the connection pool as keyword
-        arguments to be used to initialize Redis connections.
+        参数:
+            service_name (str): service名称。
+            redis_class (Type[Redis]): redis班级。
+            connection_pool_class (Type[SentinelConnectionPool]): connectionpool班级。
+            kwargs (**Any): 可变关键字参数。
         """
         kwargs["is_master"] = True
         connection_kwargs = dict(self.connection_kwargs)
@@ -277,22 +324,13 @@ class Sentinel:
         connection_pool_class: Type[SentinelConnectionPool] = SentinelConnectionPool,
         **kwargs,
     ):
-        """
-        Returns redis client instance for the ``service_name`` slave(s).
+        """Returns redis client instance for the ``service_name`` slave(s).
 
-        A SentinelConnectionPool class is used to retrive the slave's
-        address before establishing a new connection.
-
-        By default clients will be a :py:class:`~redis.Redis` instance.
-        Specify a different class to the ``redis_class`` argument if you
-        desire something different.
-
-        The ``connection_pool_class`` specifies the connection pool to use.
-        The SentinelConnectionPool will be used by default.
-
-        All other keyword arguments are merged with any connection_kwargs
-        passed to this class and passed to the connection pool as keyword
-        arguments to be used to initialize Redis connections.
+        参数:
+            service_name (str): service名称。
+            redis_class (Type[Redis]): redis班级。
+            connection_pool_class (Type[SentinelConnectionPool]): connectionpool班级。
+            kwargs (**Any): 可变关键字参数。
         """
         kwargs["is_master"] = False
         connection_kwargs = dict(self.connection_kwargs)

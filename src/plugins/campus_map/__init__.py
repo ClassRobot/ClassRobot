@@ -7,6 +7,7 @@ from .depends import CampusMapDepends
 
 @campus_map_cmd.handle()
 async def _(matcher: AlconnaMatcher, campus_map: CampusMapDepends, position: list[str]):
+    """处理当前命令或事件逻辑。"""
     location = await campus_map.parse_location(" ".join(position))
     if not location:
         await matcher.finish(Emoji.error + "没有找到该地点")

@@ -13,9 +13,11 @@ std = (0.229, 0.224, 0.225)
 
 
 def Singleton(cls):
+    """构造单例包装器。"""
     _instance = {}
 
     def _singleton(*args, **kargs):
+        """返回单例实例。"""
         if cls not in _instance:
             _instance[cls] = cls(*args, **kargs)
         return _instance[cls]
@@ -24,16 +26,30 @@ def Singleton(cls):
 
 
 class SingletonType(type):
+    """提供 DBNet 推理类复用实例的单例元类。"""
     def __init__(cls, *args, **kwargs):
+        """初始化实例。
+
+        参数:
+            args (*Any): 可变位置参数。
+            kwargs (**Any): 可变关键字参数。
+        """
         super(SingletonType, cls).__init__(*args, **kwargs)
 
     def __call__(cls, *args, **kwargs):
+        """调用实例并返回结果。
+
+        参数:
+            args (*Any): 可变位置参数。
+            kwargs (**Any): 可变关键字参数。
+        """
         obj = cls.__new__(cls, *args, **kwargs)  # type: ignore
         cls.__init__(obj, *args, **kwargs)
         return obj
 
 
 def draw_bbox(img_path, result, color=(255, 0, 0), thickness=2):
+    """绘制边界框。"""
     if isinstance(img_path, str):
         img_path = cv2.imread(img_path)
         # img_path = cv2.cvtColor(img_path, cv2.COLOR_BGR2RGB)
@@ -46,7 +62,13 @@ def draw_bbox(img_path, result, color=(255, 0, 0), thickness=2):
 
 
 class DBNET(metaclass=SingletonType):
+    """封装 DBNet 文本检测模型的推理流程。"""
     def __init__(self, MODEL_PATH: Optional[Union[str, Path]] = None):
+        """初始化实例。
+
+        参数:
+            MODEL_PATH (Optional[Union[str, Path]]): 模型路径。
+        """
         if MODEL_PATH is None:
             MODEL_PATH = ocr_models_dir / "dbnet.onnx"
         self.sess = rt.InferenceSession(str(MODEL_PATH))
@@ -54,6 +76,12 @@ class DBNET(metaclass=SingletonType):
         self.decode_handel = SegDetectorRepresenter()
 
     def process(self, img, short_size):
+        """执行当前处理流程。
+
+        参数:
+            img (Any): img。
+            short_size (Any): shortsize。
+        """
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         h, w = img.shape[:2]
         if h < w:

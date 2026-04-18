@@ -11,6 +11,7 @@ from nonebot_plugin_localstore import get_data_dir, get_cache_dir, get_config_di
 
 
 class GlobalConfig(BaseModel, extra=Extra.ignore):
+    """定义项目运行时使用的全局配置项。"""
     wsl_share_dir: Path | None = None
     "WSL共享目录"
     global_proxy: str | None = None

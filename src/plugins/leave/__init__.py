@@ -10,6 +10,7 @@ from .commands import add_leave_cmd, query_leave_cmd, delete_leave_cmd
 
 @add_leave_cmd.handle()
 async def _(matcher: AlconnaMatcher, leave_reason: list[str | Image], add_leave: AddLeaveDepends):
+    """处理当前命令或事件逻辑。"""
     print(leave_reason)
     add_leave.add_message(leave_reason)  # 将消息保存
     if add_leave.image_url:  # 查看用户消息是否有添加图片
@@ -22,6 +23,7 @@ async def _(
     add_leave: AddLeaveDepends,
     leave_image: UniMessage = ArgUniMessage("leave_image"),
 ):
+    """处理当前命令或事件逻辑。"""
     print([i for i in leave_image])
     add_leave.add_message([i for i in leave_image])  # 再次保存内容
     if not add_leave.image_url:  # 如果二次没有提交则退出程序
@@ -43,6 +45,7 @@ async def _(
 
 @query_leave_cmd.handle()
 async def _(matcher: AlconnaMatcher, query_leave: QueryLeaveDepends):
+    """处理当前命令或事件逻辑。"""
     leave_list = None
     if query_leave.is_classes_admin:
         leave_list = await query_leave.get_classes_leave()
@@ -59,6 +62,7 @@ async def _(matcher: AlconnaMatcher, query_leave: QueryLeaveDepends):
 # --------------------------------- 删除请假 ---------------------------------
 @delete_leave_cmd.handle()
 async def _(matcher: AlconnaMatcher, leave_id: list[str], query_leave: QueryLeaveDepends):
+    """处理当前命令或事件逻辑。"""
     leave_list = None
     leave_ids = [int(leave_id) for leave_id in leave_id]
     if not leave_ids:

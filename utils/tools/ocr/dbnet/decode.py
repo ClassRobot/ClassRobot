@@ -5,7 +5,16 @@ from shapely.geometry import Polygon
 
 
 class SegDetectorRepresenter:
+    """将 DBNet 输出结果解码为文本框坐标。"""
     def __init__(self, thresh=0.3, box_thresh=0.5, max_candidates=1000, unclip_ratio=2.0):
+        """初始化实例。
+
+        参数:
+            thresh (Any): thresh。
+            box_thresh (Any): boxthresh。
+            max_candidates (Any): maxcandidates。
+            unclip_ratio (Any): unclipratio。
+        """
         self.min_size = 3
         self.thresh = thresh
         self.box_thresh = box_thresh
@@ -13,18 +22,12 @@ class SegDetectorRepresenter:
         self.unclip_ratio = unclip_ratio
 
     def __call__(self, pred, height, width):
-        """
-        batch: (image, polygons, ignore_tags
-        batch: a dict produced by dataloaders.
-            image: tensor of shape (N, C, H, W).
-            polygons: tensor of shape (N, K, 4, 2), the polygons of objective regions.
-            ignore_tags: tensor of shape (N, K), indicates whether a region is ignorable or not.
-            shape: the original shape of images.
-            filename: the original filenames of images.
-        pred:
-            binary: text region segmentation map, with shape (N, H, W)
-            thresh: [if exists] thresh hold prediction with shape (N, H, W)
-            thresh_binary: [if exists] binarized with threshhold, (N, H, W)
+        """batch: (image, polygons, ignore_tags
+
+        参数:
+            pred (Any): pred。
+            height (Any): height。
+            width (Any): width。
         """
 
         pred = pred[0, :, :]
@@ -35,12 +38,21 @@ class SegDetectorRepresenter:
         return boxes, scores
 
     def binarize(self, pred):
+        """处理binarize相关逻辑。
+
+        参数:
+            pred (Any): pred。
+        """
         return pred > self.thresh
 
     def boxes_from_bitmap(self, pred, bitmap, dest_width, dest_height):
-        """
-        _bitmap: single map with shape (H, W),
-            whose values are binarized as {0, 1}
+        """_bitmap: single map with shape (H, W),
+
+        参数:
+            pred (Any): pred。
+            bitmap (Any): bitmap。
+            dest_width (Any): destwidth。
+            dest_height (Any): destheight。
         """
 
         assert len(bitmap.shape) == 2
@@ -81,6 +93,12 @@ class SegDetectorRepresenter:
         return boxes, scores
 
     def unclip(self, box, unclip_ratio=1.5):
+        """处理unclip相关逻辑。
+
+        参数:
+            box (Any): box。
+            unclip_ratio (Any): unclipratio。
+        """
         poly = Polygon(box)
 
         distance = poly.area * unclip_ratio / (poly.length)
@@ -90,6 +108,11 @@ class SegDetectorRepresenter:
         return expanded
 
     def get_mini_boxes(self, contour):
+        """获取miniboxes。
+
+        参数:
+            contour (Any): contour。
+        """
         bounding_box = cv2.minAreaRect(contour)
         points = sorted(list(cv2.boxPoints(bounding_box)), key=lambda x: x[0])
 
@@ -111,6 +134,12 @@ class SegDetectorRepresenter:
         return box, min(bounding_box[1])
 
     def box_score_fast(self, bitmap, _box):
+        """处理boxscorefast相关逻辑。
+
+        参数:
+            bitmap (Any): bitmap。
+            _box (Any): box。
+        """
         h, w = bitmap.shape[:2]
         box = _box.copy()
         xmin = np.clip(np.floor(box[:, 0].min()).astype(np.int_), 0, w - 1)

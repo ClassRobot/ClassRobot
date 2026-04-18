@@ -9,6 +9,7 @@ from .manage import AddLeave, QueryLeave
 
 
 async def add_leave_depends(matcher: Matcher, student: StudentDepends) -> AddLeave:
+    """构建添加请假依赖。"""
     if student:
         return matcher.state.setdefault("_add_leave", AddLeave(student))
     else:
@@ -19,6 +20,7 @@ AddLeaveDepends = Annotated[AddLeave, Depends(dependency=add_leave_depends)]
 
 
 async def query_leave_depends(matcher: Matcher, user: UserDepends):
+    """构建查询请假依赖。"""
     if user is None:
         await matcher.finish(Emoji.error + "没有与您相关请假信息！")
     return matcher.state.setdefault("_query_leave", QueryLeave(user))

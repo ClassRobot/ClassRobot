@@ -2,6 +2,7 @@ from base64 import b64encode
 
 
 def footer(image: bytes) -> str:
+    """生成文稿页脚内容。"""
     return f"""
     <footer style="
         text-align: right; 

@@ -18,6 +18,7 @@ from .depends import (
 
 @add_curricula.handle()
 async def _(matcher: AlconnaMatcher, add_curricula: AddCurriculaDepends, values: list[str]):
+    """处理当前命令或事件逻辑。"""
     value_length = len(values)
     if value_length < 4:
         await matcher.finish(Emoji.error + "至少具备[周期] [星期几] [第几节课] [课程名称]四个参数,其次[教室(可选)] [老师(可选)]")
@@ -44,6 +45,7 @@ async def _(matcher: AlconnaMatcher, add_curricula: AddCurriculaDepends, values:
 
 @query_curricula.handle()
 async def _(matcher: AlconnaMatcher, query_curricula: QueryCurriculaDepends, classes: str | None, day: int):
+    """处理当前命令或事件逻辑。"""
     if classes is not None:
         try:
             day = int(classes)
@@ -63,6 +65,7 @@ async def _(
     delete_curricula: DeleteCurriculaDepends,
 ):
     # 拿到无法删除的id
+    """处理当前命令或事件逻辑。"""
     is_classes = values[0] == "班级"
     values = values[1:] if is_classes else values
     values_int = [int(i) for i in values if i.isdigit()]
@@ -83,6 +86,7 @@ async def _(
     set_week_cmd: SetCurriculaWeekDepends,
     week: int,
 ):
+    """处理当前命令或事件逻辑。"""
     if await set_week_cmd.set_week(week):
         await matcher.finish(Emoji.success + f"设置成功,当前周为第{week}周")
     await matcher.finish(Emoji.error + "设置失败,可能并不是您创建的课表")
@@ -95,6 +99,7 @@ async def _(
     share_id: str | None,
 ):
     # 如果有share_id则分享指定课表,如果没有则生成自己的share_id,缓存时间为5分钟
+    """处理当前命令或事件逻辑。"""
     if share_id is None:
         share_id = uuid4().hex.replace("-", "")
         if user_config := await share_curricula.get_user_config():

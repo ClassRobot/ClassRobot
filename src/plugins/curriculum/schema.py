@@ -28,10 +28,11 @@ class Course(BaseModel):
     end: bool = Field(default=False)
 
     def md5(self) -> str:
-        """课程md5"""
+        """返回当前课表内容的 MD5 摘要。"""
         return f"{self.name}{self.teacher}{self.location}"
 
     class Config:
+        """描述配置的配置项。"""
         extra = Extra.forbid
 
 
@@ -45,6 +46,7 @@ class CurrentWeek(BaseModel):
     weekday: str
 
     class Config:
+        """描述配置的配置项。"""
         extra = Extra.forbid
 
 
@@ -56,13 +58,14 @@ class NextCountdown(BaseModel):
     percentage: float
 
     class Config:
+        """描述配置的配置项。"""
         extra = Extra.forbid
 
     @classmethod
     def calc(cls, title: str, first_date: str, today: datetime, last_date: str):
         """计算下节课或上课倒计时
 
-        Args:
+        参数:
             title (str): 标题
             first_date (str): 上次时间(可能是上课可能是下课但一定是比today早的时间)
             today (datetime): 当前时间
@@ -82,6 +85,7 @@ class NextCountdown(BaseModel):
 
 
 class CurriculaSchema(BaseModel):
+    """描述课表条目的结构化数据。"""
     current_week: CurrentWeek
     next_countdown: NextCountdown
     next_course: Course
@@ -89,10 +93,18 @@ class CurriculaSchema(BaseModel):
     this_week_course: list[list[Course | None]]
 
     class Config:
+        """描述配置的配置项。"""
         extra = Extra.forbid
 
     @classmethod
     async def prase(cls, config: CurriculaConfig, curricula: list[Curricula] | None = None, day: int = 0):
+        """处理prase相关逻辑。
+
+        参数:
+            config (CurriculaConfig): 配置。
+            curricula (list[Curricula] | None): 课表。
+            day (int): 天数偏移。
+        """
         if curricula is None:
             curricula = await config.get_curricula()
 
@@ -182,7 +194,14 @@ class CurriculaSchema(BaseModel):
 
     @staticmethod
     def insert_list(data: list[list], row: int, col: int, course: Course):
-        """列表动态增长"""
+        """列表动态增长
+
+        参数:
+            data (list[list]): data。
+            row (int): row。
+            col (int): col。
+            course (Course): course。
+        """
         data_row = len(data)  # 星期
         data_col = len(data[0]) if data_row else 0
 
@@ -197,4 +216,5 @@ class CurriculaSchema(BaseModel):
 
     async def render(self) -> bytes:
         # open("data.json", "w", encoding="utf-8").write(self.json(ensure_ascii=False, indent=4))
+        """将当前课表渲染为图片。"""
         return await template_to_pic("curricula.html", {"data": self})

@@ -12,6 +12,7 @@ ocr_models_dir = project_root / "resources" / "models" / "ocr"
 def rotate_cut_img(im, degree, x_center, y_center, w, h, leftAdjust=False, rightAdjust=False, alph=0.2):
     # degree_ = degree * 180.0 / np.pi
     # print(degree_)
+    """旋转并裁剪图像区域。"""
     right = 0
     left = 0
     if rightAdjust:
@@ -34,6 +35,7 @@ def rotate_cut_img(im, degree, x_center, y_center, w, h, leftAdjust=False, right
 
 
 def crop_rect(img, rect, alph=0.15):
+    """按矩形区域裁剪图像。"""
     img = np.asarray(img)
     # get the parameter of the small rectangle
     # print("rect!")
@@ -66,6 +68,7 @@ def crop_rect(img, rect, alph=0.15):
 
 
 def draw_bbox(img_path, result, color=(255, 0, 0), thickness=2):
+    """绘制边界框。"""
     if isinstance(img_path, str):
         img_path = cv2.imread(img_path)
         # img_path = cv2.cvtColor(img_path, cv2.COLOR_BGR2RGB)
@@ -80,6 +83,7 @@ def draw_bbox(img_path, result, color=(255, 0, 0), thickness=2):
 
 
 def sort_box(boxs):
+    """排序文本框坐标。"""
     res = []
     for box in boxs:
         # box = [x if x>0 else 0 for x in box ]
@@ -133,9 +137,9 @@ def solve(box):
 def sorted_boxes(dt_boxes):
     """
     Sort text boxes in order from top to bottom, left to right
-    args:
+    参数:
         dt_boxes(array):detected text boxes with shape [4, 2]
-    return:
+    返回:
         sorted boxes(array) with shape [4, 2]
     """
     num_boxes = dt_boxes.shape[0]
@@ -151,6 +155,7 @@ def sorted_boxes(dt_boxes):
 
 
 def get_rotate_crop_image(img, points):
+    """获取旋转后的裁剪图像。"""
     img_height, img_width = img.shape[0:2]
     left = int(np.min(points[:, 0]))
     right = int(np.max(points[:, 0]))

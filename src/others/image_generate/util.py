@@ -14,10 +14,12 @@ client = AsyncClient(base_url=base_url, proxy=global_config.global_proxy, timeou
 
 
 async def generate_image(items: list[Text | Image]):
+    """生成图片。"""
     parts = []
     wait_images = []
 
     async def request_image(item: Image):
+        """调用绘图接口生成图片。"""
         if item.url is None:
             return
         image_response = await page.request.get(item.url)

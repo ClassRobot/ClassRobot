@@ -14,6 +14,7 @@ from nonebot_plugin_htmlrender.data_source import env, markdown, read_tpl
 
 
 class StringCard:
+    """按统一格式拼装文本卡片内容。"""
     left_top = "┌"
     right_top = "┐"
     left_bottom = "└"
@@ -33,6 +34,12 @@ class StringCard:
     hr_len: int = 10
 
     def __init__(self, title: str | None = None, hr_len: int = 10) -> None:
+        """初始化实例。
+
+        参数:
+            title (str | None): title。
+            hr_len (int): hrlen。
+        """
         self.hr_len: int = hr_len
         self.title = title
         self.card: list[str] = []
@@ -41,9 +48,17 @@ class StringCard:
 
     @property
     def foot_corner(self) -> str:
+        """添加页脚角标。"""
         return self.lb + self.h * self.hr_len
 
     def text(self, *text: str, sep: str = " ", inplace: bool = True):
+        """处理文本相关逻辑。
+
+        参数:
+            sep (str): sep。
+            inplace (bool): inplace。
+            text (*str): 文本内容。
+        """
         value = f"{self.v} {sep.join(str(i) for i in text)}"
         if inplace:
             self.card.append(value)
@@ -55,6 +70,11 @@ class StringCard:
             return card
 
     def hr(self, text: str | None = None):
+        """处理hr相关逻辑。
+
+        参数:
+            text (str | None): 文本内容。
+        """
         if text and len(text) > self.hr_len:
             raise ValueError("text is too long")
         # 让文本居中
@@ -66,15 +86,19 @@ class StringCard:
         return self
 
     def render(self):
+        """渲染当前文本卡片内容。"""
         return "\n".join(self.card + [self.foot_corner])
 
     def __str__(self) -> str:
+        """返回字符串表示。"""
         return self.render()
 
     def __repr__(self) -> str:
+        """返回调试字符串表示。"""
         return self.render()
 
     def __bool__(self) -> bool:
+        """返回布尔值。"""
         return bool(self.card)
 
 
@@ -127,13 +151,14 @@ def get_file_suffix(file: bytes) -> str | None:
 
 
 def get_url_suffix(url: str) -> str | None:
-    """获取url文件类型"""
+    """获取链接对应的文件后缀。"""
     url_split = url.split(".")
     if len(url_split) > 2 and re.match("^[a-zA-Z]+$", url_split[-1]):
         return url_split[-1]
 
 
 async def md_to_html(md: str) -> str:
+    """将 Markdown 转换为 HTML。"""
     template = env.get_template("markdown.html")
     md = markdown.markdown(
         md,
@@ -172,10 +197,10 @@ async def md_to_html(md: str) -> str:
 def text_to_qrcode(text: str) -> bytes:
     """文字转二维码
 
-    Args:
+    参数:
         text (str): 文字内容或url
 
-    Returns:
+    返回:
         bytes: 二维码图片
     """
     image_bytes = BytesIO()
@@ -190,10 +215,10 @@ def text_to_qrcode(text: str) -> bytes:
 def bytes_to_base64(data: bytes) -> str:
     """bytes转base64
 
-    Args:
+    参数:
         data (bytes): bytes数据
 
-    Returns:
+    返回:
         str: base64数据
     """
     return base64.b64encode(data).decode()
@@ -202,10 +227,10 @@ def bytes_to_base64(data: bytes) -> str:
 def check_punctuation(text: str, ignore: list[str] | None = None) -> bool:
     """检查文本中是否包含标点符号
 
-    Args:
+    参数:
         text (str): 文本
 
-    Returns:
+    返回:
         bool: 是否包含标点符号
     """
     if ignore:

@@ -19,6 +19,7 @@ from .exceptions import (
 
 
 def int_or_str(value):
+    """处理intstr相关逻辑。"""
     try:
         return int(value)
     except ValueError:

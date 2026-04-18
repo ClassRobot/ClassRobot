@@ -3,9 +3,21 @@ from .client import rag_client
 
 
 class AsyncRagFlow:
+    """封装 RagFlow 服务的异步客户端能力。"""
     async def get_chatbots(
         self, page: int = 1, page_size: int = 30, order_by: str = "create_time", desc: bool = True
     ) -> list[Chatbot]:
+        """获取chatbots。
+
+        参数:
+            page (int): page。
+            page_size (int): pagesize。
+            order_by (str): orderby。
+            desc (bool): 描述信息。
+
+        返回:
+            list[Chatbot]: 返回处理结果。
+        """
         response = await rag_client.get(
             "chats", params={"page": page, "page_size": page_size, "order_by": order_by, "desc": desc}
         )
@@ -22,6 +34,7 @@ if __name__ == "__main__":
     rag = AsyncRagFlow()
 
     async def main():
+        """运行主入口。"""
         chatbots = await rag.get_chatbots()
         session = await chatbots[0].create_session()
         reply = await session.ask("怎么申请半工半读")

@@ -66,6 +66,7 @@ AtUsersDepends = Annotated[list[User], Depends(at_users_depends)]
 
 
 async def teacher_depends(user: UserOrCreatedDepends) -> Teacher | None:
+    """构建教师依赖。"""
     return await Teacher.get_teacher(user)
 
 
@@ -73,6 +74,7 @@ TeacherDepends = Annotated[Teacher | None, Depends(teacher_depends)]
 
 
 async def get_or_create_teacher_depends(user: UserOrCreatedDepends) -> Teacher:
+    """构建获取或创建教师的依赖。"""
     return await Teacher.get_or_create_teacher(user.nickname, user)
 
 

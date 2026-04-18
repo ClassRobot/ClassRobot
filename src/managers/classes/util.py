@@ -22,6 +22,7 @@ student_column_required = {
 
 
 def rename(name: str) -> str:
+    """重命名导入数据中的字段。"""
     for key in student_column_renames:
         if isinstance(student_column_renames[key], str) and name == student_column_renames[key]:
             return key

@@ -10,18 +10,19 @@ from .config import cos_config, plugin_config
 
 
 def md5_filename(file_content: bytes, upper: bool = True) -> str:
+    """根据内容生成 MD5 文件名。"""
     return md5(file_content).hexdigest().upper() if upper else md5(file_content).hexdigest()
 
 
 async def upload_file(file_content: bytes | Path, file_name: str | None = None, suffix: str | None = None) -> str:
     """将文件上传到COS
 
-    Args:
+    参数:
         file_content (bytes): 文件内容
         file_name (str | None, optional): 文件名. Defaults to None.
         suffix (str | None, optional): 文件格式(传入的格式需要手动加.). Defaults to None.
 
-    Returns:
+    返回:
         str: 返回上传后的下载链接
     """
     if isinstance(file_content, Path):
@@ -47,13 +48,13 @@ async def download_file_upload(
 ) -> str:
     """下载链接文件并且上传文件
 
-    Args:
+    参数:
         url (str): 文件链接
         filename (str | None, optional): 文件名. Defaults to None.
         suffix (str, optional): 文件格式. Defaults to "".
         upper (bool, optional): 是否需要大写. Defaults to True.
 
-    Returns:
+    返回:
         str: 上传后的下载链接
     """
     async with AsyncClient(headers=headers) as client:
@@ -65,5 +66,6 @@ async def download_file_upload(
 
 
 async def image_message(file_name: str, file_content: bytes) -> Image:
+    """生成图片上传后的消息内容。"""
     url: str = await upload_file(file_content, file_name)
     return Image(url=url)

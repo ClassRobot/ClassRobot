@@ -6,6 +6,7 @@ redis_db: dict[int, Redis] = {}
 
 
 def get_cache(db: int = 0, decode_responses: bool = True) -> Redis:
+    """获取缓存。"""
     if db in redis_db:
         return redis_db[db]
     return Redis(
@@ -17,11 +18,13 @@ def get_cache(db: int = 0, decode_responses: bool = True) -> Redis:
 
 
 async def set(key: str, value: str, ex: int = 0, db: int = 0):
+    """写入缓存数据。"""
     async with get_cache(db) as cache:
         await cache.set(key, value, ex=ex)
 
 
 async def get(key: str, db: int = 0):
+    """读取缓存数据。"""
     async with get_cache(db) as cache:
         return await cache.get(key)
 

@@ -13,6 +13,7 @@ ValidateName = lambda name: (None if name.isdigit() or check_punctuation(name) e
 
 
 class Emoji(StrEnum):
+    """定义项目中使用的表情符号枚举值。"""
     win = "🎉"
     "庆祝"
     error = "❌"
@@ -31,14 +32,25 @@ class Emoji(StrEnum):
     "灯泡"
 
     def __call__(self, *msg: str, sep: str = "") -> str:
+        """调用实例并返回结果。
+
+        参数:
+            sep (str): sep。
+            msg (*str): msg。
+
+        返回:
+            str: 返回字符串结果。
+        """
         return self + sep + sep.join(msg)
 
 
 def tip(msg: T) -> Callable[..., T]:
+    """返回固定提示内容。"""
     return lambda *_: msg
 
 
 def file_or_other_file(file: File | Other) -> File:
+    """将文件消息转换为统一的文件对象。"""
     if isinstance(file, File):
         return file
     elif isinstance(file, Other):

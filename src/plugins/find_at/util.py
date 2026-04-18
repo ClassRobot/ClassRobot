@@ -55,7 +55,7 @@ def student_to_dict(student: Student) -> dict:
 
 
 def students_to_df(students: Iterable[Student]) -> DataFrame:
-    """取出指定字段转成 DataFrame"""
+    """将学生对象列表转换为 DataFrame。"""
     df = DataFrame(student_to_dict(student) for student in students)
     # 补全columns，不存在的用None填充
     for key in columns:

@@ -15,6 +15,7 @@ from .schema import Notice, Notices, NoticeGroup, NoticePrivate
 
 
 def classes_to_df(classes: list[Classes]) -> DataFrame:
+    """将班级对象列表转换为 DataFrame。"""
     data = []
     for cls in classes:
         info = {
@@ -33,7 +34,7 @@ async def notice_work(notice: Notice, creator: User | None = None):
 
     在通知发送结束后删除通知
 
-    Args:
+    参数:
         notice (Notice): 通知内容
         creator (User | None, optional): 创建者. Defaults to None.
     """
@@ -62,6 +63,7 @@ async def notice_work(notice: Notice, creator: User | None = None):
 
 
 class NoticeSession:
+    """封装通知会话状态与行为。"""
     functools: list[ChatCompletionToolParam] = [
         {
             "type": "function",
@@ -87,6 +89,11 @@ class NoticeSession:
     ]
 
     def __init__(self, user: User):
+        """初始化实例。
+
+        参数:
+            user (User): 当前用户对象。
+        """
         self.user = user
         self.messages = Messages()
         self.messages.system_message(prompt + f"\n当前时间: {datetime.now()}\n当前用户ID: {user.id}")
@@ -96,6 +103,14 @@ class NoticeSession:
         self.classes_df: DataFrame | None = None
 
     async def call(self, message: UniMessage) -> Notices | None:
+        """处理调用相关逻辑。
+
+        参数:
+            message (UniMessage): 消息对象。
+
+        返回:
+            Notices | None: 返回处理结果。
+        """
         try:
             self.messages.user_message(uni_message_to_contents(message))
             response = await client_create(self.messages, functools=self.functools)
@@ -124,7 +139,14 @@ class NoticeSession:
             return None
 
     def filter_notices(self, notices: Notices) -> Notices:
-        """过滤掉于用户本身无关联的用户"""
+        """过滤掉于用户本身无关联的用户
+
+        参数:
+            notices (Notices): 通知。
+
+        返回:
+            Notices: 返回处理结果。
+        """
         for notice in notices.notices.copy():
             for obj in notice.recipients.copy():
                 if isinstance(obj, NoticeGroup):
@@ -138,9 +160,11 @@ class NoticeSession:
         return notices
 
     async def get_self_id(self) -> str:
+        """获取selfid。"""
         return f"user_id: {self.user.id}"
 
     async def get_classmates(self):
+        """获取同班同学列表。"""
         students = []
         if self.user.student:
             students += await self.user.student.get_classmates()
@@ -151,6 +175,7 @@ class NoticeSession:
         return self.students_df.to_json(orient="records", force_ascii=False)
 
     async def get_classes(self):
+        """获取班级。"""
         if self.classes_df is not None:
             return self.classes_df.to_json(orient="records", force_ascii=False)
         classes = []

@@ -14,6 +14,7 @@ except Exception as err:
 
 
 async def ppt2img(file_path: Path, output: Path) -> list[Path]:
+    """将 PPT 转换为图片。"""
     global powerpoint
     if powerpoint is None:
         powerpoint = comtypes.client.CreateObject("kwpp.Application")
@@ -24,6 +25,7 @@ async def ppt2img(file_path: Path, output: Path) -> list[Path]:
 
 
 async def doc2pdf(file_path: Path, output: Path) -> Path:
+    """将 Word 文档转换为 PDF。"""
     global word
     if word is None:
         word = comtypes.client.CreateObject("kwps.Application")
@@ -35,6 +37,7 @@ async def doc2pdf(file_path: Path, output: Path) -> Path:
 
 
 async def doc2img(file_path: Path, output: Path) -> list[Path]:
+    """将 Word 文档转换为图片。"""
     images_path: list[Path] = []
     pdf_path = await doc2pdf(file_path, output)
     images_path = await pdf2img(pdf_path, output)
@@ -43,6 +46,7 @@ async def doc2img(file_path: Path, output: Path) -> list[Path]:
 
 
 async def pdf2img(file_path: Path, output: Path) -> list[Path]:
+    """将 PDF 转换为图片。"""
     images = await run_sync(pdf2image.convert_from_path)(file_path)
     output.mkdir(parents=True, exist_ok=True)
     images_path: list[Path] = []

@@ -10,6 +10,7 @@ ignore_str = ["_", "-"]
 
 
 class BaseSession(BaseModel):
+    """描述一次消息会话的基础标识信息，用于区分私聊、群聊和频道场景。"""
     user_id: str
     platform: str
     platform_name: str
@@ -19,29 +20,45 @@ class BaseSession(BaseModel):
 
     @property
     def is_private(self) -> bool:
+        """判断是否为私聊。"""
         return self.channel_id is None
 
     @property
     def is_group(self) -> bool:
+        """检查群组。"""
         return not self.is_private
 
     @property
     def is_guild(self) -> bool:
+        """检查频道。"""
         return self.guild_id is not None
 
 
 class GroupSession(BaseSession):
+    """表示群聊或频道场景下的会话信息。"""
     channel_id: str
 
 
 class PrivateSession(BaseSession):
+    """表示私聊场景下的会话信息。"""
     ...
 
 
 async def session(target: MsgTarget, event: BaseEvent) -> BaseSession | None:
+    """根据消息目标与事件对象构建统一的会话信息。
+
+    参数:
+        target (MsgTarget): 当前消息的发送目标信息。
+        event (BaseEvent): 触发当前处理流程的事件对象。
+
+    返回:
+        BaseSession | None: 构建出的会话对象；无法识别时返回 `None`。
+    """
     if target.scope and target.adapter:
         scope = SupportScope(target.scope)
         adapter = SupportAdapter(target.adapter)
+        # User bindings and storage keys rely on a stable `adapter.scope` identity,
+        # so reject punctuation here before composing the platform string.
         if check_punctuation(adapter.name, ignore_str) or check_punctuation(scope.name, ignore_str):
             raise ValueError(f"platform '{adapter.name}' or scope '{scope.name}' contains illegal characters")
         elif target.platform and any(check_punctuation(i, ignore_str) for i in target.platform):
@@ -63,6 +80,14 @@ EventSession = Annotated[BaseSession, Depends(session)]
 
 
 async def group_session(session: EventSession) -> GroupSession | None:
+    """在群聊场景下返回群组会话对象。
+
+    参数:
+        session (EventSession): 通用会话对象。
+
+    返回:
+        GroupSession | None: 当前会话是群聊时返回群组会话对象。
+    """
     if session.is_group:
         return GroupSession.parse_obj(session)
 
@@ -73,6 +98,14 @@ GroupEventSession = Annotated[GroupSession, Depends(group_session)]
 async def private_session(
     session: EventSession,
 ) -> PrivateSession | None:
+    """在私聊场景下返回私聊会话对象。
+
+    参数:
+        session (EventSession): 通用会话对象。
+
+    返回:
+        PrivateSession | None: 当前会话是私聊时返回私聊会话对象。
+    """
     if session.is_private:
         return PrivateSession.parse_obj(session)
 

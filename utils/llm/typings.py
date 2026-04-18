@@ -14,10 +14,12 @@ from openai.types.chat.chat_completion_tool_choice_option_param import (  # noqa
 
 
 class ContextType(StrEnum):
+    """定义对话上下文片段的类型枚举值。"""
     agent = "agent"
     session = "session"
 
 
 class AgentParamType(StrEnum):
+    """定义智能体参数支持的类型枚举值。"""
     function = "function"
     messages = "messages"

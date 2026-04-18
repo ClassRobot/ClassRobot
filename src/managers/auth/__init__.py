@@ -12,6 +12,7 @@ except ImportError:
 
 @login_edu_cmd.handle()
 async def _(matcher: AlconnaMatcher, username: str, password: str):
+    """处理当前命令或事件逻辑。"""
     print(username, password)
     for login in edu_logins.values():
         await login(account=username, password=password).login()

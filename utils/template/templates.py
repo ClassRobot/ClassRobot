@@ -11,6 +11,7 @@ def static(file_path: str | Path) -> str:
 
 
 async def template_to_pic(file_path: str | Path, params: dict | None = None, width: int = 100, **kwargs) -> bytes:
+    """将模板渲染为图片。"""
     if isinstance(file_path, str):
         file_path = template_dir / file_path
     pic = await template_to_pic_render(

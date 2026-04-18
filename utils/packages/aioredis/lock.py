@@ -85,55 +85,16 @@ class Lock:
         blocking_timeout: Optional[float] = None,
         thread_local: bool = True,
     ):
-        """
-        Create a new Lock instance named ``name`` using the Redis client
-        supplied by ``redis``.
+        """Create a new Lock instance named ``name`` using the Redis client
 
-        ``timeout`` indicates a maximum life for the lock.
-        By default, it will remain locked until release() is called.
-        ``timeout`` can be specified as a float or integer, both representing
-        the number of seconds to wait.
-
-        ``sleep`` indicates the amount of time to sleep per loop iteration
-        when the lock is in blocking mode and another client is currently
-        holding the lock.
-
-        ``blocking`` indicates whether calling ``acquire`` should block until
-        the lock has been acquired or to fail immediately, causing ``acquire``
-        to return False and the lock not being acquired. Defaults to True.
-        Note this value can be overridden by passing a ``blocking``
-        argument to ``acquire``.
-
-        ``blocking_timeout`` indicates the maximum amount of time in seconds to
-        spend trying to acquire the lock. A value of ``None`` indicates
-        continue trying forever. ``blocking_timeout`` can be specified as a
-        float or integer, both representing the number of seconds to wait.
-
-        ``thread_local`` indicates whether the lock token is placed in
-        thread-local storage. By default, the token is placed in thread local
-        storage so that a thread only sees its token, not a token set by
-        another thread. Consider the following timeline:
-
-            time: 0, thread-1 acquires `my-lock`, with a timeout of 5 seconds.
-                     thread-1 sets the token to "abc"
-            time: 1, thread-2 blocks trying to acquire `my-lock` using the
-                     Lock instance.
-            time: 5, thread-1 has not yet completed. redis expires the lock
-                     key.
-            time: 5, thread-2 acquired `my-lock` now that it's available.
-                     thread-2 sets the token to "xyz"
-            time: 6, thread-1 finishes its work and calls release(). if the
-                     token is *not* stored in thread local storage, then
-                     thread-1 would see the token value as "xyz" and would be
-                     able to successfully release the thread-2's lock.
-
-        In some use cases it's necessary to disable thread local storage. For
-        example, if you have code where one thread acquires a lock and passes
-        that lock instance to a worker thread to release later. If thread
-        local storage isn't disabled in this case, the worker thread won't see
-        the token set by the thread that acquired the lock. Our assumption
-        is that these cases aren't common and as such default to using
-        thread local storage.
+        参数:
+            redis ('Redis'): redis。
+            name (Union[str, bytes, memoryview]): 名称。
+            timeout (Optional[float]): timeout。
+            sleep (float): sleep。
+            blocking (bool): blocking。
+            blocking_timeout (Optional[float]): blockingtimeout。
+            thread_local (bool): threadlocal。
         """
         self.redis = redis
         self.name = name
@@ -147,6 +108,7 @@ class Lock:
         self.register_scripts()
 
     def register_scripts(self):
+        """处理registerscripts相关逻辑。"""
         cls = self.__class__
         client = self.redis
         if cls.lua_release is None:
@@ -157,11 +119,19 @@ class Lock:
             cls.lua_reacquire = client.register_script(cls.LUA_REACQUIRE_SCRIPT)
 
     async def __aenter__(self):
+        """实现 __aenter__ 特殊方法。"""
         if await self.acquire():
             return self
         raise LockError("Unable to acquire lock within the time specified")
 
     async def __aexit__(self, exc_type, exc_value, traceback):
+        """实现 __aexit__ 特殊方法。
+
+        参数:
+            exc_type (Any): exctype。
+            exc_value (Any): excvalue。
+            traceback (Any): traceback。
+        """
         await self.release()
 
     async def acquire(
@@ -170,20 +140,12 @@ class Lock:
         blocking_timeout: Optional[float] = None,
         token: Optional[Union[str, bytes]] = None,
     ):
-        """
-        Use Redis to hold a shared, distributed lock named ``name``.
-        Returns True once the lock is acquired.
+        """Use Redis to hold a shared, distributed lock named ``name``.
 
-        If ``blocking`` is False, always return immediately. If the lock
-        was acquired, return True, otherwise return False.
-
-        ``blocking_timeout`` specifies the maximum number of seconds to
-        wait trying to acquire the lock.
-
-        ``token`` specifies the token value to be used. If provided, token
-        must be a bytes object or a string that can be encoded to a bytes
-        object with the default encoding. If a token isn't specified, a UUID
-        will be generated.
+        参数:
+            blocking (Optional[bool]): blocking。
+            blocking_timeout (Optional[float]): blockingtimeout。
+            token (Optional[Union[str, bytes]]): 令牌。
         """
         loop = asyncio.get_event_loop()
         sleep = self.sleep
@@ -211,6 +173,14 @@ class Lock:
             await asyncio.sleep(sleep)
 
     async def do_acquire(self, token: Union[str, bytes]) -> bool:
+        """处理doacquire相关逻辑。
+
+        参数:
+            token (Union[str, bytes]): 令牌。
+
+        返回:
+            bool: 表示是否成功。
+        """
         if self.timeout:
             # convert to milliseconds
             timeout = int(self.timeout * 1000)
@@ -221,15 +191,11 @@ class Lock:
         return False
 
     async def locked(self) -> bool:
-        """
-        Returns True if this key is locked by any process, otherwise False.
-        """
+        """处理locked相关逻辑。"""
         return await self.redis.get(self.name) is not None
 
     async def owned(self) -> bool:
-        """
-        Returns True if this key is locked by this lock, otherwise False.
-        """
+        """处理owned相关逻辑。"""
         stored_token = await self.redis.get(self.name)
         # need to always compare bytes to bytes
         # TODO: this can be simplified when the context manager is finished
@@ -239,7 +205,7 @@ class Lock:
         return self.local.token is not None and stored_token == self.local.token
 
     def release(self) -> Awaitable[NoReturn]:
-        """Releases the already acquired lock"""
+        """处理release相关逻辑。"""
         expected_token = self.local.token
         if expected_token is None:
             raise LockError("Cannot release an unlocked lock")
@@ -247,19 +213,23 @@ class Lock:
         return self.do_release(expected_token)
 
     async def do_release(self, expected_token: bytes):
+        """处理dorelease相关逻辑。
+
+        参数:
+            expected_token (bytes): expected令牌。
+        """
         if not bool(await self.lua_release(keys=[self.name], args=[expected_token], client=self.redis)):
             raise LockNotOwnedError("Cannot release a lock" " that's no longer owned")
 
     def extend(self, additional_time: float, replace_ttl: bool = False) -> Awaitable[bool]:
-        """
-        Adds more time to an already acquired lock.
+        """Adds more time to an already acquired lock.
 
-        ``additional_time`` can be specified as an integer or a float, both
-        representing the number of seconds to add.
+        参数:
+            additional_time (float): additional时间。
+            replace_ttl (bool): replacettl。
 
-        ``replace_ttl`` if False (the default), add `additional_time` to
-        the lock's existing ttl. If True, replace the lock's ttl with
-        `additional_time`.
+        返回:
+            Awaitable[bool]: 返回处理结果。
         """
         if self.local.token is None:
             raise LockError("Cannot extend an unlocked lock")
@@ -268,6 +238,15 @@ class Lock:
         return self.do_extend(additional_time, replace_ttl)
 
     async def do_extend(self, additional_time, replace_ttl) -> bool:
+        """处理doextend相关逻辑。
+
+        参数:
+            additional_time (Any): additional时间。
+            replace_ttl (Any): replacettl。
+
+        返回:
+            bool: 表示是否成功。
+        """
         additional_time = int(additional_time * 1000)
         if not bool(
             await self.lua_extend(
@@ -280,9 +259,7 @@ class Lock:
         return True
 
     def reacquire(self) -> Awaitable[bool]:
-        """
-        Resets a TTL of an already acquired lock back to a timeout value.
-        """
+        """处理reacquire相关逻辑。"""
         if self.local.token is None:
             raise LockError("Cannot reacquire an unlocked lock")
         if self.timeout is None:
@@ -290,6 +267,7 @@ class Lock:
         return self.do_reacquire()
 
     async def do_reacquire(self) -> bool:
+        """处理doreacquire相关逻辑。"""
         timeout = int(self.timeout * 1000)
         if not bool(await self.lua_reacquire(keys=[self.name], args=[self.local.token, timeout], client=self.redis)):
             raise LockNotOwnedError("Cannot reacquire a lock that's" " no longer owned")

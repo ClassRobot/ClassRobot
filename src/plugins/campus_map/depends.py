@@ -14,13 +14,27 @@ from .config import map_list_path
 
 
 class CampusMap:
+    """封装校园地图查询所需的上下文与目标信息。"""
     def __init__(self, user: User) -> None:
+        """初始化实例。
+
+        参数:
+            user (User): 当前用户对象。
+        """
         self.user = user
         self.messages = Messages()
         self.location: dict = json.loads(map_list_path[0].read_text("utf-8"))
         self.location_keys = list(self.location.keys())
 
     async def parse_location(self, message: str) -> dict[str, str]:
+        """解析location。
+
+        参数:
+            message (str): 消息对象。
+
+        返回:
+            dict[str, str]: 返回处理结果。
+        """
         self.messages.user_message(message)
         response = await client_create(messages=self.messages)
         if content := response.choices[0].message.content:
@@ -29,6 +43,14 @@ class CampusMap:
         return {}
 
     async def to_pic(self, location: dict[str, str]) -> bytes:
+        """处理pic相关逻辑。
+
+        参数:
+            location (dict[str, str]): location。
+
+        返回:
+            bytes: 返回字节数据。
+        """
         address = [
             {"name": i, "image": bytes_to_base64(await run_sync(text_to_qrcode)(v))} for i, v in location.items()
         ]
@@ -36,6 +58,14 @@ class CampusMap:
 
     @staticmethod
     async def depends(user: UserOrCreatedDepends) -> "CampusMap":
+        """处理依赖相关逻辑。
+
+        参数:
+            user (UserOrCreatedDepends): 当前用户对象。
+
+        返回:
+            'CampusMap': 返回处理结果。
+        """
         campus_map = CampusMap(user)
         content = campus_map.messages.system_message(
             await Prompt("campus_map").render({"address": campus_map.location_keys})

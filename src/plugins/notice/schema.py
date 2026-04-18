@@ -27,6 +27,7 @@ class NoticePrivate(BaseModel):
 
 
 class Notice(BaseModel):
+    """描述通知消息的数据结构。"""
     id: int | None = None
     "通知事件"
     title: str
@@ -39,6 +40,14 @@ class Notice(BaseModel):
     "通知内容"
 
     async def create(self, user: User) -> ScheduledNotice:
+        """创建当前数据。
+
+        参数:
+            user (User): 当前用户对象。
+
+        返回:
+            ScheduledNotice: 返回处理结果。
+        """
         self_dict = self.dict()
         sn = await ScheduledNotice(
             title=self.title,
@@ -52,6 +61,7 @@ class Notice(BaseModel):
         return sn
 
     async def get_notice_users(self) -> list[User]:
+        """获取通知用户。"""
         users: list[User] = []
         if not self.recipients:
             return users
@@ -61,6 +71,7 @@ class Notice(BaseModel):
         return users
 
     async def get_notice_groups(self) -> list[Group]:
+        """获取通知群组。"""
         groups: list[Group] = []
         if not self.recipients:
             return groups
@@ -70,6 +81,7 @@ class Notice(BaseModel):
         return groups
 
     async def get_creator(self) -> User | None:
+        """获取creator。"""
         if not self.id:
             raise ValueError("通知id不能为空,需要先调用create保存置数据库后获取ID")
         if sn := await ScheduledNotice.filter(id=self.id).first():
@@ -82,6 +94,11 @@ class Notice(BaseModel):
 
     @classmethod
     def loads(cls, notice: ScheduledNotice):
+        """处理加载相关逻辑。
+
+        参数:
+            notice (ScheduledNotice): 通知对象。
+        """
         return cls(
             id=notice.id,
             title=notice.title,
@@ -91,7 +108,11 @@ class Notice(BaseModel):
         )
 
     def add_job(self, func: Callable[["Notice"], Awaitable[None]]):
-        """添加定时任务"""
+        """添加定时任务
+
+        参数:
+            func (Callable[['Notice'], Awaitable[None]]): func。
+        """
         if self.is_immediate:  # 如果是立即发送的任务则不创建
             return
         elif self.id is None:
@@ -125,12 +146,23 @@ class Notices(BaseModel):
     "用户的通知内容是否无效或胡言乱语或者找不到通知对象则为True"
 
     async def create_all(self, user: User):
+        """创建相关内容。
+
+        参数:
+            user (User): 当前用户对象。
+        """
         for notice in self.notices:
             if not notice.is_immediate:
                 await notice.create(user)
 
     def __iter__(self) -> Iterator[Notice]:
+        """返回迭代器。"""
         return self.notices.__iter__()
 
     def remove(self, notice: Notice):
+        """移除指定内容。
+
+        参数:
+            notice (Notice): 通知对象。
+        """
         self.notices.remove(notice)

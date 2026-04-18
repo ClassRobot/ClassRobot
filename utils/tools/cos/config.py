@@ -4,6 +4,7 @@ from nonebot import logger, get_driver
 
 
 class Config(BaseModel, extra=Extra.ignore):
+    """描述对象存储上传所需的配置项。"""
     cos_secret_id: str | None = None
     cos_secret_key: str | None = None
     region: str | None = None
@@ -11,6 +12,7 @@ class Config(BaseModel, extra=Extra.ignore):
     scheme: str = "https"
 
     def __bool__(self) -> bool:
+        """返回布尔值。"""
         return all([self.cos_secret_id, self.cos_secret_key, self.region, self.bucket])
 
 

@@ -10,6 +10,7 @@ from .util import students_to_df
 
 
 async def get_student_classmates(matcher: Matcher, student: StudentDepends) -> set[Student]:
+    """获取学生classmates。"""
     name = "_student_classmates"
     if name in matcher.state:
         return matcher.state[name]
@@ -23,6 +24,7 @@ StudentClassmates = Annotated[set[Student], Depends(get_student_classmates)]
 
 
 async def get_teacher_students(matcher: Matcher, teacher: TeacherDepends) -> set[Student]:
+    """获取教师学生。"""
     name = "_teacher_students"
     if name in matcher.state:
         return matcher.state[name]
@@ -36,6 +38,7 @@ TeacherStudents = Annotated[set[Student], Depends(get_teacher_students)]
 
 
 async def get_students(classmates: StudentClassmates, students: TeacherStudents) -> set[Student]:
+    """获取学生。"""
     return students | classmates
 
 
@@ -43,6 +46,7 @@ UserStudents = Annotated[set[Student], Depends(get_students)]
 
 
 async def find_students(students: UserStudents, items: list[str]) -> DataFrame:
+    """查找学生。"""
     students_df = students_to_df(students)
     # 如果items内容带有`.`的方式搜索，则是从左至右满足条件的匹配，比如`1班.张三`就会先搜索1班再在1班中搜索名字为张三的学生
     # 搜索不考虑列名，只要有一个字段满足条件即可

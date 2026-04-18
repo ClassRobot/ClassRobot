@@ -7,11 +7,23 @@ from PIL import Image
 
 
 class resizeNormalize(object):
+    """对 OCR 输入图片执行缩放与归一化处理。"""
     def __init__(self, size, interpolation=Image.BILINEAR):  # type: ignore
+        """初始化实例。
+
+        参数:
+            size (Any): size。
+            interpolation (Any): interpolation。
+        """
         self.size = size
         self.interpolation = interpolation
 
     def __call__(self, img):
+        """调用实例并返回结果。
+
+        参数:
+            img (Any): img。
+        """
         size = self.size
         imgW, imgH = size
         scale = img.size[1] * 1.0 / imgH
@@ -38,7 +50,13 @@ class resizeNormalize(object):
 
 
 class strLabelConverter(object):
+    """在 OCR 文字与索引序列之间进行转换。"""
     def __init__(self, alphabet):
+        """初始化实例。
+
+        参数:
+            alphabet (Any): alphabet。
+        """
         self.alphabet = alphabet + "ç"  # for `-1` index
         self.dict = {}
         for i, char in enumerate(alphabet):
@@ -46,6 +64,13 @@ class strLabelConverter(object):
             self.dict[char] = i + 1
 
     def decode(self, t, length, raw=False):
+        """处理解码相关逻辑。
+
+        参数:
+            t (Any): t。
+            length (Any): length。
+            raw (Any): raw。
+        """
         t = t[:length]
         if raw:
             return "".join([self.alphabet[i - 1] for i in t])
@@ -58,20 +83,29 @@ class strLabelConverter(object):
 
 
 class averager(object):
+    """用于累计并计算张量均值。"""
     def __init__(self):
+        """初始化实例。"""
         self.reset()
 
     def add(self, v):
+        """处理添加相关逻辑。
+
+        参数:
+            v (Any): v。
+        """
         self.n_count += v.data.numel()
         # NOTE: not `+= v.sum()`, which will add a node in the compute graph,
         # which lead to memory leak
         self.sum += v.data.sum()
 
     def reset(self):
+        """重置累计状态。"""
         self.n_count = 0
         self.sum = 0
 
     def val(self):
+        """返回当前累计平均值。"""
         res = 0
         if self.n_count != 0:
             res = self.sum / float(self.n_count)

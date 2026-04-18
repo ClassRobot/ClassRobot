@@ -9,7 +9,7 @@ from ..typings import ChatCompletionMessage, ChatCompletionToolParam, ChatComple
 
 
 class AgentStatus(StrEnum):
-    """Agent状态"""
+    """定义智能体执行过程中的状态值。"""
 
     success = "success"
     """成功"""
@@ -26,11 +26,13 @@ class AgentStatus(StrEnum):
 
 
 class AgentDict(TypedDict):
+    """描述子智能体注册信息的数据结构。"""
     agent: "BaseAgent"
     is_wait: bool
 
 
 class BaseAgent(ABC, BaseModel):
+    """定义智能体的基础状态、消息上下文和编排能力。"""
     agents: dict[str, AgentDict] = {}
     status: AgentStatus = AgentStatus.init
     messages: Messages = Field(default_factory=Messages)
@@ -38,28 +40,38 @@ class BaseAgent(ABC, BaseModel):
     parent_agent: list["BaseAgent"] = []
 
     class Params(BaseModel):
+        """定义当前智能体可接收的工具参数结构。"""
         ...
 
     @classmethod
     def parameters(cls) -> dict:
+        """返回当前智能体的参数模式定义。
+
+        返回:
+            dict: 可供函数调用工具注册使用的 JSON Schema。
+        """
         return cls.Params.schema()
 
     @classmethod
     @abstractmethod
     def name(cls) -> str:
-        """agent的名称"""
+        """返回智能体的唯一名称。"""
 
     @classmethod
     def description(cls) -> str:
-        """agent的描述"""
+        """返回智能体的说明文本。
+
+        返回:
+            str: 默认使用类文档字符串作为描述内容。
+        """
         return cls.__doc__ or ""
 
     def link_to(self, agent: Union[Type["BaseAgent"], "BaseAgent"], is_wait: bool = False) -> "BaseAgent":
-        """与另一个agent建立联系
+        """将当前智能体与另一个智能体连接成执行链。
 
-        Args:
-            agent (Union[Type["BaseAgent"], "BaseAgent"]): agent
-            is_wait (bool, optional): 是否等待上一个agent执行完成后执行. Defaults to False.
+        参数:
+            agent (Union[Type["BaseAgent"], BaseAgent]): 要连接的智能体类型或实例。
+            is_wait (bool, optional): 是否等待当前节点执行完成后再调度目标智能体。默认为 `False`。
 
         Example:
 
@@ -81,17 +93,36 @@ class BaseAgent(ABC, BaseModel):
 
     @abstractmethod
     async def execute(self, messages: Messages) -> Messages:
-        """执行agent"""
+        """执行当前智能体的核心逻辑。
+
+        参数:
+            messages (Messages): 当前会话的消息上下文。
+
+        返回:
+            Messages: 处理后的消息上下文。
+        """
 
     def functions(self) -> list[ChatCompletionToolParam]:
+        """收集当前已链接的函数型智能体工具定义。
+
+        返回:
+            list[ChatCompletionToolParam]: 当前智能体可转交调用的工具列表。
+        """
         return [
             agent["agent"].function() for agent in self.agents.values() if isinstance(agent["agent"], BaseFunctionAgent)
         ]
 
 
 class BaseFunctionAgent(BaseAgent):
+    """定义可被大模型当作函数工具调用的智能体基类。"""
+
     @classmethod
     def function(cls) -> ChatCompletionToolParam:
+        """生成当前智能体对应的函数调用描述。
+
+        返回:
+            ChatCompletionToolParam: 提供给大模型函数调用能力的工具定义。
+        """
         return {
             "type": "function",
             "function": {
@@ -102,6 +133,14 @@ class BaseFunctionAgent(BaseAgent):
         }
 
     def call_tools(self, message: Messages) -> Generator[ChatCompletionMessageToolCall, Any, None]:
+        """筛选最后一条模型消息中属于当前智能体的工具调用。
+
+        参数:
+            message (Messages): 当前会话的消息集合。
+
+        返回:
+            Generator[ChatCompletionMessageToolCall, Any, None]: 当前智能体需要处理的工具调用迭代器。
+        """
         context = message[-1]
         if isinstance(context, ChatCompletionMessage) and context.tool_calls:
             for tool in context.tool_calls:
@@ -110,4 +149,5 @@ class BaseFunctionAgent(BaseAgent):
 
 
 class BaseChoiceFunctionAgent(BaseFunctionAgent):
+    """定义需要用户或模型从多个候选项中选择的函数型智能体基类。"""
     ...

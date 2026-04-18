@@ -4,6 +4,7 @@ tiktokio = "http://localhost:3680/api/hybrid/video_data"
 
 
 async def get_video_url(url: str) -> dict | None:
+    """获取视频链接。"""
     result = {}
     async with AsyncClient(timeout=20000) as client:
         response = await client.get(tiktokio, params={"url": url, "minimal": False})

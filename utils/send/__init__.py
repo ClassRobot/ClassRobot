@@ -38,6 +38,7 @@ async def push_group_message(group: Group, message: UniMessage, skip_after_first
 
 
 async def bot_upload_file(bot: Bot, event: Event, name: str, file: str) -> bool:
+    """通过机器人上传文件。"""
     if isinstance(bot, onebot.v11.Bot) and isinstance(event, onebot.v11.Event):
         if isinstance(event, onebot.v11.GroupMessageEvent):
             await bot.upload_group_file(group_id=event.group_id, file=file, name=name)

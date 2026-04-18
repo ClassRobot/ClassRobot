@@ -19,6 +19,7 @@ async def _(
     matcher: AlconnaMatcher,
     helpers: HelpersDepends,
 ):
+    """处理当前命令或事件逻辑。"""
     if name:
         if helper := helpers.get_helper(name):
             await matcher.finish(helper.to_string())
@@ -29,6 +30,7 @@ async def _(
 
 @driver.on_startup
 async def _():
+    """处理当前命令或事件逻辑。"""
     for plugin in get_loaded_plugins():
         if helpers := getattr(plugin.module, "__helpers__", None):
             helper_menu.extend(helpers)

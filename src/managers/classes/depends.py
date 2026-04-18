@@ -12,6 +12,7 @@ from .util import rename
 
 
 async def import_dataframe(import_file: File) -> DataFrame | None:
+    """将导入文件解析为 DataFrame。"""
     if not import_file.url:
         return None
     data = await download_file(import_file.url)

@@ -71,6 +71,7 @@ SERVER_CLOSED_CONNECTION_ERROR = "Connection closed by server."
 
 
 class _Sentinel(enum.Enum):
+    """定义sentinel枚举。"""
     sentinel = object()
 
 
@@ -88,6 +89,7 @@ EncodableT = Union[EncodedT, DecodedT]
 
 
 class _HiredisReaderArgs(TypedDict, total=False):
+    """处理hiredisreader位置参数相关逻辑。"""
     protocolError: Callable[[str], Exception]
     replyError: Callable[[str], Exception]
     encoding: Optional[str]
@@ -100,12 +102,26 @@ class Encoder:
     __slots__ = "encoding", "encoding_errors", "decode_responses"
 
     def __init__(self, encoding: str, encoding_errors: str, decode_responses: bool):
+        """初始化实例。
+
+        参数:
+            encoding (str): encoding。
+            encoding_errors (str): encodingerrors。
+            decode_responses (bool): decoderesponses。
+        """
         self.encoding = encoding
         self.encoding_errors = encoding_errors
         self.decode_responses = decode_responses
 
     def encode(self, value: EncodableT) -> EncodedT:
-        """Return a bytestring or bytes-like representation of the value"""
+        """处理编码相关逻辑。
+
+        参数:
+            value (EncodableT): 输入值。
+
+        返回:
+            EncodedT: 返回处理结果。
+        """
         if isinstance(value, (bytes, memoryview)):
             return value
         if isinstance(value, bool):
@@ -120,7 +136,15 @@ class Encoder:
         return value.encode(self.encoding, self.encoding_errors)
 
     def decode(self, value: EncodableT, force=False) -> EncodableT:
-        """Return a unicode string from the bytes-like representation"""
+        """处理解码相关逻辑。
+
+        参数:
+            value (EncodableT): 输入值。
+            force (Any): force。
+
+        返回:
+            EncodableT: 返回处理结果。
+        """
         if self.decode_responses or force:
             if isinstance(value, memoryview):
                 return value.tobytes().decode(self.encoding, self.encoding_errors)
@@ -162,18 +186,31 @@ class BaseParser:
     }
 
     def __init__(self, socket_read_size: int):
+        """初始化实例。
+
+        参数:
+            socket_read_size (int): socket读取size。
+        """
         self._stream: Optional[asyncio.StreamReader] = None
         self._buffer: Optional[SocketBuffer] = None
         self._read_size = socket_read_size
 
     def __del__(self):
+        """实现 __del__ 特殊方法。"""
         try:
             self.on_disconnect()
         except Exception:
             pass
 
     def parse_error(self, response: str) -> ResponseError:
-        """Parse an error response"""
+        """解析error。
+
+        参数:
+            response (str): response。
+
+        返回:
+            ResponseError: 返回处理结果。
+        """
         error_code = response.split(" ")[0]
         if error_code in self.EXCEPTION_CLASSES:
             response = response[len(error_code) + 1 :]
@@ -186,17 +223,32 @@ class BaseParser:
         return ResponseError(response)
 
     def on_disconnect(self):
+        """处理ondisconnect相关逻辑。"""
         raise NotImplementedError()
 
     def on_connect(self, connection: "Connection"):
+        """处理onconnect相关逻辑。
+
+        参数:
+            connection ('Connection'): connection。
+        """
         raise NotImplementedError()
 
     async def can_read(self, timeout: float) -> bool:
+        """处理canread相关逻辑。
+
+        参数:
+            timeout (float): timeout。
+
+        返回:
+            bool: 表示是否成功。
+        """
         raise NotImplementedError()
 
     async def read_response(
         self,
     ) -> Union[EncodableT, ResponseError, None, List[EncodableT]]:
+        """读取response。"""
         raise NotImplementedError()
 
 
@@ -214,6 +266,13 @@ class SocketBuffer:
         socket_read_size: int,
         socket_timeout: Optional[float],
     ):
+        """初始化实例。
+
+        参数:
+            stream_reader (asyncio.StreamReader): streamreader。
+            socket_read_size (int): socket读取size。
+            socket_timeout (Optional[float]): sockettimeout。
+        """
         self._stream: Optional[asyncio.StreamReader] = stream_reader
         self.socket_read_size = socket_read_size
         self.socket_timeout = socket_timeout
@@ -225,6 +284,7 @@ class SocketBuffer:
 
     @property
     def length(self):
+        """处理length相关逻辑。"""
         return self.bytes_written - self.bytes_read
 
     async def _read_from_socket(
@@ -233,6 +293,16 @@ class SocketBuffer:
         timeout: Union[float, None, _Sentinel] = SENTINEL,
         raise_on_timeout: bool = True,
     ) -> bool:
+        """处理readsocket相关逻辑。
+
+        参数:
+            length (Optional[int]): length。
+            timeout (Union[float, None, _Sentinel]): timeout。
+            raise_on_timeout (bool): raiseontimeout。
+
+        返回:
+            bool: 表示是否成功。
+        """
         buf = self._buffer
         if buf is None or self._stream is None:
             raise RedisError("Buffer is closed.")
@@ -270,9 +340,25 @@ class SocketBuffer:
             raise ConnectionError(f"Error while reading from socket: {ex.args}")
 
     async def can_read(self, timeout: float) -> bool:
+        """处理canread相关逻辑。
+
+        参数:
+            timeout (float): timeout。
+
+        返回:
+            bool: 表示是否成功。
+        """
         return bool(self.length) or await self._read_from_socket(timeout=timeout, raise_on_timeout=False)
 
     async def read(self, length: int) -> bytes:
+        """处理读取相关逻辑。
+
+        参数:
+            length (int): length。
+
+        返回:
+            bytes: 返回字节数据。
+        """
         length = length + 2  # make sure to read the \r\n terminator
         # make sure we've read enough data from the socket
         if length > self.length:
@@ -293,6 +379,7 @@ class SocketBuffer:
         return data[:-2]
 
     async def readline(self) -> bytes:
+        """处理readline相关逻辑。"""
         buf = self._buffer
         if buf is None:
             raise RedisError("Buffer is closed.")
@@ -315,6 +402,7 @@ class SocketBuffer:
         return data[:-2]
 
     def purge(self):
+        """处理purge相关逻辑。"""
         if self._buffer is None:
             raise RedisError("Buffer is closed.")
 
@@ -324,6 +412,7 @@ class SocketBuffer:
         self.bytes_read = 0
 
     def close(self):
+        """处理close相关逻辑。"""
         try:
             self.purge()
             self._buffer.close()  # type: ignore[union-attr]
@@ -344,11 +433,20 @@ class PythonParser(BaseParser):
     __slots__ = BaseParser.__slots__ + ("encoder",)
 
     def __init__(self, socket_read_size: int):
+        """初始化实例。
+
+        参数:
+            socket_read_size (int): socket读取size。
+        """
         super().__init__(socket_read_size)
         self.encoder: Optional[Encoder] = None
 
     def on_connect(self, connection: "Connection"):
-        """Called when the stream connects"""
+        """处理onconnect相关逻辑。
+
+        参数:
+            connection ('Connection'): connection。
+        """
         self._stream = connection._reader
         if self._stream is None:
             raise RedisError("Buffer is closed.")
@@ -357,7 +455,7 @@ class PythonParser(BaseParser):
         self.encoder = connection.encoder
 
     def on_disconnect(self):
-        """Called when the stream disconnects"""
+        """处理ondisconnect相关逻辑。"""
         if self._stream is not None:
             self._stream = None
         if self._buffer is not None:
@@ -366,9 +464,15 @@ class PythonParser(BaseParser):
         self.encoder = None
 
     async def can_read(self, timeout: float):
+        """处理canread相关逻辑。
+
+        参数:
+            timeout (float): timeout。
+        """
         return self._buffer and bool(await self._buffer.can_read(timeout))
 
     async def read_response(self) -> Union[EncodableT, ResponseError, None]:
+        """读取response。"""
         if not self._buffer or not self.encoder:
             raise ConnectionError(SERVER_CLOSED_CONNECTION_ERROR)
         raw = await self._buffer.readline()
@@ -424,6 +528,11 @@ class HiredisParser(BaseParser):
     _next_response: bool
 
     def __init__(self, socket_read_size: int):
+        """初始化实例。
+
+        参数:
+            socket_read_size (int): socket读取size。
+        """
         if not HIREDIS_AVAILABLE:
             raise RedisError("Hiredis is not available.")
         super().__init__(socket_read_size=socket_read_size)
@@ -431,6 +540,11 @@ class HiredisParser(BaseParser):
         self._socket_timeout: Optional[float] = None
 
     def on_connect(self, connection: "Connection"):
+        """处理onconnect相关逻辑。
+
+        参数:
+            connection ('Connection'): connection。
+        """
         self._stream = connection._reader
         kwargs: _HiredisReaderArgs = {
             "protocolError": InvalidResponse,
@@ -445,11 +559,17 @@ class HiredisParser(BaseParser):
         self._socket_timeout = connection.socket_timeout
 
     def on_disconnect(self):
+        """处理ondisconnect相关逻辑。"""
         self._stream = None
         self._reader = None
         self._next_response = False
 
     async def can_read(self, timeout: float):
+        """处理canread相关逻辑。
+
+        参数:
+            timeout (float): timeout。
+        """
         if not self._reader:
             raise ConnectionError(SERVER_CLOSED_CONNECTION_ERROR)
 
@@ -464,6 +584,12 @@ class HiredisParser(BaseParser):
         timeout: Union[float, None, _Sentinel] = SENTINEL,
         raise_on_timeout: bool = True,
     ):
+        """读取socket。
+
+        参数:
+            timeout (Union[float, None, _Sentinel]): timeout。
+            raise_on_timeout (bool): raiseontimeout。
+        """
         if self._stream is None or self._reader is None:
             raise RedisError("Parser already closed.")
 
@@ -494,6 +620,7 @@ class HiredisParser(BaseParser):
             raise ConnectionError(f"Error while reading from socket: {ex.args}")
 
     async def read_response(self) -> Union[EncodableT, List[EncodableT]]:
+        """读取response。"""
         if not self._stream or not self._reader:
             self.on_disconnect()
             raise ConnectionError(SERVER_CLOSED_CONNECTION_ERROR) from None
@@ -529,12 +656,24 @@ else:
 
 
 class ConnectCallbackProtocol(Protocol):
+    """定义connectcallbackprotocol协议接口。"""
     def __call__(self, connection: "Connection"):
+        """调用实例并返回结果。
+
+        参数:
+            connection ('Connection'): connection。
+        """
         ...
 
 
 class AsyncConnectCallbackProtocol(Protocol):
+    """定义asyncconnectcallbackprotocol协议接口。"""
     async def __call__(self, connection: "Connection"):
+        """调用实例并返回结果。
+
+        参数:
+            connection ('Connection'): connection。
+        """
         ...
 
 
@@ -595,6 +734,29 @@ class Connection:
         username: Optional[str] = None,
         encoder_class: Type[Encoder] = Encoder,
     ):
+        """初始化实例。
+
+        参数:
+            host (str): host。
+            port (Union[str, int]): port。
+            db (Union[str, int]): db。
+            password (Optional[str]): 密码。
+            socket_timeout (Optional[float]): sockettimeout。
+            socket_connect_timeout (Optional[float]): socketconnecttimeout。
+            socket_keepalive (bool): socketkeepalive。
+            socket_keepalive_options (Optional[Mapping[int, Union[int, bytes]]]): socketkeepaliveoptions。
+            socket_type (int): sockettype。
+            retry_on_timeout (bool): retryontimeout。
+            encoding (str): encoding。
+            encoding_errors (str): encodingerrors。
+            decode_responses (bool): decoderesponses。
+            parser_class (Type[BaseParser]): parser班级。
+            socket_read_size (int): socket读取size。
+            health_check_interval (float): health检查interval。
+            client_name (Optional[str]): client名称。
+            username (Optional[str]): 用户名。
+            encoder_class (Type[Encoder]): encoder班级。
+        """
         self.pid = os.getpid()
         self.host = host
         self.port = int(port)
@@ -622,16 +784,19 @@ class Connection:
         self._lock = asyncio.Lock()
 
     def __repr__(self):
+        """返回调试字符串表示。"""
         repr_args = ",".join((f"{k}={v}" for k, v in self.repr_pieces()))
         return f"{self.__class__.__name__}<{repr_args}>"
 
     def repr_pieces(self):
+        """处理reprpieces相关逻辑。"""
         pieces = [("host", self.host), ("port", self.port), ("db", self.db)]
         if self.client_name:
             pieces.append(("client_name", self.client_name))
         return pieces
 
     def __del__(self):
+        """实现 __del__ 特殊方法。"""
         try:
             if self.is_connected:
                 loop = asyncio.get_event_loop()
@@ -645,16 +810,23 @@ class Connection:
 
     @property
     def is_connected(self):
+        """检查connected。"""
         return bool(self._reader and self._writer)
 
     def register_connect_callback(self, callback):
+        """处理registerconnectcallback相关逻辑。
+
+        参数:
+            callback (Any): callback。
+        """
         self._connect_callbacks.append(callback)
 
     def clear_connect_callbacks(self):
+        """清理connectcallbacks。"""
         self._connect_callbacks = []
 
     async def connect(self):
-        """Connects to the Redis server if not already connected"""
+        """处理connect相关逻辑。"""
         if self.is_connected:
             return
         try:
@@ -683,7 +855,7 @@ class Connection:
                 await task
 
     async def _connect(self):
-        """Create a TCP socket connection"""
+        """处理connect相关逻辑。"""
         async with async_timeout.timeout(self.socket_connect_timeout):
             reader, writer = await asyncio.open_connection(
                 host=self.host,
@@ -711,18 +883,23 @@ class Connection:
     def _error_message(self, exception):
         # args for socket.error can either be (errno, "message")
         # or just "message"
+        """处理error消息相关逻辑。
+
+        参数:
+            exception (Any): exception。
+        """
         if len(exception.args) == 1:
             return f"Error connecting to {self.host}:{self.port}. {exception.args[0]}."
         else:
             return f"Error {exception.args[0]} connecting to {self.host}:{self.port}. " f"{exception.args[0]}."
 
     async def on_connect(self):
-        """Initialize the connection, authenticate and select a database"""
+        """处理onconnect相关逻辑。"""
         self._parser.on_connect(self)
 
         # if username and/or password are set, authenticate
         if self.username or self.password:
-            auth_args: Union[Tuple[str], Tuple[str, str]]
+            auth_参数: Union[Tuple[str], Tuple[str, str]]
             if self.username:
                 auth_args = (self.username, self.password or "")
             else:
@@ -758,7 +935,7 @@ class Connection:
                 raise ConnectionError("Invalid Database")
 
     async def disconnect(self):
-        """Disconnects from the Redis server"""
+        """处理disconnect相关逻辑。"""
         try:
             async with async_timeout.timeout(self.socket_connect_timeout):
                 self._parser.on_disconnect()
@@ -778,7 +955,7 @@ class Connection:
             raise TimeoutError(f"Timed out closing connection after {self.socket_connect_timeout}") from None
 
     async def check_health(self):
-        """Check the health of the connection with a PING/PONG"""
+        """检查health。"""
         if self.health_check_interval and asyncio.get_event_loop().time() > self.next_health_check:
             try:
                 await self.send_command("PING", check_health=False)
@@ -794,6 +971,11 @@ class Connection:
                     raise err2 from err
 
     async def _send_packed_command(self, command: Iterable[bytes]) -> None:
+        """处理sendpackedcommand相关逻辑。
+
+        参数:
+            command (Iterable[bytes]): command。
+        """
         if self._writer is None:
             raise RedisError("Connection already closed.")
 
@@ -805,7 +987,12 @@ class Connection:
         command: Union[bytes, str, Iterable[bytes]],
         check_health: bool = True,
     ):
-        """Send an already packed command to the Redis server"""
+        """发送packedcommand。
+
+        参数:
+            command (Union[bytes, str, Iterable[bytes]]): command。
+            check_health (bool): 检查health。
+        """
         if not self._writer:
             await self.connect()
         # guard against health check recursion
@@ -836,19 +1023,28 @@ class Connection:
             raise
 
     async def send_command(self, *args, **kwargs):
-        """Pack and send a command to the Redis server"""
+        """发送command。
+
+        参数:
+            args (*Any): 可变位置参数。
+            kwargs (**Any): 可变关键字参数。
+        """
         if not self.is_connected:
             await self.connect()
         await self.send_packed_command(self.pack_command(*args), check_health=kwargs.get("check_health", True))
 
     async def can_read(self, timeout: float = 0):
-        """Poll the socket to see if there's data that can be read."""
+        """处理canread相关逻辑。
+
+        参数:
+            timeout (float): timeout。
+        """
         if not self.is_connected:
             await self.connect()
         return await self._parser.can_read(timeout)
 
     async def read_response(self):
-        """Read the response from a previously sent command"""
+        """读取response。"""
         try:
             async with self._lock:
                 async with async_timeout.timeout(self.socket_timeout):
@@ -871,7 +1067,14 @@ class Connection:
         return response
 
     def pack_command(self, *args: EncodableT) -> List[bytes]:
-        """Pack a series of arguments into the Redis protocol"""
+        """处理packcommand相关逻辑。
+
+        参数:
+            args (*EncodableT): 可变位置参数。
+
+        返回:
+            List[bytes]: 返回处理结果。
+        """
         output = []
         # the client might have included 1 or more literal arguments in
         # the command name, e.g., 'CONFIG GET'. The Redis server expects these
@@ -911,7 +1114,14 @@ class Connection:
         return output
 
     def pack_commands(self, commands: Iterable[Iterable[EncodableT]]) -> List[bytes]:
-        """Pack multiple commands into the Redis protocol"""
+        """处理packcommands相关逻辑。
+
+        参数:
+            commands (Iterable[Iterable[EncodableT]]): commands。
+
+        返回:
+            List[bytes]: 返回处理结果。
+        """
         output: List[bytes] = []
         pieces: List[bytes] = []
         buffer_length = 0
@@ -937,6 +1147,7 @@ class Connection:
 
 
 class SSLConnection(Connection):
+    """处理sslconnection相关逻辑。"""
     def __init__(
         self,
         ssl_keyfile: Optional[str] = None,
@@ -946,6 +1157,16 @@ class SSLConnection(Connection):
         ssl_check_hostname: bool = False,
         **kwargs,
     ):
+        """初始化实例。
+
+        参数:
+            ssl_keyfile (Optional[str]): sslkeyfile。
+            ssl_certfile (Optional[str]): sslcertfile。
+            ssl_cert_reqs (str): sslcertreqs。
+            ssl_ca_certs (Optional[str]): sslcacerts。
+            ssl_check_hostname (bool): ssl检查hostname。
+            kwargs (**Any): 可变关键字参数。
+        """
         super().__init__(**kwargs)
         self.ssl_context: RedisSSLContext = RedisSSLContext(
             keyfile=ssl_keyfile,
@@ -957,26 +1178,32 @@ class SSLConnection(Connection):
 
     @property
     def keyfile(self):
+        """处理keyfile相关逻辑。"""
         return self.ssl_context.keyfile
 
     @property
     def certfile(self):
+        """处理certfile相关逻辑。"""
         return self.ssl_context.certfile
 
     @property
     def cert_reqs(self):
+        """处理certreqs相关逻辑。"""
         return self.ssl_context.cert_reqs
 
     @property
     def ca_certs(self):
+        """处理cacerts相关逻辑。"""
         return self.ssl_context.ca_certs
 
     @property
     def check_hostname(self):
+        """检查hostname。"""
         return self.ssl_context.check_hostname
 
 
 class RedisSSLContext:
+    """定义redissslcontext数据结构。"""
     __slots__ = (
         "keyfile",
         "certfile",
@@ -994,6 +1221,15 @@ class RedisSSLContext:
         ca_certs: Optional[str] = None,
         check_hostname: bool = False,
     ):
+        """初始化实例。
+
+        参数:
+            keyfile (Optional[str]): keyfile。
+            certfile (Optional[str]): certfile。
+            cert_reqs (Optional[str]): certreqs。
+            ca_certs (Optional[str]): cacerts。
+            check_hostname (bool): 检查hostname。
+        """
         self.keyfile = keyfile
         self.certfile = certfile
         if cert_reqs is None:
@@ -1012,6 +1248,7 @@ class RedisSSLContext:
         self.context: Optional[ssl.SSLContext] = None
 
     def get(self) -> ssl.SSLContext:
+        """处理获取相关逻辑。"""
         if not self.context:
             context = ssl.create_default_context()
             context.check_hostname = self.check_hostname
@@ -1025,6 +1262,7 @@ class RedisSSLContext:
 
 
 class UnixDomainSocketConnection(Connection):  # lgtm [py/missing-call-to-init]
+    """处理unixdomainsocketconnection相关逻辑。"""
     def __init__(
         self,
         *,
@@ -1043,6 +1281,24 @@ class UnixDomainSocketConnection(Connection):  # lgtm [py/missing-call-to-init]
         health_check_interval: float = 0.0,
         client_name=None,
     ):
+        """初始化实例。
+
+        参数:
+            path (str): 路径。
+            db (Union[str, int]): db。
+            username (Optional[str]): 用户名。
+            password (Optional[str]): 密码。
+            socket_timeout (Optional[float]): sockettimeout。
+            socket_connect_timeout (Optional[float]): socketconnecttimeout。
+            encoding (str): encoding。
+            encoding_errors (str): encodingerrors。
+            decode_responses (bool): decoderesponses。
+            retry_on_timeout (bool): retryontimeout。
+            parser_class (Type[BaseParser]): parser班级。
+            socket_read_size (int): socket读取size。
+            health_check_interval (float): health检查interval。
+            client_name (Any): client名称。
+        """
         self.pid = os.getpid()
         self.path = path
         self.db = db
@@ -1064,6 +1320,7 @@ class UnixDomainSocketConnection(Connection):  # lgtm [py/missing-call-to-init]
         self._lock = asyncio.Lock()
 
     def repr_pieces(self) -> Iterable[Tuple[str, Union[str, int]]]:
+        """处理reprpieces相关逻辑。"""
         pieces = [
             ("path", self.path),
             ("db", self.db),
@@ -1073,6 +1330,7 @@ class UnixDomainSocketConnection(Connection):  # lgtm [py/missing-call-to-init]
         return pieces
 
     async def _connect(self):
+        """处理connect相关逻辑。"""
         async with async_timeout.timeout(self.socket_connect_timeout):
             reader, writer = await asyncio.open_unix_connection(path=self.path)
         self._reader = reader
@@ -1082,6 +1340,11 @@ class UnixDomainSocketConnection(Connection):  # lgtm [py/missing-call-to-init]
     def _error_message(self, exception):
         # args for socket.error can either be (errno, "message")
         # or just "message"
+        """处理error消息相关逻辑。
+
+        参数:
+            exception (Any): exception。
+        """
         if len(exception.args) == 1:
             return f"Error connecting to unix socket: {self.path}. {exception.args[0]}."
         else:
@@ -1092,6 +1355,7 @@ FALSE_STRINGS = ("0", "F", "FALSE", "N", "NO")
 
 
 def to_bool(value) -> Optional[bool]:
+    """处理bool相关逻辑。"""
     if value is None or value == "":
         return None
     if isinstance(value, str) and value.upper() in FALSE_STRINGS:
@@ -1114,6 +1378,7 @@ URL_QUERY_ARGUMENT_PARSERS: Mapping[str, Callable[..., object]] = MappingProxyTy
 
 
 class ConnectKwargs(TypedDict, total=False):
+    """处理connect关键字参数相关逻辑。"""
     username: str
     password: str
     connection_class: Type[Connection]
@@ -1123,7 +1388,8 @@ class ConnectKwargs(TypedDict, total=False):
     path: str
 
 
-def parse_url(url: str) -> ConnectKwargs:
+def parse_url(url: str) -> ConnectKw参数:
+    """解析链接。"""
     parsed: ParseResult = urlparse(url)
     kwargs: ConnectKwargs = {}
 
@@ -1193,43 +1459,14 @@ class ConnectionPool:
 
     @classmethod
     def from_url(cls: Type[_CP], url: str, **kwargs) -> _CP:
-        """
-        Return a connection pool configured from the given URL.
+        """Return a connection pool configured from the given URL.
 
-        For example::
+        参数:
+            url (str): 资源链接。
+            kwargs (**Any): 可变关键字参数。
 
-            redis://[[username]:[password]]@localhost:6379/0
-            rediss://[[username]:[password]]@localhost:6379/0
-            unix://[[username]:[password]]@/path/to/socket.sock?db=0
-
-        Three URL schemes are supported:
-
-        - `redis://` creates a TCP socket connection. See more at:
-          <https://www.iana.org/assignments/uri-schemes/prov/redis>
-        - `rediss://` creates a SSL wrapped TCP socket connection. See more at:
-          <https://www.iana.org/assignments/uri-schemes/prov/rediss>
-        - ``unix://``: creates a Unix Domain Socket connection.
-
-        The username, password, hostname, path and all querystring values
-        are passed through urllib.parse.unquote in order to replace any
-        percent-encoded values with their corresponding characters.
-
-        There are several ways to specify a database number. The first value
-        found will be used:
-            1. A ``db`` querystring option, e.g. redis://localhost?db=0
-            2. If using the redis:// or rediss:// schemes, the path argument
-               of the url, e.g. redis://localhost/0
-            3. A ``db`` keyword argument to this function.
-
-        If none of these options are specified, the default db=0 is used.
-
-        All querystring options are cast to their appropriate Python types.
-        Boolean arguments can be specified with string values "True"/"False"
-        or "Yes"/"No". Values that cannot be properly cast cause a
-        ``ValueError`` to be raised. Once parsed, the querystring arguments
-        and keyword arguments are passed to the ``ConnectionPool``'s
-        class initializer. In the case of conflicting arguments, querystring
-        arguments always win.
+        返回:
+            _CP: 返回处理结果。
         """
         url_options = parse_url(url)
         kwargs.update(url_options)
@@ -1241,6 +1478,13 @@ class ConnectionPool:
         max_connections: Optional[int] = None,
         **connection_kwargs,
     ):
+        """初始化实例。
+
+        参数:
+            connection_class (Type[Connection]): connection班级。
+            max_connections (Optional[int]): maxconnections。
+            connection_kwargs (**Any): connection关键字参数。
+        """
         max_connections = max_connections or 2**31
         if not isinstance(max_connections, int) or max_connections < 0:
             raise ValueError('"max_connections" must be a positive integer')
@@ -1266,9 +1510,11 @@ class ConnectionPool:
         self.encoder_class = self.connection_kwargs.get("encoder_class", Encoder)
 
     def __repr__(self):
+        """返回调试字符串表示。"""
         return f"{self.__class__.__name__}" f"<{self.connection_class(**self.connection_kwargs)!r}>"
 
     def reset(self):
+        """处理重置相关逻辑。"""
         self._lock = asyncio.Lock()
         self._created_connections = 0
         self._available_connections = []
@@ -1320,6 +1566,7 @@ class ConnectionPool:
         # seconds to acquire _fork_lock. if _fork_lock cannot be acquired in
         # that time it is assumed that the child is deadlocked and a
         # redis.ChildDeadlockedError error is raised.
+        """处理checkpid相关逻辑。"""
         if self.pid != os.getpid():
             acquired = self._fork_lock.acquire(timeout=5)
             if not acquired:
@@ -1333,7 +1580,13 @@ class ConnectionPool:
                 self._fork_lock.release()
 
     async def get_connection(self, command_name, *keys, **options):
-        """Get a connection from the pool"""
+        """获取connection。
+
+        参数:
+            command_name (Any): command名称。
+            keys (*Any): keys。
+            options (**Any): options。
+        """
         self._checkpid()
         async with self._lock:
             try:
@@ -1366,7 +1619,7 @@ class ConnectionPool:
         return connection
 
     def get_encoder(self):
-        """Return an encoder based on encoding settings"""
+        """获取encoder。"""
         kwargs = self.connection_kwargs
         return self.encoder_class(
             encoding=kwargs.get("encoding", "utf-8"),
@@ -1375,14 +1628,18 @@ class ConnectionPool:
         )
 
     def make_connection(self):
-        """Create a new connection"""
+        """处理makeconnection相关逻辑。"""
         if self._created_connections >= self.max_connections:
             raise ConnectionError("Too many connections")
         self._created_connections += 1
         return self.connection_class(**self.connection_kwargs)
 
     async def release(self, connection: Connection):
-        """Releases the connection back to the pool"""
+        """处理release相关逻辑。
+
+        参数:
+            connection (Connection): connection。
+        """
         self._checkpid()
         async with self._lock:
             try:
@@ -1403,15 +1660,18 @@ class ConnectionPool:
                 return
 
     def owns_connection(self, connection: Connection):
+        """处理ownsconnection相关逻辑。
+
+        参数:
+            connection (Connection): connection。
+        """
         return connection.pid == self.pid
 
     async def disconnect(self, inuse_connections: bool = True):
-        """
-        Disconnects connections in the pool
+        """Disconnects connections in the pool
 
-        If ``inuse_connections`` is True, disconnect connections that are
-        current in use, potentially by other tasks. Otherwise only disconnect
-        connections that are idle in the pool.
+        参数:
+            inuse_connections (bool): inuseconnections。
         """
         self._checkpid()
         async with self._lock:
@@ -1470,6 +1730,15 @@ class BlockingConnectionPool(ConnectionPool):
         queue_class: Type[asyncio.Queue] = asyncio.LifoQueue,
         **connection_kwargs,
     ):
+        """初始化实例。
+
+        参数:
+            max_connections (int): maxconnections。
+            timeout (Optional[int]): timeout。
+            connection_class (Type[Connection]): connection班级。
+            queue_class (Type[asyncio.Queue]): queue班级。
+            connection_kwargs (**Any): connection关键字参数。
+        """
         self.queue_class = queue_class
         self.timeout = timeout
         self._connections: List[Connection]
@@ -1481,6 +1750,7 @@ class BlockingConnectionPool(ConnectionPool):
 
     def reset(self):
         # Create and fill up a thread safe queue with ``None`` values.
+        """处理重置相关逻辑。"""
         self.pool = self.queue_class(self.max_connections)
         while True:
             try:
@@ -1504,22 +1774,18 @@ class BlockingConnectionPool(ConnectionPool):
         self.pid = os.getpid()
 
     def make_connection(self):
-        """Make a fresh connection."""
+        """处理makeconnection相关逻辑。"""
         connection = self.connection_class(**self.connection_kwargs)
         self._connections.append(connection)
         return connection
 
     async def get_connection(self, command_name, *keys, **options):
-        """
-        Get a connection, blocking for ``self.timeout`` until a connection
-        is available from the pool.
+        """Get a connection, blocking for ``self.timeout`` until a connection
 
-        If the connection returned is ``None`` then creates a new connection.
-        Because we use a last-in first-out queue, the existing connections
-        (having been returned to the pool after the initial ``None`` values
-        were added) will be returned before ``None`` values. This means we only
-        create new connections when we need to, i.e.: the actual number of
-        connections will only increase in response to demand.
+        参数:
+            command_name (Any): command名称。
+            keys (*Any): keys。
+            options (**Any): options。
         """
         # Make sure we haven't changed process.
         self._checkpid()
@@ -1563,7 +1829,11 @@ class BlockingConnectionPool(ConnectionPool):
         return connection
 
     async def release(self, connection: Connection):
-        """Releases the connection back to the pool."""
+        """处理release相关逻辑。
+
+        参数:
+            connection (Connection): connection。
+        """
         # Make sure we haven't changed process.
         self._checkpid()
         if not self.owns_connection(connection):
@@ -1584,7 +1854,11 @@ class BlockingConnectionPool(ConnectionPool):
             pass
 
     async def disconnect(self, inuse_connections: bool = True):
-        """Disconnects all connections in the pool."""
+        """处理disconnect相关逻辑。
+
+        参数:
+            inuse_connections (bool): inuseconnections。
+        """
         self._checkpid()
         async with self._lock:
             resp = await asyncio.gather(

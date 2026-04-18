@@ -20,6 +20,7 @@ from .util import TaskFile, TaskManager, FileDataDepends, PushTaskManager, TaskM
 # --------------------------------- 创建任务 ---------------------------------
 @create_task_cmd.handle()
 async def _(matcher: AlconnaMatcher, user: UserDepends):
+    """处理当前命令或事件逻辑。"""
     if user is None:
         await matcher.finish()
     elif user.student:
@@ -34,6 +35,7 @@ async def _(matcher: AlconnaMatcher, user: UserDepends):
 
 @create_task_cmd.got("classes")
 async def _(matcher: AlconnaMatcher, task_name: str, user: UserOrCreatedDepends):
+    """处理当前命令或事件逻辑。"""
     classes = matcher.state.get("classes")
     if isinstance(classes, Classes):
         if await classes.get_task(task_name):
@@ -50,6 +52,7 @@ async def _(
     task_manager: TaskManagerDepends,
 ):
     # 没有指定任务名称，显示所有任务
+    """处理当前命令或事件逻辑。"""
     if task_name is None:
         if task_manager:
             await matcher.finish(await task_manager.tasks.to_card())
@@ -86,6 +89,7 @@ async def _(
 # --------------------------------- 删除任务 ---------------------------------
 @delete_task_cmd.handle()
 async def _(matcher: AlconnaMatcher, task_name: str | None, task_manager: TaskManagerDepends):
+    """处理当前命令或事件逻辑。"""
     if task_name is None:
         if not task_manager:
             await matcher.finish(Emoji.error + "您还未创建任务呢！")
@@ -100,6 +104,7 @@ async def _(
     task_manager: TaskManagerDepends,
     got_name: str = ArgPlainText(),
 ):
+    """处理当前命令或事件逻辑。"""
     if not (got_name := got_name.strip()):
         await matcher.finish(Emoji.error("任务名称不能为空"))
 
@@ -117,6 +122,7 @@ async def _(
     task_arg: tuple,
     task_manager: TaskManager = task_manager_depends("student", PushTaskManager),
 ):
+    """处理当前命令或事件逻辑。"""
     for arg in task_arg:
         if isinstance(arg, str) and "task_name" not in matcher.state:
             matcher.state["task_name"] = UniMessage(arg)
@@ -136,6 +142,7 @@ async def _(
     task_manager: PushTaskManager = task_manager_depends("student", PushTaskManager),
     task_name: UniMessage = Arg(),
 ):
+    """处理当前命令或事件逻辑。"""
     if task_manager.set_task_file(task_name) and task_manager.task_file:
         # 再次检查是否有文件
         matcher.state["task_file"] = UniMessage(task_manager.task_file)
@@ -154,6 +161,7 @@ async def _(
     file_data: FileDataDepends,
     task_manager: PushTaskManager = task_manager_depends("student", PushTaskManager),
 ):
+    """处理当前命令或事件逻辑。"""
     if student is None:
         await matcher.finish(Emoji.error + "您还未加入班级！")
     elif not file_data:
@@ -176,6 +184,7 @@ async def _(
     task_name: str | None,
     task_manager: TaskManagerDepends,
 ):
+    """处理当前命令或事件逻辑。"""
     if task_name is None:
         if not task_manager:
             await matcher.finish(Emoji.error + "您还未创建任务呢！")
@@ -192,6 +201,7 @@ async def _(
     task_manager: TaskManagerDepends,
     got_name: str = ArgPlainText(),
 ):
+    """处理当前命令或事件逻辑。"""
     if not (got_name := got_name.strip()):
         await matcher.finish(Emoji.error("任务名称不能为空"))
 

@@ -30,6 +30,7 @@ async def _(matcher: AlconnaMatcher, df: ImportDataFrame, user: UserOrCreatedDep
     # print(df.head())
 
     # 检索出不在student_column_renames中的列
+    """处理当前命令或事件逻辑。"""
     if missing_columns := student_column_required - set(df.columns):
         await matcher.finish(Emoji.error + f"缺少列: {', '.join(student_column_renames[i][0] for i in missing_columns)}")
 
@@ -71,6 +72,7 @@ async def _(
     matcher: AlconnaMatcher,
     user: UserOrCreatedDepends,
 ):
+    """处理当前命令或事件逻辑。"""
     if user.role == UserRole.student:
         await matcher.finish(Emoji.error + "您是学生没有权限创建班级！！")
     elif not platform.is_group:
@@ -118,6 +120,7 @@ async def _(
     matcher: AlconnaMatcher,
     teacher: TeacherDepends,
 ):
+    """处理当前命令或事件逻辑。"""
     if teacher is None:
         await matcher.finish(Emoji.error + "您还不是教师，没有可删除班级！！")
     elif classes_id is None and platform.is_private:
@@ -137,6 +140,7 @@ async def _(
 
         @waiter(waits=["message"], block=True)
         async def is_yes(event: Event):
+            """检查yes。"""
             return event.get_message().extract_plain_text().lower() == "yes"
 
         if not await is_yes.wait(timeout=60):
@@ -151,6 +155,7 @@ async def _(
     teacher: TeacherDepends,
     matcher: AlconnaMatcher,
 ):
+    """处理当前命令或事件逻辑。"""
     if teacher is None or not teacher.classes:
         await matcher.finish(Emoji.warning + "您还未创建班级！！")
     card = StringCard("您所创建班级如下")
@@ -175,6 +180,7 @@ async def _(
     matcher: AlconnaMatcher,
     user: UserOrCreatedDepends,
 ):
+    """处理当前命令或事件逻辑。"""
     matcher.state["describe"] = describe
 
     if user.role == UserRole.student:
@@ -205,6 +211,7 @@ async def _(
     user: UserOrCreatedDepends,
     is_join: str = ArgPlainText(),
 ):
+    """处理当前命令或事件逻辑。"""
     classes: Classes | None
     if is_join.strip() != "yes":
         await matcher.finish("❌️已取消操作！！")
@@ -231,6 +238,7 @@ async def _(
 
 @exit_classes_cmd.handle()
 async def _(matcher: AlconnaMatcher, student: StudentDepends):
+    """处理当前命令或事件逻辑。"""
     if student is None:
         await matcher.finish("❌️您还未加入班级！！")
     await matcher.send(f"您当前所在班级为**{student.classes.name}**，班级ID为**{student.classes.id}**，" "是否要退出该班级？(yes/no)")
@@ -238,6 +246,7 @@ async def _(matcher: AlconnaMatcher, student: StudentDepends):
 
 @exit_classes_cmd.got("is_exit")
 async def _(matcher: AlconnaMatcher, student: StudentDepends, is_exit: str = ArgPlainText()):
+    """处理当前命令或事件逻辑。"""
     if is_exit.strip() != "yes":
         await matcher.finish("❌️已取消操作！！")
 
@@ -259,6 +268,7 @@ async def _(
     platform: EventSession,
 ):
     # 纠正classes_id和join_method
+    """处理当前命令或事件逻辑。"""
     if join_method is not None and join_method.isdigit():
         ...
     # if classes_id is not None and join_method is not None:

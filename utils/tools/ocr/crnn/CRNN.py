@@ -13,6 +13,7 @@ converter = strLabelConverter("".join(alphabet))
 
 
 def softmax(x):
+    """计算 Softmax 值。"""
     x_row_max = x.max(axis=-1)
     x_row_max = x_row_max.reshape(list(x.shape)[:-1] + [1])
     x = x - x_row_max
@@ -23,14 +24,22 @@ def softmax(x):
 
 
 class CRNNHandle:
+    """封装 CRNN 文字识别模型的加载与推理流程。"""
     def __init__(self, model_path: Union[str, Path, None] = None):
+        """初始化实例。
+
+        参数:
+            model_path (Union[str, Path, None]): 模型路径。
+        """
         if model_path is None:
             model_path = ocr_models_dir / "crnn_lite_lstm.onnx"
         self.sess = rt.InferenceSession(str(model_path))
 
     def predict(self, image):
-        """
-        预测
+        """预测
+
+        参数:
+            image (Any): 图片对象。
         """
         scale = image.size[1] * 1.0 / 32
         w = image.size[0] / scale
@@ -58,8 +67,10 @@ class CRNNHandle:
         return sim_pred
 
     def predict_rbg(self, im):
-        """
-        预测
+        """预测
+
+        参数:
+            im (Any): im。
         """
         scale = im.size[1] * 1.0 / 32
         w = im.size[0] / scale

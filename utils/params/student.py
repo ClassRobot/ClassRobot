@@ -23,24 +23,24 @@ columns_chinese = get_columns_chinese()
 
 
 def get_column_key(value: str) -> str | None:
-    """获取列的key"""
+    """获取columnkey。"""
     for key, values in columns.items():
         if value in values:
             return key
 
 
 def is_user_key(value: str) -> bool:
-    """是否是用户的key"""
+    """检查用户key。"""
     return value in ["email", "phone", "username"]
 
 
 def is_student_key(value: str) -> bool:
-    """是否是学生的key"""
+    """检查学生key。"""
     return value in ["role", "name"]
 
 
 def is_student_extra_key(value: str) -> bool:
-    """是否是学生额外信息的key"""
+    """检查学生extrakey。"""
     return value in [
         "sex",
         "dormitory",

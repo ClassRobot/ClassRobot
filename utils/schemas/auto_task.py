@@ -37,7 +37,14 @@ class AutoTaskList(BaseModel):
 
     @classmethod
     def parse_str(cls, text: str) -> "AutoTaskList":
-        "解析文本"
+        """解析文本
+
+        参数:
+            text (str): 文本内容。
+
+        返回:
+            'AutoTaskList': 返回处理结果。
+        """
         contents = text.split("<hr/>")
         task_data = contents[-1].strip()
         try:

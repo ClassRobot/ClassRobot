@@ -81,6 +81,7 @@ _NormalizeKeysT = TypeVar("_NormalizeKeysT", bound=Mapping[ChannelT, object])
 
 def list_or_args(keys: Union[_KeyT, Iterable[_KeyT]], args: Optional[Iterable[_ArgT]]) -> List[Union[_KeyT, _ArgT]]:
     # returns a single new list combining keys and args
+    """处理listargs相关逻辑。"""
     key_list: List[Union[_KeyT, _ArgT]]
     try:
         iter(keys)  # type: ignore[arg-type]
@@ -99,7 +100,7 @@ def list_or_args(keys: Union[_KeyT, Iterable[_KeyT]], args: Optional[Iterable[_A
 
 
 def timestamp_to_datetime(response):
-    """Converts a unix timestamp to a Python datetime object"""
+    """处理timestampdatetime相关逻辑。"""
     if not response:
         return None
     try:
@@ -110,6 +111,7 @@ def timestamp_to_datetime(response):
 
 
 def string_keys_to_dict(key_string, callback):
+    """处理stringkeysdict相关逻辑。"""
     return dict.fromkeys(key_string.split(), callback)
 
 
@@ -117,31 +119,68 @@ class CaseInsensitiveDict(dict):
     """Case insensitive dict implementation. Assumes string keys only."""
 
     def __init__(self, data):
+        """初始化实例。
+
+        参数:
+            data (Any): data。
+        """
         for k, v in data.items():
             self[k.upper()] = v
 
     def __contains__(self, k):
+        """实现 __contains__ 特殊方法。
+
+        参数:
+            k (Any): k。
+        """
         return super().__contains__(k.upper())
 
     def __delitem__(self, k):
+        """实现 __delitem__ 特殊方法。
+
+        参数:
+            k (Any): k。
+        """
         super().__delitem__(k.upper())
 
     def __getitem__(self, k):
+        """获取指定项。
+
+        参数:
+            k (Any): k。
+        """
         return super().__getitem__(k.upper())
 
     def get(self, k, default=None):
+        """处理获取相关逻辑。
+
+        参数:
+            k (Any): k。
+            default (Any): default。
+        """
         return super().get(k.upper(), default)
 
     def __setitem__(self, k, v):
+        """设置指定项。
+
+        参数:
+            k (Any): k。
+            v (Any): v。
+        """
         super().__setitem__(k.upper(), v)
 
     def update(self, data):
+        """更新当前数据。
+
+        参数:
+            data (Any): data。
+        """
         data = CaseInsensitiveDict(data)
         super().update(data)
 
 
 def parse_debug_object(response):
-    """Parse the results of Redis's DEBUG OBJECT command into a Python dict"""
+    """解析debugobject。"""
     # The 'type' of the object is the first item in the response, but isn't
     # prefixed with a name
     response = str_if_bytes(response)
@@ -159,18 +198,19 @@ def parse_debug_object(response):
 
 
 def parse_object(response, infotype):
-    """Parse the results of an OBJECT command"""
+    """解析object。"""
     if infotype in ("idletime", "refcount"):
         return int_or_none(response)
     return response
 
 
 def parse_info(response):
-    """Parse the result of Redis's INFO command into a Python dict"""
+    """解析info。"""
     info: Dict[str, Any] = {}
     response = str_if_bytes(response)
 
     def get_value(value):
+        """获取value。"""
         if "," not in value or "=" not in value:
             try:
                 if "." in value:
@@ -210,7 +250,7 @@ def parse_info(response):
 
 
 def parse_memory_stats(response, **kwargs):
-    """Parse the results of MEMORY STATS"""
+    """解析memorystats。"""
     stats = pairs_to_dict(response, decode_keys=True, decode_string_values=True)
     for key, value in stats.items():
         if key.startswith("db."):
@@ -246,6 +286,7 @@ SENTINEL_STATE_TYPES = {
 
 
 def parse_sentinel_state(item):
+    """解析sentinelstate。"""
     result = pairs_to_dict_typed(item, SENTINEL_STATE_TYPES)
     flags = set(result["flags"].split(","))
     for name, flag in (
@@ -262,10 +303,12 @@ def parse_sentinel_state(item):
 
 
 def parse_sentinel_master(response):
+    """解析sentinelmaster。"""
     return parse_sentinel_state(map(str_if_bytes, response))
 
 
 def parse_sentinel_masters(response):
+    """解析sentinelmasters。"""
     result = {}
     for item in response:
         state = parse_sentinel_state(map(str_if_bytes, item))
@@ -274,15 +317,17 @@ def parse_sentinel_masters(response):
 
 
 def parse_sentinel_slaves_and_sentinels(response):
+    """解析sentinelslavesandsentinels。"""
     return [parse_sentinel_state(map(str_if_bytes, item)) for item in response]
 
 
 def parse_sentinel_get_master(response):
+    """解析sentinelgetmaster。"""
     return response and (response[0], int(response[1])) or None
 
 
 def pairs_to_dict(response, decode_keys=False, decode_string_values=False):
-    """Create a dict given a list of key/value pairs"""
+    """处理pairsdict相关逻辑。"""
     if response is None:
         return {}
     if decode_keys or decode_string_values:
@@ -301,6 +346,7 @@ def pairs_to_dict(response, decode_keys=False, decode_string_values=False):
 
 
 def pairs_to_dict_typed(response, type_info):
+    """处理pairsdicttyped相关逻辑。"""
     it = iter(response)
     result = {}
     for key, value in zip(it, it):
@@ -339,12 +385,14 @@ def sort_return_tuples(response, **options):
 
 
 def int_or_none(response):
+    """处理intnone相关逻辑。"""
     if response is None:
         return None
     return int(response)
 
 
 def parse_stream_list(response):
+    """解析streamlist。"""
     if response is None:
         return None
     data = []
@@ -357,20 +405,24 @@ def parse_stream_list(response):
 
 
 def pairs_to_dict_with_str_keys(response):
+    """处理pairsdictstrkeys相关逻辑。"""
     return pairs_to_dict(response, decode_keys=True)
 
 
 def parse_list_of_dicts(response):
+    """解析listdicts。"""
     return list(map(pairs_to_dict_with_str_keys, response))
 
 
 def parse_xclaim(response, **options):
+    """解析xclaim。"""
     if options.get("parse_justid", False):
         return response
     return parse_stream_list(response)
 
 
 def parse_xinfo_stream(response):
+    """解析xinfostream。"""
     data = pairs_to_dict(response, decode_keys=True)
     first = data["first-entry"]
     if first is not None:
@@ -382,12 +434,14 @@ def parse_xinfo_stream(response):
 
 
 def parse_xread(response):
+    """解析xread。"""
     if response is None:
         return []
     return [[r[0], parse_stream_list(r[1])] for r in response]
 
 
 def parse_xpending(response, **options):
+    """解析xpending。"""
     if options.get("parse_detail", False):
         return parse_xpending_range(response)
     consumers = [{"name": n, "pending": int(p)} for n, p in response[3] or []]
@@ -400,21 +454,25 @@ def parse_xpending(response, **options):
 
 
 def parse_xpending_range(response):
+    """解析xpendingrange。"""
     k = ("message_id", "consumer", "time_since_delivered", "times_delivered")
     return [dict(zip(k, r)) for r in response]
 
 
 def float_or_none(response):
+    """处理floatnone相关逻辑。"""
     if response is None:
         return None
     return float(response)
 
 
 def bool_ok(response):
+    """处理boolok相关逻辑。"""
     return str_if_bytes(response) == "OK"
 
 
 def parse_zadd(response, **options):
+    """解析zadd。"""
     if response is None:
         return None
     if options.get("as_score"):
@@ -423,6 +481,7 @@ def parse_zadd(response, **options):
 
 
 def parse_client_list(response, **options):
+    """解析clientlist。"""
     clients = []
     for c in str_if_bytes(response).splitlines():
         # Values might contain '='
@@ -431,21 +490,25 @@ def parse_client_list(response, **options):
 
 
 def parse_config_get(response, **options):
+    """解析配置获取。"""
     response = [str_if_bytes(i) if i is not None else None for i in response]
     return response and pairs_to_dict(response) or {}
 
 
 def parse_scan(response, **options):
+    """解析scan。"""
     cursor, r = response
     return int(cursor), r
 
 
 def parse_hscan(response, **options):
+    """解析hscan。"""
     cursor, r = response
     return int(cursor), r and pairs_to_dict(r) or {}
 
 
 def parse_zscan(response, **options):
+    """解析zscan。"""
     score_cast_func = options.get("score_cast_func", float)
     cursor, r = response
     it = iter(r)
@@ -453,6 +516,7 @@ def parse_zscan(response, **options):
 
 
 def parse_slowlog_get(response, **options):
+    """解析slowlogget。"""
     space: Union[str, bytes] = " " if options.get("decode_responses", False) else b" "
     return [
         {
@@ -469,11 +533,13 @@ def parse_slowlog_get(response, **options):
 
 
 def parse_cluster_info(response, **options):
+    """解析clusterinfo。"""
     response = str_if_bytes(response)
     return dict(line.split(":") for line in response.splitlines() if line)
 
 
 def _parse_node_line(line):
+    """处理parsenodeline相关逻辑。"""
     line_items = line.split(" ")
     node_id, addr, flags, master_id, ping, pong, epoch, connected = line.split(" ")[:8]
     slots = [sl.split("-") for sl in line_items[8:]]
@@ -491,11 +557,13 @@ def _parse_node_line(line):
 
 
 def parse_cluster_nodes(response, **options):
+    """解析clusternodes。"""
     raw_lines = str_if_bytes(response).splitlines()
     return dict(_parse_node_line(line) for line in raw_lines)
 
 
 def parse_georadius_generic(response, **options):
+    """解析georadiusgeneric。"""
     if options["store"] or options["store_dist"]:
         # `store` and `store_diff` cant be combined
         # with other command arguments.
@@ -524,16 +592,19 @@ def parse_georadius_generic(response, **options):
 
 
 def parse_pubsub_numsub(response, **options):
+    """解析pubsubnumsub。"""
     return list(zip(response[0::2], response[1::2]))
 
 
 def parse_client_kill(response, **options):
+    """解析clientkill。"""
     if isinstance(response, int):
         return response
     return str_if_bytes(response) == "OK"
 
 
 def parse_acl_getuser(response, **options):
+    """解析aclgetuser。"""
     if response is None:
         return None
     data = pairs_to_dict(response, decode_keys=True)
@@ -558,6 +629,7 @@ def parse_acl_getuser(response, **options):
 
 
 def parse_acl_log(response, **options):
+    """解析acllog。"""
     if response is None:
         return None
     if isinstance(response, list):
@@ -606,18 +678,33 @@ def parse_client_info(value):
 
 
 def parse_module_result(response):
+    """解析moduleresult。"""
     if isinstance(response, ModuleError):
         raise response
     return True
 
 
 class ResponseCallbackProtocol(Protocol):
+    """定义responsecallbackprotocol协议接口。"""
     def __call__(self, response: Any, **kwargs):
+        """调用实例并返回结果。
+
+        参数:
+            response (Any): response。
+            kwargs (**Any): 可变关键字参数。
+        """
         ...
 
 
 class AsyncResponseCallbackProtocol(Protocol):
+    """定义asyncresponsecallbackprotocol协议接口。"""
     async def __call__(self, response: Any, **kwargs):
+        """调用实例并返回结果。
+
+        参数:
+            response (Any): response。
+            kwargs (**Any): 可变关键字参数。
+        """
         ...
 
 
@@ -767,44 +854,11 @@ class Redis:
 
     @classmethod
     def from_url(cls, url: str, **kwargs):
-        """
-        Return a Redis client object configured from the given URL
+        """Return a Redis client object configured from the given URL
 
-        For example::
-
-            redis://[[username]:[password]]@localhost:6379/0
-            rediss://[[username]:[password]]@localhost:6379/0
-            unix://[[username]:[password]]@/path/to/socket.sock?db=0
-
-        Three URL schemes are supported:
-
-        - `redis://` creates a TCP socket connection. See more at:
-          <https://www.iana.org/assignments/uri-schemes/prov/redis>
-        - `rediss://` creates a SSL wrapped TCP socket connection. See more at:
-          <https://www.iana.org/assignments/uri-schemes/prov/rediss>
-        - ``unix://``: creates a Unix Domain Socket connection.
-
-        The username, password, hostname, path and all querystring values
-        are passed through urllib.parse.unquote in order to replace any
-        percent-encoded values with their corresponding characters.
-
-        There are several ways to specify a database number. The first value
-        found will be used:
-            1. A ``db`` querystring option, e.g. redis://localhost?db=0
-            2. If using the redis:// or rediss:// schemes, the path argument
-               of the url, e.g. redis://localhost/0
-            3. A ``db`` keyword argument to this function.
-
-        If none of these options are specified, the default db=0 is used.
-
-        All querystring options are cast to their appropriate Python types.
-        Boolean arguments can be specified with string values "True"/"False"
-        or "Yes"/"No". Values that cannot be properly cast cause a
-        ``ValueError`` to be raised. Once parsed, the querystring arguments
-        and keyword arguments are passed to the ``ConnectionPool``'s
-        class initializer. In the case of conflicting arguments, querystring
-        arguments always win.
-
+        参数:
+            url (str): 资源链接。
+            kwargs (**Any): 可变关键字参数。
         """
         connection_pool = ConnectionPool.from_url(url, **kwargs)
         return cls(connection_pool=connection_pool)
@@ -839,6 +893,36 @@ class Redis:
         username: Optional[str] = None,
         auto_close_connection_pool: bool = True,
     ):
+        """初始化实例。
+
+        参数:
+            host (str): host。
+            port (int): port。
+            db (Union[str, int]): db。
+            password (Optional[str]): 密码。
+            socket_timeout (Optional[float]): sockettimeout。
+            socket_connect_timeout (Optional[float]): socketconnecttimeout。
+            socket_keepalive (Optional[bool]): socketkeepalive。
+            socket_keepalive_options (Optional[Mapping[int, Union[int, bytes]]]): socketkeepaliveoptions。
+            connection_pool (Optional[ConnectionPool]): connectionpool。
+            unix_socket_path (Optional[str]): unixsocket路径。
+            encoding (str): encoding。
+            encoding_errors (str): encodingerrors。
+            decode_responses (bool): decoderesponses。
+            retry_on_timeout (bool): retryontimeout。
+            ssl (bool): ssl。
+            ssl_keyfile (Optional[str]): sslkeyfile。
+            ssl_certfile (Optional[str]): sslcertfile。
+            ssl_cert_reqs (str): sslcertreqs。
+            ssl_ca_certs (Optional[str]): sslcacerts。
+            ssl_check_hostname (bool): ssl检查hostname。
+            max_connections (Optional[int]): maxconnections。
+            single_connection_client (bool): singleconnectionclient。
+            health_check_interval (int): health检查interval。
+            client_name (Optional[str]): client名称。
+            username (Optional[str]): 用户名。
+            auto_close_connection_pool (bool): autocloseconnectionpool。
+        """
         kwargs: Dict[str, Any]
         # auto_close_connection_pool only has an effect if connection_pool is
         # None. This is a similar feature to the missing __del__ to resolve #1103,
@@ -898,27 +982,37 @@ class Redis:
         self.response_callbacks = CaseInsensitiveDict(self.__class__.RESPONSE_CALLBACKS)
 
     def __repr__(self):
+        """返回调试字符串表示。"""
         return f"{self.__class__.__name__}<{self.connection_pool!r}>"
 
     def __await__(self):
+        """返回可等待对象。"""
         return self.initialize().__await__()
 
     async def initialize(self: _RedisT) -> _RedisT:
+        """处理initialize相关逻辑。"""
         if self.single_connection_client and self.connection is None:
             self.connection = await self.connection_pool.get_connection("_")
         return self
 
     def set_response_callback(self, command: str, callback: ResponseCallbackT):
-        """Set a custom Response Callback"""
+        """设置responsecallback。
+
+        参数:
+            command (str): command。
+            callback (ResponseCallbackT): callback。
+        """
         self.response_callbacks[command] = callback
 
     def pipeline(self, transaction: bool = True, shard_hint: Optional[str] = None) -> "Pipeline":
-        """
-        Return a new pipeline object that can queue multiple commands for
-        later execution. ``transaction`` indicates whether all commands
-        should be executed atomically. Apart from making a group of operations
-        atomic, pipelines are useful for reducing the back-and-forth overhead
-        between the client and server.
+        """Return a new pipeline object that can queue multiple commands for
+
+        参数:
+            transaction (bool): transaction。
+            shard_hint (Optional[str]): shardhint。
+
+        返回:
+            'Pipeline': 返回处理结果。
         """
         return Pipeline(self.connection_pool, self.response_callbacks, transaction, shard_hint)
 
@@ -930,10 +1024,14 @@ class Redis:
         value_from_callable: bool = False,
         watch_delay: Optional[float] = None,
     ):
-        """
-        Convenience method for executing the callable `func` as a transaction
-        while watching all keys specified in `watches`. The 'func' callable
-        should expect a single argument which is a Pipeline object.
+        """Convenience method for executing the callable `func` as a transaction
+
+        参数:
+            func (Callable[['Pipeline'], Union[Any, Awaitable[Any]]]): func。
+            shard_hint (Optional[str]): shardhint。
+            value_from_callable (bool): valuefromcallable。
+            watch_delay (Optional[float]): watchdelay。
+            watches (*KeyT): watches。
         """
         pipe: Pipeline
         async with self.pipeline(True, shard_hint) as pipe:
@@ -960,49 +1058,19 @@ class Redis:
         lock_class: Optional[Type[Lock]] = None,
         thread_local=True,
     ) -> Lock:
+        """Return a new Lock object using key ``name`` that mimics
+
+        参数:
+            name (KeyT): 名称。
+            timeout (Optional[float]): timeout。
+            sleep (float): sleep。
+            blocking_timeout (Optional[float]): blockingtimeout。
+            lock_class (Optional[Type[Lock]]): lock班级。
+            thread_local (Any): threadlocal。
+
+        返回:
+            Lock: 返回处理结果。
         """
-        Return a new Lock object using key ``name`` that mimics
-        the behavior of threading.Lock.
-
-        If specified, ``timeout`` indicates a maximum life for the lock.
-        By default, it will remain locked until release() is called.
-
-        ``sleep`` indicates the amount of time to sleep per loop iteration
-        when the lock is in blocking mode and another client is currently
-        holding the lock.
-
-        ``blocking_timeout`` indicates the maximum amount of time in seconds to
-        spend trying to acquire the lock. A value of ``None`` indicates
-        continue trying forever. ``blocking_timeout`` can be specified as a
-        float or integer, both representing the number of seconds to wait.
-
-        ``lock_class`` forces the specified lock implementation.
-
-        ``thread_local`` indicates whether the lock token is placed in
-        thread-local storage. By default, the token is placed in thread local
-        storage so that a thread only sees its token, not a token set by
-        another thread. Consider the following timeline:
-
-            time: 0, thread-1 acquires `my-lock`, with a timeout of 5 seconds.
-                     thread-1 sets the token to "abc"
-            time: 1, thread-2 blocks trying to acquire `my-lock` using the
-                     Lock instance.
-            time: 5, thread-1 has not yet completed. redis expires the lock
-                     key.
-            time: 5, thread-2 acquired `my-lock` now that it's available.
-                     thread-2 sets the token to "xyz"
-            time: 6, thread-1 finishes its work and calls release(). if the
-                     token is *not* stored in thread local storage, then
-                     thread-1 would see the token value as "xyz" and would be
-                     able to successfully release the thread-2's lock.
-
-        In some use cases it's necessary to disable thread local storage. For
-        example, if you have code where one thread acquires a lock and passes
-        that lock instance to a worker thread to release later. If thread
-        local storage isn't disabled in this case, the worker thread won't see
-        the token set by the thread that acquired the lock. Our assumption
-        is that these cases aren't common and as such default to using
-        thread local storage."""
         if lock_class is None:
             lock_class = Lock
         return lock_class(
@@ -1015,28 +1083,46 @@ class Redis:
         )
 
     def pubsub(self, **kwargs) -> "PubSub":
-        """
-        Return a Publish/Subscribe object. With this object, you can
-        subscribe to channels and listen for messages that get published to
-        them.
+        """Return a Publish/Subscribe object. With this object, you can
+
+        参数:
+            kwargs (**Any): 可变关键字参数。
+
+        返回:
+            'PubSub': 返回处理结果。
         """
         return PubSub(self.connection_pool, **kwargs)
 
     def monitor(self) -> "Monitor":
+        """处理monitor相关逻辑。"""
         return Monitor(self.connection_pool)
 
     def client(self) -> "Redis":
+        """处理client相关逻辑。"""
         return self.__class__(connection_pool=self.connection_pool, single_connection_client=True)
 
     async def __aenter__(self: _RedisT) -> _RedisT:
+        """实现 __aenter__ 特殊方法。"""
         return await self.initialize()
 
     async def __aexit__(self, exc_type, exc_value, traceback):
+        """实现 __aexit__ 特殊方法。
+
+        参数:
+            exc_type (Any): exctype。
+            exc_value (Any): excvalue。
+            traceback (Any): traceback。
+        """
         await self.close()
 
     _DEL_MESSAGE = "Unclosed Redis client"
 
     def __del__(self, _warnings: Any = warnings) -> None:
+        """实现 __del__ 特殊方法。
+
+        参数:
+            _warnings (Any): warnings。
+        """
         if self.connection is not None:
             _warnings.warn(
                 f"Unclosed client session {self!r}",
@@ -1047,12 +1133,10 @@ class Redis:
             asyncio.get_event_loop().call_exception_handler(context)
 
     async def close(self, close_connection_pool: Optional[bool] = None) -> None:
-        """
-        Closes Redis client connection
+        """Closes Redis client connection
 
-        :param close_connection_pool: decides whether to close the connection pool used
-        by this Redis client, overriding Redis.auto_close_connection_pool. By default,
-        let Redis.auto_close_connection_pool decide whether to close the connection pool.
+        参数:
+            close_connection_pool (Optional[bool]): closeconnectionpool。
         """
         conn = self.connection
         if conn:
@@ -1063,7 +1147,12 @@ class Redis:
 
     # COMMAND EXECUTION AND PROTOCOL PARSING
     async def execute_command(self, *args, **options):
-        """Execute a command and return a parsed response"""
+        """处理executecommand相关逻辑。
+
+        参数:
+            args (*Any): 可变位置参数。
+            options (**Any): options。
+        """
         await self.initialize()
         pool = self.connection_pool
         command_name = args[0]
@@ -1082,7 +1171,13 @@ class Redis:
                 await pool.release(conn)
 
     async def parse_response(self, connection: Connection, command_name: Union[str, bytes], **options):
-        """Parses a response from the Redis server"""
+        """解析response。
+
+        参数:
+            connection (Connection): connection。
+            command_name (Union[str, bytes]): command名称。
+            options (**Any): options。
+        """
         try:
             response = await connection.read_response()
         except ResponseError:
@@ -1100,41 +1195,55 @@ class Redis:
 
     # ACL methods
     def acl_cat(self, category: Optional[str] = None) -> Awaitable:
-        """
-        Returns a list of categories or commands within a category.
+        """Returns a list of categories or commands within a category.
 
-        If ``category`` is not supplied, returns a list of all categories.
-        If ``category`` is supplied, returns a list of all commands within
-        that category.
+        参数:
+            category (Optional[str]): category。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         pieces: List[EncodableT] = [category] if category else []
         return self.execute_command("ACL CAT", *pieces)
 
     def acl_deluser(self, username: str) -> Awaitable:
-        """Delete the ACL for the specified ``username``"""
+        """处理acldeluser相关逻辑。
+
+        参数:
+            username (str): 用户名。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("ACL DELUSER", username)
 
     def acl_genpass(self) -> Awaitable:
-        """Generate a random password value"""
+        """处理aclgenpass相关逻辑。"""
         return self.execute_command("ACL GENPASS")
 
     def acl_getuser(self, username: str) -> Awaitable:
-        """
-        Get the ACL details for the specified ``username``.
+        """Get the ACL details for the specified ``username``.
 
-        If ``username`` does not exist, return None
+        参数:
+            username (str): 用户名。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self.execute_command("ACL GETUSER", username)
 
     def acl_list(self) -> Awaitable:
-        """Return a list of all ACLs on the server"""
+        """处理acllist相关逻辑。"""
         return self.execute_command("ACL LIST")
 
     def acl_log(self, count: Optional[int] = None) -> Awaitable:
-        """
-        Get ACL logs as a list.
-        :param int count: Get logs[0:count].
-        :rtype: List.
+        """Get ACL logs as a list.
+
+        参数:
+            count (Optional[int]): 统计。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         args = []
         if count is not None:
@@ -1184,64 +1293,23 @@ class Redis:
         reset_keys: bool = False,
         reset_passwords: bool = False,
     ) -> Awaitable:
-        """
-        Create or update an ACL user.
+        """Create or update an ACL user.
 
-        Create or update the ACL for ``username``. If the user already exists,
-        the existing ACL is completely overwritten and replaced with the
-        specified values.
+        参数:
+            username (str): 用户名。
+            enabled (bool): enabled。
+            nopass (bool): nopass。
+            passwords (Optional[Union[str, Iterable[str]]]): passwords。
+            hashed_passwords (Optional[Union[str, Iterable[str]]]): hashedpasswords。
+            categories (Optional[Iterable[str]]): categories。
+            commands (Optional[Iterable[str]]): commands。
+            keys (Optional[Iterable[KeyT]]): keys。
+            reset (bool): reset。
+            reset_keys (bool): resetkeys。
+            reset_passwords (bool): resetpasswords。
 
-        ``enabled`` is a boolean indicating whether the user should be allowed
-        to authenticate or not. Defaults to ``False``.
-
-        ``nopass`` is a boolean indicating whether the can authenticate without
-        a password. This cannot be True if ``passwords`` are also specified.
-
-        ``passwords`` if specified is a list of plain text passwords
-        to add to or remove from the user. Each password must be prefixed with
-        a '+' to add or a '-' to remove. For convenience, the value of
-        ``passwords`` can be a simple prefixed string when adding or
-        removing a single password.
-
-        ``hashed_passwords`` if specified is a list of SHA-256 hashed passwords
-        to add to or remove from the user. Each hashed password must be
-        prefixed with a '+' to add or a '-' to remove. For convenience,
-        the value of ``hashed_passwords`` can be a simple prefixed string when
-        adding or removing a single password.
-
-        ``categories`` if specified is a list of strings representing category
-        permissions. Each string must be prefixed with either a '+' to add the
-        category permission or a '-' to remove the category permission.
-
-        ``commands`` if specified is a list of strings representing command
-        permissions. Each string must be prefixed with either a '+' to add the
-        command permission or a '-' to remove the command permission.
-
-        ``keys`` if specified is a list of key patterns to grant the user
-        access to. Keys patterns allow '*' to support wildcard matching. For
-        example, '*' grants access to all keys while 'cache:*' grants access
-        to all keys that are prefixed with 'cache:'. ``keys`` should not be
-        prefixed with a '~'.
-
-        ``reset`` is a boolean indicating whether the user should be fully
-        reset prior to applying the new ACL. Setting this to True will
-        remove all existing passwords, flags and privileges from the user and
-        then apply the specified rules. If this is False, the user's existing
-        passwords, flags and privileges will be kept and any new specified
-        rules will be applied on top.
-
-        ``reset_keys`` is a boolean indicating whether the user's key
-        permissions should be reset prior to applying any new key permissions
-        specified in ``keys``. If this is False, the user's existing
-        key permissions will be kept and any new specified key permissions
-        will be applied on top.
-
-        ``reset_passwords`` is a boolean indicating whether to remove all
-        existing passwords and the 'nopass' flag from the user prior to
-        applying any new passwords specified in 'passwords' or
-        'hashed_passwords'. If this is False, the user's existing passwords
-        and 'nopass' status will be kept and any new specified passwords
-        or hashed_passwords will be applied on top.
+        返回:
+            Awaitable: 返回处理结果。
         """
         encoder = self.connection_pool.get_encoder()
         pieces: List[Union[str, bytes]] = [username]
@@ -1323,15 +1391,15 @@ class Redis:
         return self.execute_command("ACL SETUSER", *pieces)
 
     def acl_users(self) -> Awaitable:
-        """Returns a list of all registered users on the server."""
+        """处理acl用户相关逻辑。"""
         return self.execute_command("ACL USERS")
 
     def acl_whoami(self) -> Awaitable:
-        """Get the username for the current connection"""
+        """处理aclwhoami相关逻辑。"""
         return self.execute_command("ACL WHOAMI")
 
     def bgrewriteaof(self) -> Awaitable:
-        """Tell the Redis server to rewrite the AOF file from data in memory."""
+        """处理bgrewriteaof相关逻辑。"""
         return self.execute_command("BGREWRITEAOF")
 
     def bgsave(self) -> Awaitable:
@@ -1342,7 +1410,14 @@ class Redis:
         return self.execute_command("BGSAVE")
 
     def client_kill(self, address: str) -> Awaitable:
-        """Disconnects the client at ``address`` (ip:port)"""
+        """处理clientkill相关逻辑。
+
+        参数:
+            address (str): address。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("CLIENT KILL", address)
 
     def client_kill_filter(
@@ -1352,15 +1427,16 @@ class Redis:
         addr: Optional[str] = None,
         skipme: Optional[bool] = None,
     ) -> Awaitable:
-        """
-        Disconnects client(s) using a variety of filter options
-        :param _id: Kills a client by its unique ID field
-        :param _type: Kills a client by type where type is one of 'normal',
-        'master', 'slave' or 'pubsub'
-        :param addr: Kills a client by its 'address:port'
-        :param skipme: If True, then the client calling the command
-        will not get killed even if it is identified by one of the filter
-        options. If skipme is not provided, the server defaults to skipme=True
+        """Disconnects client(s) using a variety of filter options
+
+        参数:
+            _id (Optional[str]): 标识。
+            _type (Optional[str]): type。
+            addr (Optional[str]): addr。
+            skipme (Optional[bool]): skipme。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         args: List[Union[bytes, str]] = []
         if _type is not None:
@@ -1384,11 +1460,13 @@ class Redis:
         return self.execute_command("CLIENT KILL", *args)
 
     def client_list(self, _type: Optional[str] = None) -> Awaitable:
-        """
-        Returns a list of currently connected clients.
-        If type of client specified, only that type will be returned.
-        :param _type: optional. one of the client types (normal, master,
-         replica, pubsub)
+        """Returns a list of currently connected clients.
+
+        参数:
+            _type (Optional[str]): type。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         "Returns a list of currently connected clients"
         if _type is not None:
@@ -1399,23 +1477,33 @@ class Redis:
         return self.execute_command("CLIENT LIST")
 
     def client_getname(self) -> Awaitable:
-        """Returns the current connection name"""
+        """处理clientgetname相关逻辑。"""
         return self.execute_command("CLIENT GETNAME")
 
     def client_id(self) -> Awaitable:
-        """Returns the current connection id"""
+        """处理clientid相关逻辑。"""
         return self.execute_command("CLIENT ID")
 
     def client_setname(self, name: str) -> Awaitable:
-        """Sets the current connection name"""
+        """处理clientsetname相关逻辑。
+
+        参数:
+            name (str): 名称。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("CLIENT SETNAME", name)
 
     def client_unblock(self, client_id: int, error: bool = False) -> Awaitable:
-        """
-        Unblocks a connection by its client id.
-        If ``error`` is True, unblocks the client with a special error message.
-        If ``error`` is False (default), the client is unblocked using the
-        regular timeout mechanism.
+        """Unblocks a connection by its client id.
+
+        参数:
+            client_id (int): client标识。
+            error (bool): error。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         args = ["CLIENT UNBLOCK", int(client_id)]
         if error:
@@ -1423,56 +1511,91 @@ class Redis:
         return self.execute_command(*args)
 
     def client_pause(self, timeout: int) -> Awaitable:
-        """
-        Suspend all the Redis clients for the specified amount of time
-        :param timeout: milliseconds to pause clients
+        """Suspend all the Redis clients for the specified amount of time
+
+        参数:
+            timeout (int): timeout。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         if not isinstance(timeout, int):
             raise DataError("CLIENT PAUSE timeout must be an integer")
         return self.execute_command("CLIENT PAUSE", str(timeout))
 
     def readwrite(self) -> Awaitable:
-        """Disables read queries for a connection to a Redis Cluster slave node"""
+        """处理readwrite相关逻辑。"""
         return self.execute_command("READWRITE")
 
     def readonly(self) -> Awaitable:
-        """Enables read queries for a connection to a Redis Cluster replica node"""
+        """处理readonly相关逻辑。"""
         return self.execute_command("READONLY")
 
     def config_get(self, pattern: str = "*") -> Awaitable:
-        """Return a dictionary of configuration based on the ``pattern``"""
+        """处理configget相关逻辑。
+
+        参数:
+            pattern (str): pattern。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("CONFIG GET", pattern)
 
     def config_set(self, name: str, value: EncodableT) -> Awaitable:
-        """Set config item ``name`` with ``value``"""
+        """处理configset相关逻辑。
+
+        参数:
+            name (str): 名称。
+            value (EncodableT): 输入值。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("CONFIG SET", name, value)
 
     def config_resetstat(self) -> Awaitable:
-        """Reset runtime statistics"""
+        """处理configresetstat相关逻辑。"""
         return self.execute_command("CONFIG RESETSTAT")
 
     def config_rewrite(self) -> Awaitable:
-        """Rewrite config file with the minimal change to reflect running config"""
+        """处理configrewrite相关逻辑。"""
         return self.execute_command("CONFIG REWRITE")
 
     def dbsize(self) -> Awaitable:
-        """Returns the number of keys in the current database"""
+        """处理dbsize相关逻辑。"""
         return self.execute_command("DBSIZE")
 
     def debug_object(self, key: KeyT) -> Awaitable:
-        """Returns version specific meta information about a given key"""
+        """处理debugobject相关逻辑。
+
+        参数:
+            key (KeyT): key。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("DEBUG OBJECT", key)
 
     def echo(self, value: EncodableT) -> Awaitable:
-        """Echo the string back from the server"""
+        """处理echo相关逻辑。
+
+        参数:
+            value (EncodableT): 输入值。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("ECHO", value)
 
     def flushall(self, asynchronous: bool = False) -> Awaitable:
-        """
-        Delete all keys in all databases on the current host.
+        """Delete all keys in all databases on the current host.
 
-        ``asynchronous`` indicates whether the operation is
-        executed asynchronously by the server.
+        参数:
+            asynchronous (bool): asynchronous。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         args = []
         if asynchronous:
@@ -1480,11 +1603,13 @@ class Redis:
         return self.execute_command("FLUSHALL", *args)
 
     def flushdb(self, asynchronous: bool = False) -> Awaitable:
-        """
-        Delete all keys in the current database.
+        """Delete all keys in the current database.
 
-        ``asynchronous`` indicates whether the operation is
-        executed asynchronously by the server.
+        参数:
+            asynchronous (bool): asynchronous。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         args = []
         if asynchronous:
@@ -1492,18 +1617,25 @@ class Redis:
         return self.execute_command("FLUSHDB", *args)
 
     def swapdb(self, first: int, second: int) -> Awaitable:
-        """Swap two databases"""
+        """处理swapdb相关逻辑。
+
+        参数:
+            first (int): first。
+            second (int): second。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("SWAPDB", first, second)
 
     def info(self, section: Optional[str] = None) -> Awaitable:
-        """
-        Returns a dictionary containing information about the Redis server
+        """Returns a dictionary containing information about the Redis server
 
-        The ``section`` option can be used to select a specific section
-        of information
+        参数:
+            section (Optional[str]): section。
 
-        The section option is not supported by older versions of Redis Server,
-        and will generate ResponseError
+        返回:
+            Awaitable: 返回处理结果。
         """
         if section is None:
             return self.execute_command("INFO")
@@ -1528,22 +1660,20 @@ class Redis:
         replace: bool = False,
         auth: Optional[str] = None,
     ) -> Awaitable:
-        """
-        Migrate 1 or more keys from the current Redis server to a different
-        server specified by the ``host``, ``port`` and ``destination_db``.
+        """Migrate 1 or more keys from the current Redis server to a different
 
-        The ``timeout``, specified in milliseconds, indicates the maximum
-        time the connection between the two servers can be idle before the
-        command is interrupted.
+        参数:
+            host (str): host。
+            port (int): port。
+            keys (KeysT): keys。
+            destination_db (int): destinationdb。
+            timeout (int): timeout。
+            copy (bool): copy。
+            replace (bool): replace。
+            auth (Optional[str]): auth。
 
-        If ``copy`` is True, the specified ``keys`` are NOT deleted from
-        the source server.
-
-        If ``replace`` is True, this operation will overwrite the keys
-        on the destination server if they exist.
-
-        If ``auth`` is specified, authenticate to the destination server with
-        the password provided.
+        返回:
+            Awaitable: 返回处理结果。
         """
         keys = list_or_args(keys, [])
         if not keys:
@@ -1561,21 +1691,30 @@ class Redis:
         return self.execute_command("MIGRATE", host, port, "", destination_db, timeout, *pieces)
 
     def object(self, infotype: str, key: KeyT) -> Awaitable:
-        """Return the encoding, idletime, or refcount about the key"""
+        """处理object相关逻辑。
+
+        参数:
+            infotype (str): infotype。
+            key (KeyT): key。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("OBJECT", infotype, key, infotype=infotype)
 
     def memory_stats(self) -> Awaitable:
-        """Return a dictionary of memory stats"""
+        """处理memorystats相关逻辑。"""
         return self.execute_command("MEMORY STATS")
 
     def memory_usage(self, key: KeyT, samples: Optional[int] = None) -> Awaitable:
-        """
-        Return the total memory usage for key, its value and associated
-        administrative overheads.
+        """Return the total memory usage for key, its value and associated
 
-        For nested data structures, ``samples`` is the number of elements to
-        sample. If left unspecified, the server's default is 5. Use 0 to sample
-        all elements.
+        参数:
+            key (KeyT): key。
+            samples (Optional[int]): samples。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         args = []
         if isinstance(samples, int):
@@ -1583,11 +1722,11 @@ class Redis:
         return self.execute_command("MEMORY USAGE", key, *args)
 
     def memory_purge(self) -> Awaitable:
-        """Attempts to purge dirty pages for reclamation by allocator"""
+        """处理memorypurge相关逻辑。"""
         return self.execute_command("MEMORY PURGE")
 
     def ping(self) -> Awaitable:
-        """Ping the Redis server"""
+        """处理ping相关逻辑。"""
         return self.execute_command("PING")
 
     def save(self) -> Awaitable:
@@ -1598,43 +1737,97 @@ class Redis:
         return self.execute_command("SAVE")
 
     def sentinel_get_master_addr_by_name(self, service_name: str) -> Awaitable:
-        """Returns a (host, port) pair for the given ``service_name``"""
+        """处理sentinelgetmasteraddrname相关逻辑。
+
+        参数:
+            service_name (str): service名称。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("SENTINEL GET-MASTER-ADDR-BY-NAME", service_name)
 
     def sentinel_master(self, service_name: str) -> Awaitable:
-        """Returns a dictionary containing the specified masters state."""
+        """处理sentinelmaster相关逻辑。
+
+        参数:
+            service_name (str): service名称。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("SENTINEL MASTER", service_name)
 
     def sentinel_masters(self) -> Awaitable:
-        """Returns a list of dictionaries containing each master's state."""
+        """处理sentinelmasters相关逻辑。"""
         return self.execute_command("SENTINEL MASTERS")
 
     def sentinel_monitor(self, name: str, ip: str, port: int, quorum: int) -> Awaitable:
-        """Add a new master to Sentinel to be monitored"""
+        """处理sentinelmonitor相关逻辑。
+
+        参数:
+            name (str): 名称。
+            ip (str): ip。
+            port (int): port。
+            quorum (int): quorum。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("SENTINEL MONITOR", name, ip, port, quorum)
 
     def sentinel_remove(self, name: str) -> Awaitable:
-        """Remove a master from Sentinel's monitoring"""
+        """处理sentinelremove相关逻辑。
+
+        参数:
+            name (str): 名称。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("SENTINEL REMOVE", name)
 
     def sentinel_sentinels(self, service_name: str) -> Awaitable:
-        """Returns a list of sentinels for ``service_name``"""
+        """处理sentinelsentinels相关逻辑。
+
+        参数:
+            service_name (str): service名称。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("SENTINEL SENTINELS", service_name)
 
     def sentinel_set(self, name: str, option: str, value: EncodableT) -> Awaitable:
-        """Set Sentinel monitoring parameters for a given master"""
+        """处理sentinelset相关逻辑。
+
+        参数:
+            name (str): 名称。
+            option (str): option。
+            value (EncodableT): 输入值。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("SENTINEL SET", name, option, value)
 
     def sentinel_slaves(self, service_name: str) -> Awaitable:
-        """Returns a list of slaves for ``service_name``"""
+        """处理sentinelslaves相关逻辑。
+
+        参数:
+            service_name (str): service名称。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("SENTINEL SLAVES", service_name)
 
     def shutdown(self, save: bool = False, nosave: bool = False) -> None:
         """Shutdown the Redis server.  If Redis has persistence configured,
-        data will be flushed before shutdown.  If the "save" option is set,
-        a data flush will be attempted even if there is no persistence
-        configured.  If the "nosave" option is set, no data flush will be
-        attempted.  The "save" and "nosave" options cannot both be set.
+
+        参数:
+            save (bool): 保存。
+            nosave (bool): nosave。
         """
         if save and nosave:
             raise DataError("SHUTDOWN save and nosave cannot both be set")
@@ -1651,19 +1844,27 @@ class Redis:
         raise RedisError("SHUTDOWN seems to have failed.")
 
     def slaveof(self, host: Optional[str] = None, port: Optional[int] = None) -> Awaitable:
-        """
-        Set the server to be a replicated slave of the instance identified
-        by the ``host`` and ``port``. If called without arguments, the
-        instance is promoted to a master instead.
+        """Set the server to be a replicated slave of the instance identified
+
+        参数:
+            host (Optional[str]): host。
+            port (Optional[int]): port。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         if host is None and port is None:
             return self.execute_command("SLAVEOF", b"NO", b"ONE")
         return self.execute_command("SLAVEOF", host, port)
 
     def slowlog_get(self, num: Optional[int] = None) -> Awaitable:
-        """
-        Get the entries from the slowlog. If ``num`` is specified, get the
-        most recent ``num`` items.
+        """Get the entries from the slowlog. If ``num`` is specified, get the
+
+        参数:
+            num (Optional[int]): num。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         args: List[EncodableT] = ["SLOWLOG GET"]
         if num is not None:
@@ -1672,11 +1873,11 @@ class Redis:
         return self.execute_command(*args, decode_responses=decode_responses)
 
     def slowlog_len(self) -> Awaitable:
-        """Get the number of items in the slowlog"""
+        """处理slowloglen相关逻辑。"""
         return self.execute_command("SLOWLOG LEN")
 
     def slowlog_reset(self) -> Awaitable:
-        """Remove all items in the slowlog"""
+        """处理slowlog重置相关逻辑。"""
         return self.execute_command("SLOWLOG RESET")
 
     def time(self) -> Awaitable:
@@ -1687,27 +1888,40 @@ class Redis:
         return self.execute_command("TIME")
 
     def wait(self, num_replicas: int, timeout: int) -> Awaitable:
-        """
-        Redis synchronous replication
-        That returns the number of replicas that processed the query when
-        we finally have at least ``num_replicas``, or when the ``timeout`` was
-        reached.
+        """Redis synchronous replication
+
+        参数:
+            num_replicas (int): numreplicas。
+            timeout (int): timeout。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self.execute_command("WAIT", num_replicas, timeout)
 
     # BASIC KEY COMMANDS
     def append(self, key: KeyT, value: EncodableT) -> Awaitable:
-        """
-        Appends the string ``value`` to the value at ``key``. If ``key``
-        doesn't already exist, create it with a value of ``value``.
-        Returns the new length of the value at ``key``.
+        """Appends the string ``value`` to the value at ``key``. If ``key``
+
+        参数:
+            key (KeyT): key。
+            value (EncodableT): 输入值。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self.execute_command("APPEND", key, value)
 
     def bitcount(self, key: KeyT, start: Optional[int] = None, end: Optional[int] = None) -> Awaitable:
-        """
-        Returns the count of set bits in the value of ``key``.  Optional
-        ``start`` and ``end`` paramaters indicate which bytes to consider
+        """Returns the count of set bits in the value of ``key``.  Optional
+
+        参数:
+            key (KeyT): key。
+            start (Optional[int]): start。
+            end (Optional[int]): end。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         params: List[EncodableT] = [key]
         if start is not None and end is not None:
@@ -1718,16 +1932,27 @@ class Redis:
         return self.execute_command("BITCOUNT", *params)
 
     def bitfield(self, key: KeyT, default_overflow: Optional[str] = None) -> "BitFieldOperation":
-        """
-        Return a BitFieldOperation instance to conveniently construct one or
-        more bitfield operations on ``key``.
+        """Return a BitFieldOperation instance to conveniently construct one or
+
+        参数:
+            key (KeyT): key。
+            default_overflow (Optional[str]): defaultoverflow。
+
+        返回:
+            'BitFieldOperation': 返回处理结果。
         """
         return BitFieldOperation(self, key, default_overflow=default_overflow)
 
     def bitop(self, operation: str, dest: KeyT, *keys: KeyT) -> Awaitable:
-        """
-        Perform a bitwise operation using ``operation`` between ``keys`` and
-        store the result in ``dest``.
+        """Perform a bitwise operation using ``operation`` between ``keys`` and
+
+        参数:
+            operation (str): operation。
+            dest (KeyT): dest。
+            keys (*KeyT): keys。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self.execute_command("BITOP", operation, dest, *keys)
 
@@ -1738,11 +1963,16 @@ class Redis:
         start: Optional[int] = None,
         end: Optional[int] = None,
     ) -> Awaitable:
-        """
-        Return the position of the first bit set to 1 or 0 in a string.
-        ``start`` and ``end`` difines search range. The range is interpreted
-        as a range of bytes and not a range of bits, so start=0 and end=2
-        means to look at the first three bytes.
+        """Return the position of the first bit set to 1 or 0 in a string.
+
+        参数:
+            key (KeyT): key。
+            bit (int): bit。
+            start (Optional[int]): start。
+            end (Optional[int]): end。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         if bit not in (0, 1):
             raise DataError("bit must be 0 or 1")
@@ -1757,120 +1987,213 @@ class Redis:
         return self.execute_command("BITPOS", *params)
 
     def decr(self, name: KeyT, amount: int = 1) -> Awaitable:
-        """
-        Decrements the value of ``key`` by ``amount``.  If no key exists,
-        the value will be initialized as 0 - ``amount``
+        """Decrements the value of ``key`` by ``amount``.  If no key exists,
+
+        参数:
+            name (KeyT): 名称。
+            amount (int): amount。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         # An alias for ``decr()``, because it is already implemented
         # as DECRBY redis command.
         return self.decrby(name, amount)
 
     def decrby(self, name: KeyT, amount: int = 1) -> Awaitable:
-        """
-        Decrements the value of ``key`` by ``amount``.  If no key exists,
-        the value will be initialized as 0 - ``amount``
+        """Decrements the value of ``key`` by ``amount``.  If no key exists,
+
+        参数:
+            name (KeyT): 名称。
+            amount (int): amount。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self.execute_command("DECRBY", name, amount)
 
     def delete(self, *names: KeyT) -> Awaitable:
-        """Delete one or more keys specified by ``names``"""
+        """处理delete相关逻辑。
+
+        参数:
+            names (*KeyT): names。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("DEL", *names)
 
     def dump(self, name: KeyT) -> Awaitable:
-        """
-        Return a serialized version of the value stored at the specified key.
-        If key does not exist a nil bulk reply is returned.
+        """Return a serialized version of the value stored at the specified key.
+
+        参数:
+            name (KeyT): 名称。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self.execute_command("DUMP", name)
 
     def exists(self, *names: KeyT) -> Awaitable:
-        """Returns the number of ``names`` that exist"""
+        """处理存在相关逻辑。
+
+        参数:
+            names (*KeyT): names。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("EXISTS", *names)
 
     def expire(self, name: KeyT, time: ExpiryT) -> Awaitable:
-        """
-        Set an expire flag on key ``name`` for ``time`` seconds. ``time``
-        can be represented by an integer or a Python timedelta object.
+        """Set an expire flag on key ``name`` for ``time`` seconds. ``time``
+
+        参数:
+            name (KeyT): 名称。
+            time (ExpiryT): 时间。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         if isinstance(time, datetime.timedelta):
             time = int(time.total_seconds())
         return self.execute_command("EXPIRE", name, time)
 
     def expireat(self, name: KeyT, when: AbsExpiryT) -> Awaitable:
-        """
-        Set an expire flag on key ``name``. ``when`` can be represented
-        as an integer indicating unix time or a Python datetime object.
+        """Set an expire flag on key ``name``. ``when`` can be represented
+
+        参数:
+            name (KeyT): 名称。
+            when (AbsExpiryT): when。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         if isinstance(when, datetime.datetime):
             when = int(mod_time.mktime(when.timetuple()))
         return self.execute_command("EXPIREAT", name, when)
 
     def get(self, name: KeyT) -> Awaitable:
-        """
-        Return the value at key ``name``, or None if the key doesn't exist
+        """处理get相关逻辑。
+
+        参数:
+            name (KeyT): 名称。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self.execute_command("GET", name)
 
     def getbit(self, name: KeyT, offset: int) -> Awaitable:
-        """Returns a boolean indicating the value of ``offset`` in ``name``"""
+        """处理getbit相关逻辑。
+
+        参数:
+            name (KeyT): 名称。
+            offset (int): offset。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("GETBIT", name, offset)
 
     def getrange(self, key: KeyT, start: int, end: int) -> Awaitable:
-        """
-        Returns the substring of the string value stored at ``key``,
-        determined by the offsets ``start`` and ``end`` (both are inclusive)
+        """Returns the substring of the string value stored at ``key``,
+
+        参数:
+            key (KeyT): key。
+            start (int): start。
+            end (int): end。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self.execute_command("GETRANGE", key, start, end)
 
     def getset(self, name: KeyT, value: EncodableT) -> Awaitable:
-        """
-        Sets the value at key ``name`` to ``value``
-        and returns the old value at key ``name`` atomically.
+        """Sets the value at key ``name`` to ``value``
+
+        参数:
+            name (KeyT): 名称。
+            value (EncodableT): 输入值。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self.execute_command("GETSET", name, value)
 
     def incr(self, name: KeyT, amount: int = 1) -> Awaitable:
-        """
-        Increments the value of ``key`` by ``amount``.  If no key exists,
-        the value will be initialized as ``amount``
+        """Increments the value of ``key`` by ``amount``.  If no key exists,
+
+        参数:
+            name (KeyT): 名称。
+            amount (int): amount。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self.incrby(name, amount)
 
     def incrby(self, name: KeyT, amount: int = 1) -> Awaitable:
-        """
-        Increments the value of ``key`` by ``amount``.  If no key exists,
-        the value will be initialized as ``amount``
+        """Increments the value of ``key`` by ``amount``.  If no key exists,
+
+        参数:
+            name (KeyT): 名称。
+            amount (int): amount。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         # An alias for ``incr()``, because it is already implemented
         # as INCRBY redis command.
         return self.execute_command("INCRBY", name, amount)
 
     def incrbyfloat(self, name: KeyT, amount: float = 1.0) -> Awaitable:
-        """
-        Increments the value at key ``name`` by floating ``amount``.
-        If no key exists, the value will be initialized as ``amount``
+        """Increments the value at key ``name`` by floating ``amount``.
+
+        参数:
+            name (KeyT): 名称。
+            amount (float): amount。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self.execute_command("INCRBYFLOAT", name, amount)
 
     def keys(self, pattern: PatternT = "*") -> Awaitable:
-        """Returns a list of keys matching ``pattern``"""
+        """处理keys相关逻辑。
+
+        参数:
+            pattern (PatternT): pattern。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("KEYS", pattern)
 
     def mget(self, keys: KeysT, *args: EncodableT) -> Awaitable:
-        """
-        Returns a list of values ordered identically to ``keys``
+        """处理mget相关逻辑。
+
+        参数:
+            keys (KeysT): keys。
+            args (*EncodableT): 可变位置参数。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         encoded_args = list_or_args(keys, args)
         options: Dict[str, Union[EncodableT, Iterable[EncodableT]]] = {}
-        if not encoded_args:
+        if not encoded_参数:
             options[EMPTY_RESPONSE] = []
         return self.execute_command("MGET", *encoded_args, **options)
 
     def mset(self, mapping: Mapping[AnyKeyT, EncodableT]) -> Awaitable:
-        """
-        Sets key/values based on a mapping. Mapping is a dictionary of
-        key/value pairs. Both keys and values should be strings or types that
-        can be cast to a string via str().
+        """Sets key/values based on a mapping. Mapping is a dictionary of
+
+        参数:
+            mapping (Mapping[AnyKeyT, EncodableT]): mapping。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         items: List[EncodableT] = []
         for pair in mapping.items():
@@ -1878,11 +2201,13 @@ class Redis:
         return self.execute_command("MSET", *items)
 
     def msetnx(self, mapping: Mapping[AnyKeyT, EncodableT]) -> Awaitable:
-        """
-        Sets key/values based on a mapping if none of the keys are already set.
-        Mapping is a dictionary of key/value pairs. Both keys and values
-        should be strings or types that can be cast to a string via str().
-        Returns a boolean indicating if the operation was successful.
+        """Sets key/values based on a mapping if none of the keys are already set.
+
+        参数:
+            mapping (Mapping[AnyKeyT, EncodableT]): mapping。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         items: List[EncodableT] = []
         for pair in mapping.items():
@@ -1890,28 +2215,51 @@ class Redis:
         return self.execute_command("MSETNX", *items)
 
     def move(self, name: KeyT, db: int) -> Awaitable:
-        """Moves the key ``name`` to a different Redis database ``db``"""
+        """处理move相关逻辑。
+
+        参数:
+            name (KeyT): 名称。
+            db (int): db。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("MOVE", name, db)
 
     def persist(self, name: KeyT) -> Awaitable:
-        """Removes an expiration on ``name``"""
+        """处理persist相关逻辑。
+
+        参数:
+            name (KeyT): 名称。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("PERSIST", name)
 
     def pexpire(self, name: KeyT, time: ExpiryT) -> Awaitable:
-        """
-        Set an expire flag on key ``name`` for ``time`` milliseconds.
-        ``time`` can be represented by an integer or a Python timedelta
-        object.
+        """Set an expire flag on key ``name`` for ``time`` milliseconds.
+
+        参数:
+            name (KeyT): 名称。
+            time (ExpiryT): 时间。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         if isinstance(time, datetime.timedelta):
             time = int(time.total_seconds() * 1000)
         return self.execute_command("PEXPIRE", name, time)
 
     def pexpireat(self, name: KeyT, when: AbsExpiryT) -> Awaitable:
-        """
-        Set an expire flag on key ``name``. ``when`` can be represented
-        as an integer representing unix time in milliseconds (unix time * 1000)
-        or a Python datetime object.
+        """Set an expire flag on key ``name``. ``when`` can be represented
+
+        参数:
+            name (KeyT): 名称。
+            when (AbsExpiryT): when。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         if isinstance(when, datetime.datetime):
             ms = int(when.microsecond / 1000)
@@ -1919,31 +2267,57 @@ class Redis:
         return self.execute_command("PEXPIREAT", name, when)
 
     def psetex(self, name: KeyT, time_ms: ExpiryT, value: EncodableT) -> Awaitable:
-        """
-        Set the value of key ``name`` to ``value`` that expires in ``time_ms``
-        milliseconds. ``time_ms`` can be represented by an integer or a Python
-        timedelta object
+        """Set the value of key ``name`` to ``value`` that expires in ``time_ms``
+
+        参数:
+            name (KeyT): 名称。
+            time_ms (ExpiryT): 时间ms。
+            value (EncodableT): 输入值。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         if isinstance(time_ms, datetime.timedelta):
             time_ms = int(time_ms.total_seconds() * 1000)
         return self.execute_command("PSETEX", name, time_ms, value)
 
     def pttl(self, name: KeyT) -> Awaitable:
-        """Returns the number of milliseconds until the key ``name`` will expire"""
+        """处理pttl相关逻辑。
+
+        参数:
+            name (KeyT): 名称。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("PTTL", name)
 
     def randomkey(self) -> Awaitable:
-        """Returns the name of a random key"""
+        """处理randomkey相关逻辑。"""
         return self.execute_command("RANDOMKEY")
 
     def rename(self, src: KeyT, dst: KeyT) -> Awaitable:
-        """
-        Rename key ``src`` to ``dst``
+        """处理rename相关逻辑。
+
+        参数:
+            src (KeyT): src。
+            dst (KeyT): dst。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self.execute_command("RENAME", src, dst)
 
     def renamenx(self, src: KeyT, dst: KeyT) -> Awaitable:
-        """Rename key ``src`` to ``dst`` if ``dst`` doesn't already exist"""
+        """处理renamenx相关逻辑。
+
+        参数:
+            src (KeyT): src。
+            dst (KeyT): dst。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("RENAMENX", src, dst)
 
     def restore(
@@ -1954,16 +2328,17 @@ class Redis:
         replace: bool = False,
         absttl: bool = False,
     ) -> Awaitable:
-        """
-        Create a key using the provided serialized value, previously obtained
-        using DUMP.
+        """Create a key using the provided serialized value, previously obtained
 
-        ``replace`` allows an existing key on ``name`` to be overridden. If
-        it's not specified an error is raised on collision.
+        参数:
+            name (KeyT): 名称。
+            ttl (float): ttl。
+            value (EncodableT): 输入值。
+            replace (bool): replace。
+            absttl (bool): absttl。
 
-        ``absttl`` if True, specified ``ttl`` should represent an absolute Unix
-        timestamp in milliseconds in which the key will expire. (Redis 5.0 or
-        greater).
+        返回:
+            Awaitable: 返回处理结果。
         """
         params = [name, ttl, value]
         if replace:
@@ -1982,21 +2357,19 @@ class Redis:
         xx: bool = False,
         keepttl: bool = False,
     ) -> Awaitable:
-        """
-        Set the value at key ``name`` to ``value``
+        """Set the value at key ``name`` to ``value``
 
-        ``ex`` sets an expire flag on key ``name`` for ``ex`` seconds.
+        参数:
+            name (KeyT): 名称。
+            value (EncodableT): 输入值。
+            ex (Optional[ExpiryT]): ex。
+            px (Optional[ExpiryT]): px。
+            nx (bool): nx。
+            xx (bool): xx。
+            keepttl (bool): keepttl。
 
-        ``px`` sets an expire flag on key ``name`` for ``px`` milliseconds.
-
-        ``nx`` if set to True, set the value at key ``name`` to ``value`` only
-            if it does not exist.
-
-        ``xx`` if set to True, set the value at key ``name`` to ``value`` only
-            if it already exists.
-
-        ``keepttl`` if True, retain the time to live associated with the key.
-            (Available since Redis 6.0)
+        返回:
+            Awaitable: 返回处理结果。
         """
         pieces: List[EncodableT] = [name, value]
         if ex is not None:
@@ -2021,196 +2394,334 @@ class Redis:
         return self.execute_command("SET", *pieces)
 
     def setbit(self, name: KeyT, offset: int, value: int) -> Awaitable:
-        """
-        Flag the ``offset`` in ``name`` as ``value``. Returns a boolean
-        indicating the previous value of ``offset``.
+        """Flag the ``offset`` in ``name`` as ``value``. Returns a boolean
+
+        参数:
+            name (KeyT): 名称。
+            offset (int): offset。
+            value (int): 输入值。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         value = value and 1 or 0
         return self.execute_command("SETBIT", name, offset, value)
 
     def setex(self, name: KeyT, time: Union[int, datetime.timedelta], value: EncodableT) -> Awaitable:
-        """
-        Set the value of key ``name`` to ``value`` that expires in ``time``
-        seconds. ``time`` can be represented by an integer or a Python
-        timedelta object.
+        """Set the value of key ``name`` to ``value`` that expires in ``time``
+
+        参数:
+            name (KeyT): 名称。
+            time (Union[int, datetime.timedelta]): 时间。
+            value (EncodableT): 输入值。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         if isinstance(time, datetime.timedelta):
             time = int(time.total_seconds())
         return self.execute_command("SETEX", name, time, value)
 
     def setnx(self, name: KeyT, value: EncodableT) -> Awaitable:
-        """Set the value of key ``name`` to ``value`` if key doesn't exist"""
+        """处理setnx相关逻辑。
+
+        参数:
+            name (KeyT): 名称。
+            value (EncodableT): 输入值。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("SETNX", name, value)
 
     def setrange(self, name: KeyT, offset: int, value: EncodableT) -> Awaitable:
-        """
-        Overwrite bytes in the value of ``name`` starting at ``offset`` with
-        ``value``. If ``offset`` plus the length of ``value`` exceeds the
-        length of the original value, the new value will be larger than before.
-        If ``offset`` exceeds the length of the original value, null bytes
-        will be used to pad between the end of the previous value and the start
-        of what's being injected.
+        """Overwrite bytes in the value of ``name`` starting at ``offset`` with
 
-        Returns the length of the new string.
+        参数:
+            name (KeyT): 名称。
+            offset (int): offset。
+            value (EncodableT): 输入值。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self.execute_command("SETRANGE", name, offset, value)
 
     def strlen(self, name: KeyT) -> Awaitable:
-        """Return the number of bytes stored in the value of ``name``"""
+        """处理strlen相关逻辑。
+
+        参数:
+            name (KeyT): 名称。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("STRLEN", name)
 
     def substr(self, name: KeyT, start: int, end: int = -1) -> Awaitable:
-        """
-        Return a substring of the string at key ``name``. ``start`` and ``end``
-        are 0-based integers specifying the portion of the string to return.
+        """Return a substring of the string at key ``name``. ``start`` and ``end``
+
+        参数:
+            name (KeyT): 名称。
+            start (int): start。
+            end (int): end。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self.execute_command("SUBSTR", name, start, end)
 
     def touch(self, *args: KeyT) -> Awaitable:
-        """
-        Alters the last access time of a key(s) ``*args``. A key is ignored
-        if it does not exist.
+        """Alters the last access time of a key(s) ``*args``. A key is ignored
+
+        参数:
+            args (*KeyT): 可变位置参数。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self.execute_command("TOUCH", *args)
 
     def ttl(self, name: KeyT) -> Awaitable:
-        """Returns the number of seconds until the key ``name`` will expire"""
+        """处理ttl相关逻辑。
+
+        参数:
+            name (KeyT): 名称。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("TTL", name)
 
     def type(self, name: KeyT) -> Awaitable:
-        """Returns the type of key ``name``"""
+        """处理type相关逻辑。
+
+        参数:
+            name (KeyT): 名称。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("TYPE", name)
 
     def unlink(self, *names: KeyT) -> Awaitable:
-        """Unlink one or more keys specified by ``names``"""
+        """处理unlink相关逻辑。
+
+        参数:
+            names (*KeyT): names。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("UNLINK", *names)
 
     # LIST COMMANDS
     def blpop(self, keys: KeysT, timeout: TimeoutSecT = 0) -> Awaitable:
-        """
-        LPOP a value off of the first non-empty list
-        named in the ``keys`` list.
+        """LPOP a value off of the first non-empty list
 
-        If none of the lists in ``keys`` has a value to LPOP, then block
-        for ``timeout`` seconds, or until a value gets pushed on to one
-        of the lists.
+        参数:
+            keys (KeysT): keys。
+            timeout (TimeoutSecT): timeout。
 
-        If timeout is 0, then block indefinitely.
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self.execute_command("BLPOP", *list_or_args(keys, (timeout,)))
 
     def brpop(self, keys: KeysT, timeout: TimeoutSecT = 0) -> Awaitable:
-        """
-        RPOP a value off of the first non-empty list
-        named in the ``keys`` list.
+        """RPOP a value off of the first non-empty list
 
-        If none of the lists in ``keys`` has a value to RPOP, then block
-        for ``timeout`` seconds, or until a value gets pushed on to one
-        of the lists.
+        参数:
+            keys (KeysT): keys。
+            timeout (TimeoutSecT): timeout。
 
-        If timeout is 0, then block indefinitely.
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self.execute_command("BRPOP", *list_or_args(keys, (timeout,)))
 
     def brpoplpush(self, src: KeyT, dst: KeyT, timeout: TimeoutSecT = 0) -> Awaitable:
-        """
-        Pop a value off the tail of ``src``, push it on the head of ``dst``
-        and then return it.
+        """Pop a value off the tail of ``src``, push it on the head of ``dst``
 
-        This command blocks until a value is in ``src`` or until ``timeout``
-        seconds elapse, whichever is first. A ``timeout`` value of 0 blocks
-        forever.
+        参数:
+            src (KeyT): src。
+            dst (KeyT): dst。
+            timeout (TimeoutSecT): timeout。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self.execute_command("BRPOPLPUSH", src, dst, timeout)
 
     def lindex(self, name: KeyT, index: int) -> Awaitable:
-        """
-        Return the item from list ``name`` at position ``index``
+        """Return the item from list ``name`` at position ``index``
 
-        Negative indexes are supported and will return an item at the
-        end of the list
+        参数:
+            name (KeyT): 名称。
+            index (int): index。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self.execute_command("LINDEX", name, index)
 
     def linsert(self, name: KeyT, where: str, refvalue: EncodableT, value: EncodableT) -> Awaitable:
-        """
-        Insert ``value`` in list ``name`` either immediately before or after
-        [``where``] ``refvalue``
+        """Insert ``value`` in list ``name`` either immediately before or after
 
-        Returns the new length of the list on success or -1 if ``refvalue``
-        is not in the list.
+        参数:
+            name (KeyT): 名称。
+            where (str): where。
+            refvalue (EncodableT): refvalue。
+            value (EncodableT): 输入值。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self.execute_command("LINSERT", name, where, refvalue, value)
 
     def llen(self, name: KeyT) -> Awaitable:
-        """Return the length of the list ``name``"""
+        """处理llen相关逻辑。
+
+        参数:
+            name (KeyT): 名称。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("LLEN", name)
 
     def lpop(self, name: KeyT) -> Awaitable:
-        """Remove and return the first item of the list ``name``"""
+        """处理lpop相关逻辑。
+
+        参数:
+            name (KeyT): 名称。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("LPOP", name)
 
     def lpush(self, name: KeyT, *values: EncodableT) -> Awaitable:
-        """Push ``values`` onto the head of the list ``name``"""
+        """处理lpush相关逻辑。
+
+        参数:
+            name (KeyT): 名称。
+            values (*EncodableT): 输入值列表。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("LPUSH", name, *values)
 
     def lpushx(self, name: KeyT, value: EncodableT) -> Awaitable:
-        """Push ``value`` onto the head of the list ``name`` if ``name`` exists"""
+        """处理lpushx相关逻辑。
+
+        参数:
+            name (KeyT): 名称。
+            value (EncodableT): 输入值。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("LPUSHX", name, value)
 
     def lrange(self, name: KeyT, start: int, end: int) -> Awaitable:
-        """
-        Return a slice of the list ``name`` between
-        position ``start`` and ``end``
+        """Return a slice of the list ``name`` between
 
-        ``start`` and ``end`` can be negative numbers just like
-        Python slicing notation
+        参数:
+            name (KeyT): 名称。
+            start (int): start。
+            end (int): end。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self.execute_command("LRANGE", name, start, end)
 
     def lrem(self, name: KeyT, count: int, value: EncodableT) -> Awaitable:
-        """
-        Remove the first ``count`` occurrences of elements equal to ``value``
-        from the list stored at ``name``.
+        """Remove the first ``count`` occurrences of elements equal to ``value``
 
-        The count argument influences the operation in the following ways:
-            count > 0: Remove elements equal to value moving from head to tail.
-            count < 0: Remove elements equal to value moving from tail to head.
-            count = 0: Remove all elements equal to value.
+        参数:
+            name (KeyT): 名称。
+            count (int): 统计。
+            value (EncodableT): 输入值。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self.execute_command("LREM", name, count, value)
 
     def lset(self, name: KeyT, index: int, value: EncodableT) -> Awaitable:
-        """Set ``position`` of list ``name`` to ``value``"""
+        """处理lset相关逻辑。
+
+        参数:
+            name (KeyT): 名称。
+            index (int): index。
+            value (EncodableT): 输入值。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("LSET", name, index, value)
 
     def ltrim(self, name: KeyT, start: int, end: int) -> Awaitable:
-        """
-        Trim the list ``name``, removing all values not within the slice
-        between ``start`` and ``end``
+        """Trim the list ``name``, removing all values not within the slice
 
-        ``start`` and ``end`` can be negative numbers just like
-        Python slicing notation
+        参数:
+            name (KeyT): 名称。
+            start (int): start。
+            end (int): end。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self.execute_command("LTRIM", name, start, end)
 
     def rpop(self, name: KeyT) -> Awaitable:
-        """Remove and return the last item of the list ``name``"""
+        """处理rpop相关逻辑。
+
+        参数:
+            name (KeyT): 名称。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("RPOP", name)
 
     def rpoplpush(self, src: KeyT, dst: KeyT) -> Awaitable:
-        """
-        RPOP a value off of the ``src`` list and atomically LPUSH it
-        on to the ``dst`` list.  Returns the value.
+        """RPOP a value off of the ``src`` list and atomically LPUSH it
+
+        参数:
+            src (KeyT): src。
+            dst (KeyT): dst。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self.execute_command("RPOPLPUSH", src, dst)
 
     def rpush(self, name: KeyT, *values: EncodableT) -> Awaitable:
-        """Push ``values`` onto the tail of the list ``name``"""
+        """处理rpush相关逻辑。
+
+        参数:
+            name (KeyT): 名称。
+            values (*EncodableT): 输入值列表。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("RPUSH", name, *values)
 
     def rpushx(self, name: KeyT, value: EncodableT) -> Awaitable:
-        """Push ``value`` onto the tail of the list ``name`` if ``name`` exists"""
+        """处理rpushx相关逻辑。
+
+        参数:
+            name (KeyT): 名称。
+            value (EncodableT): 输入值。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("RPUSHX", name, value)
 
     def lpos(
@@ -2221,28 +2732,17 @@ class Redis:
         count: Optional[int] = None,
         maxlen: Optional[int] = None,
     ) -> Awaitable:
-        """
-        Get position of ``value`` within the list ``name``
+        """Get position of ``value`` within the list ``name``
 
-         If specified, ``rank`` indicates the "rank" of the first element to
-         return in case there are multiple copies of ``value`` in the list.
-         By default, LPOS returns the position of the first occurrence of
-         ``value`` in the list. When ``rank`` 2, LPOS returns the position of
-         the second ``value`` in the list. If ``rank`` is negative, LPOS
-         searches the list in reverse. For example, -1 would return the
-         position of the last occurrence of ``value`` and -2 would return the
-         position of the next to last occurrence of ``value``.
+        参数:
+            name (KeyT): 名称。
+            value (EncodableT): 输入值。
+            rank (Optional[int]): rank。
+            count (Optional[int]): 统计。
+            maxlen (Optional[int]): maxlen。
 
-         If specified, ``count`` indicates that LPOS should return a list of
-         up to ``count`` positions. A ``count`` of 2 would return a list of
-         up to 2 positions. A ``count`` of 0 returns a list of all positions
-         matching ``value``. When ``count`` is specified and but ``value``
-         does not exist in the list, an empty list is returned.
-
-         If specified, ``maxlen`` indicates the maximum number of list
-         elements to scan. A ``maxlen`` of 1000 will only return the
-         position(s) of items within the first 1000 entries in the list.
-         A ``maxlen`` of 0 (the default) will scan the entire list.
+        返回:
+            Awaitable: 返回处理结果。
         """
         pieces: List[EncodableT] = [name, value]
         if rank is not None:
@@ -2268,29 +2768,21 @@ class Redis:
         store: Optional[KeyT] = None,
         groups: bool = False,
     ) -> Awaitable:
-        """
-        Sort and return the list, set or sorted set at ``name``.
+        """Sort and return the list, set or sorted set at ``name``.
 
-        ``start`` and ``num`` allow for paging through the sorted data
+        参数:
+            name (KeyT): 名称。
+            start (Optional[int]): start。
+            num (Optional[int]): num。
+            by (Optional[KeyT]): by。
+            get (Optional[KeysT]): 获取。
+            desc (bool): 描述信息。
+            alpha (bool): alpha。
+            store (Optional[KeyT]): store。
+            groups (bool): 群组。
 
-        ``by`` allows using an external key to weight and sort the items.
-            Use an "*" to indicate where in the key the item value is located
-
-        ``get`` allows for returning items from external keys rather than the
-            sorted data itself.  Use an "*" to indicate where in the key
-            the item value is located
-
-        ``desc`` allows for reversing the sort
-
-        ``alpha`` allows for sorting lexicographically rather than numerically
-
-        ``store`` allows for storing the result of the sort into
-            the key ``store``
-
-        ``groups`` if set to True and if ``get`` contains at least two
-            elements, sort will return a list of tuples, each containing the
-            values fetched from the arguments to ``get``.
-
+        返回:
+            Awaitable: 返回处理结果。
         """
         if (start is not None and num is None) or (num is not None and start is None):
             raise DataError("``start`` and ``num`` must both be specified")
@@ -2342,19 +2834,16 @@ class Redis:
         count: Optional[int] = None,
         _type: Optional[str] = None,
     ) -> Awaitable:
-        """
-        Incrementally return lists of key names. Also return a cursor
-        indicating the scan position.
+        """Incrementally return lists of key names. Also return a cursor
 
-        ``match`` allows for filtering the keys by pattern
+        参数:
+            cursor (int): cursor。
+            match (Optional[PatternT]): match。
+            count (Optional[int]): 统计。
+            _type (Optional[str]): type。
 
-        ``count`` provides a hint to Redis about the number of keys to
-            return per batch.
-
-        ``_type`` filters the returned values by a particular Redis type.
-            Stock Redis instances allow for the following types:
-            HASH, LIST, SET, STREAM, STRING, ZSET
-            Additionally, Redis modules can expose other types as well.
+        返回:
+            Awaitable: 返回处理结果。
         """
         pieces: List[EncodableT] = [cursor]
         if match is not None:
@@ -2371,19 +2860,15 @@ class Redis:
         count: Optional[int] = None,
         _type: Optional[str] = None,
     ) -> AsyncIterator:
-        """
-        Make an iterator using the SCAN command so that the client doesn't
-        need to remember the cursor position.
+        """Make an iterator using the SCAN command so that the client doesn't
 
-        ``match`` allows for filtering the keys by pattern
+        参数:
+            match (Optional[PatternT]): match。
+            count (Optional[int]): 统计。
+            _type (Optional[str]): type。
 
-        ``count`` provides a hint to Redis about the number of keys to
-            return per batch.
-
-        ``_type`` filters the returned values by a particular Redis type.
-            Stock Redis instances allow for the following types:
-            HASH, LIST, SET, STREAM, STRING, ZSET
-            Additionally, Redis modules can expose other types as well.
+        返回:
+            AsyncIterator: 返回处理结果。
         """
         cursor = None
         while cursor != 0:
@@ -2398,13 +2883,16 @@ class Redis:
         match: Optional[PatternT] = None,
         count: Optional[int] = None,
     ) -> Awaitable:
-        """
-        Incrementally return lists of elements in a set. Also return a cursor
-        indicating the scan position.
+        """Incrementally return lists of elements in a set. Also return a cursor
 
-        ``match`` allows for filtering the keys by pattern
+        参数:
+            name (KeyT): 名称。
+            cursor (int): cursor。
+            match (Optional[PatternT]): match。
+            count (Optional[int]): 统计。
 
-        ``count`` allows for hint the minimum number of returns
+        返回:
+            Awaitable: 返回处理结果。
         """
         pieces: List[EncodableT] = [name, cursor]
         if match is not None:
@@ -2416,13 +2904,15 @@ class Redis:
     async def sscan_iter(
         self, name: KeyT, match: Optional[PatternT] = None, count: Optional[int] = None
     ) -> AsyncIterator:
-        """
-        Make an iterator using the SSCAN command so that the client doesn't
-        need to remember the cursor position.
+        """Make an iterator using the SSCAN command so that the client doesn't
 
-        ``match`` allows for filtering the keys by pattern
+        参数:
+            name (KeyT): 名称。
+            match (Optional[PatternT]): match。
+            count (Optional[int]): 统计。
 
-        ``count`` allows for hint the minimum number of returns
+        返回:
+            AsyncIterator: 返回处理结果。
         """
         cursor = None
         while cursor != 0:
@@ -2437,13 +2927,16 @@ class Redis:
         match: Optional[PatternT] = None,
         count: Optional[int] = None,
     ) -> Awaitable:
-        """
-        Incrementally return key/value slices in a hash. Also return a cursor
-        indicating the scan position.
+        """Incrementally return key/value slices in a hash. Also return a cursor
 
-        ``match`` allows for filtering the keys by pattern
+        参数:
+            name (KeyT): 名称。
+            cursor (int): cursor。
+            match (Optional[PatternT]): match。
+            count (Optional[int]): 统计。
 
-        ``count`` allows for hint the minimum number of returns
+        返回:
+            Awaitable: 返回处理结果。
         """
         pieces: List[EncodableT] = [name, cursor]
         if match is not None:
@@ -2455,13 +2948,15 @@ class Redis:
     async def hscan_iter(
         self, name: str, match: Optional[PatternT] = None, count: Optional[int] = None
     ) -> AsyncIterator:
-        """
-        Make an iterator using the HSCAN command so that the client doesn't
-        need to remember the cursor position.
+        """Make an iterator using the HSCAN command so that the client doesn't
 
-        ``match`` allows for filtering the keys by pattern
+        参数:
+            name (str): 名称。
+            match (Optional[PatternT]): match。
+            count (Optional[int]): 统计。
 
-        ``count`` allows for hint the minimum number of returns
+        返回:
+            AsyncIterator: 返回处理结果。
         """
         cursor = None
         while cursor != 0:
@@ -2477,15 +2972,17 @@ class Redis:
         count: Optional[int] = None,
         score_cast_func: Union[Type, Callable] = float,
     ) -> Awaitable:
-        """
-        Incrementally return lists of elements in a sorted set. Also return a
-        cursor indicating the scan position.
+        """Incrementally return lists of elements in a sorted set. Also return a
 
-        ``match`` allows for filtering the keys by pattern
+        参数:
+            name (KeyT): 名称。
+            cursor (int): cursor。
+            match (Optional[PatternT]): match。
+            count (Optional[int]): 统计。
+            score_cast_func (Union[Type, Callable]): scorecastfunc。
 
-        ``count`` allows for hint the minimum number of returns
-
-        ``score_cast_func`` a callable used to cast the score return value
+        返回:
+            Awaitable: 返回处理结果。
         """
         pieces: List[EncodableT] = [name, cursor]
         if match is not None:
@@ -2502,15 +2999,16 @@ class Redis:
         count: Optional[int] = None,
         score_cast_func: Union[Type, Callable] = float,
     ) -> AsyncIterator:
-        """
-        Make an iterator using the ZSCAN command so that the client doesn't
-        need to remember the cursor position.
+        """Make an iterator using the ZSCAN command so that the client doesn't
 
-        ``match`` allows for filtering the keys by pattern
+        参数:
+            name (KeyT): 名称。
+            match (Optional[PatternT]): match。
+            count (Optional[int]): 统计。
+            score_cast_func (Union[Type, Callable]): scorecastfunc。
 
-        ``count`` allows for hint the minimum number of returns
-
-        ``score_cast_func`` a callable used to cast the score return value
+        返回:
+            AsyncIterator: 返回处理结果。
         """
         cursor = None
         while cursor != 0:
@@ -2526,91 +3024,194 @@ class Redis:
 
     # SET COMMANDS
     def sadd(self, name: KeyT, *values: EncodableT) -> Awaitable:
-        """Add ``value(s)`` to set ``name``"""
+        """处理sadd相关逻辑。
+
+        参数:
+            name (KeyT): 名称。
+            values (*EncodableT): 输入值列表。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("SADD", name, *values)
 
     def scard(self, name: KeyT) -> Awaitable:
-        """Return the number of elements in set ``name``"""
+        """处理scard相关逻辑。
+
+        参数:
+            name (KeyT): 名称。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("SCARD", name)
 
     def sdiff(self, keys: KeysT, *args: EncodableT) -> Awaitable:
-        """Return the difference of sets specified by ``keys``"""
+        """处理sdiff相关逻辑。
+
+        参数:
+            keys (KeysT): keys。
+            args (*EncodableT): 可变位置参数。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         parsed_args = list_or_args(keys, args)
         return self.execute_command("SDIFF", *parsed_args)
 
     def sdiffstore(self, dest: KeyT, keys: KeysT, *args: EncodableT) -> Awaitable:
-        """
-        Store the difference of sets specified by ``keys`` into a new
-        set named ``dest``.  Returns the number of keys in the new set.
+        """Store the difference of sets specified by ``keys`` into a new
+
+        参数:
+            dest (KeyT): dest。
+            keys (KeysT): keys。
+            args (*EncodableT): 可变位置参数。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         parsed_args = list_or_args(keys, args)
         return self.execute_command("SDIFFSTORE", dest, *parsed_args)
 
     def sinter(self, keys: KeysT, *args: EncodableT) -> Awaitable:
-        """Return the intersection of sets specified by ``keys``"""
+        """处理sinter相关逻辑。
+
+        参数:
+            keys (KeysT): keys。
+            args (*EncodableT): 可变位置参数。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         parsed_args = list_or_args(keys, args)
         return self.execute_command("SINTER", *parsed_args)
 
     def sinterstore(self, dest: KeyT, keys: KeysT, *args: EncodableT) -> Awaitable:
-        """
-        Store the intersection of sets specified by ``keys`` into a new
-        set named ``dest``.  Returns the number of keys in the new set.
+        """Store the intersection of sets specified by ``keys`` into a new
+
+        参数:
+            dest (KeyT): dest。
+            keys (KeysT): keys。
+            args (*EncodableT): 可变位置参数。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         parsed_args = list_or_args(keys, args)
         return self.execute_command("SINTERSTORE", dest, *parsed_args)
 
     def sismember(self, name: KeyT, value: EncodableT) -> Awaitable:
-        """Return a boolean indicating if ``value`` is a member of set ``name``"""
+        """处理sismember相关逻辑。
+
+        参数:
+            name (KeyT): 名称。
+            value (EncodableT): 输入值。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("SISMEMBER", name, value)
 
     def smembers(self, name: KeyT) -> Awaitable:
-        """Return all members of the set ``name``"""
+        """处理smembers相关逻辑。
+
+        参数:
+            name (KeyT): 名称。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("SMEMBERS", name)
 
     def smove(self, src: KeyT, dst: KeyT, value: EncodableT) -> Awaitable:
-        """Move ``value`` from set ``src`` to set ``dst`` atomically"""
+        """处理smove相关逻辑。
+
+        参数:
+            src (KeyT): src。
+            dst (KeyT): dst。
+            value (EncodableT): 输入值。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("SMOVE", src, dst, value)
 
     def spop(self, name: KeyT, count: Optional[int] = None) -> Awaitable:
-        """Remove and return a random member of set ``name``"""
+        """处理spop相关逻辑。
+
+        参数:
+            name (KeyT): 名称。
+            count (Optional[int]): 统计。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         args = (count is not None) and [count] or []
         return self.execute_command("SPOP", name, *args)
 
     def srandmember(self, name: KeyT, number: Optional[int] = None) -> Awaitable:
-        """
-        If ``number`` is None, returns a random member of set ``name``.
+        """If ``number`` is None, returns a random member of set ``name``.
 
-        If ``number`` is supplied, returns a list of ``number`` random
-        members of set ``name``. Note this is only available when running
-        Redis 2.6+.
+        参数:
+            name (KeyT): 名称。
+            number (Optional[int]): number。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         args = (number is not None) and [number] or []
         return self.execute_command("SRANDMEMBER", name, *args)
 
     def srem(self, name: KeyT, *values: EncodableT) -> Awaitable:
-        """Remove ``values`` from set ``name``"""
+        """处理srem相关逻辑。
+
+        参数:
+            name (KeyT): 名称。
+            values (*EncodableT): 输入值列表。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("SREM", name, *values)
 
     def sunion(self, keys: KeysT, *args: EncodableT) -> Awaitable:
-        """Return the union of sets specified by ``keys``"""
+        """处理sunion相关逻辑。
+
+        参数:
+            keys (KeysT): keys。
+            args (*EncodableT): 可变位置参数。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         parsed_args = list_or_args(keys, args)
         return self.execute_command("SUNION", *parsed_args)
 
     def sunionstore(self, dest: KeyT, keys: KeysT, *args: EncodableT) -> Awaitable:
-        """
-        Store the union of sets specified by ``keys`` into a new
-        set named ``dest``.  Returns the number of keys in the new set.
+        """Store the union of sets specified by ``keys`` into a new
+
+        参数:
+            dest (KeyT): dest。
+            keys (KeysT): keys。
+            args (*EncodableT): 可变位置参数。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         parsed_args = list_or_args(keys, args)
         return self.execute_command("SUNIONSTORE", dest, *parsed_args)
 
     # STREAMS COMMANDS
     def xack(self, name: KeyT, groupname: GroupT, *ids: StreamIdT) -> Awaitable:
-        """
-        Acknowledges the successful processing of one or more messages.
-        name: name of the stream.
-        groupname: name of the consumer group.
-        *ids: message ids to acknowlege.
+        """Acknowledges the successful processing of one or more messages.
+
+        参数:
+            name (KeyT): 名称。
+            groupname (GroupT): groupname。
+            ids (*StreamIdT): 标识列表。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self.execute_command("XACK", name, groupname, *ids)
 
@@ -2622,14 +3223,17 @@ class Redis:
         maxlen: Optional[int] = None,
         approximate: bool = True,
     ) -> Awaitable:
-        """
-        Add to a stream.
-        name: name of the stream
-        fields: dict of field/value pairs to insert into the stream
-        id: Location to insert this record. By default it is appended.
-        maxlen: truncate old stream members beyond this size
-        approximate: actual stream length may be slightly more than maxlen
+        """Add to a stream.
 
+        参数:
+            name (KeyT): 名称。
+            fields (Dict[FieldT, EncodableT]): fields。
+            id (StreamIdT): 标识。
+            maxlen (Optional[int]): maxlen。
+            approximate (bool): approximate。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         pieces: List[EncodableT] = []
         if maxlen is not None:
@@ -2659,27 +3263,22 @@ class Redis:
         force: bool = False,
         justid: bool = False,
     ) -> Awaitable:
-        """
-        Changes the ownership of a pending message.
-        name: name of the stream.
-        groupname: name of the consumer group.
-        consumername: name of a consumer that claims the message.
-        min_idle_time: filter messages that were idle less than this amount of
-        milliseconds
-        message_ids: non-empty list or tuple of message IDs to claim
-        idle: optional. Set the idle time (last time it was delivered) of the
-         message in ms
-        time: optional integer. This is the same as idle but instead of a
-         relative amount of milliseconds, it sets the idle time to a specific
-         Unix time (in milliseconds).
-        retrycount: optional integer. set the retry counter to the specified
-         value. This counter is incremented every time a message is delivered
-         again.
-        force: optional boolean, false by default. Creates the pending message
-         entry in the PEL even if certain specified IDs are not already in the
-         PEL assigned to a different client.
-        justid: optional boolean, false by default. Return just an array of IDs
-         of messages successfully claimed, without returning the actual message
+        """Changes the ownership of a pending message.
+
+        参数:
+            name (KeyT): 名称。
+            groupname (GroupT): groupname。
+            consumername (ConsumerT): consumername。
+            min_idle_time (int): minidle时间。
+            message_ids (Union[List[StreamIdT], Tuple[StreamIdT]]): 消息标识列表。
+            idle (Optional[int]): idle。
+            time (Optional[int]): 时间。
+            retrycount (Optional[int]): retrycount。
+            force (bool): force。
+            justid (bool): justid。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         if not isinstance(min_idle_time, int) or min_idle_time < 0:
             raise DataError("XCLAIM min_idle_time must be a non negative " "integer")
@@ -2715,19 +3314,28 @@ class Redis:
         return self.execute_command("XCLAIM", *pieces, **kwargs)
 
     def xdel(self, name: KeyT, *ids: StreamIdT) -> Awaitable:
-        """
-        Deletes one or more messages from a stream.
-        name: name of the stream.
-        *ids: message ids to delete.
+        """Deletes one or more messages from a stream.
+
+        参数:
+            name (KeyT): 名称。
+            ids (*StreamIdT): 标识列表。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self.execute_command("XDEL", name, *ids)
 
     def xgroup_create(self, name: KeyT, groupname: GroupT, id: StreamIdT = "$", mkstream: bool = False) -> Awaitable:
-        """
-        Create a new consumer group associated with a stream.
-        name: name of the stream.
-        groupname: name of the consumer group.
-        id: ID of the last item in the stream to consider already delivered.
+        """Create a new consumer group associated with a stream.
+
+        参数:
+            name (KeyT): 名称。
+            groupname (GroupT): groupname。
+            id (StreamIdT): 标识。
+            mkstream (bool): mkstream。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         pieces: List[EncodableT] = ["XGROUP CREATE", name, groupname, id]
         if mkstream:
@@ -2735,66 +3343,97 @@ class Redis:
         return self.execute_command(*pieces)
 
     def xgroup_delconsumer(self, name: KeyT, groupname: GroupT, consumername: ConsumerT) -> Awaitable:
-        """
-        Remove a specific consumer from a consumer group.
-        Returns the number of pending messages that the consumer had before it
-        was deleted.
-        name: name of the stream.
-        groupname: name of the consumer group.
-        consumername: name of consumer to delete
+        """Remove a specific consumer from a consumer group.
+
+        参数:
+            name (KeyT): 名称。
+            groupname (GroupT): groupname。
+            consumername (ConsumerT): consumername。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self.execute_command("XGROUP DELCONSUMER", name, groupname, consumername)
 
     def xgroup_destroy(self, name: KeyT, groupname: GroupT) -> Awaitable:
-        """
-        Destroy a consumer group.
-        name: name of the stream.
-        groupname: name of the consumer group.
+        """Destroy a consumer group.
+
+        参数:
+            name (KeyT): 名称。
+            groupname (GroupT): groupname。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self.execute_command("XGROUP DESTROY", name, groupname)
 
     def xgroup_setid(self, name: KeyT, groupname: GroupT, id: StreamIdT) -> Awaitable:
-        """
-        Set the consumer group last delivered ID to something else.
-        name: name of the stream.
-        groupname: name of the consumer group.
-        id: ID of the last item in the stream to consider already delivered.
+        """Set the consumer group last delivered ID to something else.
+
+        参数:
+            name (KeyT): 名称。
+            groupname (GroupT): groupname。
+            id (StreamIdT): 标识。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self.execute_command("XGROUP SETID", name, groupname, id)
 
     def xinfo_consumers(self, name: KeyT, groupname: GroupT) -> Awaitable:
-        """
-        Returns general information about the consumers in the group.
-        name: name of the stream.
-        groupname: name of the consumer group.
+        """Returns general information about the consumers in the group.
+
+        参数:
+            name (KeyT): 名称。
+            groupname (GroupT): groupname。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self.execute_command("XINFO CONSUMERS", name, groupname)
 
     def xinfo_groups(self, name: KeyT) -> Awaitable:
-        """
-        Returns general information about the consumer groups of the stream.
-        name: name of the stream.
+        """Returns general information about the consumer groups of the stream.
+
+        参数:
+            name (KeyT): 名称。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self.execute_command("XINFO GROUPS", name)
 
     def xinfo_stream(self, name: KeyT) -> Awaitable:
-        """
-        Returns general information about the stream.
-        name: name of the stream.
+        """Returns general information about the stream.
+
+        参数:
+            name (KeyT): 名称。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self.execute_command("XINFO STREAM", name)
 
     def xlen(self, name: KeyT) -> Awaitable:
-        """
-        Returns the number of elements in a given stream.
+        """处理xlen相关逻辑。
+
+        参数:
+            name (KeyT): 名称。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self.execute_command("XLEN", name)
 
     def xpending(self, name: KeyT, groupname: GroupT) -> Awaitable:
-        """
-        Returns information about pending messages of a group.
-        name: name of the stream.
-        groupname: name of the consumer group.
+        """Returns information about pending messages of a group.
+
+        参数:
+            name (KeyT): 名称。
+            groupname (GroupT): groupname。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self.execute_command("XPENDING", name, groupname)
 
@@ -2807,14 +3446,18 @@ class Redis:
         count: Optional[int],
         consumername: Optional[ConsumerT] = None,
     ) -> Awaitable:
-        """
-        Returns information about pending messages, in a range.
-        name: name of the stream.
-        groupname: name of the consumer group.
-        min: minimum stream ID.
-        max: maximum stream ID.
-        count: number of messages to return
-        consumername: name of a consumer to filter by (optional).
+        """Returns information about pending messages, in a range.
+
+        参数:
+            name (KeyT): 名称。
+            groupname (GroupT): groupname。
+            min (Optional[StreamIdT]): min。
+            max (Optional[StreamIdT]): max。
+            count (Optional[int]): 统计。
+            consumername (Optional[ConsumerT]): consumername。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         pieces: List[EncodableT] = [name, groupname]
         if min is not None or max is not None or count is not None:
@@ -2840,15 +3483,16 @@ class Redis:
         max: StreamIdT = "+",
         count: Optional[int] = None,
     ) -> Awaitable:
-        """
-        Read stream values within an interval.
-        name: name of the stream.
-        start: first stream ID. defaults to '-',
-               meaning the earliest available.
-        finish: last stream ID. defaults to '+',
-                meaning the latest available.
-        count: if set, only return this many items, beginning with the
-               earliest available.
+        """Read stream values within an interval.
+
+        参数:
+            name (KeyT): 名称。
+            min (StreamIdT): min。
+            max (StreamIdT): max。
+            count (Optional[int]): 统计。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         pieces: List[EncodableT] = [min, max]
         if count is not None:
@@ -2865,13 +3509,15 @@ class Redis:
         count: Optional[int] = None,
         block: Optional[int] = None,
     ) -> Awaitable:
-        """
-        Block and monitor multiple streams for new data.
-        streams: a dict of stream names to stream IDs, where
-                   IDs indicate the last ID already seen.
-        count: if set, only return this many items, beginning with the
-               earliest available.
-        block: number of milliseconds to wait, if nothing already present.
+        """Block and monitor multiple streams for new data.
+
+        参数:
+            streams (Dict[KeyT, StreamIdT]): streams。
+            count (Optional[int]): 统计。
+            block (Optional[int]): block。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         pieces: List[EncodableT] = []
         if block is not None:
@@ -2901,16 +3547,18 @@ class Redis:
         block: Optional[int] = None,
         noack: bool = False,
     ) -> Awaitable:
-        """
-        Read from a stream via a consumer group.
-        groupname: name of the consumer group.
-        consumername: name of the requesting consumer.
-        streams: a dict of stream names to stream IDs, where
-               IDs indicate the last ID already seen.
-        count: if set, only return this many items, beginning with the
-               earliest available.
-        block: number of milliseconds to wait, if nothing already present.
-        noack: do not add messages to the PEL
+        """Read from a stream via a consumer group.
+
+        参数:
+            groupname (str): groupname。
+            consumername (str): consumername。
+            streams (Dict[KeyT, StreamIdT]): streams。
+            count (Optional[int]): 统计。
+            block (Optional[int]): block。
+            noack (bool): noack。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         pieces: List[EncodableT] = [b"GROUP", groupname, consumername]
         if count is not None:
@@ -2939,15 +3587,16 @@ class Redis:
         min: StreamIdT = "-",
         count: Optional[int] = None,
     ) -> Awaitable:
-        """
-        Read stream values within an interval, in reverse order.
-        name: name of the stream
-        start: first stream ID. defaults to '+',
-               meaning the latest available.
-        finish: last stream ID. defaults to '-',
-                meaning the earliest available.
-        count: if set, only return this many items, beginning with the
-               latest available.
+        """Read stream values within an interval, in reverse order.
+
+        参数:
+            name (KeyT): 名称。
+            max (StreamIdT): max。
+            min (StreamIdT): min。
+            count (Optional[int]): 统计。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         pieces: List[EncodableT] = [max, min]
         if count is not None:
@@ -2959,11 +3608,15 @@ class Redis:
         return self.execute_command("XREVRANGE", name, *pieces)
 
     def xtrim(self, name: KeyT, maxlen: int, approximate: bool = True) -> Awaitable:
-        """
-        Trims old messages from a stream.
-        name: name of the stream.
-        maxlen: truncate old stream messages beyond this size
-        approximate: actual stream length may be slightly more than maxlen
+        """Trims old messages from a stream.
+
+        参数:
+            name (KeyT): 名称。
+            maxlen (int): maxlen。
+            approximate (bool): approximate。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         pieces: List[EncodableT] = [b"MAXLEN"]
         if approximate:
@@ -2981,28 +3634,18 @@ class Redis:
         ch: bool = False,
         incr: bool = False,
     ) -> Awaitable:
-        """
-        Set any number of element-name, score pairs to the key ``name``. Pairs
-        are specified as a dict of element-names keys to score values.
+        """Set any number of element-name, score pairs to the key ``name``. Pairs
 
-        ``nx`` forces ZADD to only create new elements and not to update
-        scores for elements that already exist.
+        参数:
+            name (KeyT): 名称。
+            mapping (Mapping[AnyKeyT, EncodableT]): mapping。
+            nx (bool): nx。
+            xx (bool): xx。
+            ch (bool): ch。
+            incr (bool): incr。
 
-        ``xx`` forces ZADD to only update scores of elements that already
-        exist. New elements will not be added.
-
-        ``ch`` modifies the return value to be the numbers of elements changed.
-        Changed elements include new elements that were added and elements
-        whose scores changed.
-
-        ``incr`` modifies ZADD to behave like ZINCRBY. In this mode only a
-        single element/score pair can be specified and the score is the amount
-        the existing score will be incremented by. When using this mode the
-        return value of ZADD will be the new score of the element.
-
-        The return value of ZADD varies based on the mode specified. With no
-        options, ZADD returns the number of new elements added to the sorted
-        set.
+        返回:
+            Awaitable: 返回处理结果。
         """
         if not mapping:
             raise DataError("ZADD requires at least one element/score pair")
@@ -3027,18 +3670,40 @@ class Redis:
         return self.execute_command("ZADD", name, *pieces, **options)
 
     def zcard(self, name: KeyT) -> Awaitable:
-        """Return the number of elements in the sorted set ``name``"""
+        """处理zcard相关逻辑。
+
+        参数:
+            name (KeyT): 名称。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("ZCARD", name)
 
     def zcount(self, name: KeyT, min: ZScoreBoundT, max: ZScoreBoundT) -> Awaitable:
-        """
-        Returns the number of elements in the sorted set at key ``name`` with
-        a score between ``min`` and ``max``.
+        """Returns the number of elements in the sorted set at key ``name`` with
+
+        参数:
+            name (KeyT): 名称。
+            min (ZScoreBoundT): min。
+            max (ZScoreBoundT): max。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self.execute_command("ZCOUNT", name, min, max)
 
     def zincrby(self, name: KeyT, amount: float, value: EncodableT) -> Awaitable:
-        """Increment the score of ``value`` in sorted set ``name`` by ``amount``"""
+        """处理zincrby相关逻辑。
+
+        参数:
+            name (KeyT): 名称。
+            amount (float): amount。
+            value (EncodableT): 输入值。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("ZINCRBY", name, amount, value)
 
     def zinterstore(
@@ -3047,62 +3712,81 @@ class Redis:
         keys: Union[Sequence[KeyT], Mapping[AnyKeyT, float]],
         aggregate: Optional[str] = None,
     ) -> Awaitable:
-        """
-        Intersect multiple sorted sets specified by ``keys`` into
-        a new sorted set, ``dest``. Scores in the destination will be
-        aggregated based on the ``aggregate``, or SUM if none is provided.
+        """Intersect multiple sorted sets specified by ``keys`` into
+
+        参数:
+            dest (KeyT): dest。
+            keys (Union[Sequence[KeyT], Mapping[AnyKeyT, float]]): keys。
+            aggregate (Optional[str]): aggregate。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self._zaggregate("ZINTERSTORE", dest, keys, aggregate)
 
     def zlexcount(self, name: KeyT, min: EncodableT, max: EncodableT) -> Awaitable:
-        """
-        Return the number of items in the sorted set ``name`` between the
-        lexicographical range ``min`` and ``max``.
+        """Return the number of items in the sorted set ``name`` between the
+
+        参数:
+            name (KeyT): 名称。
+            min (EncodableT): min。
+            max (EncodableT): max。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self.execute_command("ZLEXCOUNT", name, min, max)
 
     def zpopmax(self, name: KeyT, count: Optional[int] = None) -> Awaitable:
-        """
-        Remove and return up to ``count`` members with the highest scores
-        from the sorted set ``name``.
+        """Remove and return up to ``count`` members with the highest scores
+
+        参数:
+            name (KeyT): 名称。
+            count (Optional[int]): 统计。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         args = (count is not None) and [count] or []
         options = {"withscores": True}
         return self.execute_command("ZPOPMAX", name, *args, **options)
 
     def zpopmin(self, name: KeyT, count: Optional[int] = None) -> Awaitable:
-        """
-        Remove and return up to ``count`` members with the lowest scores
-        from the sorted set ``name``.
+        """Remove and return up to ``count`` members with the lowest scores
+
+        参数:
+            name (KeyT): 名称。
+            count (Optional[int]): 统计。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         args = (count is not None) and [count] or []
         options = {"withscores": True}
         return self.execute_command("ZPOPMIN", name, *args, **options)
 
     def bzpopmax(self, keys: KeysT, timeout: TimeoutSecT = 0) -> Awaitable:
-        """
-        ZPOPMAX a value off of the first non-empty sorted set
-        named in the ``keys`` list.
+        """ZPOPMAX a value off of the first non-empty sorted set
 
-        If none of the sorted sets in ``keys`` has a value to ZPOPMAX,
-        then block for ``timeout`` seconds, or until a member gets added
-        to one of the sorted sets.
+        参数:
+            keys (KeysT): keys。
+            timeout (TimeoutSecT): timeout。
 
-        If timeout is 0, then block indefinitely.
+        返回:
+            Awaitable: 返回处理结果。
         """
         parsed_keys = list_or_args(keys, (timeout,))
         return self.execute_command("BZPOPMAX", *parsed_keys)
 
     def bzpopmin(self, keys: KeysT, timeout: TimeoutSecT = 0) -> Awaitable:
-        """
-        ZPOPMIN a value off of the first non-empty sorted set
-        named in the ``keys`` list.
+        """ZPOPMIN a value off of the first non-empty sorted set
 
-        If none of the sorted sets in ``keys`` has a value to ZPOPMIN,
-        then block for ``timeout`` seconds, or until a member gets added
-        to one of the sorted sets.
+        参数:
+            keys (KeysT): keys。
+            timeout (TimeoutSecT): timeout。
 
-        If timeout is 0, then block indefinitely.
+        返回:
+            Awaitable: 返回处理结果。
         """
         klist: List[EncodableT] = list_or_args(keys, None)
         klist.append(timeout)
@@ -3117,18 +3801,18 @@ class Redis:
         withscores: bool = False,
         score_cast_func: Union[Type, Callable] = float,
     ) -> Awaitable:
-        """
-        Return a range of values from sorted set ``name`` between
-        ``start`` and ``end`` sorted in ascending order.
+        """Return a range of values from sorted set ``name`` between
 
-        ``start`` and ``end`` can be negative, indicating the end of the range.
+        参数:
+            name (KeyT): 名称。
+            start (int): start。
+            end (int): end。
+            desc (bool): 描述信息。
+            withscores (bool): withscores。
+            score_cast_func (Union[Type, Callable]): scorecastfunc。
 
-        ``desc`` a boolean indicating whether to sort the results descendingly
-
-        ``withscores`` indicates to return the scores along with the values.
-        The return type is a list of (value, score) pairs
-
-        ``score_cast_func`` a callable used to cast the score return value
+        返回:
+            Awaitable: 返回处理结果。
         """
         if desc:
             return self.zrevrange(name, start, end, withscores, score_cast_func)
@@ -3146,12 +3830,17 @@ class Redis:
         start: Optional[int] = None,
         num: Optional[int] = None,
     ) -> Awaitable:
-        """
-        Return the lexicographical range of values from sorted set ``name``
-        between ``min`` and ``max``.
+        """Return the lexicographical range of values from sorted set ``name``
 
-        If ``start`` and ``num`` are specified, then return a slice of the
-        range.
+        参数:
+            name (KeyT): 名称。
+            min (EncodableT): min。
+            max (EncodableT): max。
+            start (Optional[int]): start。
+            num (Optional[int]): num。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         if (start is not None and num is None) or (num is not None and start is None):
             raise DataError("``start`` and ``num`` must both be specified")
@@ -3168,12 +3857,17 @@ class Redis:
         start: Optional[int] = None,
         num: Optional[int] = None,
     ) -> Awaitable:
-        """
-        Return the reversed lexicographical range of values from sorted set
-        ``name`` between ``max`` and ``min``.
+        """Return the reversed lexicographical range of values from sorted set
 
-        If ``start`` and ``num`` are specified, then return a slice of the
-        range.
+        参数:
+            name (KeyT): 名称。
+            max (EncodableT): max。
+            min (EncodableT): min。
+            start (Optional[int]): start。
+            num (Optional[int]): num。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         if (start is not None and num is None) or (num is not None and start is None):
             raise DataError("``start`` and ``num`` must both be specified")
@@ -3192,17 +3886,19 @@ class Redis:
         withscores: bool = False,
         score_cast_func: Union[Type, Callable] = float,
     ) -> Awaitable:
-        """
-        Return a range of values from the sorted set ``name`` with scores
-        between ``min`` and ``max``.
+        """Return a range of values from the sorted set ``name`` with scores
 
-        If ``start`` and ``num`` are specified, then return a slice
-        of the range.
+        参数:
+            name (KeyT): 名称。
+            min (ZScoreBoundT): min。
+            max (ZScoreBoundT): max。
+            start (Optional[int]): start。
+            num (Optional[int]): num。
+            withscores (bool): withscores。
+            score_cast_func (Union[Type, Callable]): scorecastfunc。
 
-        ``withscores`` indicates to return the scores along with the values.
-        The return type is a list of (value, score) pairs
-
-        `score_cast_func`` a callable used to cast the score return value
+        返回:
+            Awaitable: 返回处理结果。
         """
         if (start is not None and num is None) or (num is not None and start is None):
             raise DataError("``start`` and ``num`` must both be specified")
@@ -3215,38 +3911,65 @@ class Redis:
         return self.execute_command(*pieces, **options)
 
     def zrank(self, name: KeyT, value: EncodableT) -> Awaitable:
-        """
-        Returns a 0-based value indicating the rank of ``value`` in sorted set
-        ``name``
+        """Returns a 0-based value indicating the rank of ``value`` in sorted set
+
+        参数:
+            name (KeyT): 名称。
+            value (EncodableT): 输入值。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self.execute_command("ZRANK", name, value)
 
     def zrem(self, name: KeyT, *values: EncodableT) -> Awaitable:
-        """Remove member ``values`` from sorted set ``name``"""
+        """处理zrem相关逻辑。
+
+        参数:
+            name (KeyT): 名称。
+            values (*EncodableT): 输入值列表。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("ZREM", name, *values)
 
     def zremrangebylex(self, name: KeyT, min: EncodableT, max: EncodableT) -> Awaitable:
-        """
-        Remove all elements in the sorted set ``name`` between the
-        lexicographical range specified by ``min`` and ``max``.
+        """Remove all elements in the sorted set ``name`` between the
 
-        Returns the number of elements removed.
+        参数:
+            name (KeyT): 名称。
+            min (EncodableT): min。
+            max (EncodableT): max。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self.execute_command("ZREMRANGEBYLEX", name, min, max)
 
     def zremrangebyrank(self, name: KeyT, min: int, max: int) -> Awaitable:
-        """
-        Remove all elements in the sorted set ``name`` with ranks between
-        ``min`` and ``max``. Values are 0-based, ordered from smallest score
-        to largest. Values can be negative indicating the highest scores.
-        Returns the number of elements removed
+        """Remove all elements in the sorted set ``name`` with ranks between
+
+        参数:
+            name (KeyT): 名称。
+            min (int): min。
+            max (int): max。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self.execute_command("ZREMRANGEBYRANK", name, min, max)
 
     def zremrangebyscore(self, name: KeyT, min: ZScoreBoundT, max: ZScoreBoundT) -> Awaitable:
-        """
-        Remove all elements in the sorted set ``name`` with scores
-        between ``min`` and ``max``. Returns the number of elements removed.
+        """Remove all elements in the sorted set ``name`` with scores
+
+        参数:
+            name (KeyT): 名称。
+            min (ZScoreBoundT): min。
+            max (ZScoreBoundT): max。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self.execute_command("ZREMRANGEBYSCORE", name, min, max)
 
@@ -3258,16 +3981,17 @@ class Redis:
         withscores: bool = False,
         score_cast_func: Union[Type, Callable] = float,
     ) -> Awaitable:
-        """
-        Return a range of values from sorted set ``name`` between
-        ``start`` and ``end`` sorted in descending order.
+        """Return a range of values from sorted set ``name`` between
 
-        ``start`` and ``end`` can be negative, indicating the end of the range.
+        参数:
+            name (KeyT): 名称。
+            start (int): start。
+            end (int): end。
+            withscores (bool): withscores。
+            score_cast_func (Union[Type, Callable]): scorecastfunc。
 
-        ``withscores`` indicates to return the scores along with the values
-        The return type is a list of (value, score) pairs
-
-        ``score_cast_func`` a callable used to cast the score return value
+        返回:
+            Awaitable: 返回处理结果。
         """
         pieces: List[EncodableT] = ["ZREVRANGE", name, start, end]
         if withscores:
@@ -3285,17 +4009,19 @@ class Redis:
         withscores: bool = False,
         score_cast_func: Union[Type, Callable] = float,
     ) -> Awaitable:
-        """
-        Return a range of values from the sorted set ``name`` with scores
-        between ``min`` and ``max`` in descending order.
+        """Return a range of values from the sorted set ``name`` with scores
 
-        If ``start`` and ``num`` are specified, then return a slice
-        of the range.
+        参数:
+            name (KeyT): 名称。
+            min (ZScoreBoundT): min。
+            max (ZScoreBoundT): max。
+            start (Optional[int]): start。
+            num (Optional[int]): num。
+            withscores (bool): withscores。
+            score_cast_func (Union[Type, Callable]): scorecastfunc。
 
-        ``withscores`` indicates to return the scores along with the values.
-        The return type is a list of (value, score) pairs
-
-        ``score_cast_func`` a callable used to cast the score return value
+        返回:
+            Awaitable: 返回处理结果。
         """
         if (start is not None and num is None) or (num is not None and start is None):
             raise DataError("``start`` and ``num`` must both be specified")
@@ -3308,14 +4034,27 @@ class Redis:
         return self.execute_command(*pieces, **options)
 
     def zrevrank(self, name: KeyT, value: EncodableT) -> Awaitable:
-        """
-        Returns a 0-based value indicating the descending rank of
-        ``value`` in sorted set ``name``
+        """Returns a 0-based value indicating the descending rank of
+
+        参数:
+            name (KeyT): 名称。
+            value (EncodableT): 输入值。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self.execute_command("ZREVRANK", name, value)
 
     def zscore(self, name: str, value: EncodableT) -> Awaitable:
-        """Return the score of element ``value`` in sorted set ``name``"""
+        """处理zscore相关逻辑。
+
+        参数:
+            name (str): 名称。
+            value (EncodableT): 输入值。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("ZSCORE", name, value)
 
     def zunionstore(
@@ -3324,10 +4063,15 @@ class Redis:
         keys: Union[Sequence[KeyT], Mapping[AnyKeyT, float]],
         aggregate: Optional[str] = None,
     ) -> Awaitable:
-        """
-        Union multiple sorted sets specified by ``keys`` into
-        a new sorted set, ``dest``. Scores in the destination will be
-        aggregated based on the ``aggregate``, or SUM if none is provided.
+        """Union multiple sorted sets specified by ``keys`` into
+
+        参数:
+            dest (KeyT): dest。
+            keys (Union[Sequence[KeyT], Mapping[AnyKeyT, float]]): keys。
+            aggregate (Optional[str]): aggregate。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self._zaggregate("ZUNIONSTORE", dest, keys, aggregate)
 
@@ -3338,6 +4082,17 @@ class Redis:
         keys: Union[Sequence[KeyT], Mapping[AnyKeyT, float]],
         aggregate: Optional[str] = None,
     ) -> Awaitable:
+        """处理zaggregate相关逻辑。
+
+        参数:
+            command (str): command。
+            dest (KeyT): dest。
+            keys (Union[Sequence[KeyT], Mapping[AnyKeyT, float]]): keys。
+            aggregate (Optional[str]): aggregate。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         pieces: List[EncodableT] = [command, dest, len(keys)]
         key_names: Union[Sequence[KeyT], AbstractSet[AnyKeyT]]
         weights: Optional[ValuesView[float]]
@@ -3357,53 +4112,134 @@ class Redis:
 
     # HYPERLOGLOG COMMANDS
     def pfadd(self, name: KeyT, *values: EncodableT) -> Awaitable:
-        """Adds the specified elements to the specified HyperLogLog."""
+        """处理pfadd相关逻辑。
+
+        参数:
+            name (KeyT): 名称。
+            values (*EncodableT): 输入值列表。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("PFADD", name, *values)
 
     def pfcount(self, *sources: KeyT) -> Awaitable:
-        """
-        Return the approximated cardinality of
-        the set observed by the HyperLogLog at key(s).
+        """Return the approximated cardinality of
+
+        参数:
+            sources (*KeyT): sources。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self.execute_command("PFCOUNT", *sources)
 
     def pfmerge(self, dest: KeyT, *sources: KeyT) -> Awaitable:
-        """Merge N different HyperLogLogs into a single one."""
+        """处理pfmerge相关逻辑。
+
+        参数:
+            dest (KeyT): dest。
+            sources (*KeyT): sources。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("PFMERGE", dest, *sources)
 
     # HASH COMMANDS
     def hdel(self, name: KeyT, *keys: FieldT) -> Awaitable:
-        """Delete ``keys`` from hash ``name``"""
+        """处理hdel相关逻辑。
+
+        参数:
+            name (KeyT): 名称。
+            keys (*FieldT): keys。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("HDEL", name, *keys)
 
     def hexists(self, name: KeyT, key: FieldT) -> Awaitable:
-        """Returns a boolean indicating if ``key`` exists within hash ``name``"""
+        """处理hexists相关逻辑。
+
+        参数:
+            name (KeyT): 名称。
+            key (FieldT): key。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("HEXISTS", name, key)
 
     def hget(self, name: KeyT, key: FieldT) -> Awaitable:
-        """Return the value of ``key`` within the hash ``name``"""
+        """处理hget相关逻辑。
+
+        参数:
+            name (KeyT): 名称。
+            key (FieldT): key。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("HGET", name, key)
 
     def hgetall(self, name: KeyT) -> Awaitable:
-        """Return a Python dict of the hash's name/value pairs"""
+        """处理hgetall相关逻辑。
+
+        参数:
+            name (KeyT): 名称。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("HGETALL", name)
 
     def hincrby(self, name: KeyT, key: FieldT, amount: int = 1) -> Awaitable:
-        """Increment the value of ``key`` in hash ``name`` by ``amount``"""
+        """处理hincrby相关逻辑。
+
+        参数:
+            name (KeyT): 名称。
+            key (FieldT): key。
+            amount (int): amount。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("HINCRBY", name, key, amount)
 
     def hincrbyfloat(self, name: KeyT, key: FieldT, amount: float = 1.0) -> Awaitable:
-        """
-        Increment the value of ``key`` in hash ``name`` by floating ``amount``
+        """处理hincrbyfloat相关逻辑。
+
+        参数:
+            name (KeyT): 名称。
+            key (FieldT): key。
+            amount (float): amount。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self.execute_command("HINCRBYFLOAT", name, key, amount)
 
     def hkeys(self, name: KeyT) -> Awaitable:
-        """Return the list of keys within hash ``name``"""
+        """处理hkeys相关逻辑。
+
+        参数:
+            name (KeyT): 名称。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("HKEYS", name)
 
     def hlen(self, name: KeyT) -> Awaitable:
-        """Return the number of elements in hash ``name``"""
+        """处理hlen相关逻辑。
+
+        参数:
+            name (KeyT): 名称。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("HLEN", name)
 
     def hset(
@@ -3413,11 +4249,16 @@ class Redis:
         value: Optional[EncodableT] = None,
         mapping: Optional[Mapping[AnyFieldT, EncodableT]] = None,
     ) -> Awaitable:
-        """
-        Set ``key`` to ``value`` within hash ``name``,
-        ``mapping`` accepts a dict of key/value pairs that that will be
-        added to hash ``name``.
-        Returns the number of fields that were added.
+        """Set ``key`` to ``value`` within hash ``name``,
+
+        参数:
+            name (KeyT): 名称。
+            key (Optional[FieldT]): key。
+            value (Optional[EncodableT]): 输入值。
+            mapping (Optional[Mapping[AnyFieldT, EncodableT]]): mapping。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         if key is None and not mapping:
             raise DataError("'hset' with no key value pairs")
@@ -3431,16 +4272,27 @@ class Redis:
         return self.execute_command("HSET", name, *items)
 
     def hsetnx(self, name: KeyT, key: FieldT, value: EncodableT) -> Awaitable:
-        """
-        Set ``key`` to ``value`` within hash ``name`` if ``key`` does not
-        exist.  Returns 1 if HSETNX created a field, otherwise 0.
+        """Set ``key`` to ``value`` within hash ``name`` if ``key`` does not
+
+        参数:
+            name (KeyT): 名称。
+            key (FieldT): key。
+            value (EncodableT): 输入值。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self.execute_command("HSETNX", name, key, value)
 
     def hmset(self, name: KeyT, mapping: Mapping[AnyFieldT, EncodableT]) -> Awaitable:
-        """
-        Set key to value within hash ``name`` for each corresponding
-        key and value from the ``mapping`` dict.
+        """Set key to value within hash ``name`` for each corresponding
+
+        参数:
+            name (KeyT): 名称。
+            mapping (Mapping[AnyFieldT, EncodableT]): mapping。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         warnings.warn(
             f"{self.__class__.__name__}.hmset() is deprecated. " f"Use {self.__class__.__name__}.hset() instead.",
@@ -3455,120 +4307,185 @@ class Redis:
         return self.execute_command("HMSET", name, *items)
 
     def hmget(self, name: KeyT, keys: Sequence[KeyT], *args: FieldT) -> Awaitable:
-        """Returns a list of values ordered identically to ``keys``"""
+        """处理hmget相关逻辑。
+
+        参数:
+            name (KeyT): 名称。
+            keys (Sequence[KeyT]): keys。
+            args (*FieldT): 可变位置参数。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         parsed_args = list_or_args(keys, args)
         return self.execute_command("HMGET", name, *parsed_args)
 
     def hvals(self, name: KeyT) -> Awaitable:
-        """Return the list of values within hash ``name``"""
+        """处理hvals相关逻辑。
+
+        参数:
+            name (KeyT): 名称。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("HVALS", name)
 
     def hstrlen(self, name: KeyT, key: FieldT) -> Awaitable:
-        """
-        Return the number of bytes stored in the value of ``key``
-        within hash ``name``
+        """Return the number of bytes stored in the value of ``key``
+
+        参数:
+            name (KeyT): 名称。
+            key (FieldT): key。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self.execute_command("HSTRLEN", name, key)
 
     def publish(self, channel: ChannelT, message: EncodableT) -> Awaitable:
-        """
-        Publish ``message`` on ``channel``.
-        Returns the number of subscribers the message was delivered to.
+        """Publish ``message`` on ``channel``.
+
+        参数:
+            channel (ChannelT): 子频道。
+            message (EncodableT): 消息对象。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self.execute_command("PUBLISH", channel, message)
 
     def pubsub_channels(self, pattern: PatternT = "*") -> Awaitable:
-        """
-        Return a list of channels that have at least one subscriber
+        """处理pubsubchannels相关逻辑。
+
+        参数:
+            pattern (PatternT): pattern。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self.execute_command("PUBSUB CHANNELS", pattern)
 
     def pubsub_numpat(self) -> Awaitable:
-        """
-        Returns the number of subscriptions to patterns
-        """
+        """处理pubsubnumpat相关逻辑。"""
         return self.execute_command("PUBSUB NUMPAT")
 
     def pubsub_numsub(self, *args: ChannelT) -> Awaitable:
-        """
-        Return a list of (channel, number of subscribers) tuples
-        for each channel given in ``*args``
+        """Return a list of (channel, number of subscribers) tuples
+
+        参数:
+            args (*ChannelT): 可变位置参数。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self.execute_command("PUBSUB NUMSUB", *args)
 
     def cluster(self, cluster_arg: str, *args: str) -> Awaitable:
+        """处理cluster相关逻辑。
+
+        参数:
+            cluster_arg (str): cluster参数。
+            args (*str): 可变位置参数。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command(f"CLUSTER {cluster_arg.upper()}", *args)
 
-    def eval(self, script: ScriptTextT, numkeys: int, *keys_and_args: EncodableT) -> Awaitable:
-        """
-        Execute the Lua ``script``, specifying the ``numkeys`` the script
-        will touch and the key names and argument values in ``keys_and_args``.
-        Returns the result of the script.
+    def eval(self, script: ScriptTextT, numkeys: int, *keys_and_参数: EncodableT) -> Awaitable:
+        """Execute the Lua ``script``, specifying the ``numkeys`` the script
 
-        In practice, use the object returned by ``register_script``. This
-        function exists purely for Redis API completion.
+        参数:
+            script (ScriptTextT): script。
+            numkeys (int): numkeys。
+            keys_and_参数 (*EncodableT): keysand参数。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self.execute_command("EVAL", script, numkeys, *keys_and_args)
 
-    def evalsha(self, sha: str, numkeys: int, *keys_and_args: EncodableT) -> Awaitable:
-        """
-        Use the ``sha`` to execute a Lua script already registered via EVAL
-        or SCRIPT LOAD. Specify the ``numkeys`` the script will touch and the
-        key names and argument values in ``keys_and_args``. Returns the result
-        of the script.
+    def evalsha(self, sha: str, numkeys: int, *keys_and_参数: EncodableT) -> Awaitable:
+        """Use the ``sha`` to execute a Lua script already registered via EVAL
 
-        In practice, use the object returned by ``register_script``. This
-        function exists purely for Redis API completion.
+        参数:
+            sha (str): sha。
+            numkeys (int): numkeys。
+            keys_and_参数 (*EncodableT): keysand参数。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self.execute_command("EVALSHA", sha, numkeys, *keys_and_args)
 
     def script_exists(self, *args: str) -> Awaitable:
-        """
-        Check if a script exists in the script cache by specifying the SHAs of
-        each script as ``args``. Returns a list of boolean values indicating if
-        if each already script exists in the cache.
+        """Check if a script exists in the script cache by specifying the SHAs of
+
+        参数:
+            args (*str): 可变位置参数。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self.execute_command("SCRIPT EXISTS", *args)
 
     def script_flush(self) -> Awaitable:
-        """Flush all scripts from the script cache"""
+        """处理scriptflush相关逻辑。"""
         return self.execute_command("SCRIPT FLUSH")
 
     def script_kill(self) -> Awaitable:
-        """Kill the currently executing Lua script"""
+        """处理scriptkill相关逻辑。"""
         return self.execute_command("SCRIPT KILL")
 
     def script_load(self, script: ScriptTextT) -> Awaitable:
-        """Load a Lua ``script`` into the script cache. Returns the SHA."""
+        """处理scriptload相关逻辑。
+
+        参数:
+            script (ScriptTextT): script。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         return self.execute_command("SCRIPT LOAD", script)
 
     def register_script(self, script: ScriptTextT) -> "Script":
-        """
-        Register a Lua ``script`` specifying the ``keys`` it will touch.
-        Returns a Script object that is callable and hides the complexity of
-        deal with scripts, keys, and shas. This is the preferred way to work
-        with Lua scripts.
+        """Register a Lua ``script`` specifying the ``keys`` it will touch.
+
+        参数:
+            script (ScriptTextT): script。
+
+        返回:
+            'Script': 返回处理结果。
         """
         return Script(self, script)
 
     # GEO COMMANDS
     def geoadd(self, name: KeyT, *values: EncodableT) -> Awaitable:
-        """
-        Add the specified geospatial items to the specified key identified
-        by the ``name`` argument. The Geospatial items are given as ordered
-        members of the ``values`` argument, each item or place is formed by
-        the triad longitude, latitude and name.
+        """Add the specified geospatial items to the specified key identified
+
+        参数:
+            name (KeyT): 名称。
+            values (*EncodableT): 输入值列表。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         if len(values) % 3 != 0:
             raise DataError("GEOADD requires places with lon, lat and name values")
         return self.execute_command("GEOADD", name, *values)
 
     def geodist(self, name: KeyT, place1: FieldT, place2: FieldT, unit: Optional[str] = None) -> Awaitable:
-        """
-        Return the distance between ``place1`` and ``place2`` members of the
-        ``name`` key.
-        The units must be one of the following : m, km mi, ft. By default
-        meters are used.
+        """Return the distance between ``place1`` and ``place2`` members of the
+
+        参数:
+            name (KeyT): 名称。
+            place1 (FieldT): place1。
+            place2 (FieldT): place2。
+            unit (Optional[str]): unit。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         pieces: List[EncodableT] = [name, place1, place2]
         if unit and unit not in ("m", "km", "mi", "ft"):
@@ -3578,17 +4495,26 @@ class Redis:
         return self.execute_command("GEODIST", *pieces)
 
     def geohash(self, name: KeyT, *values: FieldT) -> Awaitable:
-        """
-        Return the geo hash string for each item of ``values`` members of
-        the specified key identified by the ``name`` argument.
+        """Return the geo hash string for each item of ``values`` members of
+
+        参数:
+            name (KeyT): 名称。
+            values (*FieldT): 输入值列表。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self.execute_command("GEOHASH", name, *values)
 
     def geopos(self, name: KeyT, *values: FieldT) -> Awaitable:
-        """
-        Return the positions of each item of ``values`` as members of
-        the specified key identified by the ``name`` argument. Each position
-        is represented by the pairs lon and lat.
+        """Return the positions of each item of ``values`` as members of
+
+        参数:
+            name (KeyT): 名称。
+            values (*FieldT): 输入值列表。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self.execute_command("GEOPOS", name, *values)
 
@@ -3607,33 +4533,24 @@ class Redis:
         store: Optional[KeyT] = None,
         store_dist: Optional[KeyT] = None,
     ) -> Awaitable:
-        """
-        Return the members of the specified key identified by the
-        ``name`` argument which are within the borders of the area specified
-        with the ``latitude`` and ``longitude`` location and the maximum
-        distance from the center specified by the ``radius`` value.
+        """Return the members of the specified key identified by the
 
-        The units must be one of the following : m, km mi, ft. By default
+        参数:
+            name (KeyT): 名称。
+            longitude (float): longitude。
+            latitude (float): latitude。
+            radius (float): radius。
+            unit (Optional[str]): unit。
+            withdist (bool): withdist。
+            withcoord (bool): withcoord。
+            withhash (bool): withhash。
+            count (Optional[int]): 统计。
+            sort (Optional[str]): sort。
+            store (Optional[KeyT]): store。
+            store_dist (Optional[KeyT]): storedist。
 
-        ``withdist`` indicates to return the distances of each place.
-
-        ``withcoord`` indicates to return the latitude and longitude of
-        each place.
-
-        ``withhash`` indicates to return the geohash string of each place.
-
-        ``count`` indicates to return the number of elements up to N.
-
-        ``sort`` indicates to return the places in a sorted way, ASC for
-        nearest to fairest and DESC for fairest to nearest.
-
-        ``store`` indicates to save the places names in a sorted set named
-        with a specific key, each element of the destination sorted set is
-        populated with the score got from the original geo sorted set.
-
-        ``store_dist`` indicates to save the places names in a sorted set
-        named with a specific key, instead of ``store`` the sorted set
-        destination score is set with the distance.
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self._georadiusgeneric(
             "GEORADIUS",
@@ -3665,11 +4582,23 @@ class Redis:
         store: Optional[KeyT] = None,
         store_dist: Optional[KeyT] = None,
     ) -> Awaitable:
-        """
-        This command is exactly like ``georadius`` with the sole difference
-        that instead of taking, as the center of the area to query, a longitude
-        and latitude value, it takes the name of a member already existing
-        inside the geospatial index represented by the sorted set.
+        """This command is exactly like ``georadius`` with the sole difference
+
+        参数:
+            name (KeyT): 名称。
+            member (FieldT): member。
+            radius (float): radius。
+            unit (Optional[str]): unit。
+            withdist (bool): withdist。
+            withcoord (bool): withcoord。
+            withhash (bool): withhash。
+            count (Optional[int]): 统计。
+            sort (Optional[str]): sort。
+            store (Optional[KeyT]): store。
+            store_dist (Optional[KeyT]): storedist。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self._georadiusgeneric(
             "GEORADIUSBYMEMBER",
@@ -3687,6 +4616,16 @@ class Redis:
         )
 
     def _georadiusgeneric(self, command: str, *args: EncodableT, **kwargs: Optional[EncodableT]) -> Awaitable:
+        """处理georadiusgeneric相关逻辑。
+
+        参数:
+            command (str): command。
+            args (*EncodableT): 可变位置参数。
+            kwargs (**Optional[EncodableT]): 可变关键字参数。
+
+        返回:
+            Awaitable: 返回处理结果。
+        """
         pieces: List[Optional[EncodableT]] = list(args)
         if kwargs["unit"] and kwargs["unit"] not in ("m", "km", "mi", "ft"):
             raise DataError("GEORADIUS invalid unit")
@@ -3729,16 +4668,24 @@ class Redis:
 
     # MODULE COMMANDS
     def module_load(self, path: str) -> Awaitable:
-        """
-        Loads the module from ``path``.
-        Raises ``ModuleError`` if a module is not found at ``path``.
+        """Loads the module from ``path``.
+
+        参数:
+            path (str): 路径。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self.execute_command("MODULE LOAD", path)
 
     def module_unload(self, name: str) -> Awaitable:
-        """
-        Unloads the module ``name``.
-        Raises ``ModuleError`` if ``name`` is not in loaded modules.
+        """Unloads the module ``name``.
+
+        参数:
+            name (str): 名称。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         return self.execute_command("MODULE UNLOAD", name)
 
@@ -3754,6 +4701,7 @@ StrictRedis = Redis
 
 
 class MonitorCommandInfo(TypedDict):
+    """处理monitorcommandinfo相关逻辑。"""
     time: float
     db: int
     client_address: str
@@ -3773,14 +4721,21 @@ class Monitor:
     command_re = re.compile(r'"(.*?)(?<!\\)"')
 
     def __init__(self, connection_pool: ConnectionPool):
+        """初始化实例。
+
+        参数:
+            connection_pool (ConnectionPool): connectionpool。
+        """
         self.connection_pool = connection_pool
         self.connection: Optional[Connection] = None
 
     async def connect(self):
+        """处理connect相关逻辑。"""
         if self.connection is None:
             self.connection = await self.connection_pool.get_connection("MONITOR")
 
     async def __aenter__(self):
+        """实现 __aenter__ 特殊方法。"""
         await self.connect()
         self.connection = cast(Connection, self.connection)  # Connected above.
         await self.connection.send_command("MONITOR")
@@ -3791,12 +4746,17 @@ class Monitor:
         return self
 
     async def __aexit__(self, *args):
+        """实现 __aexit__ 特殊方法。
+
+        参数:
+            args (*Any): 可变位置参数。
+        """
         assert self.connection is not None
         await self.connection.disconnect()
         await self.connection_pool.release(self.connection)
 
     async def next_command(self) -> MonitorCommandInfo:
-        """Parse the response from a monitor command"""
+        """处理nextcommand相关逻辑。"""
         if self.connection is None:
             raise RedisError("Connection already closed.")
         await self.connect()
@@ -3836,7 +4796,7 @@ class Monitor:
         }
 
     async def listen(self) -> AsyncIterator[MonitorCommandInfo]:
-        """Listen for commands coming to the server."""
+        """处理listen相关逻辑。"""
         while True:
             yield await self.next_command()
 
@@ -3860,6 +4820,13 @@ class PubSub:
         shard_hint: Optional[str] = None,
         ignore_subscribe_messages: bool = False,
     ):
+        """初始化实例。
+
+        参数:
+            connection_pool (ConnectionPool): connectionpool。
+            shard_hint (Optional[str]): shardhint。
+            ignore_subscribe_messages (bool): ignoresubscribe消息。
+        """
         self.connection_pool = connection_pool
         self.shard_hint = shard_hint
         self.ignore_subscribe_messages = ignore_subscribe_messages
@@ -3884,16 +4851,26 @@ class PubSub:
         self._lock = asyncio.Lock()
 
     async def __aenter__(self):
+        """实现 __aenter__ 特殊方法。"""
         return self
 
     async def __aexit__(self, exc_type, exc_value, traceback):
+        """实现 __aexit__ 特殊方法。
+
+        参数:
+            exc_type (Any): exctype。
+            exc_value (Any): excvalue。
+            traceback (Any): traceback。
+        """
         await self.reset()
 
     def __del__(self):
+        """实现 __del__ 特殊方法。"""
         if self.connection:
             self.connection.clear_connect_callbacks()
 
     async def reset(self):
+        """处理重置相关逻辑。"""
         async with self._lock:
             if self.connection:
                 await self.connection.disconnect()
@@ -3906,10 +4883,15 @@ class PubSub:
             self.pending_unsubscribe_patterns = set()
 
     def close(self) -> Awaitable[NoReturn]:
+        """处理close相关逻辑。"""
         return self.reset()
 
     async def on_connect(self, connection: Connection):
-        """Re-subscribe to any channels and patterns previously subscribed to"""
+        """处理onconnect相关逻辑。
+
+        参数:
+            connection (Connection): connection。
+        """
         # NOTE: for python3, we can't pass bytestrings as keyword arguments
         # so we need to decode channel/pattern names back to unicode strings
         # before passing them to [p]subscribe.
@@ -3928,11 +4910,15 @@ class PubSub:
 
     @property
     def subscribed(self):
-        """Indicates if there are subscriptions to any channels or patterns"""
+        """处理subscribed相关逻辑。"""
         return bool(self.channels or self.patterns)
 
     async def execute_command(self, *args: EncodableT):
-        """Execute a publish/subscribe command"""
+        """处理executecommand相关逻辑。
+
+        参数:
+            args (*EncodableT): 可变位置参数。
+        """
 
         # NOTE: don't parse the response in this function -- it could pull a
         # legitimate message off the stack if the connection is already
@@ -3948,6 +4934,14 @@ class PubSub:
         await self._execute(connection, connection.send_command, *args, **kwargs)
 
     async def _execute(self, connection, command, *args, **kwargs):
+        """处理execute相关逻辑。
+
+        参数:
+            connection (Any): connection。
+            command (Any): command。
+            args (*Any): 可变位置参数。
+            kwargs (**Any): 可变关键字参数。
+        """
         try:
             return await command(*args, **kwargs)
         except (ConnectionError, TimeoutError) as e:
@@ -3963,7 +4957,12 @@ class PubSub:
             return await command(*args, **kwargs)
 
     async def parse_response(self, block: bool = True, timeout: float = 0):
-        """Parse the response from a publish/subscribe command"""
+        """解析response。
+
+        参数:
+            block (bool): block。
+            timeout (float): timeout。
+        """
         conn = self.connection
         if conn is None:
             raise RuntimeError("pubsub connection not set: " "did you forget to call subscribe() or psubscribe()?")
@@ -3980,6 +4979,7 @@ class PubSub:
         return response
 
     async def check_health(self):
+        """检查health。"""
         conn = self.connection
         if conn is None:
             raise RuntimeError("pubsub connection not set: " "did you forget to call subscribe() or psubscribe()?")
@@ -3988,22 +4988,24 @@ class PubSub:
             await conn.send_command("PING", self.HEALTH_CHECK_MESSAGE, check_health=False)
 
     def _normalize_keys(self, data: _NormalizeKeysT) -> _NormalizeKeysT:
-        """
-        normalize channel/pattern names to be either bytes or strings
-        based on whether responses are automatically decoded. this saves us
-        from coercing the value for each message coming in.
+        """normalize channel/pattern names to be either bytes or strings
+
+        参数:
+            data (_NormalizeKeysT): data。
+
+        返回:
+            _NormalizeKeysT: 返回处理结果。
         """
         encode = self.encoder.encode
         decode = self.encoder.decode
         return {decode(encode(k)): v for k, v in data.items()}  # type: ignore[return-value]
 
     async def psubscribe(self, *args: ChannelT, **kwargs: PubSubHandler):
-        """
-        Subscribe to channel patterns. Patterns supplied as keyword arguments
-        expect a pattern name as the key and a callable as the value. A
-        pattern's callable will be invoked automatically when a message is
-        received on that pattern rather than producing a message via
-        ``listen()``.
+        """Subscribe to channel patterns. Patterns supplied as keyword arguments
+
+        参数:
+            args (*ChannelT): 可变位置参数。
+            kwargs (**PubSubHandler): 可变关键字参数。
         """
         parsed_args = list_or_args((args[0],), args[1:]) if args else args
         new_patterns: Dict[ChannelT, PubSubHandler] = dict.fromkeys(parsed_args)
@@ -4019,9 +5021,13 @@ class PubSub:
         return ret_val
 
     def punsubscribe(self, *args: ChannelT) -> Awaitable:
-        """
-        Unsubscribe from the supplied patterns. If empty, unsubscribe from
-        all patterns.
+        """Unsubscribe from the supplied patterns. If empty, unsubscribe from
+
+        参数:
+            args (*ChannelT): 可变位置参数。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         patterns: Iterable[ChannelT]
         if args:
@@ -4034,12 +5040,11 @@ class PubSub:
         return self.execute_command("PUNSUBSCRIBE", *parsed_args)
 
     async def subscribe(self, *args: ChannelT, **kwargs: Callable):
-        """
-        Subscribe to channels. Channels supplied as keyword arguments expect
-        a channel name as the key and a callable as the value. A channel's
-        callable will be invoked automatically when a message is received on
-        that channel rather than producing a message via ``listen()`` or
-        ``get_message()``.
+        """Subscribe to channels. Channels supplied as keyword arguments expect
+
+        参数:
+            args (*ChannelT): 可变位置参数。
+            kwargs (**Callable): 可变关键字参数。
         """
         parsed_args = list_or_args((args[0],), args[1:]) if args else ()
         new_channels = dict.fromkeys(parsed_args)
@@ -4055,9 +5060,13 @@ class PubSub:
         return ret_val
 
     def unsubscribe(self, *args) -> Awaitable:
-        """
-        Unsubscribe from the supplied channels. If empty, unsubscribe from
-        all channels
+        """Unsubscribe from the supplied channels. If empty, unsubscribe from
+
+        参数:
+            args (*Any): 可变位置参数。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         if args:
             parsed_args = list_or_args(args[0], args[1:])
@@ -4069,19 +5078,18 @@ class PubSub:
         return self.execute_command("UNSUBSCRIBE", *parsed_args)
 
     async def listen(self) -> AsyncIterator:
-        """Listen for messages on channels this client has been subscribed to"""
+        """处理listen相关逻辑。"""
         while self.subscribed:
             response = await self.handle_message(await self.parse_response(block=True))
             if response is not None:
                 yield response
 
     async def get_message(self, ignore_subscribe_messages: bool = False, timeout: float = 0.0):
-        """
-        Get the next message if one is available, otherwise None.
+        """Get the next message if one is available, otherwise None.
 
-        If timeout is specified, the system will wait for `timeout` seconds
-        before returning. Timeout should be specified as a floating point
-        number.
+        参数:
+            ignore_subscribe_messages (bool): ignoresubscribe消息。
+            timeout (float): timeout。
         """
         response = await self.parse_response(block=False, timeout=timeout)
         if response:
@@ -4089,17 +5097,23 @@ class PubSub:
         return None
 
     def ping(self, message=None) -> Awaitable:
-        """
-        Ping the Redis server
+        """处理ping相关逻辑。
+
+        参数:
+            message (Any): 消息对象。
+
+        返回:
+            Awaitable: 返回处理结果。
         """
         message = "" if message is None else message
         return self.execute_command("PING", message)
 
     async def handle_message(self, response, ignore_subscribe_messages=False):
-        """
-        Parses a pub/sub message. If the channel or pattern was subscribed to
-        with a message handler, the handler is invoked instead of a parsed
-        message being returned.
+        """Parses a pub/sub message. If the channel or pattern was subscribed to
+
+        参数:
+            response (Any): response。
+            ignore_subscribe_messages (Any): ignoresubscribe消息。
         """
         message_type = str_if_bytes(response[0])
         if message_type == "pmessage":
@@ -4165,16 +5179,9 @@ class PubSub:
     ) -> None:
         """Process pub/sub messages using registered callbacks.
 
-        This is the equivalent of :py:meth:`redis.PubSub.run_in_thread` in
-        redis-py, but it is a coroutine. To launch it as a separate task, use
-        ``asyncio.create_task``:
-
-            >>> task = asyncio.create_task(pubsub.run())
-
-        To shut it down, use asyncio cancellation:
-
-            >>> task.cancel()
-            >>> await task
+        参数:
+            exception_handler (Optional['PSWorkerThreadExcHandlerT']): exceptionhandler。
+            poll_timeout (float): polltimeout。
         """
         for channel, handler in self.channels.items():
             if handler is None:
@@ -4200,12 +5207,26 @@ class PubSub:
 
 
 class PubsubWorkerExceptionHandler(Protocol):
+    """处理pubsubworkerexceptionhandler相关逻辑。"""
     def __call__(self, e: BaseException, pubsub: PubSub):
+        """调用实例并返回结果。
+
+        参数:
+            e (BaseException): e。
+            pubsub (PubSub): pubsub。
+        """
         ...
 
 
 class AsyncPubsubWorkerExceptionHandler(Protocol):
+    """处理asyncpubsubworkerexceptionhandler相关逻辑。"""
     async def __call__(self, e: BaseException, pubsub: PubSub):
+        """调用实例并返回结果。
+
+        参数:
+            e (BaseException): e。
+            pubsub (PubSub): pubsub。
+        """
         ...
 
 
@@ -4244,6 +5265,14 @@ class Pipeline(Redis):  # lgtm [py/init-calls-subclass]
         transaction: bool,
         shard_hint: Optional[str],
     ):
+        """初始化实例。
+
+        参数:
+            connection_pool (ConnectionPool): connectionpool。
+            response_callbacks (MutableMapping[Union[str, bytes], ResponseCallbackT]): responsecallbacks。
+            transaction (bool): transaction。
+            shard_hint (Optional[str]): shardhint。
+        """
         self.connection_pool = connection_pool
         self.connection = None
         self.response_callbacks = response_callbacks
@@ -4255,27 +5284,39 @@ class Pipeline(Redis):  # lgtm [py/init-calls-subclass]
         self.explicit_transaction = False
 
     async def __aenter__(self: _RedisT) -> _RedisT:
+        """实现 __aenter__ 特殊方法。"""
         return self
 
     async def __aexit__(self, exc_type, exc_value, traceback):
+        """实现 __aexit__ 特殊方法。
+
+        参数:
+            exc_type (Any): exctype。
+            exc_value (Any): excvalue。
+            traceback (Any): traceback。
+        """
         await self.reset()
 
     def __await__(self):
+        """返回可等待对象。"""
         return self._async_self().__await__()
 
     _DEL_MESSAGE = "Unclosed Pipeline client"
 
     def __len__(self):
+        """返回长度。"""
         return len(self.command_stack)
 
     def __bool__(self):
-        """Pipeline instances should always evaluate to True"""
+        """返回布尔值。"""
         return True
 
     async def _async_self(self):
+        """处理异步self相关逻辑。"""
         return self
 
     async def reset(self):
+        """处理重置相关逻辑。"""
         self.command_stack = []
         self.scripts = set()
         # make sure to reset the connection state in the event that we were
@@ -4311,16 +5352,25 @@ class Pipeline(Redis):  # lgtm [py/init-calls-subclass]
         self.explicit_transaction = True
 
     def execute_command(self, *args, **kwargs) -> Union["Pipeline", Awaitable["Pipeline"]]:
+        """处理executecommand相关逻辑。
+
+        参数:
+            args (*Any): 可变位置参数。
+            kwargs (**Any): 可变关键字参数。
+
+        返回:
+            Union['Pipeline', Awaitable['Pipeline']]: 返回处理结果。
+        """
         if (self.watching or args[0] == "WATCH") and not self.explicit_transaction:
             return self.immediate_execute_command(*args, **kwargs)
         return self.pipeline_execute_command(*args, **kwargs)
 
     async def immediate_execute_command(self, *args, **options):
-        """
-        Execute a command immediately, but don't auto-retry on a
-        ConnectionError if we're already WATCHing a variable. Used when
-        issuing WATCH or subsequent commands retrieving their values but before
-        MULTI is called.
+        """Execute a command immediately, but don't auto-retry on a
+
+        参数:
+            args (*Any): 可变位置参数。
+            options (**Any): options。
         """
         command_name = args[0]
         conn = self.connection
@@ -4360,21 +5410,23 @@ class Pipeline(Redis):  # lgtm [py/init-calls-subclass]
             raise
 
     def pipeline_execute_command(self, *args, **options):
-        """
-        Stage a command to be executed when execute() is next called
+        """Stage a command to be executed when execute() is next called
 
-        Returns the current Pipeline object back so commands can be
-        chained together, such as:
-
-        pipe = pipe.set('foo', 'bar').incr('baz').decr('bang')
-
-        At some other point, you can then run: pipe.execute(),
-        which will execute all commands queued in the pipe.
+        参数:
+            args (*Any): 可变位置参数。
+            options (**Any): options。
         """
         self.command_stack.append((args, options))
         return self
 
     async def _execute_transaction(self, connection: Connection, commands: CommandStackT, raise_on_error):  # noqa: C901
+        """处理executetransaction相关逻辑。
+
+        参数:
+            connection (Connection): connection。
+            commands (CommandStackT): commands。
+            raise_on_error (Any): raiseonerror。
+        """
         pre: CommandT = (("MULTI",), {})
         post: CommandT = (("EXEC",), {})
         cmds = (pre, *commands, post)
@@ -4444,6 +5496,13 @@ class Pipeline(Redis):  # lgtm [py/init-calls-subclass]
 
     async def _execute_pipeline(self, connection: Connection, commands: CommandStackT, raise_on_error: bool):
         # build up all commands into a single request to increase network perf
+        """处理executepipeline相关逻辑。
+
+        参数:
+            connection (Connection): connection。
+            commands (CommandStackT): commands。
+            raise_on_error (bool): raiseonerror。
+        """
         all_cmds = connection.pack_commands([args for args, _ in commands])
         await connection.send_packed_command(all_cmds)
 
@@ -4459,17 +5518,37 @@ class Pipeline(Redis):  # lgtm [py/init-calls-subclass]
         return response
 
     def raise_first_error(self, commands: CommandStackT, response: Iterable[Any]):
+        """处理raisefirsterror相关逻辑。
+
+        参数:
+            commands (CommandStackT): commands。
+            response (Iterable[Any]): response。
+        """
         for i, r in enumerate(response):
             if isinstance(r, ResponseError):
                 self.annotate_exception(r, i + 1, commands[i][0])
                 raise r
 
     def annotate_exception(self, exception: Exception, number: int, command: Iterable[object]) -> None:
+        """处理annotateexception相关逻辑。
+
+        参数:
+            exception (Exception): exception。
+            number (int): number。
+            command (Iterable[object]): command。
+        """
         cmd = " ".join(map(safe_str, command))
         msg = f"Command # {number} ({cmd}) of pipeline caused error: {exception.args}"
         exception.args = (msg,) + exception.args[1:]
 
     def parse_response(self, connection: Connection, command_name: Union[str, bytes], **options):
+        """解析response。
+
+        参数:
+            connection (Connection): connection。
+            command_name (Union[str, bytes]): command名称。
+            options (**Any): options。
+        """
         result = super().parse_response(connection, command_name, **options)
         if command_name in self.UNWATCH_COMMANDS:
             self.watching = False
@@ -4479,6 +5558,7 @@ class Pipeline(Redis):  # lgtm [py/init-calls-subclass]
 
     async def load_scripts(self):
         # make sure all scripts that are about to be run on this pipeline exist
+        """加载scripts。"""
         scripts = list(self.scripts)
         immediate = self.immediate_execute_command
         shas = [s.sha for s in scripts]
@@ -4491,7 +5571,11 @@ class Pipeline(Redis):  # lgtm [py/init-calls-subclass]
                     s.sha = await immediate("SCRIPT LOAD", s.script)
 
     async def execute(self, raise_on_error: bool = True):
-        """Execute all the commands in the current pipeline"""
+        """处理execute相关逻辑。
+
+        参数:
+            raise_on_error (bool): raiseonerror。
+        """
         stack = self.command_stack
         if not stack and not self.watching:
             return []
@@ -4529,13 +5613,17 @@ class Pipeline(Redis):  # lgtm [py/init-calls-subclass]
             await self.reset()
 
     async def watch(self, *names: KeyT):
-        """Watches the values at keys ``names``"""
+        """处理watch相关逻辑。
+
+        参数:
+            names (*KeyT): names。
+        """
         if self.explicit_transaction:
             raise RedisError("Cannot issue a WATCH after a MULTI")
         return await self.execute_command("WATCH", *names)
 
     async def unwatch(self):
-        """Unwatches all previously specified keys"""
+        """处理unwatch相关逻辑。"""
         return self.watching and await self.execute_command("UNWATCH") or True
 
 
@@ -4543,6 +5631,12 @@ class Script:
     """An executable Lua script object returned by ``register_script``"""
 
     def __init__(self, registered_client: Redis, script: ScriptTextT):
+        """初始化实例。
+
+        参数:
+            registered_client (Redis): registeredclient。
+            script (ScriptTextT): script。
+        """
         self.registered_client = registered_client
         self.script = script
         # Precalculate and store the SHA1 hex digest of the script.
@@ -4562,7 +5656,13 @@ class Script:
         args: Optional[Iterable[EncodableT]] = None,
         client: Optional[Redis] = None,
     ):
-        """Execute the script, passing any required ``args``"""
+        """调用实例并返回结果。
+
+        参数:
+            keys (Optional[Sequence[KeyT]]): keys。
+            args (Optional[Iterable[EncodableT]]): 可变位置参数。
+            client (Optional[Redis]): client。
+        """
         keys = keys or []
         args = args or []
         if client is None:
@@ -4589,6 +5689,13 @@ class BitFieldOperation:
     """
 
     def __init__(self, client: Redis, key: KeyT, default_overflow: Optional[str] = None):
+        """初始化实例。
+
+        参数:
+            client (Redis): client。
+            key (KeyT): key。
+            default_overflow (Optional[str]): defaultoverflow。
+        """
         self.client = client
         self.key = key
         self._default_overflow = default_overflow
@@ -4597,19 +5704,16 @@ class BitFieldOperation:
         self.reset()
 
     def reset(self):
-        """
-        Reset the state of the instance to when it was constructed
-        """
+        """处理重置相关逻辑。"""
         self.operations = []
         self._last_overflow = "WRAP"
         self.overflow(self._default_overflow or self._last_overflow)
 
     def overflow(self, overflow: str):
-        """
-        Update the overflow algorithm of successive INCRBY operations
-        :param overflow: Overflow algorithm, one of WRAP, SAT, FAIL. See the
-            Redis docs for descriptions of these algorithmsself.
-        :returns: a :py:class:`BitFieldOperation` instance.
+        """Update the overflow algorithm of successive INCRBY operations
+
+        参数:
+            overflow (str): overflow。
         """
         overflow = overflow.upper()
         if overflow != self._last_overflow:
@@ -4624,18 +5728,13 @@ class BitFieldOperation:
         increment: int,
         overflow: Optional[str] = None,
     ):
-        """
-        Increment a bitfield by a given amount.
-        :param fmt: format-string for the bitfield being updated, e.g. 'u8'
-            for an unsigned 8-bit integer.
-        :param offset: offset (in number of bits). If prefixed with a
-            '#', this is an offset multiplier, e.g. given the arguments
-            fmt='u8', offset='#2', the offset will be 16.
-        :param int increment: value to increment the bitfield by.
-        :param str overflow: overflow algorithm. Defaults to WRAP, but other
-            acceptable values are SAT and FAIL. See the Redis docs for
-            descriptions of these algorithms.
-        :returns: a :py:class:`BitFieldOperation` instance.
+        """Increment a bitfield by a given amount.
+
+        参数:
+            fmt (str): fmt。
+            offset (BitfieldOffsetT): offset。
+            increment (int): increment。
+            overflow (Optional[str]): overflow。
         """
         if overflow is not None:
             self.overflow(overflow)
@@ -4644,34 +5743,29 @@ class BitFieldOperation:
         return self
 
     def get(self, fmt: str, offset: BitfieldOffsetT):
-        """
-        Get the value of a given bitfield.
-        :param fmt: format-string for the bitfield being read, e.g. 'u8' for
-            an unsigned 8-bit integer.
-        :param offset: offset (in number of bits). If prefixed with a
-            '#', this is an offset multiplier, e.g. given the arguments
-            fmt='u8', offset='#2', the offset will be 16.
-        :returns: a :py:class:`BitFieldOperation` instance.
+        """Get the value of a given bitfield.
+
+        参数:
+            fmt (str): fmt。
+            offset (BitfieldOffsetT): offset。
         """
         self.operations.append(("GET", fmt, offset))
         return self
 
     def set(self, fmt: str, offset: BitfieldOffsetT, value: int):
-        """
-        Set the value of a given bitfield.
-        :param fmt: format-string for the bitfield being read, e.g. 'u8' for
-            an unsigned 8-bit integer.
-        :param offset: offset (in number of bits). If prefixed with a
-            '#', this is an offset multiplier, e.g. given the arguments
-            fmt='u8', offset='#2', the offset will be 16.
-        :param int value: value to set at the given position.
-        :returns: a :py:class:`BitFieldOperation` instance.
+        """Set the value of a given bitfield.
+
+        参数:
+            fmt (str): fmt。
+            offset (BitfieldOffsetT): offset。
+            value (int): 输入值。
         """
         self.operations.append(("SET", fmt, offset, value))
         return self
 
     @property
     def command(self):
+        """处理command相关逻辑。"""
         cmd: List[EncodableT] = ["BITFIELD", self.key]
         for ops in self.operations:
             cmd.extend(ops)

@@ -16,12 +16,24 @@ from .prompt import plugin_prompt
 
 
 class BaseLeave:
+    """定义请假流程共享的基础能力。"""
     def __init__(self, user: User) -> None:
+        """初始化实例。
+
+        参数:
+            user (User): 当前用户对象。
+        """
         self.user = user
 
 
 class AddLeave:
+    """负责发起请假申请的业务处理。"""
     def __init__(self, student: Student) -> None:
+        """初始化实例。
+
+        参数:
+            student (Student): 当前学生对象。
+        """
         self.student = student
         self.messages = Messages()
         self.messages.system_message(plugin_prompt + self.current_state)
@@ -29,7 +41,11 @@ class AddLeave:
         self.content = []
 
     def get_message_image(self, messages: Iterable):
-        """获取用户发送的消息中的图片"""
+        """获取用户发送的消息中的图片
+
+        参数:
+            messages (Iterable): 消息列表。
+        """
         for msg in messages:
             if isinstance(msg, Image) and msg.url:
                 self.image_url = msg.url
@@ -37,9 +53,15 @@ class AddLeave:
 
     @property
     def current_state(self):
+        """返回当前请假流程所处的状态。"""
         return f"\n当前时间: {datetime.now()}"
 
     def add_message(self, messages: list[str | Image]):
+        """添加一条消息。
+
+        参数:
+            messages (list[str | Image]): 消息列表。
+        """
         self.get_message_image(messages)
         self.content.extend(
             (
@@ -51,6 +73,7 @@ class AddLeave:
         )
 
     async def send_message(self) -> Leave | None:
+        """发送消息。"""
         self.messages.user_message(content=self.content)
         chat = await client_create(messages=self.messages)
         if chat.choices[0].message.content:
@@ -59,8 +82,10 @@ class AddLeave:
             return data
 
     async def save_student_leave(self, leave: Leave):
-        """
-        保存学生请假条
+        """保存学生请假条
+
+        参数:
+            leave (Leave): 请假。
         """
         if not self.image_url:
             raise ValueError("未接收到用户发送的图片")
@@ -86,7 +111,11 @@ class AddLeave:
         return student_leave
 
     async def notice_leave(self, leave: StudentLeave):
-        """将请假内容通知给班干部"""
+        """将请假内容通知给班干部
+
+        参数:
+            leave (StudentLeave): 请假。
+        """
         # if (leave_config := await LeaveConfig.filter(classes_id=self.student.classes_id).first()) is None:
         #     return None
         # notify_role: list[str] = json.loads(leave_config.notify_role)
@@ -100,7 +129,11 @@ class AddLeave:
 
     # 创建审批流程
     async def create_approval(self, leave: StudentLeave):
-        """创建审批流程"""
+        """创建审批流程
+
+        参数:
+            leave (StudentLeave): 请假。
+        """
         # if (leave_config := await LeaveConfig.filter(classes_id=self.student.classes_id).first()) is None:
         #     return None
         # notify_role: list[str] = json.loads(leave_config.notify_role)
@@ -112,6 +145,7 @@ class AddLeave:
         #     await wait([push_user_message(student.user, messages) for student in students])
 
 class QueryLeave(BaseLeave):
+    """负责查询请假记录与审批状态的业务处理。"""
     async def get_student_leave(self) -> List[StudentLeave] | None:
         """获取学生的全部请假条"""
         if self.user.student:
@@ -120,10 +154,10 @@ class QueryLeave(BaseLeave):
     async def get_classes_leave(self, classes: Classes | None = None) -> List[StudentLeave] | None:
         """获取以班级未单位的全部请假条
 
-        Args:
+        参数:
             classes (Classes | None, optional): 班级表. Defaults to None.
 
-        Returns:
+        返回:
             List[StudentLeave] | None: 请假条列表
         """
         if classes is None:
@@ -156,6 +190,14 @@ class QueryLeave(BaseLeave):
         return self.user.teacher is not None
 
     def leave_to_messages(self, leave_list: list[StudentLeave]) -> list[UniMessage]:
+        """处理请假消息相关逻辑。
+
+        参数:
+            leave_list (list[StudentLeave]): 请假列表。
+
+        返回:
+            list[UniMessage]: 返回处理结果。
+        """
         today = datetime.now().timestamp()
         # 已结束的请假申请
         end_leave = [leave for leave in leave_list if leave.end_date.timestamp() < today]
@@ -175,6 +217,11 @@ class QueryLeave(BaseLeave):
 
     @staticmethod
     def to_message(leave: StudentLeave):
+        """处理消息相关逻辑。
+
+        参数:
+            leave (StudentLeave): 请假。
+        """
         return UniMessage.text(
             f"\n申请ID: {leave.id}\n"
             f"申请学生: [UID:{leave.student.user.id}] {leave.student.name}\n"

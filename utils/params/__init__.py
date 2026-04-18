@@ -6,6 +6,7 @@ from nonebot.params import Arg, Depends, CommandArg, EventMessage
 
 
 def _command_arg_str(message: UniMessage = CommandArg()) -> str | None:
+    """提取命令参数字符串。"""
     if text := message.extract_plain_text().strip():
         return text
 
@@ -16,7 +17,9 @@ def CommandArgStr() -> Any:
 
 
 def ArgUniMessage(key: str):
+    """构建统一消息参数依赖。"""
     async def _arg(msg: Message | UniMessage = EventMessage()) -> UniMessage:
+        """构造命令参数解析依赖。"""
         print([i for i in msg])
         if isinstance(msg, Message):
             return await UniMessage.generate(message=msg)

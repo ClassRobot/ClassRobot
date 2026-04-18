@@ -18,6 +18,7 @@ async def _(
     students: UserStudents,
     items: list[str],
 ):
+    """处理当前命令或事件逻辑。"""
     if not students:
         await matcher.finish(Emoji.error + "您没有可以查找的学生")
     elif find_students.empty:
@@ -46,6 +47,7 @@ async def _(
     matcher: AlconnaMatcher,
     find_students: FindStudents,
 ):
+    """处理当前命令或事件逻辑。"""
     if isinstance(event, qq.Event):
         await matcher.finish(Emoji.error + "本功能暂不支持官方QQ机器人")
     if find_students.empty:

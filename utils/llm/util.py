@@ -11,6 +11,7 @@ from .message import Content
 def uni_message_to_contents(
     messages: Iterable[str | Image | Text] | UniMessage | str,
 ) -> list[Content]:
+    """将统一消息转换为内容列表。"""
     if isinstance(messages, UniMessage):
         messages = messages.replace("<reference_message>", "").replace("</reference_message>", "")
     if isinstance(messages, str):
@@ -39,6 +40,7 @@ def uni_message_to_contents(
 
 
 def contents_to_uni_message(contents: list[Content]) -> UniMessage:
+    """将内容列表转换为统一消息。"""
     messages = UniMessage()
     for content in contents:
         if content.type == "text":
@@ -54,10 +56,12 @@ def contents_to_uni_message(contents: list[Content]) -> UniMessage:
 
 def escape_backslashes(content: str) -> str:
     # 使用正则表达式替换所有的反斜杠，但保留转义字符
+    """转义反斜杠。"""
     return re.sub(r"\\(?![nrtbfv](?![a-zA-Z]))", r"\\\\", content)
 
 
 def _loads(content: str) -> dict:
+    """解析 JSON 字符串。"""
     try:
         return json.loads(content)
     except json.JSONDecodeError:
@@ -65,7 +69,7 @@ def _loads(content: str) -> dict:
 
 
 def json_loads(content: str) -> dict:
-    """用于解析llm发送过来的json数据"""
+    """解析大语言模型返回的 JSON 数据。"""
     try:
         return _loads(content)
     except json.decoder.JSONDecodeError as error:

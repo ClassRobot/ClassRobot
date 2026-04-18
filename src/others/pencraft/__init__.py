@@ -15,6 +15,7 @@ from .commands import text_gen_cmd
 
 @text_gen_cmd.handle()
 async def _(matcher: AlconnaMatcher, values: list[str | Image]):
+    """处理当前命令或事件逻辑。"""
     await matcher.send(Emoji.loading + "正在生成文档，请稍等...")
     messages = Messages()
     messages.system_message(plugin_prompt)

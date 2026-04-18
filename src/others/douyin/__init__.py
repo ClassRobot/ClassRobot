@@ -22,6 +22,7 @@ async def _(
     text: str = EventPlainText(),
 ):
     # 匹配链接
+    """处理当前命令或事件逻辑。"""
     print(target.adapter, target.platform, target.scope)
     video_url, img_url = None, None
     matches = pattern.findall(text)

@@ -47,6 +47,7 @@ class User(FilterModel, Model):
 
     @property
     def roles(self) -> list[UserRole]:
+        """返回当前用户拥有的全部角色。"""
         roles = [UserRole.user]
         if self.is_admin:
             roles.append(UserRole.admin)
@@ -74,10 +75,10 @@ class User(FilterModel, Model):
     def check_password(self, password: str) -> bool:
         """检查密码
 
-        Args:
+        参数:
             password (str): 密码
 
-        Returns:
+        返回:
             bool: 是否匹配
         """
         return self.password == password
@@ -86,11 +87,11 @@ class User(FilterModel, Model):
     async def login(cls, username: str, password: str) -> Optional["User"]:
         """用户登录
 
-        Args:
+        参数:
             username (str): 用户名
             password (str): 用户密码
 
-        Returns:
+        返回:
             Optional[User]: 用户信息
         """
         if user := await cls.filter(username=username).first():
@@ -108,14 +109,14 @@ class User(FilterModel, Model):
     ) -> "User":
         """创建用户
 
-        Args:
+        参数:
             nickname (str): 用户昵称
             username (str): 用户名
             password (str | None, optional): 用户密码. Defaults to None.
             email (str | None, optional): 用户邮箱. Defaults to None.
             avatar (str | None, optional): 用户头像. Defaults to None.
 
-        Returns:
+        返回:
             User: 创建后的用户
         """
         user = await cls(
@@ -131,10 +132,10 @@ class User(FilterModel, Model):
     async def get_user(cls, user_id: int) -> Optional["User"]:
         """获取用户信息
 
-        Args:
+        参数:
             user_id (int): 用户ID
 
-        Returns:
+        返回:
             Optional[User]: 用户信息
         """
         return await cls.filter(id=user_id).first()
@@ -142,10 +143,10 @@ class User(FilterModel, Model):
     async def get_bind(self, platform_id: str) -> Optional["UserBind"]:
         """获取用户绑定信息
 
-        Args:
+        参数:
             platform_id (str): 平台ID
 
-        Returns:
+        返回:
             Optional[UserBind]: 绑定信息
         """
         return await UserBind.filter(user_id=self.id, platform_id=platform_id).first()
@@ -155,6 +156,7 @@ class User(FilterModel, Model):
         return await ScheduledNotice.filter(user_id=self.id).all()
 
     async def get_curricula_config(self) -> Optional["CurriculaConfig"]:
+        """获取课表配置。"""
         return await CurriculaConfig.filter(user_id=self.id).first()
 
     async def get_approvals(self) -> List["StudentLeaveApproval"]:
@@ -189,11 +191,11 @@ class UserBind(FilterModel, Model):
     ) -> Optional["UserBind"]:
         """获取绑定信息
 
-        Args:
+        参数:
             platform_id (str): 平台ID
             account_id (str): 平台用户ID
 
-        Returns:
+        返回:
             Optional[UserBind]: 绑定信息
         """
         return await cls.filter(platform_id=platform_id, account_id=account_id).first()
@@ -206,11 +208,11 @@ class UserBind(FilterModel, Model):
     ) -> Optional[User]:
         """获取绑定的用户信息
 
-        Args:
+        参数:
             platform_id (str): 平台ID
             account_id (str): 平台用户ID
 
-        Returns:
+        返回:
             Optional[User]: 用户信息
         """
         if bind := await cls.get_bind(platform_id, account_id):
@@ -225,12 +227,12 @@ class UserBind(FilterModel, Model):
     ) -> "UserBind":
         """平台与用户之间的绑定
 
-        Args:
+        参数:
             platform_id (str): 平台ID
             account_id (str): 平台用户ID
             user (User): 绑定的用户
 
-        Returns:
+        返回:
             UserBind: 绑定信息
         """
         async with get_session() as session:
@@ -321,10 +323,10 @@ class Group(FilterModel, Model):
     @classmethod
     async def create_group(cls, name: str, creator: User) -> "Group":
         """创建群组
-        Args:
+        参数:
             creator (User): 创建者信息
 
-        Returns:
+        返回:
             Group: 群组信息
         """
         return await cls(name=name, creator=creator, settings=await GroupSettings().create()).create()
@@ -361,13 +363,13 @@ class GroupBind(FilterModel, Model):
     ) -> "GroupBind":
         """平台与群组之间的绑定
 
-        Args:
+        参数:
             platform_id (str): 平台ID
             channel_id (str): 频道ID或群ID
             guild_id (Optional[str]): 群组ID
             group (Group): 绑定的群组
 
-        Returns:
+        返回:
             GroupBind: 绑定信息
         """
         group_bind = await cls(
@@ -381,6 +383,7 @@ class GroupBind(FilterModel, Model):
 
 
 class Files(FilterModel, Model):
+    """表示文件模型。"""
     name: Mapped[str] = mapped_column(String(128), nullable=False)
     """文件名称"""
     file_md5: Mapped[str] = mapped_column(String(32), nullable=False, unique=True)
@@ -394,12 +397,26 @@ class Files(FilterModel, Model):
 
     @classmethod
     async def file_duplicate(cls, file_md5: str) -> bool:
-        """检查文件是否重复"""
+        """检查文件是否重复
+
+        参数:
+            file_md5 (str): 文件MD5 值。
+
+        返回:
+            bool: 表示是否成功。
+        """
         return await cls.filter(file_md5=file_md5).exists()
 
     @classmethod
     async def get_file(cls, file_md5: str) -> Optional["Files"]:
-        """获取文件信息"""
+        """获取文件信息
+
+        参数:
+            file_md5 (str): 文件MD5 值。
+
+        返回:
+            Optional['Files']: 返回处理结果。
+        """
         return await cls.filter(file_md5=file_md5).first()
 
     @classmethod
@@ -413,7 +430,7 @@ class Files(FilterModel, Model):
     ):
         """创建文件信息
 
-        Args:
+        参数:
             file_md5 (str): 文件MD5校验
             file_path (Path): 文件路径(包含文件名)
             name (str): 文件名
@@ -440,7 +457,7 @@ class Files(FilterModel, Model):
     ) -> "Files":
         """解析文件数据
 
-        Args:
+        参数:
             file_data (bytes): 文件数据
             save_path (Path): 保存路径(不包含文件名)
             suffix (str): 文件后缀
@@ -454,16 +471,27 @@ class Files(FilterModel, Model):
 
     @property
     def path(self) -> Path:
+        """返回当前文件的本地存储路径。"""
         return data_dir / self.file_path / self.file_name
 
     @property
     def file_name(self) -> str:
+        """返回当前文件的显示名称。"""
         return f"{self.name}.{self.suffix.lstrip('.')}" if self.suffix else self.name
 
     def read_bytes(self) -> bytes:
+        """读取字节数据。"""
         return self.path.read_bytes()
 
     def read_text(self, encoding: str | None = None) -> str:
+        """读取文本内容。
+
+        参数:
+            encoding (str | None): encoding。
+
+        返回:
+            str: 返回字符串结果。
+        """
         return self.path.read_text(encoding=encoding)
 
     async def delete(self):
@@ -506,11 +534,11 @@ class Teacher(FilterModel, Model):
     async def create_teacher(cls, name: str, user: User) -> "Teacher":
         """创建教师
 
-        Args:
+        参数:
             name (str): 教师姓名
             user (User): 用户信息
 
-        Returns:
+        返回:
             Teacher: 教师信息
         """
         print(user.role)
@@ -523,10 +551,10 @@ class Teacher(FilterModel, Model):
     async def get_teacher(cls, user: User) -> Optional["Teacher"]:
         """获取教师信息
 
-        Args:
+        参数:
             user (User): 用户信息
 
-        Returns:
+        返回:
             Optional[Teacher]: 教师信息
         """
         return await cls.filter(user_id=user.id).first()
@@ -535,11 +563,11 @@ class Teacher(FilterModel, Model):
     async def get_or_create_teacher(cls, name: str, user: User) -> "Teacher":
         """获取或创建教师信息
 
-        Args:
+        参数:
             user (User): 用户信息
             name (str): 教师姓名
 
-        Returns:
+        返回:
             Teacher: 教师信息
         """
         if teacher := await cls.get_teacher(user):
@@ -554,7 +582,7 @@ class Teacher(FilterModel, Model):
     ) -> Optional["Classes"]:
         """查找教师所在的班级
 
-        Args:
+        参数:
             platform_id (str | int): 平台id
                 当为int时为classes.id
                 当为str时判断channel_id
@@ -562,7 +590,7 @@ class Teacher(FilterModel, Model):
             channel_id (str | None, optional): 群或子频道id. Defaults to None.
             guild_id (str | None, optional): 群组id. Defaults to None.
 
-        Returns:
+        返回:
             Optional["Classes"]: 班级信息
         """
         condition = TeacherClasses.teacher_id == self.id
@@ -579,7 +607,7 @@ class Teacher(FilterModel, Model):
     async def bind_classes(self, classes: "Classes"):
         """绑定班级
 
-        Args:
+        参数:
             classes (Classes): 班级信息
         """
         async with get_session() as session:
@@ -626,10 +654,10 @@ class Classes(FilterModel, Model):
     async def get_task(self, task_id: int | str) -> Optional["Tasks"]:
         """获取任务信息
 
-        Args:
+        参数:
             task_id (int | str): 任务ID或任务名称
 
-        Returns:
+        返回:
             Optional["Tasks"]: 任务信息
         """
 
@@ -638,12 +666,15 @@ class Classes(FilterModel, Model):
         return await Tasks.filter(classes=self, id=task_id).first()
 
     async def get_tasks(self) -> List["Tasks"]:
+        """获取任务。"""
         return await Tasks.filter(classes=self).all()
 
     async def get_join_requests(self) -> List["ClassesJoinRequest"]:
+        """获取入班申请列表。"""
         return await ClassesJoinRequest.filter(classes_id=self.id).all()
 
     async def get_students(self) -> List["Student"]:
+        """获取学生。"""
         return await Student.filter(classes_id=self.id).all()
 
     async def student_count(self) -> int:
@@ -653,7 +684,7 @@ class Classes(FilterModel, Model):
     async def user_join_classes(self, user: User):
         """用户加入班级
 
-        Args:
+        参数:
             user (User): 用户信息
         """
         if user.student is None:  # 创建学生
@@ -664,7 +695,7 @@ class Classes(FilterModel, Model):
     async def apply_join_classes(self, user: User, describe: str | None = None):
         """申请加入班级
 
-        Args:
+        参数:
             user (User): 用户信息
             describe (str): 申请描述
         """
@@ -687,12 +718,12 @@ class Classes(FilterModel, Model):
 
         这种获取方式为全局查询,无法使用班级名称来查询
 
-        Args:
+        参数:
             platform_id (str): 平台ID 或 classes.id
             channel_id (str): 频道ID
             guild_id (str | None, optional): 群组ID. Defaults to None.
 
-        Returns:
+        返回:
             Optional[Classes]: 班级信息
         """
         if isinstance(platform_id, int):
@@ -720,14 +751,14 @@ class Classes(FilterModel, Model):
 
         先创建组然后将组与平台绑定，最后创建班级
 
-        Args:
+        参数:
             name (str): 班级名称
             platform_id (str): 平台ID
             channel_id (str): 频道ID
             guild_id (str | None): 群组ID
             user (User): 用户信息
 
-        Returns:
+        返回:
             Classes: 班级信息
         """
         group = await Group.create_group(name, user)  # 创建群组
@@ -737,7 +768,7 @@ class Classes(FilterModel, Model):
     async def bind_teacher(self, teacher: Teacher, role: TeacherRole | None = None):
         """绑定教师
 
-        Args:
+        参数:
             teacher (Teacher): 教师信息
         """
         await TeacherClasses.association(teacher, self)
@@ -745,7 +776,7 @@ class Classes(FilterModel, Model):
     async def update_teacher_role(self, teacher: Teacher, role: TeacherClassesRole):
         """更新教师角色
 
-        Args:
+        参数:
             teacher (Teacher): 教师信息
             role (TeacherRole): 教师角色
         """
@@ -753,10 +784,12 @@ class Classes(FilterModel, Model):
         await TeacherClasses.filter(teacher_id=teacher.id, classes_id=self.id).update(role=role)
 
     async def get_leaves(self) -> list["StudentLeave"]:
+        """获取请假。"""
         return await StudentLeave.filter(classes_id=self.id).all()
 
 
 class ClassesJoinRequest(FilterModel, Model):
+    """表示班级joinrequest模型。"""
     classes_id: Mapped[int] = mapped_column(Integer, ForeignKey(Classes.id, ondelete="CASCADE"), nullable=False)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey(User.id, ondelete="CASCADE"), nullable=False)
     join_method: Mapped[JoinMethod] = mapped_column(String(32), nullable=False)
@@ -791,7 +824,7 @@ class TeacherClasses(FilterModel, Model):
     ):
         """教师与班级关联
 
-        Args:
+        参数:
             teacher (Teacher): 教师
             classes (Classes): 班级
         """
@@ -827,14 +860,14 @@ class Student(FilterModel, Model):
     ) -> "Student":
         """创建学生
 
-        Args:
+        参数:
             name (str): 学生姓名
             classes (Classes): 班级信息
             user (User): 用户信息
             school_id (int | None): 学校ID
-            **kwargs: 额外信息
+            **kw参数: 额外信息
 
-        Returns:
+        返回:
             Student: 学生信息
         """
 
@@ -845,7 +878,7 @@ class Student(FilterModel, Model):
     async def update_classes(self, classes: Classes):
         """更新班级信息
 
-        Args:
+        参数:
             classes (Classes): 班级信息
         """
         await self.update(
@@ -854,9 +887,11 @@ class Student(FilterModel, Model):
         )
 
     async def get_classmates(self) -> list["Student"]:
+        """获取同班同学列表。"""
         return await Student.filter(classes_id=self.classes_id).all()
 
     async def get_leaves(self) -> List["StudentLeave"]:
+        """获取请假。"""
         return await StudentLeave.filter(student_id=self.id).all()
 
 
@@ -882,7 +917,11 @@ class StudentExtra(FilterModel, Model):
     student: Mapped[Student] = relationship(lazy=False, back_populates="extra")
 
     async def update_extra(self, **kwargs):
-        """更新学生额外信息"""
+        """更新学生额外信息
+
+        参数:
+            kwargs (**Any): 可变关键字参数。
+        """
         await self.update(**kwargs)
 
 
@@ -916,13 +955,13 @@ class Tasks(FilterModel, Model):
     ) -> "Tasks":
         """创建任务
 
-        Args:
+        参数:
             name (str): 任务名称
             classes (Classes): 班级信息
             creator (User): 创建者信息
             creator_role (Literal["teacher", "student"]): 创建者角色
 
-        Returns:
+        返回:
             Tasks: 任务信息
         """
         task = await cls(
@@ -941,9 +980,26 @@ class Tasks(FilterModel, Model):
 
     # 检查学生是否已提交
     async def check_commit(self, student: Student) -> bool:
+        """检查提交记录。
+
+        参数:
+            student (Student): 当前学生对象。
+
+        返回:
+            bool: 表示是否成功。
+        """
         return await TaskCommits.filter(task_id=self.id, student_id=student.id).exists()
 
     async def commit(self, student: Student, file_data: bytes) -> "TaskCommits":
+        """处理提交记录相关逻辑。
+
+        参数:
+            student (Student): 当前学生对象。
+            file_data (bytes): 文件数据对象。
+
+        返回:
+            'TaskCommits': 返回处理结果。
+        """
         file = await Files.parse_data(
             file_data,
             task_dir,
@@ -956,6 +1012,14 @@ class Tasks(FilterModel, Model):
         return task_commit
 
     async def get_commit(self, student: Student) -> Optional["TaskCommits"]:
+        """获取提交记录。
+
+        参数:
+            student (Student): 当前学生对象。
+
+        返回:
+            Optional['TaskCommits']: 返回处理结果。
+        """
         return await TaskCommits.filter(task_id=self.id, student_id=student.id).first()
 
 
@@ -978,7 +1042,11 @@ class TaskCommits(FilterModel, Model):
     """学生信息"""
 
     async def update_file(self, file: Files | bytes):
-        """更新文件"""
+        """更新文件
+
+        参数:
+            file (Files | bytes): 文件对象。
+        """
         await self.file.delete()  # 删除旧的文件
         if isinstance(file, bytes):  # 如果是bytes则解析文件
             file = await Files.parse_data(file, task_dir)
@@ -986,6 +1054,7 @@ class TaskCommits(FilterModel, Model):
 
 
 class ScheduledNotice(FilterModel, Model):
+    """表示scheduled通知模型。"""
     creator_id: Mapped[int] = mapped_column(Integer, ForeignKey(User.id, ondelete="CASCADE"), nullable=False)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     """通知标题"""
@@ -1019,6 +1088,7 @@ class CurriculaTimetable(FilterModel, Model):
 
 # 班级或学生课表配置项
 class CurriculaConfig(FilterModel, Model):
+    """描述用户课表的基础配置。"""
     name: Mapped[str | None] = mapped_column(String(64), nullable=True, unique=False, index=True)
     """课表配置项名称，一般是班级名称"""
     classes_id: Mapped[int | None] = mapped_column(
@@ -1044,7 +1114,11 @@ class CurriculaConfig(FilterModel, Model):
 
     @classmethod
     async def query(cls, name: str):
-        """查询课表配置项(待修改,后续需要增加学校ID)"""
+        """处理query相关逻辑。
+
+        参数:
+            name (str): 名称。
+        """
         return await cls.filter(name=name, user_id=None).first()
 
     async def get_curricula(self) -> list["Curricula"]:
@@ -1054,6 +1128,7 @@ class CurriculaConfig(FilterModel, Model):
 
 # 共享课表
 class ShareCurriculaConfig(FilterModel, Model):
+    """描述课表共享功能的配置。"""
     config_id: Mapped[int] = mapped_column(Integer, ForeignKey(CurriculaConfig.id, ondelete="CASCADE"), nullable=False)
     """用户ID"""
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey(User.id, ondelete="CASCADE"), nullable=False)
@@ -1067,6 +1142,7 @@ class ShareCurriculaConfig(FilterModel, Model):
 
 # 课表
 class Curricula(FilterModel, Model):
+    """表示课表模型。"""
     config_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey(CurriculaConfig.id, ondelete="CASCADE"),
@@ -1090,10 +1166,12 @@ class Curricula(FilterModel, Model):
     updated_at: Mapped[UpdateAt]
 
     async def get_teacher(self) -> Teacher | None:
+        """获取教师。"""
         return await Teacher.filter(name=self.teacher).first()
 
 
 class LeaveConfig(FilterModel, Model):
+    """描述请假流程相关的配置。"""
     classes_id: Mapped[int] = mapped_column(
         Integer, ForeignKey(Classes.id, ondelete="CASCADE"), nullable=True, unique=True
     )
@@ -1123,6 +1201,7 @@ class LeaveWorkflow(FilterModel, Model):
     """审批顺序(用户ID)"""
 
     async def order_users(self) -> list[User]:
+        """对用户进行排序。"""
         users = []
         for uid in self.order:
             if user := User.filter(id=uid).first():
@@ -1133,6 +1212,7 @@ class LeaveWorkflow(FilterModel, Model):
 
 
 class StudentLeave(FilterModel, Model):
+    """表示学生请假模型。"""
     start_date: Mapped[datetime] = mapped_column(DateTime, nullable=True)
     """请假开始时间"""
     end_date: Mapped[datetime] = mapped_column(DateTime, nullable=True)

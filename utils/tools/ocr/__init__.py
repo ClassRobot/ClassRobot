@@ -10,6 +10,7 @@ crnn_model = CRNNHandle()
 
 
 def read_code(image):
+    """识别图片中的验证码文本。"""
     textimg_uint8 = np.clip(image, 0, 255).astype(np.uint8)
     pil_img = Image.fromarray(cv.cvtColor(textimg_uint8, cv.COLOR_BGR2RGB))
     text = crnn_model.predict_rbg(pil_img)

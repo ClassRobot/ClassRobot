@@ -22,6 +22,7 @@ clear_chat = on_command("清空聊天", aliases={"重置聊天", "聊天清空",
 
 
 def update_message(task: AutoTask, target: Target) -> Callable[[], Message]:
+    """更新消息。"""
     message = UniMessage.text(task.command)
     for param in task.params:
         if param.type == "text":
@@ -37,6 +38,7 @@ async def _(
     matcher: Matcher,
     chat_session: ChatSessionDepends,
 ):
+    """处理当前命令或事件逻辑。"""
     chat_session.clear()
     await matcher.finish("已清空聊天记录")
 
@@ -50,6 +52,7 @@ async def _(
     target: MsgTarget,
     chat_session: ChatSessionDepends,
 ):
+    """处理当前命令或事件逻辑。"""
     print(target.adapter, target.scope, target.platform)
     if chat_session.lock:
         await matcher.finish(Emoji.error + "我知道你很急，但是你先别急，等我处理完你的上一条消息。")
@@ -81,6 +84,9 @@ async def _(
     if not auto_task.need_confirm:
         for auto_task in auto_task.tasks:
             if chat_session.helpers.get_helper(auto_task.command):
+                # Replay planned commands through NoneBot's normal event dispatcher so
+                # generated actions still go through the same matcher and depends flow
+                # as if the user had typed the command manually.
                 event = event.copy()
                 event.__uniseg_message_id__ = str(id(event))
                 event.get_message = update_message(auto_task, target)

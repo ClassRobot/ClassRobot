@@ -11,6 +11,7 @@ from .schema import CurriculaSchema
 
 @scheduler.scheduled_job("cron", hour=0, minute=0)
 async def daily_task():
+    """执行每日课表推送任务。"""
     if datetime.datetime.today().weekday() == 0:
         logger.info("Update current week")
         await CurriculaConfig.filter().update(current_week=CurriculaConfig.current_week + 1)
@@ -18,6 +19,7 @@ async def daily_task():
 
 @scheduler.scheduled_job("cron", hour=7, minute=0)
 async def _():
+    """处理当前命令或事件逻辑。"""
     if not (configs := await CurriculaConfig.filter().all()):
         return
 

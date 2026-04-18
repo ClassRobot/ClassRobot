@@ -23,5 +23,10 @@ class ChatMessage(BaseModel):
     "消息创建时间"
 
     def extend(self, message: UniMessage | str):
+        """扩展当前集合。
+
+        参数:
+            message (UniMessage | str): 消息对象。
+        """
         self.message.extend(uni_message_to_contents(message))
         return self.message
