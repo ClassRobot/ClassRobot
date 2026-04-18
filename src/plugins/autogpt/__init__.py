@@ -5,9 +5,9 @@ from nonebot.rule import to_me
 from utils.helper import Helper
 from utils.roles import UserRole
 from utils.config import priority
+from utils.skills import markdown_to_image_skill
 from nonebot.matcher import Matcher
 from nonebot.message import handle_event
-from nonebot_plugin_htmlrender import md_to_pic
 from nonebot.adapters import Bot, Event, Message
 from nonebot import logger, on_command, on_message
 from nonebot.adapters.qq.exception import ActionFailed
@@ -73,7 +73,10 @@ async def _(
             if auto_task.reply.count("\n") < 10:
                 await matcher.send(await markdown_to_message(auto_task.reply).export(adapter=target.adapter, bot=bot))
             else:
-                pic = UniMessage.image(raw=await md_to_pic(auto_task.reply)) + UniMessage.text("文字太长已转为图片发送")
+                pic = (
+                    UniMessage.image(raw=await markdown_to_image_skill.to_image(auto_task.reply))
+                    + UniMessage.text("文字太长已转为图片发送")
+                )
                 await matcher.send(await pic.export(adapter=target.adapter, bot=bot))
         except ActionFailed as e:
             logger.exception(e)

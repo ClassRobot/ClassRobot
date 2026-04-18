@@ -7,11 +7,11 @@ from openai import BaseModel
 from httpx import AsyncClient
 from utils.llm import client_create
 from utils.config import autogpt_dir
+from utils.skills import document_to_image_skill
 from utils.llm.util import json_loads
 from utils.helper.schema import Helpers
 from utils.tools.cos import upload_file
 from utils.template.prompts import Prompt
-from utils.tools.docs2img import File2Image
 from utils.llm.agents.ragflow.schema import Chunk, ChatBotMessage
 
 from .ragflow import AsyncRagFlow
@@ -92,7 +92,7 @@ class FileAgent(BaseFunctionAgent):
                     response = await client.get(url)
                     # Office/PDF files are first normalized into images so the same
                     # multimodal pipeline can inspect every page uniformly.
-                    file_to_image = await File2Image(response.content, save_path=autogpt_dir)
+                    file_to_image = await document_to_image_skill.convert(response.content, save_path=autogpt_dir)
                     images.extend(file_to_image.images)
                 if images:
                     contents: list[Content] = [Content(type="text", value=params.desc)]

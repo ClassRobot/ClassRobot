@@ -62,6 +62,7 @@ data_dir: Path = get_data_dir(dirname)
 cache_dir: Path = get_cache_dir(dirname)
 config_dir: Path = get_config_dir(dirname)
 resources_dir: Path = project_root / "resources"
+skills_dir: Path = project_root / "skills"
 static_dir: Path = resources_dir
 prompts_dir = resources_dir / "prompts"
 template_dir = resources_dir / "templates"

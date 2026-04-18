@@ -1,16 +1,11 @@
 import re
 import base64
-from io import BytesIO
 from pathlib import Path
 from string import punctuation
 from typing import Any, overload
 
-from qrcode import QRCode
 from filetype import guess_extension
-from qrcode.image.pil import PilImage
-from qrcode.image.pure import PyPNGImage
 from nonebot_plugin_htmlrender import get_new_page
-from nonebot_plugin_htmlrender.data_source import env, markdown, read_tpl
 
 
 class StringCard:
@@ -159,39 +154,9 @@ def get_url_suffix(url: str) -> str | None:
 
 async def md_to_html(md: str) -> str:
     """将 Markdown 转换为 HTML。"""
-    template = env.get_template("markdown.html")
-    md = markdown.markdown(
-        md,
-        extensions=[
-            "pymdownx.tasklist",
-            "tables",
-            "fenced_code",
-            "codehilite",
-            "mdx_math",
-            "pymdownx.tilde",
-        ],
-        extension_configs={"mdx_math": {"enable_dollar_delimiter": True}},
-    )
+    from utils.skills import markdown_to_image_skill
 
-    extra = ""
-    if "math/tex" in md:
-        katex_css = await read_tpl("katex/katex.min.b64_fonts.css")
-        katex_js = await read_tpl("katex/katex.min.js")
-        mhchem_js = await read_tpl("katex/mhchem.min.js")
-        mathtex_js = await read_tpl("katex/mathtex-script-type.min.js")
-        extra = (
-            f'<style type="text/css">{katex_css}</style>'
-            f"<script defer>{katex_js}</script>"
-            f"<script defer>{mhchem_js}</script>"
-            f"<script defer>{mathtex_js}</script>"
-        )
-
-    css = await read_tpl("github-markdown-light.css") + await read_tpl(
-        "pygments-default.css",
-    )
-
-    html = await template.render_async(md=md, css=css, extra=extra)
-    return html
+    return await markdown_to_image_skill.to_html(md)
 
 
 def text_to_qrcode(text: str) -> bytes:
@@ -203,13 +168,23 @@ def text_to_qrcode(text: str) -> bytes:
     返回:
         bytes: 二维码图片
     """
-    image_bytes = BytesIO()
-    code_img = QRCode()
-    code_img.add_data(text)
-    code_img.make(fit=True)
-    image: PilImage | PyPNGImage = code_img.make_image()
-    image.save(image_bytes)
-    return image_bytes.getvalue()
+    from utils.skills import qr_code_skill
+
+    return qr_code_skill.encode(text)
+
+
+def decode_qrcode(image: bytes | str | Path) -> list[str]:
+    """解析二维码图片中的文本。
+
+    参数:
+        image (bytes | str | Path): 图片字节内容或本地图片路径。
+
+    返回:
+        list[str]: 识别得到的二维码文本列表。
+    """
+    from utils.skills import qr_code_skill
+
+    return qr_code_skill.decode(image)
 
 
 def bytes_to_base64(data: bytes) -> str:

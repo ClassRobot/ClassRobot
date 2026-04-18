@@ -3,12 +3,13 @@ from typing import Annotated
 
 from utils.models import User
 from nonebot.params import Depends
+from utils.skills import qr_code_skill
 from utils.llm.util import json_loads
 from utils.tools.sync import run_sync
 from utils.llm import Messages, client_create
 from utils.template import Prompt, template_to_pic
 from utils.models.depends import UserOrCreatedDepends
-from utils.tools import text_to_qrcode, bytes_to_base64
+from utils.tools import bytes_to_base64
 
 from .config import map_list_path
 
@@ -43,16 +44,16 @@ class CampusMap:
         return {}
 
     async def to_pic(self, location: dict[str, str]) -> bytes:
-        """处理pic相关逻辑。
+        """将地点结果渲染为带二维码的图片。
 
         参数:
-            location (dict[str, str]): location。
+            location (dict[str, str]): 地点名称到地图链接的映射。
 
         返回:
-            bytes: 返回字节数据。
+            bytes: 渲染后的图片字节数据。
         """
         address = [
-            {"name": i, "image": bytes_to_base64(await run_sync(text_to_qrcode)(v))} for i, v in location.items()
+            {"name": i, "image": bytes_to_base64(await run_sync(qr_code_skill.encode)(v))} for i, v in location.items()
         ]
         return await template_to_pic("campus_map.html", {"address": address})
 

@@ -10,6 +10,7 @@
 
 - `src/`: NoneBot 插件与路由
 - `utils/`: 共享配置、模型、LLM 和工具能力
+- `skills/`: 按 skill 规范拆分的通用能力目录
 - `resources/`: prompts、HTML 模板、OCR 模型等非源码资源
 - `scripts/`: 辅助脚本
 - `migrations/`: 数据库迁移

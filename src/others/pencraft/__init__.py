@@ -1,11 +1,10 @@
 from utils import Emoji
 from nonebot import logger
 from pypandoc import convert_text
+from utils.skills import markdown_to_image_skill, qr_code_skill
 from utils.tools.cos import upload_file
 from utils.llm import Messages, client_create
-from nonebot_plugin_htmlrender import html_to_pic
 from utils.llm.util import uni_message_to_contents
-from utils.tools import md_to_html, text_to_qrcode
 from nonebot_plugin_alconna import Image, UniMessage, AlconnaMatcher
 
 from .util import footer
@@ -30,7 +29,7 @@ async def _(matcher: AlconnaMatcher, values: list[str | Image]):
     if not (content := chat.choices[0].message.content):
         await matcher.finish(Emoji.error + "生成失败!")
 
-    html = await md_to_html(content)
+    html = await markdown_to_image_skill.to_html(content)
     document_bytes = convert_text(
         source=html,
         to="docx",
@@ -40,9 +39,9 @@ async def _(matcher: AlconnaMatcher, values: list[str | Image]):
     )
     if isinstance(document_bytes, str):
         document_bytes = document_bytes.encode("utf-8")
-    download_qrcode: bytes = text_to_qrcode(await upload_file(document_bytes, suffix=".docx"))
+    download_qrcode = qr_code_skill.encode(await upload_file(document_bytes, suffix=".docx"))
     html += footer(download_qrcode)
     await matcher.finish(
         UniMessage.text(Emoji.success + "生成成功！图片预览，图片右下角扫码免费下载！")
-        + UniMessage.image(raw=await html_to_pic(html, viewport={"width": 1080, "height": 10}))
+        + UniMessage.image(raw=await markdown_to_image_skill.html_to_image(html, viewport={"width": 1080, "height": 10}))
     )

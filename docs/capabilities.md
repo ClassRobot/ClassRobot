@@ -181,7 +181,22 @@
 - 渲染与格式化：
   - 支持 HTML 模板渲染
   - 支持 Markdown 转图片
-  - 支持二维码生成
+  - 支持二维码生成与解析
+
+### 已完成 skill 化拆分
+
+- `document-to-image`
+  - 统一封装 Word、PPT、PDF 转图片能力
+  - 当前被文件解析 Agent 复用
+- `ocr`
+  - 统一封装验证码识别与多行文本 OCR 能力
+  - 底层复用 DBNet + CRNN 模型
+- `qr-code`
+  - 统一封装二维码生成与解析能力
+  - 当前被任务导出、校园地图、文稿下载等流程复用
+- `markdown-to-image`
+  - 统一封装 Markdown 到 HTML、Markdown 到图片、HTML 到图片能力
+  - 当前被 AutoGPT 长文本回退和文本创作预览复用
 
 ## 当前能力边界
 

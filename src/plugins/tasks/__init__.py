@@ -1,14 +1,10 @@
-from io import BytesIO
-
 from utils import Emoji
-from qrcode import QRCode
 from nonebot import logger
-from qrcode.image.pil import PilImage
 from utils.send import bot_upload_file
 from utils.models import Tasks, Classes
-from qrcode.image.pure import PyPNGImage
+from utils.skills import qr_code_skill
 from nonebot.params import Arg, ArgPlainText
-from utils.tools import StringCard, text_to_qrcode
+from utils.tools import StringCard
 from nonebot.adapters import Bot, Event, MessageTemplate
 from nonebot_plugin_alconna import UniMessage, AlconnaMatcher
 from utils.models.depends import UserDepends, StudentDepends, UserOrCreatedDepends
@@ -219,6 +215,7 @@ async def _(
     except Exception as e:
         logger.exception(e)
         await matcher.finish(
-            UniMessage(Emoji.warning("文件发送失败，可以尝试扫码下载")) + UniMessage.image(raw=text_to_qrcode(download_url))
+            UniMessage(Emoji.warning("文件发送失败，可以尝试扫码下载"))
+            + UniMessage.image(raw=qr_code_skill.encode(download_url))
         )
         # await matcher.finish(Emoji.warning("文件发送失败，可以尝试从链接中下载", download_url, sep="\n"))
