@@ -5,7 +5,7 @@ import cv2
 import numpy as np
 import onnxruntime as rt
 
-from ..utils import current_path
+from ..utils import ocr_models_dir
 from .decode import SegDetectorRepresenter
 
 mean = (0.485, 0.456, 0.406)
@@ -47,10 +47,9 @@ def draw_bbox(img_path, result, color=(255, 0, 0), thickness=2):
 
 class DBNET(metaclass=SingletonType):
     def __init__(self, MODEL_PATH: Optional[Union[str, Path]] = None):
-        print(MODEL_PATH)
         if MODEL_PATH is None:
-            MODEL_PATH = current_path / "models/dbnet.onnx"
-        self.sess = rt.InferenceSession(MODEL_PATH)
+            MODEL_PATH = ocr_models_dir / "dbnet.onnx"
+        self.sess = rt.InferenceSession(str(MODEL_PATH))
 
         self.decode_handel = SegDetectorRepresenter()
 
@@ -91,7 +90,7 @@ class DBNET(metaclass=SingletonType):
 
 
 if __name__ == "__main__":
-    text_handle = DBNET(MODEL_PATH="./model/dbnet.onnx")
+    text_handle = DBNET(MODEL_PATH=ocr_models_dir / "dbnet.onnx")
     img = cv2.imread("../test_imgs/1.jpg")
     print(img.shape)
     box_list, score_list = text_handle.process(img)  # type: ignore

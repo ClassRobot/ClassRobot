@@ -7,7 +7,6 @@ from nonebot_plugin_htmlrender import template_to_pic as template_to_pic_render
 def static(file_path: str | Path) -> str:
     """获取静态文件的绝对路径"""
     file = str(static_dir / file_path) if isinstance(file_path, str) else str(file_path)
-    print(file)
     return file
 
 

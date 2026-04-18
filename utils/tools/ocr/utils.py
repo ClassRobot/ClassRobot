@@ -5,6 +5,8 @@ import numpy as np
 from PIL import Image
 
 current_path = Path(__file__).resolve().parent
+project_root = current_path.parents[2]
+ocr_models_dir = project_root / "resources" / "models" / "ocr"
 
 
 def rotate_cut_img(im, degree, x_center, y_center, w, h, leftAdjust=False, rightAdjust=False, alph=0.2):

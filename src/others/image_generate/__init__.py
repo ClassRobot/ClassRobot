@@ -7,7 +7,7 @@ from utils.llm.util import uni_message_to_contents
 from src.plugins.autogpt.util import ChatSessionDepends
 from nonebot_plugin_alconna import Text, Image, UniMessage, AlconnaMatcher
 
-from .uitl import generate_image
+from .util import generate_image
 from .commands import image_generate_cmd
 
 

@@ -13,6 +13,8 @@ __pycache__/
 
 # Distribution / packaging
 packages/
+!utils/packages/
+!utils/packages/**
 accounts/
 chatgpt/
 data/
@@ -117,6 +119,7 @@ celerybeat.pid
 .vscode
 .env.dev
 .venv
+.DS_Store
 env/
 venv/
 ENV/

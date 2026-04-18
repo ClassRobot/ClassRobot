@@ -5,7 +5,7 @@ import numpy as np
 from PIL import Image
 import onnxruntime as rt
 
-from ..utils import current_path
+from ..utils import ocr_models_dir
 from .keys import alphabetChinese as alphabet
 from .util import resizeNormalize, strLabelConverter
 
@@ -25,7 +25,7 @@ def softmax(x):
 class CRNNHandle:
     def __init__(self, model_path: Union[str, Path, None] = None):
         if model_path is None:
-            model_path = current_path / "models" / "crnn_lite_lstm.onnx"
+            model_path = ocr_models_dir / "crnn_lite_lstm.onnx"
         self.sess = rt.InferenceSession(str(model_path))
 
     def predict(self, image):
@@ -92,5 +92,5 @@ class CRNNHandle:
 
 if __name__ == "__main__":
     im = Image.open("471594277244_.pic.jpg")
-    crnn_handle = CRNNHandle(model_path="../models/crnn_lite_lstm_bk.onnx")
+    crnn_handle = CRNNHandle(model_path=ocr_models_dir / "crnn_lite_lstm.onnx")
     print(crnn_handle.predict(im))

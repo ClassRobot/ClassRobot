@@ -28,6 +28,7 @@ class GlobalConfig(BaseModel, extra=Extra.ignore):
 os.environ["SSL_CERT_FILE"] = certifi.where()
 priority = 100
 dirname = "classbot"
+project_root = Path(__file__).resolve().parent.parent
 # lang.set("completion", "node", "")
 # lang.set("completion", "prompt_select", "")
 lang.load_data(
@@ -59,9 +60,10 @@ alc_config.default_namespace.compact = True
 data_dir: Path = get_data_dir(dirname)
 cache_dir: Path = get_cache_dir(dirname)
 config_dir: Path = get_config_dir(dirname)
-static_dir: Path = Path().cwd() / "static"
-prompts_dir = static_dir / "prompts"
-template_dir = static_dir / "template"
+resources_dir: Path = project_root / "resources"
+static_dir: Path = resources_dir
+prompts_dir = resources_dir / "prompts"
+template_dir = resources_dir / "templates"
 
 temp_dir = data_dir / "temp"
 temp_dir.mkdir(parents=True, exist_ok=True)

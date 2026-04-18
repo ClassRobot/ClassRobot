@@ -2,11 +2,12 @@ from asyncio import wait
 from base64 import b64encode
 
 from filetype import guess
-from httpx import AsyncClient
 from filetype.types import IMAGE
-from utils.config import global_config
-from nonebot_plugin_alconna import Text, Image
+from httpx import AsyncClient
+from nonebot_plugin_alconna import Image, Text
 from nonebot_plugin_htmlrender import get_new_page
+
+from utils.config import global_config
 
 base_url = "https://generativelanguage.googleapis.com/v1beta"
 client = AsyncClient(base_url=base_url, proxy=global_config.global_proxy, timeout=600)
@@ -23,9 +24,7 @@ async def generate_image(items: list[Text | Image]):
         image_bytes = await image_response.body()
         image_b64 = b64encode(image_bytes).decode()
         mime_type = guess(image_bytes)
-        print("get mime", mime_type)
         if mime_type in IMAGE:
-            print(mime_type, mime_type.MIME)
             parts.append({"inline_data": {"mime_type": mime_type.MIME, "data": image_b64}})
 
     async with get_new_page() as page:

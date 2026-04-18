@@ -2,8 +2,8 @@ from nonebot import logger
 from openai import NOT_GIVEN, APIError, NotGiven, AsyncOpenAI
 
 from .config import plugin_config
+from .exceptions import LLMRequestException
 from .message import LLMRole, Messages
-from .excepions import LLMRequestException
 from .typings import (
     ChatCompletion,
     ChatCompletionToolParam,
