@@ -10,6 +10,7 @@ from nonebot_plugin_htmlrender import template_to_pic
 
 class ParamMode(StrEnum):
     """定义命令参数数量约束的枚举值。"""
+
     OPTIONAL = "?"
     """可选参数"""
     ONE_OR_MORE = "+"
@@ -135,6 +136,7 @@ class Helper(BaseModel):
 
 class Helpers(BaseModel):
     """维护帮助信息集合，并提供检索、筛选与渲染能力。"""
+
     helpers: list[Helper] = []
     helper_search: dict[str, Helper] = {}
 

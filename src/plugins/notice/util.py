@@ -64,6 +64,7 @@ async def notice_work(notice: Notice, creator: User | None = None):
 
 class NoticeSession:
     """封装通知会话状态与行为。"""
+
     functools: list[ChatCompletionToolParam] = [
         {
             "type": "function",

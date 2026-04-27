@@ -1,4 +1,4 @@
-from nonebot_plugin_alconna import Image, Text
+from nonebot_plugin_alconna import Text, Image
 from utils.skills import image_generation_skill
 
 

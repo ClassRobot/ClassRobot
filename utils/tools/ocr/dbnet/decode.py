@@ -6,6 +6,7 @@ from shapely.geometry import Polygon
 
 class SegDetectorRepresenter:
     """将 DBNet 输出结果解码为文本框坐标。"""
+
     def __init__(self, thresh=0.3, box_thresh=0.5, max_candidates=1000, unclip_ratio=2.0):
         """初始化实例。
 

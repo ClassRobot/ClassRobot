@@ -17,6 +17,7 @@ from .prompt import plugin_prompt
 
 class BaseLeave:
     """定义请假流程共享的基础能力。"""
+
     def __init__(self, user: User) -> None:
         """初始化实例。
 
@@ -28,6 +29,7 @@ class BaseLeave:
 
 class AddLeave:
     """负责发起请假申请的业务处理。"""
+
     def __init__(self, student: Student) -> None:
         """初始化实例。
 
@@ -144,8 +146,10 @@ class AddLeave:
         #     messages += UniMessage.image(path=leave_dir / leave.file.name)
         #     await wait([push_user_message(student.user, messages) for student in students])
 
+
 class QueryLeave(BaseLeave):
     """负责查询请假记录与审批状态的业务处理。"""
+
     async def get_student_leave(self) -> List[StudentLeave] | None:
         """获取学生的全部请假条"""
         if self.user.student:

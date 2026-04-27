@@ -9,6 +9,7 @@ from .client import rag_client, file_client
 
 class LLMConfig(BaseModel):
     """描述llmconfig的配置项。"""
+
     frequency_penalty: float
     model_name: str
     presence_penalty: float
@@ -18,12 +19,14 @@ class LLMConfig(BaseModel):
 
 class Variable(BaseModel):
     """描述variable使用的配置或数据结构。"""
+
     key: str
     optional: bool
 
 
 class PromptConfig(BaseModel):
     """描述提示词配置的配置项。"""
+
     empty_response: str
     keyword: bool
     keywords_similarity_weight: float
@@ -43,11 +46,13 @@ class PromptConfig(BaseModel):
 
 class ParserConfig(BaseModel):
     """描述parser配置的配置项。"""
+
     pages: List[List[int]]
 
 
 class Dataset(BaseModel):
     """描述dataset使用的配置或数据结构。"""
+
     avatar: Optional[Any] = None
     chunk_num: int
     create_date: str
@@ -74,12 +79,14 @@ class Dataset(BaseModel):
 
 class ChatMessage(BaseModel):
     """描述聊天消息使用的配置或数据结构。"""
+
     content: str
     role: str
 
 
 class DocAgg(BaseModel):
     """描述Wordagg使用的配置或数据结构。"""
+
     count: int
     doc_id: str
     doc_name: str
@@ -96,6 +103,7 @@ class DocAgg(BaseModel):
 
 class Chunk(BaseModel):
     """描述chunk使用的配置或数据结构。"""
+
     content: str
     dataset_id: str
     document_id: str
@@ -120,6 +128,7 @@ class Chunk(BaseModel):
 
 class MessageReference(BaseModel):
     """描述消息reference使用的配置或数据结构。"""
+
     chunks: List[Chunk]
     doc_aggs: List[DocAgg]
     total: int
@@ -127,6 +136,7 @@ class MessageReference(BaseModel):
 
 class ChatBotMessage(BaseModel):
     """描述聊天bot消息使用的配置或数据结构。"""
+
     answer: str
     audio_binary: Optional[bytes] = None
     created_at: float = Field(description="Unix timestamp of creation time", default_factory=time)
@@ -138,6 +148,7 @@ class ChatBotMessage(BaseModel):
 
 class ChatSession(BaseModel):
     """描述聊天会话使用的配置或数据结构。"""
+
     chat_id: str
     create_date: str
     create_time: int
@@ -167,6 +178,7 @@ class ChatSession(BaseModel):
 
 class Chatbot(BaseModel):
     """描述chatbot使用的配置或数据结构。"""
+
     avatar: str
     create_date: str
     create_time: int

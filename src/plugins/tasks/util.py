@@ -23,6 +23,7 @@ TaskFile = File | Image | Other
 
 class FileData(BaseModel):
     """封装任务附件的字节数据与本地路径，并提供读写能力。"""
+
     name: str
     data: bytes | None = None
     path: Path | None = None
@@ -60,6 +61,7 @@ class FileData(BaseModel):
 
 class QueryTasks:
     """按当前用户身份汇总并查询可访问的任务。"""
+
     def __init__(self, user: User):
         """初始化实例。
 
@@ -124,6 +126,7 @@ class QueryTasks:
 
 class PushTaskCommit(QueryTasks):
     """定义任务提交流程的抽象基类。"""
+
     async def task_commit(self, task: Tasks):
         """提交任务记录。
 
@@ -135,6 +138,7 @@ class PushTaskCommit(QueryTasks):
 
 class TaskList(list[Tasks]):
     """表示任务集合，并提供卡片渲染等展示能力。"""
+
     def __init__(self, *args, **kwargs):
         """初始化实例。
 
@@ -325,6 +329,7 @@ class TaskManager:
 
 class PushTaskManager(TaskManager):
     """负责push任务manager的管理与调度。"""
+
     task_file: TaskFile | None = None
 
     def set_task_file(self, message: UniMessage | TaskFile | Message) -> bool:

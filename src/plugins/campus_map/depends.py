@@ -3,19 +3,20 @@ from typing import Annotated
 
 from utils.models import User
 from nonebot.params import Depends
-from utils.skills import qr_code_skill
 from utils.llm.util import json_loads
 from utils.tools.sync import run_sync
+from utils.skills import qr_code_skill
+from utils.tools import bytes_to_base64
 from utils.llm import Messages, client_create
 from utils.template import Prompt, template_to_pic
 from utils.models.depends import UserOrCreatedDepends
-from utils.tools import bytes_to_base64
 
 from .config import map_list_path
 
 
 class CampusMap:
     """封装校园地图查询所需的上下文与目标信息。"""
+
     def __init__(self, user: User) -> None:
         """初始化实例。
 

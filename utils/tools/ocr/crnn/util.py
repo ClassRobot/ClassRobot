@@ -8,6 +8,7 @@ from PIL import Image
 
 class resizeNormalize(object):
     """对 OCR 输入图片执行缩放与归一化处理。"""
+
     def __init__(self, size, interpolation=Image.BILINEAR):  # type: ignore
         """初始化实例。
 
@@ -51,6 +52,7 @@ class resizeNormalize(object):
 
 class strLabelConverter(object):
     """在 OCR 文字与索引序列之间进行转换。"""
+
     def __init__(self, alphabet):
         """初始化实例。
 
@@ -84,6 +86,7 @@ class strLabelConverter(object):
 
 class averager(object):
     """用于累计并计算张量均值。"""
+
     def __init__(self):
         """初始化实例。"""
         self.reset()

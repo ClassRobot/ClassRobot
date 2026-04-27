@@ -30,6 +30,7 @@ def from_url(url, **kwargs):
 
 class pipeline:
     """处理pipeline相关逻辑。"""
+
     def __init__(self, redis_obj: "Redis"):
         """初始化实例。
 

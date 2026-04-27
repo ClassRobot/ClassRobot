@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 class Leave(BaseModel):
     """描述请假申请的数据结构。"""
+
     start_time: datetime | None
     "请假时间"
     end_time: datetime | None

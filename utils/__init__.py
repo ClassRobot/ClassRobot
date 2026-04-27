@@ -14,6 +14,7 @@ ValidateName = lambda name: (None if name.isdigit() or check_punctuation(name) e
 
 class Emoji(StrEnum):
     """定义项目中使用的表情符号枚举值。"""
+
     win = "🎉"
     "庆祝"
     error = "❌"

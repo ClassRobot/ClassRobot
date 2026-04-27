@@ -24,6 +24,7 @@ DOCUMENTS = (
 
 class File2Image:
     """将文档统一转换为图片并上传，供 OCR 与多模态流程复用。"""
+
     def __init__(self, file: Path | str | bytes, save_path: Path | None = None) -> None:
         """初始化文件转图实例。
 

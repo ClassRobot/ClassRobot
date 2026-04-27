@@ -1,3 +1,4 @@
 class LLMRequestException(Exception):
     """表示llmrequestexception异常。"""
+
     ...

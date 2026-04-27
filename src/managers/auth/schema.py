@@ -7,6 +7,7 @@ edu_logins: dict[str, "type[BaseEduLogin]"] = {}
 
 class BaseEduLogin(BaseModel, ABC):
     """描述教务系统登录所需的基础字段。"""
+
     account: str = Field(title="账号")
     password: str = Field(title="密码")
 

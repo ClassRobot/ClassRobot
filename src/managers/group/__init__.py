@@ -2,27 +2,27 @@ from utils import Emoji
 from nonebot.adapters import Event
 from utils.tools import StringCard
 from nonebot_plugin_waiter import waiter
-from utils.models import School, College, Major, Classes, Organization, OrganizationMember
 from nonebot_plugin_alconna import AlconnaMatcher
 from utils.models.depends import UserOrCreatedDepends
+from utils.models import Major, School, Classes, College, Organization, OrganizationMember
 
 from .commands import (
-    add_school,
-    set_school,
-    delete_school,
-    add_college,
-    set_college,
-    delete_college,
     add_major,
     set_major,
+    add_school,
+    set_school,
+    add_college,
+    set_college,
     delete_major,
+    delete_school,
+    delete_college,
+    query_structure,
     add_organization,
     set_organization,
-    delete_organization,
-    query_structure,
-    query_organization,
-    join_organization,
     exit_organization,
+    join_organization,
+    query_organization,
+    delete_organization,
 )
 
 ORGANIZATION_TYPE_MAPPING = {
@@ -167,7 +167,8 @@ async def get_organization_or_finish(
     if len(organizations) > 1:
         organization_types = "、".join(get_organization_type_label(org.organization_type) for org in organizations)
         await matcher.finish(
-            Emoji.error + f"学校`{school.name}`下存在多个同名组织`{organization_name}`，当前类型包括：{organization_types}"
+            Emoji.error
+            + f"学校`{school.name}`下存在多个同名组织`{organization_name}`，当前类型包括：{organization_types}"
         )
     return organizations[0]
 
@@ -434,7 +435,9 @@ async def _(matcher: AlconnaMatcher, school_name: str, organization_name: str, v
     if "organization_type" in options:
         normalized_type = ORGANIZATION_TYPE_MAPPING.get(options["organization_type"].strip().lower())
         if normalized_type is None:
-            await matcher.finish(Emoji.error + "组织类型只支持：general/departmental/interest/governance/temporary/class")
+            await matcher.finish(
+                Emoji.error + "组织类型只支持：general/departmental/interest/governance/temporary/class"
+            )
         new_type = normalized_type
 
     if new_name != organization.name or new_type != organization.organization_type:
@@ -632,7 +635,9 @@ async def _(
 
     suffix = f"\n{Emoji.info}组织岗位: {member.position}" if member.position else ""
     await matcher.finish(
-        Emoji.success + f"已以{ '学生' if identity_name == 'student' else '教师' }身份加入组织`{organization.name}`！" + suffix
+        Emoji.success
+        + f"已以{ '学生' if identity_name == 'student' else '教师' }身份加入组织`{organization.name}`！"
+        + suffix
     )
 
 
@@ -656,7 +661,8 @@ async def _(
 
     if member is None:
         await matcher.finish(
-            Emoji.error + f"您当前没有以{ '学生' if identity_name == 'student' else '教师' }身份加入组织`{organization.name}`。"
+            Emoji.error
+            + f"您当前没有以{ '学生' if identity_name == 'student' else '教师' }身份加入组织`{organization.name}`。"
         )
 
     await member.delete()

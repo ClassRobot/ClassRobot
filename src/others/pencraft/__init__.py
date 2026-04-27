@@ -1,10 +1,10 @@
 from utils import Emoji
 from nonebot import logger
 from pypandoc import convert_text
-from utils.skills import markdown_to_image_skill, qr_code_skill
 from utils.tools.cos import upload_file
 from utils.llm import Messages, client_create
 from utils.llm.util import uni_message_to_contents
+from utils.skills import qr_code_skill, markdown_to_image_skill
 from nonebot_plugin_alconna import Image, UniMessage, AlconnaMatcher
 
 from .util import footer
@@ -43,5 +43,7 @@ async def _(matcher: AlconnaMatcher, values: list[str | Image]):
     html += footer(download_qrcode)
     await matcher.finish(
         UniMessage.text(Emoji.success + "生成成功！图片预览，图片右下角扫码免费下载！")
-        + UniMessage.image(raw=await markdown_to_image_skill.html_to_image(html, viewport={"width": 1080, "height": 10}))
+        + UniMessage.image(
+            raw=await markdown_to_image_skill.html_to_image(html, viewport={"width": 1080, "height": 10})
+        )
     )

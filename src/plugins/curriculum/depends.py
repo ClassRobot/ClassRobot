@@ -9,6 +9,7 @@ from .manage import AddCurricula, BaseCurricula, QueryCurricula, ShareCurricula,
 
 def curricula_depends(bc: type[BaseCurricula]):
     """构建课表依赖。"""
+
     async def _(matcher: AlconnaMatcher, user: UserOrCreatedDepends) -> BaseCurricula:
         """处理课表依赖中的当前流程。"""
         return matcher.state.setdefault(f"_{bc.__name__}", bc(user))

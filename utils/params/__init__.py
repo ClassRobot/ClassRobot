@@ -18,6 +18,7 @@ def CommandArgStr() -> Any:
 
 def ArgUniMessage(key: str):
     """构建统一消息参数依赖。"""
+
     async def _arg(msg: Message | UniMessage = EventMessage()) -> UniMessage:
         """构造命令参数解析依赖。"""
         print([i for i in msg])

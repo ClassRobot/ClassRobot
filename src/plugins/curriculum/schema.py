@@ -33,6 +33,7 @@ class Course(BaseModel):
 
     class Config:
         """描述配置的配置项。"""
+
         extra = Extra.forbid
 
 
@@ -47,6 +48,7 @@ class CurrentWeek(BaseModel):
 
     class Config:
         """描述配置的配置项。"""
+
         extra = Extra.forbid
 
 
@@ -59,6 +61,7 @@ class NextCountdown(BaseModel):
 
     class Config:
         """描述配置的配置项。"""
+
         extra = Extra.forbid
 
     @classmethod
@@ -86,6 +89,7 @@ class NextCountdown(BaseModel):
 
 class CurriculaSchema(BaseModel):
     """描述课表条目的结构化数据。"""
+
     current_week: CurrentWeek
     next_countdown: NextCountdown
     next_course: Course
@@ -94,6 +98,7 @@ class CurriculaSchema(BaseModel):
 
     class Config:
         """描述配置的配置项。"""
+
         extra = Extra.forbid
 
     @classmethod

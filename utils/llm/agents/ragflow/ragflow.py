@@ -4,6 +4,7 @@ from .client import rag_client
 
 class AsyncRagFlow:
     """封装 RagFlow 服务的异步客户端能力。"""
+
     async def get_chatbots(
         self, page: int = 1, page_size: int = 30, order_by: str = "create_time", desc: bool = True
     ) -> list[Chatbot]:

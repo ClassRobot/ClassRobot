@@ -20,7 +20,9 @@ set_cmd = on_alconna(
             "values",
             MultiVar(str, flag="+"),
             Field(
-                completion=tip(f"修改方式如名字=张三 性别=男\n可以修改的内容:\n {', '.join(get_columns_chinese(['user_id']).values())}")
+                completion=tip(
+                    f"修改方式如名字=张三 性别=男\n可以修改的内容:\n {', '.join(get_columns_chinese(['user_id']).values())}"
+                )
             ),
         ],
     ),
@@ -52,5 +54,5 @@ __helpers__ = [
             ),
         ],
         roles={UserRole.student},
-    )
+    ),
 ]

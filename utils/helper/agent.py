@@ -10,6 +10,7 @@ class HelperAgent(BaseFunctionAgent):
 
     class Params(BaseModel):
         """描述params使用的配置或数据结构。"""
+
         commands: list[str] = Field(description="一个或多个命令的帮助文档")
 
     @classmethod

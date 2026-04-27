@@ -9,6 +9,7 @@ session_timeout = 60 * 60 * 24  # 24小时
 
 class ChatSession:
     """封装聊天会话状态与行为。"""
+
     functools: list[ChatCompletionToolParam] | None = None
 
     def __init__(self, session_id: str) -> None:

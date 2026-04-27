@@ -12,8 +12,8 @@ from utils.models.depends import UserOrCreatedDepends
 from utils.llm.message import Content, Context, LLMRole, Messages
 
 from .exception import SessionLockError
-from .pipeline import MessageProcessingPipeline
 from .schema import ChatMessage, AutoTaskList
+from .pipeline import MessageProcessingPipeline
 
 pattern = r"!\[image\]\(([^)]+)\)"
 
@@ -147,6 +147,7 @@ class ChatSession:
 
 class ChatSessionManager:
     """管理聊天会话的生命周期、缓存与超时清理。"""
+
     timeout = 60 * 60
 
     def __init__(self) -> None:

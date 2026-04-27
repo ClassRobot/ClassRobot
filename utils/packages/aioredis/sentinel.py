@@ -10,16 +10,19 @@ from aioredis.exceptions import TimeoutError, ReadOnlyError, ResponseError, Conn
 
 class MasterNotFoundError(ConnectionError):
     """表示masternotfounderror异常。"""
+
     pass
 
 
 class SlaveNotFoundError(ConnectionError):
     """表示slavenotfounderror异常。"""
+
     pass
 
 
 class SentinelManagedConnection(SSLConnection):
     """处理sentinelmanagedconnection相关逻辑。"""
+
     def __init__(self, **kwargs):
         """初始化实例。
 

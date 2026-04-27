@@ -1,13 +1,13 @@
 from abc import ABC, abstractmethod
 
-from pydantic import BaseModel, Field
-from nonebot_plugin_alconna import UniMessage
 from utils.helper import Helpers
-from utils.llm.message import Content, Context, Messages
+from pydantic import Field, BaseModel
+from nonebot_plugin_alconna import UniMessage
 from utils.llm.util import uni_message_to_contents
-from utils.llm.agents.tools import AutoTaskAgent, ExtractAgent, RagAgent, SummaryAgent
+from utils.llm.message import Content, Context, Messages
+from utils.llm.agents.tools import RagAgent, ExtractAgent, SummaryAgent, AutoTaskAgent
 
-from .schema import AutoTaskList, ChatMessage
+from .schema import ChatMessage, AutoTaskList
 
 
 class PipelineState(BaseModel):

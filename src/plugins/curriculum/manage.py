@@ -7,6 +7,7 @@ from .schema import CurriculaSchema
 
 class BaseCurricula:
     """定义课表管理流程共享的基础能力。"""
+
     def __init__(self, user: User) -> None:
         """初始化实例。
 
@@ -43,6 +44,7 @@ class BaseCurricula:
 
 class AddCurricula(BaseCurricula):
     """负责新增课表记录的业务处理。"""
+
     async def add(
         self,
         weeks: list[int],
@@ -82,6 +84,7 @@ class AddCurricula(BaseCurricula):
 
 class QueryCurricula(BaseCurricula):
     """负责查询课表信息的业务处理。"""
+
     async def query(self, name: str | None = None, day: int = 0) -> None | CurriculaSchema:
         """调用该方法来查询课表
 
@@ -103,6 +106,7 @@ class QueryCurricula(BaseCurricula):
 
 class DeleteCurricula(QueryCurricula):
     """负责删除课表记录的业务处理。"""
+
     async def delete(self, curricula_id: list[int]) -> list[int]:
         """删除当前数据。
 
@@ -125,6 +129,7 @@ class DeleteCurricula(QueryCurricula):
 
 class SetCurriculaWeek(BaseCurricula):
     """负责设置当前课表周次的业务处理。"""
+
     async def set_week(self, week: int) -> bool:
         """设置周次。
 
@@ -142,6 +147,7 @@ class SetCurriculaWeek(BaseCurricula):
 
 class ShareCurricula(BaseCurricula):
     """负责共享课表配置的业务处理。"""
+
     async def share(self, config_id: int | CurriculaConfig) -> None | bool:
         # 获取用户的课表配置
         """处理share相关逻辑。

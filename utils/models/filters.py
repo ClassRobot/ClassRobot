@@ -13,6 +13,7 @@ if TYPE_CHECKING:
 
     class SelectFilter(Select, Generic[T]):
         """封装选择过滤过滤逻辑。"""
+
         def __await__(self) -> Generator[Any, Any, ScalarResult[T]]:
             """返回可等待对象。"""
             ...
@@ -25,6 +26,7 @@ else:
 
     class SelectFilter(Generic[T]):
         """封装选择过滤过滤逻辑。"""
+
         def __init__(self, model) -> None:
             """初始化实例。
 
@@ -59,6 +61,7 @@ else:
 
         def __await__(self) -> Generator[Any, Any, ScalarResult[T]]:
             """返回可等待对象。"""
+
             async def _():
                 """执行当前查询并返回结果集合。"""
                 async with get_session() as session:
@@ -69,6 +72,7 @@ else:
 
 class Filter(Generic[T]):
     """封装过滤过滤逻辑。"""
+
     def __init__(
         self,
         model: Type[T],
@@ -154,6 +158,7 @@ class Filter(Generic[T]):
 
 class FilterModel:
     """表示过滤模型模型。"""
+
     id: Mapped[PrimaryKeyInteger]
 
     def __init_subclass__(cls, **kwargs) -> None:

@@ -1,11 +1,11 @@
-import importlib.util
 import inspect
+import importlib.util
 from pathlib import Path
 from typing import TypeVar, cast
 
 from utils.config import skills_dir
 
-from .base import BaseProjectSkill, SkillManifest, discover_skill_manifests, parse_skill_manifest
+from .base import SkillManifest, BaseProjectSkill, parse_skill_manifest, discover_skill_manifests
 
 T = TypeVar("T", bound=BaseProjectSkill)
 
@@ -154,9 +154,7 @@ class SkillRegistry:
 
     def summaries(self) -> list[dict[str, str]]:
         """返回 skill 摘要列表。"""
-        return [
-            {"name": manifest.name, "description": manifest.description} for manifest in self.manifests.values()
-        ]
+        return [{"name": manifest.name, "description": manifest.description} for manifest in self.manifests.values()]
 
 
 skill_registry = SkillRegistry(skills_dir)

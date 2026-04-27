@@ -2,6 +2,7 @@ import cv2 as cv
 import numpy as np
 from PIL import Image
 
+
 def read_code(image):
     """识别图片中的验证码文本。"""
     from utils.skills import ocr_skill

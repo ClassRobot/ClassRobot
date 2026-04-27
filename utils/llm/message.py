@@ -10,6 +10,7 @@ from .typings import ChatCompletionMessage, ChatCompletionMessageParam
 
 class LLMRole(StrEnum):
     """定义大模型消息在对话上下文中的角色类型。"""
+
     user = "user"
     tool = "tool"
     system = "system"
@@ -153,6 +154,7 @@ class Context(ContextSchema):
 
 class Messages(BaseModel):
     """封装多轮对话消息集合，并提供筛选、追加与格式转换能力。"""
+
     messages: list[Context | ChatCompletionMessage] = Field(default_factory=list)
 
     async def build_messages(self, is_multi_modal: bool = False) -> list[ChatCompletionMessageParam]:

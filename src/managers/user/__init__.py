@@ -51,7 +51,11 @@ async def _(matcher: AlconnaMatcher, user: UserOrCreatedDepends):
         )
     if user.student is not None:
         school_name = user.student.school.name if user.student.school else "未设置"
-        major_name = user.student.classes.major_ref.name if user.student.classes.major_ref else (user.student.classes.major or "未设置")
+        major_name = (
+            user.student.classes.major_ref.name
+            if user.student.classes.major_ref
+            else (user.student.classes.major or "未设置")
+        )
         (
             card.hr("学生信息")
             .text(f"学生ID: {user.student.id}")

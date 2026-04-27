@@ -11,6 +11,7 @@ ignore_str = ["_", "-"]
 
 class BaseSession(BaseModel):
     """描述一次消息会话的基础标识信息，用于区分私聊、群聊和频道场景。"""
+
     user_id: str
     platform: str
     platform_name: str
@@ -36,11 +37,13 @@ class BaseSession(BaseModel):
 
 class GroupSession(BaseSession):
     """表示群聊或频道场景下的会话信息。"""
+
     channel_id: str
 
 
 class PrivateSession(BaseSession):
     """表示私聊场景下的会话信息。"""
+
     ...
 
 

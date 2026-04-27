@@ -1,7 +1,7 @@
 from openai import NOT_GIVEN, NotGiven
 
-from .gateway import LLMRequest, LLMResult, LLMTaskType, llm_gateway
 from .message import Messages
+from .gateway import LLMResult, LLMRequest, LLMTaskType, llm_gateway
 from .typings import (
     ChatCompletion,
     ChatCompletionToolParam,

@@ -1,11 +1,11 @@
 from utils import Emoji
+from utils.roles import UserRole
 from utils.tools import StringCard
 from nonebot_plugin_alconna import AlconnaMatcher
-from utils.roles import UserRole
 from utils.models import School, College, Teacher
 from utils.models.depends import TeacherDepends, UserOrCreatedDepends
 
-from .commands import query_teacher_cmd, set_teacher_cmd
+from .commands import set_teacher_cmd, query_teacher_cmd
 
 TEACHER_COLUMNS = {
     "name": ["姓名", "名字", "昵称"],

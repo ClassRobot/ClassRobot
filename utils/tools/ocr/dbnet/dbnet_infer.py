@@ -27,6 +27,7 @@ def Singleton(cls):
 
 class SingletonType(type):
     """提供 DBNet 推理类复用实例的单例元类。"""
+
     def __init__(cls, *args, **kwargs):
         """初始化实例。
 
@@ -63,6 +64,7 @@ def draw_bbox(img_path, result, color=(255, 0, 0), thickness=2):
 
 class DBNET(metaclass=SingletonType):
     """封装 DBNet 文本检测模型的推理流程。"""
+
     def __init__(self, MODEL_PATH: Optional[Union[str, Path]] = None):
         """初始化实例。
 

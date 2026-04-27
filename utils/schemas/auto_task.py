@@ -10,7 +10,9 @@ class Param(BaseModel):
     """命令参数"""
 
     type: Literal["text", "image"]
-    separate: bool = Field(default=False, description="命令和参数是否需要分开发送,例如`帮助`命令和`查询班级`参数需要分两次发送时候为True")
+    separate: bool = Field(
+        default=False, description="命令和参数是否需要分开发送,例如`帮助`命令和`查询班级`参数需要分两次发送时候为True"
+    )
     value: str = Field(description="如果是image则为url")
 
 

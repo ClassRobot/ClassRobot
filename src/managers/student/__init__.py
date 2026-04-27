@@ -5,7 +5,7 @@ from utils.models.depends import StudentDepends
 from nonebot_plugin_alconna import AlconnaMatcher
 from utils.params.student import is_user_key, get_column_key, is_student_key, is_student_extra_key
 
-from .commands import query_cmd, set_cmd
+from .commands import set_cmd, query_cmd
 
 
 @query_cmd.handle()

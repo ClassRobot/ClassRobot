@@ -1,10 +1,10 @@
-from asyncio import gather
-from base64 import b64encode
 from io import BytesIO
 from pathlib import Path
+from asyncio import gather
+from base64 import b64encode
 from typing import TYPE_CHECKING, Any, TypeAlias
 
-from .base import BaseProjectSkill, SkillManifest
+from .base import SkillManifest, BaseProjectSkill
 
 ImageInput: TypeAlias = Any
 
@@ -129,8 +129,7 @@ class OCRSkill(BaseProjectSkill):
         import cv2
         import numpy as np
         from PIL import Image
-
-        from utils.tools.ocr.utils import get_rotate_crop_image, sorted_boxes
+        from utils.tools.ocr.utils import sorted_boxes, get_rotate_crop_image
 
         cv_image = _load_cv_image(image)
         boxes, _ = self.detector.process(cv_image, short_size=short_size)
@@ -303,12 +302,11 @@ class ImageGenerationSkill(BaseProjectSkill):
             list[dict[str, Any]]: 绘图服务返回的响应片段列表。
         """
         from filetype import guess
-        from filetype.types import IMAGE
         from httpx import AsyncClient
-        from nonebot_plugin_alconna import Image, Text
-        from nonebot_plugin_htmlrender import get_new_page
-
+        from filetype.types import IMAGE
         from utils.config import global_config
+        from nonebot_plugin_alconna import Text, Image
+        from nonebot_plugin_htmlrender import get_new_page
 
         parts: list[dict[str, Any]] = []
         wait_images = []

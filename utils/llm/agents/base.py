@@ -27,12 +27,14 @@ class AgentStatus(StrEnum):
 
 class AgentDict(TypedDict):
     """描述子智能体注册信息的数据结构。"""
+
     agent: "BaseAgent"
     is_wait: bool
 
 
 class BaseAgent(ABC, BaseModel):
     """定义智能体的基础状态、消息上下文和编排能力。"""
+
     agents: dict[str, AgentDict] = {}
     status: AgentStatus = AgentStatus.init
     messages: Messages = Field(default_factory=Messages)
@@ -41,6 +43,7 @@ class BaseAgent(ABC, BaseModel):
 
     class Params(BaseModel):
         """定义当前智能体可接收的工具参数结构。"""
+
         ...
 
     @classmethod
@@ -150,4 +153,5 @@ class BaseFunctionAgent(BaseAgent):
 
 class BaseChoiceFunctionAgent(BaseFunctionAgent):
     """定义需要用户或模型从多个候选项中选择的函数型智能体基类。"""
+
     ...

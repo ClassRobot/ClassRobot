@@ -7,6 +7,7 @@ from utils.tools import get_file_suffix
 from utils.config import data_dir, task_dir
 from nonebot_plugin_orm import Model, get_session
 from sqlalchemy.orm import Mapped, relationship, mapped_column
+from utils.roles import UserRole, JoinMethod, LeaveStatus, StudentRole, TeacherRole, PoliticalStatus, TeacherClassesRole
 from sqlalchemy import (
     JSON,
     Text,
@@ -20,7 +21,6 @@ from sqlalchemy import (
     select,
     update,
 )
-from utils.roles import UserRole, JoinMethod, LeaveStatus, StudentRole, TeacherRole, PoliticalStatus, TeacherClassesRole
 
 from .filters import FilterModel
 from .columns import CreateAt, UpdateAt
@@ -303,9 +303,7 @@ class School(FilterModel, Model):
     """学校与教师一对多关系"""
     students: Mapped[List["Student"]] = relationship("Student", lazy="selectin", back_populates="school")
     """学校与学生一对多关系"""
-    organizations: Mapped[List["Organization"]] = relationship(
-        "Organization", lazy="selectin", back_populates="school"
-    )
+    organizations: Mapped[List["Organization"]] = relationship("Organization", lazy="selectin", back_populates="school")
     """学校与组织一对多关系"""
 
 
@@ -458,6 +456,7 @@ class GroupBind(FilterModel, Model):
 
 class Files(FilterModel, Model):
     """表示文件模型。"""
+
     name: Mapped[str] = mapped_column(String(128), nullable=False)
     """文件名称"""
     file_md5: Mapped[str] = mapped_column(String(32), nullable=False, unique=True)
@@ -911,6 +910,7 @@ class Classes(FilterModel, Model):
 
 class ClassesJoinRequest(FilterModel, Model):
     """表示班级joinrequest模型。"""
+
     classes_id: Mapped[int] = mapped_column(Integer, ForeignKey(Classes.id, ondelete="CASCADE"), nullable=False)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey(User.id, ondelete="CASCADE"), nullable=False)
     join_method: Mapped[JoinMethod] = mapped_column(String(32), nullable=False)
@@ -1155,8 +1155,7 @@ class OrganizationMember(FilterModel, Model):
 
     __table_args__ = (
         CheckConstraint(
-            "(student_id IS NOT NULL AND teacher_id IS NULL) OR "
-            "(student_id IS NULL AND teacher_id IS NOT NULL)",
+            "(student_id IS NOT NULL AND teacher_id IS NULL) OR " "(student_id IS NULL AND teacher_id IS NOT NULL)",
             name="ck_bot_organization_member_subject",
         ),
         UniqueConstraint("organization_id", "student_id", name="uq_bot_organization_member_student"),
@@ -1322,6 +1321,7 @@ class TaskCommits(FilterModel, Model):
 
 class ScheduledNotice(FilterModel, Model):
     """表示scheduled通知模型。"""
+
     creator_id: Mapped[int] = mapped_column(Integer, ForeignKey(User.id, ondelete="CASCADE"), nullable=False)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     """通知标题"""
@@ -1356,6 +1356,7 @@ class CurriculaTimetable(FilterModel, Model):
 # 班级或学生课表配置项
 class CurriculaConfig(FilterModel, Model):
     """描述用户课表的基础配置。"""
+
     name: Mapped[str | None] = mapped_column(String(64), nullable=True, unique=False, index=True)
     """课表配置项名称，一般是班级名称"""
     classes_id: Mapped[int | None] = mapped_column(
@@ -1396,6 +1397,7 @@ class CurriculaConfig(FilterModel, Model):
 # 共享课表
 class ShareCurriculaConfig(FilterModel, Model):
     """描述课表共享功能的配置。"""
+
     config_id: Mapped[int] = mapped_column(Integer, ForeignKey(CurriculaConfig.id, ondelete="CASCADE"), nullable=False)
     """用户ID"""
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey(User.id, ondelete="CASCADE"), nullable=False)
@@ -1410,6 +1412,7 @@ class ShareCurriculaConfig(FilterModel, Model):
 # 课表
 class Curricula(FilterModel, Model):
     """表示课表模型。"""
+
     config_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey(CurriculaConfig.id, ondelete="CASCADE"),
@@ -1439,6 +1442,7 @@ class Curricula(FilterModel, Model):
 
 class LeaveConfig(FilterModel, Model):
     """描述请假流程相关的配置。"""
+
     classes_id: Mapped[int] = mapped_column(
         Integer, ForeignKey(Classes.id, ondelete="CASCADE"), nullable=True, unique=True
     )
@@ -1480,6 +1484,7 @@ class LeaveWorkflow(FilterModel, Model):
 
 class StudentLeave(FilterModel, Model):
     """表示学生请假模型。"""
+
     start_date: Mapped[datetime] = mapped_column(DateTime, nullable=True)
     """请假开始时间"""
     end_date: Mapped[datetime] = mapped_column(DateTime, nullable=True)
