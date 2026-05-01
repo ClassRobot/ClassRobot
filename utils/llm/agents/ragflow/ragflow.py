@@ -39,9 +39,11 @@ if __name__ == "__main__":
         session = await chatbots[0].create_session()
         reply = await session.ask("怎么申请半工半读")
         print(reply.reference)
-        image = await reply.reference.chunks[0].get_image()
-        with open("image.jpg", "wb") as f:
-            f.write(image)
+        if image := await reply.reference.chunks[0].get_image():
+            with open("image.jpg", "wb") as f:
+                f.write(image)
+        else:
+            raise Exception("未获取到图片")
         await chatbots[0].delete_session([session.id])
 
     run(main())

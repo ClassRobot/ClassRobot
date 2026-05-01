@@ -29,19 +29,25 @@ async def _(matcher: AlconnaMatcher, values: list[str | Image]):
     if not (content := chat.choices[0].message.content):
         await matcher.finish(Emoji.error + "生成失败!")
 
-    html = await markdown_to_image_skill.to_html(content)
-    document_bytes = convert_text(
-        source=html,
-        to="docx",
-        format="html",
-        outputfile="-",  # 输出到标准输出
-        extra_args=["--standalone"],  # 根据需要添加额外参数
-    )
-    if isinstance(document_bytes, str):
-        document_bytes = document_bytes.encode("utf-8")
-    download_qrcode = qr_code_skill.encode(await upload_file(document_bytes, suffix=".docx"))
-    html += footer(download_qrcode)
-    await matcher.finish(
-        UniMessage.text(Emoji.success + "生成成功！图片预览，图片右下角扫码免费下载！")
-        + UniMessage.image(raw=await markdown_to_image_skill.html_to_image(html, viewport={"width": 1080, "height": 10}))
-    )
+    try:
+        html = await markdown_to_image_skill.to_html(content)
+        document_bytes = convert_text(
+            source=html,
+            to="docx",
+            format="html",
+            outputfile="-",  # 输出到标准输出
+            extra_args=["--standalone"],  # 根据需要添加额外参数
+        )
+        if isinstance(document_bytes, str):
+            document_bytes = document_bytes.encode("utf-8")
+        download_qrcode = qr_code_skill.encode(await upload_file(document_bytes, suffix=".docx"))
+        html += footer(download_qrcode)
+        await matcher.finish(
+            UniMessage.text(Emoji.success + "生成成功！图片预览，图片右下角扫码免费下载！")
+            + UniMessage.image(
+                raw=await markdown_to_image_skill.html_to_image(html, viewport={"width": 1080, "height": 10})
+            )
+        )
+    except Exception as error:
+        logger.exception(error)
+        await matcher.finish(Emoji.error + "文档生成失败，请稍后重试。")

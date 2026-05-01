@@ -2,8 +2,7 @@ from re import sub
 from asyncio import gather
 
 from nonebot import logger
-from pydantic import Field
-from openai import BaseModel
+from pydantic import Field, BaseModel
 from httpx import AsyncClient
 from utils.llm import LLMTaskType, client_create
 from utils.config import autogpt_dir
@@ -28,6 +27,7 @@ class VisionAgent(BaseFunctionAgent):
 
     class Params(BaseModel):
         """描述图片识别工具需要的输入参数。"""
+
         desc: str = Field(description="描述想要从图片中了解什么信息")
         urls: list[str] = Field(description="一个或多个图片url")
 
@@ -69,6 +69,7 @@ class FileAgent(BaseFunctionAgent):
 
     class Params(BaseModel):
         """描述文件解析工具需要的输入参数。"""
+
         desc: str = Field(description="描述想要从文件中了解什么信息")
         urls: list[str] = Field(description="一个或多个文件url")
 
@@ -110,7 +111,9 @@ class FileAgent(BaseFunctionAgent):
                     )
                     messages.tool_message(tool.id, response.choices[0].message.content or "")
                 else:
-                    messages.tool_message(tool.id, "解析失败:\n改文件过大或者文件类型不正确，只能识别，ppt、doc、pdf类型的文件")
+                    messages.tool_message(
+                        tool.id, "解析失败:\n改文件过大或者文件类型不正确，只能识别，ppt、doc、pdf类型的文件"
+                    )
         return messages
 
 
@@ -257,6 +260,9 @@ class RagAgent(BaseAgent):
         try:
             rag_session = AsyncRagFlow()
             chatbots = await rag_session.get_chatbots()
+            if not chatbots:
+                logger.warning("RagFlow has no available chatbots")
+                return None
             session = await chatbots[0].create_session()
             try:
                 reply = await session.ask(question=messages.single_modal())

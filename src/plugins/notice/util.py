@@ -64,12 +64,14 @@ async def notice_work(notice: Notice, creator: User | None = None):
 
 class NoticeSession:
     """封装通知会话状态与行为。"""
+
     functools: list[ChatCompletionToolParam] = [
         {
             "type": "function",
             "function": {
                 "name": "get_self_id",
                 "description": "调用该方法可以获取当前用户的信息.",
+                "parameters": {"type": "object", "properties": {}, "required": []},
             },
         },
         {
@@ -77,6 +79,7 @@ class NoticeSession:
             "function": {
                 "name": "get_classmates",
                 "description": "调用该方法可以获取该用户相关的其它同学信息,机器人可以在得到同学信息后获取指定的同学`user_id`.",
+                "parameters": {"type": "object", "properties": {}, "required": []},
             },
         },
         {
@@ -84,6 +87,7 @@ class NoticeSession:
             "function": {
                 "name": "get_classes",
                 "description": "调用该方法可获取该用户的所有班级信息,机器人可以在得到班级信息后获取指定的班级`group_id`.",
+                "parameters": {"type": "object", "properties": {}, "required": []},
             },
         },
     ]
@@ -113,20 +117,7 @@ class NoticeSession:
         """
         try:
             self.messages.user_message(uni_message_to_contents(message))
-            response = await client_create(self.messages, functools=self.functools)
-            content = response.choices[0].message.content
-            if response.choices[0].message.tool_calls:
-                self.messages.add_tool(response.choices[0].message)
-                for tool in response.choices[0].message.tool_calls:
-                    match (tool.function.name):
-                        case "get_self_id":
-                            self.messages.tool_message(tool.id, await self.get_self_id())
-                        case "get_classmates":
-                            self.messages.tool_message(tool.id, await self.get_classmates())
-                        case "get_classes":
-                            self.messages.tool_message(tool.id, await self.get_classes())
-                response = await client_create(self.messages)
-                content = response.choices[0].message.content
+            content = await self.run_notice_agent()
 
             if content:
                 print(content)
@@ -137,6 +128,35 @@ class NoticeSession:
         except Exception as e:
             logger.exception(e)
             return None
+
+    async def run_notice_agent(self, max_steps: int = 4) -> str | None:
+        """运行通知解析模型，并按需处理多轮工具调用。"""
+
+        for _ in range(max_steps):
+            response = await client_create(self.messages, functools=self.functools, tool_choice="auto")
+            assistant_message = response.choices[0].message
+            if not assistant_message.tool_calls:
+                return assistant_message.content
+
+            self.messages.add_tool(assistant_message)
+            for tool_call in assistant_message.tool_calls:
+                self.messages.tool_message(tool_call.id, await self.call_tool(tool_call.function.name))
+        logger.warning("notice llm tool calls reached max steps")
+        return None
+
+    async def call_tool(self, name: str) -> str:
+        """执行通知解析阶段允许的本地工具。"""
+
+        match name:
+            case "get_self_id":
+                return await self.get_self_id()
+            case "get_classmates":
+                return await self.get_classmates()
+            case "get_classes":
+                return await self.get_classes()
+            case _:
+                logger.warning(f"unknown notice tool: {name}")
+                return f"未知工具: {name}"
 
     def filter_notices(self, notices: Notices) -> Notices:
         """过滤掉于用户本身无关联的用户

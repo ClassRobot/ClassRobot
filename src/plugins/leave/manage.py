@@ -2,6 +2,7 @@ from hashlib import md5
 from datetime import datetime
 from typing import List, Iterable
 
+from nonebot import logger
 from utils.config import leave_dir
 from utils.roles import StudentRole
 from utils.llm.message import Content
@@ -17,6 +18,7 @@ from .prompt import plugin_prompt
 
 class BaseLeave:
     """定义请假流程共享的基础能力。"""
+
     def __init__(self, user: User) -> None:
         """初始化实例。
 
@@ -28,6 +30,7 @@ class BaseLeave:
 
 class AddLeave:
     """负责发起请假申请的业务处理。"""
+
     def __init__(self, student: Student) -> None:
         """初始化实例。
 
@@ -75,11 +78,15 @@ class AddLeave:
     async def send_message(self) -> Leave | None:
         """发送消息。"""
         self.messages.user_message(content=self.content)
-        chat = await client_create(messages=self.messages)
-        if chat.choices[0].message.content:
-            print(chat.choices[0].message.content)
-            data = Leave.parse_obj(obj=json_loads(chat.choices[0].message.content))
-            return data
+        try:
+            chat = await client_create(messages=self.messages)
+            if chat.choices[0].message.content:
+                print(chat.choices[0].message.content)
+                data = Leave.parse_obj(obj=json_loads(chat.choices[0].message.content))
+                return data
+        except Exception as error:
+            logger.exception(error)
+            return None
 
     async def save_student_leave(self, leave: Leave):
         """保存学生请假条
@@ -144,8 +151,10 @@ class AddLeave:
         #     messages += UniMessage.image(path=leave_dir / leave.file.name)
         #     await wait([push_user_message(student.user, messages) for student in students])
 
+
 class QueryLeave(BaseLeave):
     """负责查询请假记录与审批状态的业务处理。"""
+
     async def get_student_leave(self) -> List[StudentLeave] | None:
         """获取学生的全部请假条"""
         if self.user.student:

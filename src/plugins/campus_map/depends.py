@@ -1,6 +1,7 @@
 import json
 from typing import Annotated
 
+from nonebot import logger
 from utils.models import User
 from nonebot.params import Depends
 from utils.skills import qr_code_skill
@@ -16,6 +17,7 @@ from .config import map_list_path
 
 class CampusMap:
     """封装校园地图查询所需的上下文与目标信息。"""
+
     def __init__(self, user: User) -> None:
         """初始化实例。
 
@@ -37,10 +39,20 @@ class CampusMap:
             dict[str, str]: 返回处理结果。
         """
         self.messages.user_message(message)
-        response = await client_create(messages=self.messages)
-        if content := response.choices[0].message.content:
-            location = json_loads(content)["location"]
-            return {self.location_keys[i]: self.location[self.location_keys[i]] for i in location}
+        try:
+            response = await client_create(messages=self.messages)
+            if content := response.choices[0].message.content:
+                data = json_loads(content)
+                location = data.get("location", [])
+                if not isinstance(location, list):
+                    return {}
+                return {
+                    self.location_keys[index]: self.location[self.location_keys[index]]
+                    for index in location
+                    if isinstance(index, int) and 0 <= index < len(self.location_keys)
+                }
+        except Exception as error:
+            logger.exception(error)
         return {}
 
     async def to_pic(self, location: dict[str, str]) -> bytes:
