@@ -1,6 +1,10 @@
 # 智能体模块
 
-`utils.llm.agents` 是项目内置的轻量智能体模块，底层复用 `utils.llm` 的模型路由和 OpenAI 兼容接口。它不强绑定 LangChain，调用方式尽量短，但仍支持多轮记忆、工具调用、结构化参数和多模型路由。
+`utils.llm.agents` 是项目内置的轻量智能体模块，底层复用 `utils.llm` 的模型路由和 OpenAI 兼容接口。它不强绑定 LangChain，调用方式尽量短，但仍支持多轮记忆、工具调用、结构化参数、多模型路由和国内模型配置模板。
+
+这个模块的目标是作为项目内 AI 编排底座：机器人运行在自己的项目里，接入 QQ/NoneBot，调用项目内工具与命令，模型可以换成火山方舟、DeepSeek、通义千问、Kimi、智谱等国内 OpenAI 兼容服务。
+
+更完整的项目接入边界见 [docs/guides/agent-module.md](../../../docs/guides/agent-module.md)。
 
 ## 使用前提
 
@@ -11,6 +15,30 @@
 ```dotenv
 LLM_CONFIGS='[{"name":"volcengine_ark","key":"你的 key","url":"https://ark.cn-beijing.volces.com/api/v3","model":"你的模型","supports_functools":true}]'
 ```
+
+## 底层入口
+
+如果要在插件内部创建一个项目默认智能体，可以使用 `create_classbot_agent()`。当前用户侧主入口仍然是 `src.plugins.autogpt` 的对话链路。
+
+```python
+from utils.llm.agents import create_classbot_agent
+
+agent = create_classbot_agent(llm_name="volcengine_ark")
+reply = await agent.run("帮我规划一下今天班级事务的处理顺序")
+print(reply.content)
+```
+
+它内置了面向班级机器人场景的中文任务提示词，适合给 `autogpt` 或后续专业插件复用。
+
+## 能力边界
+
+- 深度分析: `autogpt` 会先压缩历史、抽取上下文、检索知识，再结合命令清单规划回复与任务。
+- 工具调用: `Agent.tool` 支持普通函数和 async 函数，也支持单个 Pydantic 参数的复杂工具。
+- 系统命令调用: `autogpt` 规划出的 `AutoTask` 调用的是本项目机器人命令，例如 `创建任务`、`校园地图`、`添加班级`，不是 Windows/Linux 命令；参数沿用 `utils.schemas.auto_task.Param`，可表达文本、图片和独立投递参数。
+- 定时任务: 定时通知、任务提醒等能力应优先通过项目已有命令完成，例如通知插件的定时能力。
+- 聊天内容压缩: `AgentSession.compact()` 会在上下文过长时压缩历史消息，保留系统提示、最近消息和摘要。
+
+`autogpt` 自身已经通过 `SummaryAgent` 进行长会话压缩；`AgentSession.compact()` 主要留给后续插件内部复用。
 
 ## 最简单用法
 
@@ -120,23 +148,52 @@ print(reply.content)
 - `max_tokens`: 单次模型输出上限，默认 `2048`。
 - `temperature`: 模型温度，默认 `0.1`。
 
-## 接入 NoneBot 插件
+## 接入 AutoGPT
 
-```python
-from nonebot import on_command
-from nonebot.matcher import Matcher
-from utils.llm.agents import Agent, AgentSession
+用户侧入口由 `src.plugins.autogpt` 承担。它监听对机器人说的话，按当前用户可见的 Helper 命令清单规划回复和自动任务：
 
-ask_agent = on_command("agent", priority=5, block=True)
-agent = Agent("class_agent")
-sessions: dict[str, AgentSession] = {}
-
-
-@ask_agent.handle()
-async def _(matcher: Matcher):
-    session = sessions.setdefault("default", AgentSession())
-    result = await agent.run("用户输入内容", session=session)
-    await matcher.finish(result.content)
+```text
+@机器人 帮我规划一下本周班级事务
+@机器人 明天 09:00 提醒我收一班作业
+@机器人 帮我查询校园地图 图书馆
 ```
 
-实际接入时把 `"用户输入内容"` 换成 matcher 收到的消息文本即可。
+`autogpt` 的执行顺序是：会话压缩、消息归一化、意图路由、上下文抽取、显式计划、按需知识检索、任务规划、`handle_event()` 重新投递项目命令、写回命令 observation。处理过程中会通过进度回调给用户发送少量等待提示，例如正在查资料或正在处理；内部路由、规划和校验细节只写日志，不直接发给用户。
+
+当前 AutoGPT 还会把 Helper 命令转换成内部 `CommandToolCatalog`。这个目录用于让路由器和 Planner 看到更稳定的命令名、参数约束、风险等级和 function calling 安全工具名，但业务执行仍然由原有 NoneBot 命令体系负责。
+
+要扩展用户侧能力，优先给现有插件补充 `__helpers__` 和命令实现，让 `autogpt` 能通过 Helper 注册表发现并调用它。
+
+## 国内模型配置模板
+
+可以用 `build_llm_config()` 生成 `.env` 里 `LLM_CONFIGS` 的 JSON 项，减少手写字段出错。
+
+```python
+from utils.llm.agents import build_llm_config, dumps_llm_configs
+
+configs = [
+    build_llm_config(
+        "volcengine_ark",
+        name="volcengine_ark",
+        key="你的火山方舟 key",
+        model="你的火山方舟推理接入点 ID",
+    ),
+    build_llm_config(
+        "deepseek",
+        name="deepseek",
+        key="你的 DeepSeek key",
+        model="deepseek-v4-flash",
+        priority=80,
+    ),
+]
+
+print(dumps_llm_configs(configs))
+```
+
+当前内置供应商 key：
+
+- `volcengine_ark`: 火山方舟，`https://ark.cn-beijing.volces.com/api/v3`
+- `deepseek`: DeepSeek，`https://api.deepseek.com`
+- `dashscope_qwen`: 阿里云百炼/通义千问，`https://dashscope.aliyuncs.com/compatible-mode/v1`
+- `moonshot_kimi`: Moonshot/Kimi，`https://api.moonshot.ai/v1`
+- `zhipu_glm`: 智谱 GLM，`https://open.bigmodel.cn/api/paas/v4`

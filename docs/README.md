@@ -28,6 +28,7 @@
 - [开发指南总览](./guides/README.md)
 - [Skill 系统说明](./guides/skill-system.md)
 - [消息处理流程](./guides/message-processing-flow.md)
+- [AutoGPT 智能能力改进方案](./guides/agent-module.md)
 
 ### 参考资料
 

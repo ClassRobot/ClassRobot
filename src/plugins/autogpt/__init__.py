@@ -14,23 +14,119 @@ from nonebot.adapters.qq.exception import ActionFailed
 from nonebot.adapters.onebot.v12.exception import NetworkError
 from nonebot_plugin_alconna import Target, UniMsg, MsgTarget, UniMessage
 
-from .schema import AutoTask, AutoTaskList
+from .schema import Param, AutoTask, AutoTaskList, CommandObservation
 from .util import ChatSessionDepends, markdown_to_message
 
 auto_gpt = on_message(priority=priority * 10, block=True, rule=to_me())
 clear_chat = on_command("清空聊天", aliases={"重置聊天", "聊天清空", "聊天重置"}, priority=priority, block=True)
 
 
-def update_message(task: AutoTask, target: Target) -> Callable[[], Message]:
-    """更新消息。"""
-    message = UniMessage.text(task.command)
-    for param in task.params:
+def build_message(command: str, params: list[Param], target: Target) -> Message:
+    """将 AI 规划出的项目命令转换为当前适配器消息。"""
+
+    message = UniMessage.text(command)
+    for param in params:
         if param.type == "text":
             message += UniMessage.text(" " + param.value)
         elif param.type == "image":
             message += UniMessage.image(url=param.value)
-    msg = message.export_sync(adapter=target.adapter)
-    return lambda: msg
+    return message.export_sync(adapter=target.adapter)
+
+
+def update_message(task: AutoTask, target: Target) -> Callable[[], Message]:
+    """更新消息。"""
+
+    return lambda: build_message(task.command, [param for param in task.params if not param.separate], target)
+
+
+def update_separate_message(param: Param, target: Target) -> Callable[[], Message]:
+    """生成需要单独投递的命令参数消息。"""
+
+    if param.type == "image":
+        message = UniMessage.image(url=param.value).export_sync(adapter=target.adapter)
+    else:
+        message = UniMessage.text(param.value).export_sync(adapter=target.adapter)
+    return lambda: message
+
+
+async def dispatch_auto_task(
+    bot: Bot,
+    event: Event,
+    task: AutoTask,
+    target: Target,
+    trace_id: str = "",
+) -> list[CommandObservation]:
+    """把自动任务重新投递给 NoneBot，复用原有 matcher 与依赖。"""
+
+    observations: list[CommandObservation] = []
+    command_params = [param for param in task.params if not param.separate]
+    logger.info(f'AutoGPT trace "{trace_id}" dispatch command "{task.command}"')
+    next_event = event.copy()
+    next_event.__uniseg_message_id__ = str(id(next_event))
+    next_event.get_message = update_message(task, target)
+    try:
+        await handle_event(bot, next_event)
+        observations.append(
+            CommandObservation(
+                trace_id=trace_id,
+                command=task.command,
+                params=command_params,
+                dispatch_type="command",
+                success=True,
+                message="命令已投递给 NoneBot 事件系统。",
+            )
+        )
+    except Exception as error:
+        logger.exception(error)
+        observations.append(
+            CommandObservation(
+                trace_id=trace_id,
+                command=task.command,
+                params=command_params,
+                dispatch_type="command",
+                success=False,
+                message=f"命令投递失败：{error}",
+            )
+        )
+        return observations
+
+    for param in task.params:
+        if param.separate:
+            next_event = event.copy()
+            next_event.__uniseg_message_id__ = str(id(next_event))
+            next_event.get_message = update_separate_message(param, target)
+            try:
+                await handle_event(bot, next_event)
+                observations.append(
+                    CommandObservation(
+                        trace_id=trace_id,
+                        command=task.command,
+                        params=[param],
+                        dispatch_type="separate_param",
+                        success=True,
+                        message="分离参数已投递给 NoneBot 事件系统。",
+                    )
+                )
+            except Exception as error:
+                logger.exception(error)
+                observations.append(
+                    CommandObservation(
+                        trace_id=trace_id,
+                        command=task.command,
+                        params=[param],
+                        dispatch_type="separate_param",
+                        success=False,
+                        message=f"分离参数投递失败：{error}",
+                    )
+                )
+                break
+    return observations
+
+
+async def send_progress(matcher: Matcher, text: str) -> None:
+    """发送 AutoGPT 阶段性进度反馈。"""
+
+    await matcher.send(text)
 
 
 @clear_chat.handle()
@@ -53,19 +149,22 @@ async def _(
     chat_session: ChatSessionDepends,
 ):
     """处理当前命令或事件逻辑。"""
-    print(target.adapter, target.scope, target.platform)
     if chat_session.lock:
         await matcher.finish(Emoji.error + "我知道你很急，但是你先别急，等我处理完你的上一条消息。")
     try:
-        await matcher.send("思考中...")
-        auto_task = await chat_session.send_message(message)
+        auto_task = await chat_session.send_message(
+            message,
+            progress_reporter=lambda text: send_progress(matcher, text),
+        )
     except Exception as e:
-        logger.exception(e)
+        logger.exception(f'AutoGPT trace "{chat_session.last_trace_id}" failed: {e}')
         await matcher.finish(Emoji.error + "消息理解失败了, 请重新发送")
     if not isinstance(auto_task, AutoTaskList):
         await matcher.finish(Emoji.error + "消息理解失败了, 请重新发送")
+        return
     elif auto_task.is_violation:
         await matcher.finish(auto_task.reply)
+        return
 
     if auto_task.reply:
         try:
@@ -73,9 +172,8 @@ async def _(
             if auto_task.reply.count("\n") < 10:
                 await matcher.send(await markdown_to_message(auto_task.reply).export(adapter=target.adapter, bot=bot))
             else:
-                pic = (
-                    UniMessage.image(raw=await markdown_to_image_skill.to_image(auto_task.reply))
-                    + UniMessage.text("文字太长已转为图片发送")
+                pic = UniMessage.image(raw=await markdown_to_image_skill.to_image(auto_task.reply)) + UniMessage.text(
+                    "文字太长已转为图片发送"
                 )
                 await matcher.send(await pic.export(adapter=target.adapter, bot=bot))
         except ActionFailed as e:
@@ -85,16 +183,27 @@ async def _(
             logger.exception(e)
             await matcher.finish(Emoji.error + "内部异常, 请重试！")
     if not auto_task.need_confirm:
-        for auto_task in auto_task.tasks:
-            if chat_session.helpers.get_helper(auto_task.command):
+        observations: list[CommandObservation] = []
+        for task in auto_task.tasks:
+            if chat_session.helpers.get_helper(task.command):
                 # 将 AI 规划出的命令重新投递给 NoneBot 原生事件分发，
                 # 让后续 matcher 和 depends 仍按用户手动输入命令时的流程执行。
-                event = event.copy()
-                event.__uniseg_message_id__ = str(id(event))
-                event.get_message = update_message(auto_task, target)
-                await handle_event(bot, event)
+                observations.extend(
+                    await dispatch_auto_task(bot, event, task, target, trace_id=chat_session.last_trace_id)
+                )
             else:
-                await matcher.send(Emoji.error + f"无法调用`{auto_task.command}`命令，因为该命令不存在！")
+                observations.append(
+                    CommandObservation(
+                        trace_id=chat_session.last_trace_id,
+                        command=task.command,
+                        params=task.params,
+                        dispatch_type="missing_command",
+                        success=False,
+                        message="命令不存在，未投递。",
+                    )
+                )
+                await matcher.send(Emoji.error + f"无法调用`{task.command}`命令，因为该命令不存在！")
+        chat_session.record_observations(observations, trace_id=chat_session.last_trace_id)
 
 
 __helpers__ = [

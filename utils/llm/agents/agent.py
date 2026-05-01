@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 
 from openai import NOT_GIVEN
 
-from utils.llm.message import LLMRole, Messages
+from utils.llm.message import Context, LLMRole, Messages
 from utils.llm.typings import ChatCompletionToolChoiceOptionParam
 
 from .schema import AgentResponse, ToolCallResult
@@ -24,6 +24,48 @@ class AgentSession:
 
     def clear(self) -> None:
         self.messages.clear()
+
+    def char_length(self) -> int:
+        """返回当前会话中用户与助手文本的大致长度。"""
+
+        return self.messages.char_length(LLMRole.user, LLMRole.assistant)
+
+    async def compact(self, *, max_chars: int = 16000, keep_recent: int = 6) -> bool:
+        """当会话过长时压缩历史内容。
+
+        压缩会保留 system 消息和最近若干条消息，把更早的用户/助手对话
+        折叠为一条摘要，避免长会话持续占用上下文。
+        """
+
+        from utils.llm import LLMTaskType, client_create
+
+        if self.char_length() <= max_chars or len(self.messages.messages) <= keep_recent + 1:
+            return False
+
+        system_messages = self.messages.get(LLMRole.system)
+        recent_messages = self.messages.messages[-keep_recent:]
+        history_messages = Messages(
+            messages=[
+                message
+                for message in self.messages.messages[:-keep_recent]
+                if isinstance(message, Context) and message.role in {LLMRole.user, LLMRole.assistant}
+            ]
+        )
+        history_messages.user_message(
+            "请压缩以上对话历史，保留用户目标、已确认事实、已调用过的系统命令、待办事项和重要约束。"
+        )
+        response = await client_create(
+            history_messages,
+            max_tokens=2048,
+            task_type=LLMTaskType.summary,
+        )
+        summary = response.choices[0].message.content or "暂无可用摘要。"
+
+        self.messages.clear()
+        self.messages.extend(system_messages)
+        self.messages.assistant_message("# 会话历史压缩摘要\n" + summary)
+        self.messages.extend(recent_messages)
+        return True
 
 
 class Agent:
@@ -44,6 +86,7 @@ class Agent:
         max_steps: int = 6,
         max_tokens: int = 2048,
         temperature: float = 0.1,
+        auto_compact_chars: int | None = 16000,
     ) -> None:
         self.name = name
         self.instructions = instructions
@@ -52,6 +95,7 @@ class Agent:
         self.max_steps = max_steps
         self.max_tokens = max_tokens
         self.temperature = temperature
+        self.auto_compact_chars = auto_compact_chars
         for agent_tool in tools or []:
             self.add_tool(agent_tool)
 
@@ -101,6 +145,8 @@ class Agent:
             raise ValueError("max_steps must be greater than 0")
 
         working_messages = self._prepare_messages(prompt, session=session, messages=messages)
+        if session is not None and self.auto_compact_chars is not None:
+            await session.compact(max_chars=self.auto_compact_chars)
         tool_results: list[ToolCallResult] = []
         openai_tools = [tool.as_openai_tool() for tool in self.tools]
         tool_map = {tool.name: tool for tool in self.tools}

@@ -15,6 +15,7 @@ from utils.template.prompts import Prompt
 from utils.llm.agents.ragflow.schema import Chunk, ChatBotMessage
 
 from .ragflow import AsyncRagFlow
+from .ragflow.client import ragflow_enabled
 from ..message import Content, Context, LLMRole
 from .base import Messages, BaseAgent, BaseFunctionAgent
 
@@ -45,7 +46,7 @@ class VisionAgent(BaseFunctionAgent):
         返回:
             Messages: 写入视觉识别结果后的消息集合。
         """
-        print(self.name())
+        logger.debug(self.name())
         vision_message = messages.get(*self.roles)  # 提取需要的消息
         for tool in self.call_tools(messages):
             params = self.Params.parse_raw(tool.function.arguments)
@@ -87,7 +88,7 @@ class FileAgent(BaseFunctionAgent):
         返回:
             Messages: 写入文件解析结果后的消息集合。
         """
-        print(self.name())
+        logger.debug(self.name())
         images = []
         file_message = messages.get(*self.roles)  # 提取需要的消息
 
@@ -174,7 +175,7 @@ class SummaryAgent(BaseAgent):
             Messages: 可能已被摘要压缩过的消息集合。
         """
         message_chars = messages.char_length()
-        print(self.name(), message_chars)
+        logger.debug(f"{self.name()} message_chars={message_chars}")
         if message_chars > self.max_chars:
             system_message = messages.get(LLMRole.system)
             summary_message = messages.get(LLMRole.user, LLMRole.assistant)  # 提取需要的消息
@@ -211,7 +212,7 @@ class ExtractAgent(BaseAgent):
         返回:
             Context: 从历史消息中抽取出的结构化上下文。
         """
-        print(self.name())
+        logger.debug(self.name())
         extract = Prompt("extract")
         extract_messages = Messages()
         # Extraction compresses free-form dialogue into a structured context that can
@@ -224,7 +225,7 @@ class ExtractAgent(BaseAgent):
             task_type=LLMTaskType.extract,
         )
         text = response.choices[0].message.content or ""
-        print(text)
+        logger.debug(text)
         return Context.parse_obj(json_loads(text))
 
     def message_to_string(self, messages: Messages) -> str:
@@ -257,6 +258,9 @@ class RagAgent(BaseAgent):
         返回:
             str | None: 检索结果文本，不存在结果时返回 `None`。
         """
+        if not ragflow_enabled:
+            logger.warning("RagFlow is not configured; skip retrieval")
+            return None
         try:
             rag_session = AsyncRagFlow()
             chatbots = await rag_session.get_chatbots()
@@ -273,6 +277,7 @@ class RagAgent(BaseAgent):
         except Exception as e:
             logger.exception(e)
             return None
+        return None
 
     async def replace(self, reply: ChatBotMessage) -> str | None:
         """将 RagFlow 回复中的引用标记替换为图片链接。
@@ -285,12 +290,11 @@ class RagAgent(BaseAgent):
         """
         if not reply.reference.chunks or reply.reference.total == 0 or not reply.answer or reply.answer == "null":
             return None
-        print(reply.answer)
         answer = reply.answer
-        if not (urls := tuple(self.upload_file(ref) for ref in reply.reference.chunks)):
+        upload_tasks = tuple(self.upload_file(ref) for ref in reply.reference.chunks)
+        if not upload_tasks:
             return None
-        print(urls)
-        urls = await gather(*urls)
+        urls = await gather(*upload_tasks)
 
         # RagFlow answers embed reference markers like `##0$$`; replace them with
         # uploaded images so the final markdown can be sent back directly.
@@ -315,18 +319,20 @@ class AutoTaskAgent(BaseAgent):
     """负责结合帮助信息和聊天上下文生成自动任务建议。"""
 
     helpers: Helpers
+    command_tools_prompt: str = ""
 
     @classmethod
     def name(cls) -> str:
         """返回自动任务智能体的注册名称。"""
         return "auto_task_agent"
 
-    async def execute(self, context: Context, knowledge: str | None = None) -> AutoTaskList:
+    async def execute(self, context: Context, knowledge: str | None = None, plan: str | None = None) -> AutoTaskList:
         """根据抽取上下文与补充知识生成最终任务规划结果。
 
         参数:
             context (Context): 由抽取智能体生成的结构化上下文。
             knowledge (str | None): 检索补充知识。
+            plan (str | None): 显式 Planner 生成的结构化计划。
 
         返回:
             AutoTaskList: 模型生成并解析后的任务规划结果。
@@ -339,10 +345,12 @@ class AutoTaskAgent(BaseAgent):
                     "helpers": self.helpers,
                     "context": context.single_modal(),
                     "knowledge": knowledge,
+                    "plan": plan,
+                    "command_tools": self.command_tools_prompt,
                 }
             )
         )
         planning_messages.user_message(context.content)
-        print(planning_messages)
+        logger.debug(planning_messages)
         response = await client_create(planning_messages, task_type=LLMTaskType.plan)
         return AutoTaskList.parse_str(response.choices[0].message.content or "")

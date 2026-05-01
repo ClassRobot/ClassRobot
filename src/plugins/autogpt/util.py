@@ -1,9 +1,12 @@
 import re
+import json
+from uuid import uuid4
 from time import time
-from typing import Annotated
+from typing import Awaitable, Callable, Annotated
 from datetime import datetime
 
 from utils.helper import Helpers
+from nonebot import logger
 from utils.template import Prompt
 from nonebot.params import Depends
 from nonebot_plugin_alconna import UniMessage
@@ -13,9 +16,10 @@ from utils.llm.message import Content, Context, LLMRole, Messages
 
 from .exception import SessionLockError
 from .pipeline import MessageProcessingPipeline
-from .schema import ChatMessage, AutoTaskList
+from .schema import ChatMessage, AutoTaskList, CommandObservation
 
 pattern = r"!\[image\]\(([^)]+)\)"
+ProgressReporter = Callable[[str], Awaitable[None]]
 
 
 async def get_prompt_system(helpers: Helpers) -> str:
@@ -89,6 +93,7 @@ class ChatSession:
         self.lock = False  # 聊天锁，防止一轮聊天还没结束又开始新的聊天
         self.messages = Messages()
         self.helpers = helpers
+        self.last_trace_id = ""
 
     def is_last_duplicate_message(self, contents: list[Content]) -> bool:
         """检查即将发送的用户消息是否与上一条重复。
@@ -120,7 +125,11 @@ class ChatSession:
         else:
             self.messages.system_message(prompts)
 
-    async def send_message(self, message: str | UniMessage | ChatMessage) -> AutoTaskList | None:
+    async def send_message(
+        self,
+        message: str | UniMessage | ChatMessage,
+        progress_reporter: ProgressReporter | None = None,
+    ) -> AutoTaskList | None:
         """处理用户消息并执行 AutoGPT 主流程。
 
         参数:
@@ -133,12 +142,35 @@ class ChatSession:
             raise SessionLockError("聊天锁已经被锁定，无法发送消息！")
         try:
             self.lock = True
-            pipeline = MessageProcessingPipeline(helpers=self.helpers, messages=self.messages)
+            self.last_trace_id = f"autogpt-{uuid4().hex[:12]}"
+            logger.info(f'AutoGPT trace "{self.last_trace_id}" started for user {self.user_id}')
+            pipeline = MessageProcessingPipeline(
+                helpers=self.helpers,
+                messages=self.messages,
+                trace_id=self.last_trace_id,
+                progress_reporter=progress_reporter,
+            )
             auto_tasks = await pipeline.process(message)
             self.messages = pipeline.messages
+            logger.info(f'AutoGPT trace "{self.last_trace_id}" finished for user {self.user_id}')
             return auto_tasks
+        except Exception as error:
+            logger.exception(f'AutoGPT trace "{self.last_trace_id}" failed for user {self.user_id}: {error}')
+            raise
         finally:
             self.lock = False
+
+    def record_observations(self, observations: list[CommandObservation], trace_id: str = "") -> None:
+        """把命令执行观察写回会话，供下一轮规划参考。
+
+        这里记录的是“事件是否成功投递到项目命令系统”，不是业务命令
+        最终是否完成。真正的业务结果仍由对应 matcher 回复用户。
+        """
+        if not observations:
+            return
+        payload = [observation.dict() for observation in observations]
+        content = json.dumps(payload, ensure_ascii=False, default=str)
+        self.messages.assistant_message(f"# 系统命令执行观察\ntrace_id: {trace_id or self.last_trace_id}\n{content}")
 
     def clear(self) -> None:
         """从会话管理器中移除当前会话。"""
@@ -147,6 +179,7 @@ class ChatSession:
 
 class ChatSessionManager:
     """管理聊天会话的生命周期、缓存与超时清理。"""
+
     timeout = 60 * 60
 
     def __init__(self) -> None:

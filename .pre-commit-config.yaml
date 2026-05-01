@@ -28,12 +28,12 @@ repos:
     hooks:
       - id: mypy-agents
         name: mypy agents
-        entry: mypy --follow-imports=skip --ignore-missing-imports utils/llm/agents/agent.py utils/llm/agents/schema.py utils/llm/agents/tool.py
+        entry: mypy --follow-imports=skip --ignore-missing-imports utils/llm/agents/agent.py utils/llm/agents/schema.py utils/llm/agents/tool.py utils/llm/agents/tools.py utils/llm/agents/profiles.py utils/llm/agents/domestic.py utils/llm/agents/ragflow/client.py src/plugins/autogpt/__init__.py src/plugins/autogpt/command_tools.py src/plugins/autogpt/pipeline.py src/plugins/autogpt/schema.py src/plugins/autogpt/util.py
         language: python
         language_version: python3.12
         additional_dependencies: ["mypy==1.18.2"]
         pass_filenames: false
-        files: ^utils/llm/agents/(agent|schema|tool)\.py$
+        files: ^(utils/llm/agents/(agent|schema|tool|tools|profiles|domestic)|utils/llm/agents/ragflow/client|src/plugins/autogpt/(__init__|command_tools|pipeline|schema|util))\.py$
         stages: [pre-commit]
 
   - repo: https://github.com/python-poetry/poetry
