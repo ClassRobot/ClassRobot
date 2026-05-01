@@ -150,5 +150,6 @@ dmypy.json
 # hide plugin
 *_hide/
 src/extensions/
+deploy
 
 # End of https://www.toptal.com/developers/gitignore/api/python
