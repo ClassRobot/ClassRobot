@@ -1,0 +1,58 @@
+name: Unit Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    env:
+      ENVIRONMENT: test
+      COS_SECRET_ID: test-secret-id
+      COS_SECRET_KEY: test-secret-key
+      REGION: ap-beijing
+      BUCKET: test-bucket
+      RAGFLOW_URL: https://example.com
+      RAGFLOW_KEY: test-ragflow-key
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "poetry"
+
+      - name: Install Poetry
+        run: pip install poetry
+
+      - name: Install dependencies
+        run: poetry install --with dev,test --no-interaction
+
+      - name: Prepare test env file
+        run: |
+          if [ ! -f .env.test ]; then
+            touch .env.test
+          fi
+
+      - name: Collect changed Python files
+        id: changed-python-files
+        uses: tj-actions/changed-files@v46
+        with:
+          files: |
+            **/*.py
+
+      - name: Check formatting
+        if: steps.changed-python-files.outputs.any_changed == 'true'
+        run: poetry run black --check ${{ steps.changed-python-files.outputs.all_changed_files }}
+
+      - name: Run typing check
+        run: poetry run pre-commit run mypy-agents --all-files
+
+      - name: Run unit tests
+        run: poetry run pytest tests -q

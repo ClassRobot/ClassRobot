@@ -1,4 +1,5 @@
 # 班级机器人
+[![Unit Tests](https://github.com/ClassRobot/ClassRobot/actions/workflows/unit-tests.yml/badge.svg)](https://github.com/ClassRobot/ClassRobot/actions/workflows/unit-tests.yml)
 
 ## 项目简介
 
