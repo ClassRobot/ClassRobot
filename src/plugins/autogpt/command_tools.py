@@ -194,7 +194,21 @@ def _param_from_helper_param(param: HelperParam) -> CommandToolParam:
 def _infer_risk_level(helper: Helper) -> RiskLevel:
     text = f"{helper.command} {helper.description} {helper.ai_description or ''}"
     high_keywords = ("删除", "清空", "批量", "通知", "公告", "群发", "移除")
-    medium_keywords = ("添加", "新增", "创建", "修改", "更新", "绑定", "设置", "提交", "请假")
+    medium_keywords = (
+        "添加",
+        "新增",
+        "创建",
+        "修改",
+        "更新",
+        "绑定",
+        "设置",
+        "提交",
+        "导入",
+        "加入",
+        "退出",
+        "请假",
+        "注销",
+    )
     if any(keyword in text for keyword in high_keywords):
         return "high"
     if any(keyword in text for keyword in medium_keywords):
