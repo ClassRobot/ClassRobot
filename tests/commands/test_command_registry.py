@@ -5,7 +5,6 @@ from nonebot.internal.matcher.matcher import MatcherMeta
 
 
 EXPECTED_COMMAND_OBJECTS = {
-    "src.managers.auth.commands": {"login_edu_cmd": "登录教务系统"},
     "src.managers.classes.commands": {
         "import_classes_cmd": "导入班级",
         "create_classes_cmd": "添加班级",
@@ -49,7 +48,6 @@ EXPECTED_COMMAND_OBJECTS = {
         "logout_cmd": "注销",
         "token_cmd": "token",
     },
-    "src.plugins.campus_map.commands": {"campus_map_cmd": "校园地图"},
     "src.plugins.curriculum.commands": {
         "add_curricula": "添加课表",
         "del_curricula": "删除课表",

@@ -73,7 +73,7 @@
 | `src/managers/user/*` `src/managers/student/*` `src/managers/teacher/*` | `src/domain/identity_access/` |
 | `src/managers/classes/*` `src/managers/group/*` | `src/domain/organization_membership/` |
 | `src/plugins/tasks/*` `src/plugins/leave/*` | `src/domain/transactional_orchestration/` |
-| `src/plugins/curriculum/*` `src/managers/auth/*` | `src/domain/campus_integration/` |
+| `src/plugins/curriculum/*` | `src/domain/campus_integration/` |
 | `src/plugins/notice/*` | `src/domain/communication/` |
 
 ### 完成标志

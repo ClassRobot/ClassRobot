@@ -7,21 +7,6 @@ import pytest
 pytestmark = pytest.mark.asyncio
 
 
-async def test_login_edu_system_returns_fallback_message(app, onebot, send_recorder, monkeypatch):
-    import src.managers.auth as auth_module
-    from src.managers.auth.commands import login_edu_cmd
-
-    monkeypatch.setattr(auth_module, "edu_logins", {})
-
-    async with app.test_matcher(login_edu_cmd) as ctx:
-        recorder = send_recorder(ctx)
-        bot = onebot.create_bot(ctx)
-        event = onebot.private_event("登录教务系统 20250001 123456", user_id=10001, nickname="alice")
-        ctx.receive_event(bot, event)
-
-    recorder.assert_any("暂不支持该学校")
-
-
 async def test_plain_user_can_create_and_query_teacher_profile(app, onebot, send_recorder, models):
     from src.managers.teacher.commands import query_teacher_cmd, set_teacher_cmd
     from utils.models import Teacher

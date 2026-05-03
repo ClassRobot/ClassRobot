@@ -183,7 +183,6 @@ flowchart TD
 - `src/plugins/tasks/`
 - `src/plugins/leave/`
 - `src/plugins/curriculum/`
-- `src/plugins/campus_map/`
 
 设计要求：
 

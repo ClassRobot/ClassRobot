@@ -1,7 +1,6 @@
 import importlib
 
 BASIC_HELPER_MODULES = {
-    "src.managers.auth.commands": {"登录教务系统"},
     "src.managers.group.commands": {
         "添加学校",
         "修改学校",
@@ -35,7 +34,6 @@ BASIC_HELPER_MODULES = {
     "src.managers.teacher.commands": {"查询教师信息", "修改教师信息"},
     "src.managers.user.commands": {"我的信息", "绑定用户", "注销"},
     "src.plugins.curriculum.commands": {"添加课表", "删除课表", "查询课表", "分享课表", "设置当前周"},
-    "src.plugins.campus_map.commands": {"校园地图"},
     "src.plugins.find_at.commands": {"查找学生", "at"},
     "src.plugins.leave.commands": {"请假", "请假列表", "设置请假推送", "删除请假"},
     "src.plugins.tasks.commands": {"提交任务", "创建任务", "删除任务", "导出任务", "查询任务"},

@@ -16,4 +16,4 @@ Use this skill for QR generation and parsing instead of hand-writing `qrcode` or
 ## Notes
 
 - The runtime implementation centralizes both generation and decoding.
-- This skill is reused by task export, campus map, and document download flows.
+- This skill is reused by task export and document download flows.
