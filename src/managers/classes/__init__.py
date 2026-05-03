@@ -10,7 +10,19 @@ from nonebot.params import ArgPlainText
 from nonebot_plugin_waiter import waiter
 from nonebot_plugin_alconna import UniMessage, AlconnaMatcher
 from utils.roles import UserRole, JoinMethod, JoinMethodLang, TeacherClassesRole
-from utils.models import Group, User, School, Classes, College, Major, Teacher, GroupBind, Student, StudentExtra, ClassesJoinRequest
+from utils.models import (
+    Group,
+    User,
+    School,
+    Classes,
+    College,
+    Major,
+    Teacher,
+    GroupBind,
+    Student,
+    StudentExtra,
+    ClassesJoinRequest,
+)
 from utils.models.depends import StudentDepends, TeacherDepends, UserOrCreatedDepends
 
 from .depends import ImportDataFrame
@@ -26,7 +38,6 @@ from .commands import (
     query_join_request_cmd,
     review_join_request_cmd,
 )
-
 
 JOIN_METHOD_MAPPING = {
     "direct": JoinMethod.direct,
@@ -268,10 +279,12 @@ async def _(matcher: AlconnaMatcher, df: ImportDataFrame, user: UserOrCreatedDep
     """批量导入班级与学生信息。"""
     if df is None:
         await matcher.finish(Emoji.error + "未识别到有效的导入文件，请重新上传 Excel 文件。")
-    if user.role == UserRole.student:
+    if user.student is not None:
         await matcher.finish(Emoji.error + "您是学生，没有权限导入班级信息！！")
     if missing_columns := student_column_required - set(df.columns):
-        await matcher.finish(Emoji.error + f"缺少列: {', '.join(student_column_renames[i][0] for i in missing_columns)}")
+        await matcher.finish(
+            Emoji.error + f"缺少列: {', '.join(student_column_renames[i][0] for i in missing_columns)}"
+        )
 
     normalized_rows: list[dict[str, str | datetime | None]] = []
     invalid_rows: list[str] = []
@@ -338,7 +351,9 @@ async def _(matcher: AlconnaMatcher, df: ImportDataFrame, user: UserOrCreatedDep
                 college = await College(name=college_name, school_id=school.id).create()
 
             if teacher.college_id is not None and teacher.college_id != college.id:
-                await matcher.finish(Emoji.error + f"您的教师归属学院为`{teacher.college.name}`，不能导入其他学院的数据。")
+                await matcher.finish(
+                    Emoji.error + f"您的教师归属学院为`{teacher.college.name}`，不能导入其他学院的数据。"
+                )
 
             for classes_name, rows in classes_map.items():
                 major_values = sorted({row["major"] for row in rows if row["major"]})
@@ -460,7 +475,7 @@ async def _(
     user: UserOrCreatedDepends,
 ):
     """处理当前命令或事件逻辑。"""
-    if user.role == UserRole.student:
+    if user.student is not None:
         await matcher.finish(Emoji.error + "您是学生没有权限创建班级！！")
     elif not platform.is_group:
         await matcher.finish(Emoji.error + "请在群聊中使用该命令！！")
@@ -486,7 +501,9 @@ async def _(
         payload = {}
         if school:
             if classes.school_id and classes.school_id != school.id:
-                await matcher.finish(Emoji.error + f"班级`{class_name}`已归属于学校`{classes.school.name}`，不能重新绑定到其他学校。")
+                await matcher.finish(
+                    Emoji.error + f"班级`{class_name}`已归属于学校`{classes.school.name}`，不能重新绑定到其他学校。"
+                )
             if classes.school_id is None:
                 payload["school_id"] = school.id
         if college:
@@ -499,7 +516,9 @@ async def _(
         if major:
             if classes.major_id and classes.major_id != major.id:
                 current_major = classes.major_ref.name if classes.major_ref else (classes.major or "未设置")
-                await matcher.finish(Emoji.error + f"班级`{class_name}`已绑定专业`{current_major}`，不能重新绑定到其他专业。")
+                await matcher.finish(
+                    Emoji.error + f"班级`{class_name}`已绑定专业`{current_major}`，不能重新绑定到其他专业。"
+                )
             if classes.major_id is None:
                 payload["major_id"] = major.id
                 payload["major"] = major.name
@@ -565,7 +584,15 @@ async def _(
         if not await is_yes.wait(timeout=60):
             await matcher.finish("❌️已取消操作！！")
 
-    await classes.group.delete()
+    # 先删除班级主体，再清理其挂载的群组与设置，
+    # 避免直接删除 Group 时 SQLAlchemy 先把 classes.group_id 置空，
+    # 从而触发 `bot_classes.group_id` 的非空约束错误。
+    group = classes.group
+    settings = group.settings
+    await classes.filter(id=classes.id).delete()
+    await group.filter(id=group.id).delete()
+    if settings is not None:
+        await settings.filter(id=settings.id).delete()
     await matcher.finish("✅️删除班级成功！！")
 
 
@@ -637,7 +664,8 @@ async def _(
         await request.classes.user_join_classes(request.user)
         await request.delete()
         await matcher.finish(
-            Emoji.success + f"已通过申请[{request.id}]，用户`{request.user.nickname}`已加入班级`{request.classes.name}`。"
+            Emoji.success
+            + f"已通过申请[{request.id}]，用户`{request.user.nickname}`已加入班级`{request.classes.name}`。"
         )
 
     await request.delete()
@@ -651,6 +679,7 @@ async def _(
 async def _(
     describe: str | None,
     classes_id: int | None,
+    event: Event,
     platform: EventSession,
     matcher: AlconnaMatcher,
     user: UserOrCreatedDepends,
@@ -658,9 +687,7 @@ async def _(
     """处理当前命令或事件逻辑。"""
     matcher.state["describe"] = describe
 
-    if user.role == UserRole.student:
-        await matcher.finish(Emoji.error + "您已经加入过别的班级了！")
-    elif user.role == UserRole.teacher:
+    if user.teacher is not None:
         await matcher.finish(Emoji.error + "您是教师没有权限加入班级！！")
     elif classes_id:  # 如果有班级ID则查询班级信息
         if (classes := await Classes.get_classes(classes_id)) is None:
@@ -671,13 +698,15 @@ async def _(
     else:  # 如果不是群聊则提示需要班级ID
         await matcher.finish("❌️请在群聊中使用该命令或命令后面携带班级ID，例如:\n加入班级 1！！")
 
+    matcher.state["classes"] = classes
     if user.student is not None:  # 已经是学生说明已经加入过班级
         if user.student.classes_id == classes.id:
             await matcher.finish("❌️您已经该班级中的一员！！")
-    else:  # 未加入班级则不询问是否需要修改班级
-        matcher.state["is_join"] = UniMessage("yes")
+        return
 
-    matcher.state["classes"] = classes
+    # 未加入班级时无需额外确认，直接给 got 参数注入 yes，
+    # 既保留统一的后续加入逻辑，也兼容 nonebug / 多适配器场景。
+    matcher.set_arg("is_join", event.get_message().__class__("yes"))
 
 
 @join_classes_cmd.got("is_join", prompt="您已经加入过其它班级，是否需要修改您的班级？(yes/no)")
@@ -716,7 +745,9 @@ async def _(matcher: AlconnaMatcher, student: StudentDepends):
     """处理当前命令或事件逻辑。"""
     if student is None:
         await matcher.finish("❌️您还未加入班级！！")
-    await matcher.send(f"您当前所在班级为**{student.classes.name}**，班级ID为**{student.classes.id}**，" "是否要退出该班级？(yes/no)")
+    await matcher.send(
+        f"您当前所在班级为**{student.classes.name}**，班级ID为**{student.classes.id}**，" "是否要退出该班级？(yes/no)"
+    )
 
 
 @exit_classes_cmd.got("is_exit")
