@@ -24,10 +24,6 @@ class GlobalConfig(BaseModel, extra=Extra.ignore):
     "Ragflow API URL"
     teacher_max_classes: int = 6
     "教师最大班级数量"
-    admin_api_token: str | None = None
-    "后台管理 API 访问令牌"
-    admin_session_secret: str | None = None
-    "后台管理登录态签名密钥"
 
 
 os.environ["SSL_CERT_FILE"] = certifi.where()
@@ -66,9 +62,6 @@ data_dir: Path = get_data_dir(dirname)
 cache_dir: Path = get_cache_dir(dirname)
 config_dir: Path = get_config_dir(dirname)
 resources_dir: Path = project_root / "resources"
-website_dir: Path = project_root / "website"
-managers_website_dir: Path = website_dir / "managers"
-managers_dist_dir: Path = managers_website_dir / "dist"
 agents_dir: Path = project_root / "src" / "agents"
 skills_dir: Path = agents_dir / "skills" / "builtin"
 static_dir: Path = resources_dir
