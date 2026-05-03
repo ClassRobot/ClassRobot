@@ -152,9 +152,8 @@ dmypy.json
 # hide plugin
 *_hide/
 src/extensions/
-deploy/**/data/**
-!deploy/**/data/
-!deploy/**/data/.gitkeep
-deploy/**/.env
+
+# local third-party deployment helpers
+/deploy/
 
 # End of https://www.toptal.com/developers/gitignore/api/python
