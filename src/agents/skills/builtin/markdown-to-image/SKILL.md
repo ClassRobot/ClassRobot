@@ -9,9 +9,9 @@ Use this skill when Markdown should become user-visible rich output instead of p
 
 ## Workflow
 
-1. Use `utils.skills.markdown_to_image_skill.to_html(...)` when you need editable HTML output.
-2. Use `utils.skills.markdown_to_image_skill.to_image(...)` when Markdown can be rendered directly to an image.
-3. Use `utils.skills.markdown_to_image_skill.html_to_image(...)` when HTML has been post-processed before rendering.
+1. Use `src.agents.skills.markdown_to_image_skill.to_html(...)` when you need editable HTML output.
+2. Use `src.agents.skills.markdown_to_image_skill.to_image(...)` when Markdown can be rendered directly to an image.
+3. Use `src.agents.skills.markdown_to_image_skill.html_to_image(...)` when HTML has been post-processed before rendering.
 
 ## Notes
 

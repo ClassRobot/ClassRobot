@@ -1,7 +1,7 @@
 from utils import Emoji
 from nonebot import logger
 from pypandoc import convert_text
-from utils.skills import markdown_to_image_skill, qr_code_skill
+from src.agents.skills import markdown_to_image_skill, qr_code_skill
 from utils.tools.cos import upload_file
 from utils.llm import Messages, client_create
 from utils.llm.util import uni_message_to_contents

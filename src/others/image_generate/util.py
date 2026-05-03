@@ -1,5 +1,5 @@
 from nonebot_plugin_alconna import Image, Text
-from utils.skills import image_generation_skill
+from src.agents.skills import image_generation_skill
 
 
 async def generate_image(items: list[Text | Image]) -> list[dict]:

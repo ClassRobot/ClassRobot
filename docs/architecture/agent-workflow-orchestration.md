@@ -308,7 +308,7 @@ sequenceDiagram
 
 - 新意图类型：扩展 Router / Planner
 - 新项目命令：补 `__helpers__` + 原有 matcher
-- 新通用能力：补 `skills/` 与 `utils/skills/`
+- 新通用能力：补 `src/agents/skills/`
 - 新执行器能力：扩展 `WorkflowExecutor`
 - 新高频多步场景：补 `playbooks.py`
 

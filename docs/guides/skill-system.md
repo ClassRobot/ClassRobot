@@ -4,27 +4,28 @@
 
 项目里这类可复用的 AI 增强能力不再只以“零散工具函数”存在，而是统一收敛为 skill：
 
-- 仓库根目录使用 `skills/<skill-name>/SKILL.md` 保存 AI 可读的能力定义
-- `utils/skills/` 负责 skill 的运行时注册、发现与调用
+- `src/agents/skills/builtin/<skill-name>/SKILL.md` 保存 AI 可读的能力定义
+- `src/agents/skills/` 负责 skill 的运行时注册、发现与调用
+- `utils/skills/` 保留为兼容旧导入路径的门面层
 - 业务模块优先通过 skill 入口使用能力，而不是直接拼装底层库调用
 
 ## 当前已拆分的 skill
 
 - `document-to-image`
   - 职责：将 Word、PPT、PDF 统一转换为图片
-  - 运行时入口：`utils.skills.document_to_image_skill`
+  - 运行时入口：`src.agents.skills.document_to_image_skill`
 - `ocr`
   - 职责：识别验证码、截图或文档图片中的文本
-  - 运行时入口：`utils.skills.ocr_skill`
+  - 运行时入口：`src.agents.skills.ocr_skill`
 - `qr-code`
   - 职责：生成二维码、解析二维码
-  - 运行时入口：`utils.skills.qr_code_skill`
+  - 运行时入口：`src.agents.skills.qr_code_skill`
 - `markdown-to-image`
   - 职责：将 Markdown 转换为 HTML 或图片
-  - 运行时入口：`utils.skills.markdown_to_image_skill`
+  - 运行时入口：`src.agents.skills.markdown_to_image_skill`
 - `image-generation`
   - 职责：处理文生图、图生图等图片生成请求
-  - 运行时入口：`utils.skills.image_generation_skill`
+  - 运行时入口：`src.agents.skills.image_generation_skill`
 
 ## 面向文件处理的 skill 划分建议
 
@@ -73,21 +74,21 @@
 
 ## 目录约定
 
-- `skills/`
+- `src/agents/skills/builtin/`
   - 存放符合 skill 规范的能力目录，每个 skill 至少包含一个 `SKILL.md`
   - 若希望被自动加载，目录下再提供一个 `runtime.py`
-- `utils/skills/base.py`
+- `src/agents/skills/base.py`
   - 负责解析 `SKILL.md` frontmatter，并生成 manifest
-- `utils/skills/registry.py`
+- `src/agents/skills/registry.py`
   - 负责 skill 的发现、注册与按名称获取
-- `utils/skills/runtime.py`
+- `src/agents/skills/runtime.py`
   - 负责把 skill 元数据绑定到项目内真正可执行的运行时实现
 
 ## 使用原则
 
 - 新增通用 AI 能力时，先判断它是否应该成为独立 skill
 - 如果能力具有清晰边界、可被多个插件复用、且适合被 agent 或多步流程调用，优先做成 skill
-- 插件中的业务逻辑优先依赖 `utils.skills` 暴露的运行时对象
+- 插件中的业务逻辑优先依赖 `src.agents.skills` 暴露的运行时对象
 - `utils/tools/` 保留为底层实现层，不再作为能力边界的唯一表达方式
 
 ## 加载方式
@@ -96,8 +97,8 @@
 
 ## 默认行为
 
-- 导入 `utils.skills` 时，会默认扫描仓库根目录下的 `skills/`
-- 注册表初始化位置在 `utils/skills/registry.py`
+- 导入 `src.agents.skills` 时，会默认扫描 `src/agents/skills/builtin/`
+- 注册表初始化位置在 `src/agents/skills/registry.py`
 - 默认扫描完成后，`skill_registry` 就可以直接按名称获取 skill
 - 如果你新增了新的 skill 目录，通常不需要再手写注册代码，只要目录结构和 `runtime.py` 符合约定即可
 - 如果你在测试或特殊场景下需要加载额外目录，可以显式调用 `load_skill(...)` 或 `load_skills(...)`
@@ -107,9 +108,9 @@
 适合默认能力目录，使用方式接近 NoneBot 的 `load_plugins(...)`：
 
 ```python
-from utils.skills import load_skills
+from src.agents.skills import load_skills
 
-load_skills("skills")
+load_skills("src/agents/skills/builtin")
 ```
 
 自动加载规则：
@@ -124,7 +125,7 @@ load_skills("skills")
 最小目录结构：
 
 ```text
-skills/
+src/agents/skills/builtin/
 └── my-skill/
     ├── SKILL.md
     └── runtime.py
@@ -146,7 +147,7 @@ Write the developer/AI-facing instructions here.
 `runtime.py` 最推荐的写法：
 
 ```python
-from utils.skills.base import BaseProjectSkill
+from src.agents.skills.base import BaseProjectSkill
 
 
 class MySkill(BaseProjectSkill):
@@ -175,9 +176,9 @@ __skills__ = [FooSkill, BarSkill]
 适合测试、内置替身或非常规 skill：
 
 ```python
-from utils.skills import register_skill
+from src.agents.skills import register_skill
 
-register_skill(MySkill, skill_dir="skills/my-skill")
+register_skill(MySkill, skill_dir="src/agents/skills/builtin/my-skill")
 ```
 
 手动注册仍然保留，目录自动加载只是默认方案，不会取代显式注册。
@@ -185,10 +186,10 @@ register_skill(MySkill, skill_dir="skills/my-skill")
 如果你已经自己解析好了 manifest，也可以直接传入：
 
 ```python
-from utils.skills import register_skill
-from utils.skills.base import parse_skill_manifest
+from src.agents.skills import register_skill
+from src.agents.skills.base import parse_skill_manifest
 
-manifest = parse_skill_manifest(Path("skills/my-skill/SKILL.md"))
+manifest = parse_skill_manifest(Path("src/agents/skills/builtin/my-skill/SKILL.md"))
 register_skill(MySkill, manifest=manifest)
 ```
 
@@ -196,22 +197,22 @@ register_skill(MySkill, manifest=manifest)
 
 当你要新增一个项目内 skill，推荐按下面的顺序做：
 
-1. 在 `skills/<skill-name>/` 下创建 `SKILL.md`
+1. 在 `src/agents/skills/builtin/<skill-name>/` 下创建 `SKILL.md`
 2. 在同目录下创建 `runtime.py`
 3. 在 `runtime.py` 中暴露 `__skill__` 或 `__skills__`
 4. 让运行时类继承 `BaseProjectSkill`
 5. 保证类上的 `skill_name` 和 `SKILL.md` 的 `name` 一致
-6. 在业务代码里通过 `utils.skills` 获取 skill，而不是直接写死底层工具实现
+6. 在业务代码里通过 `src.agents.skills` 获取 skill，而不是直接写死底层工具实现
 
 推荐示例：
 
 ```python
-from utils.skills import get_skill
+from src.agents.skills import get_skill
 
 skill = get_skill("my-skill")
 ```
 
-如果你需要类型更明确的入口，建议像当前内置 skill 一样，在 `utils/skills/__init__.py` 中补一个 getter：
+如果你需要类型更明确的入口，建议像当前内置 skill 一样，在 `src/agents/skills/__init__.py` 中补一个 getter：
 
 ```python
 def get_my_skill() -> MySkill:
@@ -232,7 +233,7 @@ def get_my_skill() -> MySkill:
 例如：
 
 ```python
-from utils.skills import qr_code_skill
+from src.agents.skills import qr_code_skill
 
 image = qr_code_skill.encode("https://example.com")
 ```
@@ -253,16 +254,24 @@ image = qr_code_skill.encode("https://example.com")
 
 可以直接参考这些目录：
 
-- `skills/document-to-image/`
-- `skills/image-generation/`
-- `skills/ocr/`
-- `skills/qr-code/`
-- `skills/markdown-to-image/`
+- `src/agents/skills/builtin/document-to-image/`
+- `src/agents/skills/builtin/image-generation/`
+- `src/agents/skills/builtin/ocr/`
+- `src/agents/skills/builtin/qr-code/`
+- `src/agents/skills/builtin/markdown-to-image/`
 
 对应运行时实现集中在：
 
-- `utils/skills/runtime.py`
+- `src/agents/skills/runtime.py`
 
 对应注册与发现逻辑在：
 
-- `utils/skills/registry.py`
+- `src/agents/skills/registry.py`
+
+## 旧路径说明
+
+如果你在较早文档或旧代码里看到下面这些路径，请按新结构理解：
+
+- `skills/` -> `src/agents/skills/builtin/`
+- `utils/skills/` -> `src/agents/skills/`
+- `utils.skills` -> 兼容导入层，建议新代码改用 `src.agents.skills`

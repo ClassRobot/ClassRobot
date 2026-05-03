@@ -5,7 +5,7 @@ from nonebot.rule import to_me
 from utils.helper import Helper, HelperScope
 from utils.roles import UserRole
 from utils.config import priority
-from utils.skills import markdown_to_image_skill
+from src.agents.skills import markdown_to_image_skill
 from nonebot.matcher import Matcher
 from nonebot.message import handle_event
 from nonebot.adapters import Bot, Event, Message

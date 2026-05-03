@@ -2,7 +2,7 @@ from utils import Emoji
 from nonebot import logger
 from utils.send import bot_upload_file
 from utils.models import Tasks, Classes
-from utils.skills import qr_code_skill
+from src.agents.skills import qr_code_skill
 from nonebot.params import Arg, ArgPlainText
 from utils.tools import StringCard
 from nonebot.adapters import Bot, Event, MessageTemplate

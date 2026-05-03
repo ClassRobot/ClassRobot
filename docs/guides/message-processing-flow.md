@@ -262,7 +262,7 @@ sequenceDiagram
   - 负责把消息送入统一流水线
 - `utils/llm/agents/tools.py`
   - `FileAgent` 负责下载文件、转图片并交给多模态模型理解
-- `skills/document-to-image/`
+- `src/agents/skills/builtin/document-to-image/`
   - 负责把 Word、PPT、PDF 转成统一图片中间结果
 
 这意味着当前项目已经适合处理：
@@ -290,10 +290,10 @@ sequenceDiagram
 
 这部分当前仓库里还没有现成运行时实现，因此更适合作为未来新增的两类 skill，而不是继续堆进现有 `document-to-image` skill：
 
-- `skills/document-reader/`
+- `src/agents/skills/builtin/document-reader/`
   - 负责读取 `.docx`、`.pptx`、`.pdf` 的结构化内容
   - 例如标题、段落、表格、页眉页脚、图片占位
-- `skills/document-formatter/`
+- `src/agents/skills/builtin/document-formatter/`
   - 负责按规则修改文档样式并导出新文件
   - 例如字体、字号、段落、页边距、标题层级、表格样式
 
@@ -338,8 +338,8 @@ sequenceDiagram
 - 文件“编辑/排版”不要塞进 `FileAgent`
 - 如果新增文档排版能力，优先新增专门的 Agent 和 skill：
   - Agent 放在 `utils/llm/agents/`
-  - skill 放在 `skills/document-reader/`、`skills/document-formatter/`
-  - 运行时实现继续挂到 `utils/skills/runtime.py` 或独立模块
+  - skill 放在 `src/agents/skills/builtin/document-reader/`、`src/agents/skills/builtin/document-formatter/`
+  - 运行时实现继续挂到 `src/agents/skills/runtime.py` 或独立模块
 - 平台层只负责：
   - 下载文件
   - 保存临时路径
@@ -389,8 +389,8 @@ sequenceDiagram
   - `src/others/image_generate/__init__.py`
   - 负责接收参数、调用 skill、上传图片并回发消息
 - 生图 skill
-  - `skills/image-generation/`
-  - `utils/skills/runtime.py`
+  - `src/agents/skills/builtin/image-generation/`
+  - `src/agents/skills/runtime.py`
   - 负责把文本和图片输入提交给底层绘图接口
 - 云存储
   - `utils/tools/cos/__init__.py`
@@ -471,7 +471,7 @@ sequenceDiagram
 
 - 把 AI 会话主流程抽成了 `MessageProcessingPipeline`
 - 把“摘要 -> 抽取 -> 检索/规划 -> 回复”做成显式阶段
-- 把技能型能力收敛到了 `skills/` + `utils/skills/`
+- 把技能型能力收敛到了 `src/agents/skills/builtin/` + `src/agents/skills/`
 - 把角色筛选后的 `helpers` 作为 Agent 编排时的能力边界
 
 这意味着以后即使换成飞书 Webhook，也可以复用同一套：
@@ -521,4 +521,4 @@ sequenceDiagram
 - AI 流水线：`src/plugins/autogpt/pipeline.py`
 - 会话管理：`src/plugins/autogpt/util.py`
 - Agent：`utils/llm/agents/tools.py`
-- 技能：`skills/`、`utils/skills/`
+- 技能：`src/agents/skills/builtin/`、`src/agents/skills/`

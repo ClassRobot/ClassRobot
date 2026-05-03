@@ -18,7 +18,7 @@
 - 显式命令和自然语言 AI 共享同一套业务能力
 - `src/managers/` 与业务插件承载领域规则
 - `src/plugins/autogpt/` 承载 AI 编排主链路
-- `skills/` 与 `utils/skills/` 承载可复用能力边界
+- `src/agents/skills/` 承载可复用能力边界，`utils/skills/` 保留兼容出口
 - `utils/models/`、`utils/llm/`、`utils/tools/` 承载基础设施接入
 
 这意味着项目不是“纯脚本堆叠”，也不是“现在就要拆微服务”，而是应该继续沿着“分层明确、职责内聚、扩展稳定”的方向演进。
@@ -60,7 +60,7 @@ flowchart TB
     subgraph Application["应用与编排层 Application"]
         Depends["上下文与权限依赖\nutils/session\nutils/models/depends.py\nutils/helper/depends.py"]
         AutoGPT["AI 编排中枢\nsrc/plugins/autogpt/*"]
-        SkillRegistry["Skill 注册与运行时\nutils/skills/*"]
+        SkillRegistry["Skill 注册与运行时\nsrc/agents/skills/*"]
         Matchers --> Depends
         Matchers --> AutoGPT
         Routers --> Depends
@@ -85,7 +85,7 @@ flowchart TB
         LLMRuntime["模型运行时\nutils/llm"]
         RagClient["知识检索接入\nutils/llm/agents/ragflow"]
         ToolStack["底层工具\nutils/tools"]
-        SkillAssets["Skill 资产\nskills/*"]
+        SkillAssets["内置 Skill 资产\nsrc/agents/skills/builtin/*"]
         Identity --> ORM
         Organization --> ORM
         Campus --> ORM
@@ -102,7 +102,7 @@ flowchart TB
 | 层次 | 主要职责 | 当前主要目录 |
 | --- | --- | --- |
 | 接入层 | 接收平台消息、命令、文件和事件 | `src/managers/`、`src/plugins/`、`src/others/`、`src/routers/` |
-| 应用与编排层 | 维护会话、组织流程、调度 Agent 与 Skill | `src/plugins/autogpt/`、`utils/session/`、`utils/skills/` |
+| 应用与编排层 | 维护会话、组织流程、调度 Agent 与 Skill | `src/plugins/autogpt/`、`src/agents/skills/`、`utils/session/` |
 | 领域层 | 承载班级、组织、用户、任务等业务规则 | `src/managers/`、`src/plugins/tasks/`、`src/plugins/leave/`、`src/plugins/curriculum/` 等 |
 | 基础设施层 | 收敛数据库、模型、检索、存储和工具依赖 | `utils/models/`、`utils/llm/`、`utils/tools/` |
 
@@ -232,7 +232,7 @@ sequenceDiagram
 - 把“命令处理器”和“领域服务”进一步分离，降低入口层体积
 - 让 `src/plugins/autogpt/` 更明确地只做编排，不掺入过多平台细节
 - 为高风险业务命令补齐 contract test、integration test 和审计日志
-- 继续让新增通用能力优先落到 `skills/` 与 `utils/skills/`
+- 继续让新增通用能力优先落到 `src/agents/skills/`
 - 让文档中的分层规则逐步变成代码中的目录边界和依赖边界
 
 ## 建议阅读顺序

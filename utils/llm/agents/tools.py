@@ -7,7 +7,7 @@ from httpx import AsyncClient
 from utils.llm import LLMTaskType, client_create
 from utils.config import autogpt_dir
 from utils.schemas.auto_task import AutoTaskList
-from utils.skills import document_to_image_skill
+from src.agents.skills import document_to_image_skill
 from utils.llm.util import json_loads
 from utils.helper.schema import Helpers
 from utils.tools.cos import upload_file

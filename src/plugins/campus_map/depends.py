@@ -4,7 +4,7 @@ from typing import Annotated
 from nonebot import logger
 from utils.models import User
 from nonebot.params import Depends
-from utils.skills import qr_code_skill
+from src.agents.skills import qr_code_skill
 from utils.llm.util import json_loads
 from utils.tools.sync import run_sync
 from utils.llm import Messages, client_create
