@@ -93,7 +93,7 @@ async def _(matcher: AlconnaMatcher, teacher: TeacherDepends):
 async def _(matcher: AlconnaMatcher, values: list[str], user: UserOrCreatedDepends):
     """修改教师信息。"""
     teacher = user.teacher
-    if teacher is None and user.role == UserRole.student:
+    if teacher is None and user.student is not None:
         await matcher.finish(Emoji.error + "您当前是学生身份，不能直接创建教师信息。")
 
     options: dict[str, str] = {}

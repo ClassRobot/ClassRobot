@@ -1,5 +1,5 @@
 from utils.config import priority
-from utils.helper import Param, Helper, UserRole, ParamMode
+from utils.helper import Param, Helper, HelperScope, UserRole, ParamMode
 from nonebot_plugin_alconna import Args, Alconna, MultiVar, on_alconna
 
 from .util import columns_chinese
@@ -36,6 +36,7 @@ __helpers__ = [
             )
         ],
         roles={UserRole.teacher, UserRole.student},
+        scopes={HelperScope.student, HelperScope.teacher},
     ),
     Helper(
         command="at",
@@ -48,5 +49,6 @@ __helpers__ = [
             )
         ],
         roles={UserRole.teacher, UserRole.student},
+        scopes={HelperScope.student, HelperScope.teacher},
     ),
 ]

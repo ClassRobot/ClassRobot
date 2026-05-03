@@ -119,7 +119,12 @@ async def confirm_action(matcher: AlconnaMatcher, prompt: str) -> bool:
 async def delete_classes_groups(classes_list: list[Classes]):
     """删除班级时顺带删除关联群组，避免留下孤儿绑定。"""
     for classes in classes_list:
-        await classes.group.delete()
+        group = classes.group
+        settings = group.settings
+        await classes.filter(id=classes.id).delete()
+        await group.filter(id=group.id).delete()
+        if settings is not None:
+            await settings.filter(id=settings.id).delete()
 
 
 async def get_school_or_finish(matcher: AlconnaMatcher, school_name: str) -> School:

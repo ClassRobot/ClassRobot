@@ -1,5 +1,7 @@
 from utils.config import priority
+from utils.helper import Helper, HelperScope, Helpers
 from utils.helper.config import helper_menu
+from utils.helper.runtime import bootstrap_helper_runtime
 from utils.helper.depends import HelpersDepends
 from nonebot import get_driver, get_loaded_plugins
 from nonebot_plugin_alconna import Args, Alconna, UniMessage, AlconnaMatcher, on_alconna
@@ -11,6 +13,15 @@ help_cmd = on_alconna(
     priority=priority,
     block=True,
 )
+
+__helpers__ = [
+    Helper(
+        command="help",
+        aliases={"帮助"},
+        description="按当前身份查看自己可以使用的命令目录，或查询单个命令的详细帮助。",
+        scopes={HelperScope.public},
+    )
+]
 
 
 @help_cmd.handle()
@@ -30,10 +41,6 @@ async def _(
 
 @driver.on_startup
 async def _():
-    """处理当前命令或事件逻辑。"""
-    for plugin in get_loaded_plugins():
-        if helpers := getattr(plugin.module, "__helpers__", None):
-            helper_menu.extend(helpers)
-        elif cmd := getattr(plugin.module, "commands", None):
-            if helpers := getattr(cmd, "__helpers__", None):
-                helper_menu.extend(helpers)
+    """启动时构建帮助目录，并把权限元数据同步到 matcher。"""
+
+    bootstrap_helper_runtime(get_loaded_plugins())

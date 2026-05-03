@@ -1,180 +1,212 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>帮助</title>
     <style>
         * {
             margin: 0;
             padding: 0;
-            font-family: "Helvetica Neue", Helvetica, Arial, "PingFang SC", "Hiragino Sans GB", "Heiti SC", "Microsoft YaHei", "WenQuanYi Micro Hei", sans-serif;
+            box-sizing: border-box;
+            font-family: "Helvetica Neue", Helvetica, Arial, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
         }
 
         body {
-            width: 720px;
-            padding: 1em;
-            background: #F3F4F6;
+            width: 860px;
+            padding: 28px;
+            background: linear-gradient(180deg, #EEF3FF 0%, #F7F8FC 45%, #EEF2F7 100%);
             color: #1F2937;
         }
 
-        li {
-            list-style: none;
-        }
-
-        .helpers .head {
-            margin: 0 2em;
-            padding: 0 2em;
-            margin-top: 1em;
-        }
-
-        .helpers .card {
-            flex: 1 1 calc(33.333% - 1em);
-            box-sizing: border-box;
-            min-height: 100px;
-            background-color: #FFFFFF;
-            padding: 2em;
-            border-radius: .5em;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            margin: 2em;
-        }
-
-        .description {
-            overflow: hidden;
-            text-overflow: ellipsis;
-            display: -webkit-box;
-            -webkit-line-clamp: 5;
-            line-clamp: 5;
-            -webkit-box-orient: vertical;
-            flex: 1 1 auto;
-            padding-right: .5em;
-            margin-top: 1em;
-            margin-bottom: .5em;
-        }
-
-        .tags,
-        .roles,
-        .params {
+        .page {
             display: flex;
-            margin-top: 1em;
-            flex-wrap: wrap;
-            align-items: center;
+            flex-direction: column;
+            gap: 24px;
         }
 
-        .tags *,
-        .roles *,
-        .params * {
-            word-wrap: break-word;
+        .hero {
+            padding: 26px 28px;
+            border-radius: 22px;
+            background: linear-gradient(135deg, #183153 0%, #295A8A 58%, #5C8FD6 100%);
+            color: #F8FAFC;
+            box-shadow: 0 16px 42px rgba(24, 49, 83, 0.25);
         }
 
-        .tags ul,
-        .roles ul,
-        .params ul {
-            display: flex;
+        .hero h1 {
+            font-size: 34px;
+            margin-bottom: 10px;
+            letter-spacing: 0.03em;
         }
 
-        .tags ul li,
-        .roles ul li,
-        .params ul li {
-            margin: 0 .5em;
-            border-radius: 1em;
-            padding: .3em 1em;
-            background-color: #E5E7EB;
-            font-weight: bold;
-        }
-
-        .tags ul li {
-            color: #5B21B6;
-            background-color: #EDE9FE;
-        }
-
-        .roles ul li {
-            color: #1E3A8A;
-            background-color: #DBEAFE;
-        }
-
-        .params ul li {
-            color: #32613a;
-            background-color: #DCFCE7;
+        .hero p {
+            font-size: 15px;
+            line-height: 1.7;
+            color: rgba(248, 250, 252, 0.9);
         }
 
         .code {
-            background-color: #F9FAFB;
-            padding: .1em .3em;
-            border-radius: .3em;
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.14);
+            color: #F8FAFC;
+            font-weight: 600;
         }
 
-        .head .code {
+        .section {
+            padding: 20px 22px 24px;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.88);
+            border: 1px solid rgba(148, 163, 184, 0.18);
+            box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
+        }
+
+        .section-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+            margin-bottom: 18px;
+        }
+
+        .section-head h2 {
+            font-size: 24px;
+            color: #0F172A;
+            margin-bottom: 6px;
+        }
+
+        .section-head p {
+            color: #475569;
+            font-size: 14px;
+            line-height: 1.7;
+        }
+
+        .section-badge {
+            flex-shrink: 0;
+            min-width: 92px;
+            text-align: center;
+            padding: 8px 12px;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 700;
             color: #1D4ED8;
-            background-color: #DBEAFE;
+            background: #DBEAFE;
+        }
+
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+        }
+
+        .card {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            min-height: 170px;
+            padding: 18px;
+            border-radius: 18px;
+            background: linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%);
+            border: 1px solid #E2E8F0;
+        }
+
+        .card h3 {
+            font-size: 21px;
+            color: #111827;
+        }
+
+        .description {
+            color: #475569;
+            line-height: 1.75;
+            font-size: 14px;
+            white-space: pre-wrap;
+        }
+
+        .meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .meta-item {
+            padding: 6px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .meta-item.alias {
+            color: #7C2D12;
+            background: #FFEDD5;
+        }
+
+        .meta-item.param {
+            color: #166534;
+            background: #DCFCE7;
+        }
+
+        .meta-item.tag {
+            color: #6D28D9;
+            background: #EDE9FE;
+        }
+
+        .empty {
+            padding: 28px;
+            border-radius: 18px;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.9);
+            color: #64748B;
+            font-size: 15px;
         }
     </style>
 </head>
 
 <body>
-    {% if helper %}
-
-
-
-
-
-
-    {% elif helpers %}
-    <div class="helpers">
-        <div class="head">
+    <div class="page">
+        <div class="hero">
             <h1>帮助</h1>
-            <p>通过 <span class="code">帮助 [命令名称]</span> 获取更详细的帮助信息</p>
+            <p>当前只展示你现在可以使用的命令。想看单个命令的完整说明，可以发送 <span class="code">帮助 命令名</span>。</p>
         </div>
-        {% for data in helpers %}
-        <div class="card">
-            <h2>{{ data.command }}</h2>
-            <div class="box">
-                <div class="description">
-                    {% for text in data.description.split("\n") %}
-                    <p>{{ text.replace(" ", "&nbsp;") }}</p>
-                    {% endfor %}
-                </div>
-                {% if data.tags %}
-                <div class="tags">
-                    <h3>命令类别:</h3>
-                    <ul>
-                        {% for tag in data.tags %}
-                        <li>{{ tag }}</li>
-                        {% endfor %}
-                    </ul>
-                </div>
-                {% endif %}
-                {#
-                <div class="roles">
-                    <h3>可用人群:</h3>
-                    <ul>
-                        {% if data.roles %}
-                        {% for role in data.roles %}
-                        <li>{{ role }}</li>
-                        {% endfor %}
-                        {% else %}
-                        <li>ALL</li>
-                        {% endif %}
-                    </ul>
-                </div>
-                #}
-                {% if data.params %}
-                <div class="params">
-                    <h3>命令参数:</h3>
-                    <ul>
-                        {% for param in data.params %}
-                        <li>{{ param }}</li>
-                        {% endfor %}
-                    </ul>
-                </div>
-                {% endif %}
-            </div>
-        </div>
-        {% endfor %}
-    </div>
-    {% endif %}
 
+        {% if groups %}
+        {% for group in groups %}
+        <section class="section">
+            <div class="section-head">
+                <div>
+                    <h2>{{ group.title }}</h2>
+                    <p>{{ group.description }}</p>
+                </div>
+                <div class="section-badge">{{ group.helpers|length }} 条</div>
+            </div>
+            <div class="cards">
+                {% for data in group.helpers %}
+                <article class="card">
+                    <div>
+                        <h3>{{ data.command }}</h3>
+                    </div>
+                    <div class="description">{{ data.description }}</div>
+                    <div class="meta">
+                        {% for alias in data.aliases %}
+                        <span class="meta-item alias">别名: {{ alias }}</span>
+                        {% endfor %}
+                        {% for param in data.params %}
+                        <span class="meta-item param">参数: {{ param }}</span>
+                        {% endfor %}
+                        {% for tag in data.tags %}
+                        <span class="meta-item tag">{{ tag }}</span>
+                        {% endfor %}
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+        </section>
+        {% endfor %}
+        {% else %}
+        <div class="empty">当前没有可展示的命令。</div>
+        {% endif %}
+    </div>
 </body>
 
 </html>

@@ -2,7 +2,7 @@ from typing import Callable
 
 from utils import Emoji
 from nonebot.rule import to_me
-from utils.helper import Helper
+from utils.helper import Helper, HelperScope
 from utils.roles import UserRole
 from utils.config import priority
 from utils.skills import markdown_to_image_skill
@@ -16,6 +16,7 @@ from nonebot_plugin_alconna import Target, UniMsg, MsgTarget, UniMessage
 
 from .schema import Param, AutoTask, AutoTaskList, CommandObservation
 from .util import ChatSessionDepends, markdown_to_message
+from .workflow import WorkflowExecutor
 
 auto_gpt = on_message(priority=priority * 10, block=True, rule=to_me())
 clear_chat = on_command("清空聊天", aliases={"重置聊天", "聊天清空", "聊天重置"}, priority=priority, block=True)
@@ -135,7 +136,7 @@ async def _(
     chat_session: ChatSessionDepends,
 ):
     """处理当前命令或事件逻辑。"""
-    chat_session.clear()
+    await chat_session.clear()
     await matcher.finish("已清空聊天记录")
 
 
@@ -152,13 +153,19 @@ async def _(
     if chat_session.lock:
         await matcher.finish(Emoji.error + "我知道你很急，但是你先别急，等我处理完你的上一条消息。")
     try:
-        auto_task = await chat_session.send_message(
+        turn_result = await chat_session.send_message(
             message,
             progress_reporter=lambda text: send_progress(matcher, text),
         )
     except Exception as e:
         logger.exception(f'AutoGPT trace "{chat_session.last_trace_id}" failed: {e}')
         await matcher.finish(Emoji.error + "消息理解失败了, 请重新发送")
+        return
+
+    auto_task = turn_result.auto_tasks if turn_result else None
+    if turn_result and turn_result.workflow and auto_task and auto_task.need_confirm:
+        await chat_session.record_workflow(turn_result.workflow, trace_id=chat_session.last_trace_id)
+
     if not isinstance(auto_task, AutoTaskList):
         await matcher.finish(Emoji.error + "消息理解失败了, 请重新发送")
         return
@@ -183,27 +190,40 @@ async def _(
             logger.exception(e)
             await matcher.finish(Emoji.error + "内部异常, 请重试！")
     if not auto_task.need_confirm:
-        observations: list[CommandObservation] = []
-        for task in auto_task.tasks:
-            if chat_session.helpers.get_helper(task.command):
-                # 将 AI 规划出的命令重新投递给 NoneBot 原生事件分发，
-                # 让后续 matcher 和 depends 仍按用户手动输入命令时的流程执行。
-                observations.extend(
-                    await dispatch_auto_task(bot, event, task, target, trace_id=chat_session.last_trace_id)
+        workflow = turn_result.workflow if turn_result else None
+        if workflow:
+            executor = WorkflowExecutor(
+                dispatcher=lambda task: dispatch_auto_task(
+                    bot, event, task, target, trace_id=chat_session.last_trace_id
                 )
-            else:
-                observations.append(
-                    CommandObservation(
-                        trace_id=chat_session.last_trace_id,
-                        command=task.command,
-                        params=task.params,
-                        dispatch_type="missing_command",
-                        success=False,
-                        message="命令不存在，未投递。",
+            )
+            execution = await executor.execute(workflow)
+            if execution.observations:
+                chat_session.record_observations(execution.observations, trace_id=chat_session.last_trace_id)
+            await chat_session.record_workflow(execution.workflow, trace_id=chat_session.last_trace_id)
+            if execution.user_message:
+                await matcher.send(Emoji.error + execution.user_message)
+        else:
+            observations: list[CommandObservation] = []
+            for task in auto_task.tasks:
+                if chat_session.helpers.get_helper(task.command):
+                    observations.extend(
+                        await dispatch_auto_task(bot, event, task, target, trace_id=chat_session.last_trace_id)
                     )
-                )
-                await matcher.send(Emoji.error + f"无法调用`{task.command}`命令，因为该命令不存在！")
-        chat_session.record_observations(observations, trace_id=chat_session.last_trace_id)
+                else:
+                    observations.append(
+                        CommandObservation(
+                            trace_id=chat_session.last_trace_id,
+                            command=task.command,
+                            params=task.params,
+                            dispatch_type="missing_command",
+                            success=False,
+                            message="命令不存在，未投递。",
+                        )
+                    )
+                    await matcher.send(Emoji.error + f"无法调用`{task.command}`命令，因为该命令不存在！")
+            if observations:
+                chat_session.record_observations(observations, trace_id=chat_session.last_trace_id)
 
 
 __helpers__ = [
@@ -211,6 +231,7 @@ __helpers__ = [
         command="清空聊天",
         description="清空机器人于用户的聊天内容",
         roles={UserRole.user},
+        scopes={HelperScope.user},
         ai_description="当用户对于机器人的回复非常不满意，或者存在违规内容时候机器人可以主动清空聊天记录",
     )
 ]

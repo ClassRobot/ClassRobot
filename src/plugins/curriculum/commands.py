@@ -1,6 +1,6 @@
 from utils import tip
 from utils.config import priority, comp_config
-from utils.helper import Param, Helper, ParamMode
+from utils.helper import Param, Helper, HelperScope, ParamMode, UserRole
 from nonebot_plugin_alconna import Args, Field, Alconna, MultiVar, on_alconna
 
 input_help = """具体输入格式如下:
@@ -91,6 +91,8 @@ __helpers__ = [
         params=[
             Param(name="课表内容", mode=ParamMode.ONE_OR_MORE),
         ],
+        roles={UserRole.user},
+        scopes={HelperScope.user},
     ),
     Helper(
         command="删除课表",
@@ -98,6 +100,8 @@ __helpers__ = [
         params=[
             Param(name="课表ID", mode=ParamMode.ONE_OR_MORE),
         ],
+        roles={UserRole.user},
+        scopes={HelperScope.user},
     ),
     Helper(
         command="查询课表",
@@ -113,6 +117,8 @@ __helpers__ = [
             "查询课表 软件1班 1 // 表示查询软件1班明天的课表\n"
             "查询课表 1 // 表示查询本人明天课表"
         ),
+        roles={UserRole.user},
+        scopes={HelperScope.user},
     ),
     Helper(
         command="分享课表",
@@ -121,5 +127,17 @@ __helpers__ = [
         params=[
             Param(name="分享ID/班级名称", mode=ParamMode.OPTIONAL),
         ],
+        roles={UserRole.user},
+        scopes={HelperScope.user},
+    ),
+    Helper(
+        command="设置当前周",
+        description="设置自己的课表当前周；若具备班级课表管理能力，也可额外指定班级ID。",
+        params=[
+            Param(name="周数"),
+            Param(name="班级ID", mode=ParamMode.OPTIONAL),
+        ],
+        roles={UserRole.user},
+        scopes={HelperScope.user},
     ),
 ]

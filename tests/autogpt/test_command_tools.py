@@ -79,3 +79,32 @@ def test_write_commands_are_not_marked_low_risk(loaded_plugins):
             tool = catalog.get(helper.command)
             assert tool is not None
             assert tool.risk_level in {"medium", "high"}
+
+
+def test_command_tool_catalog_follows_current_user_visible_helpers(loaded_plugins):
+    from utils.helper import Helper, HelperScope, Helpers, UserRole
+    from src.plugins.autogpt.command_tools import CommandToolCatalog
+
+    helpers = Helpers()
+    helpers.extend(
+        [
+            Helper(
+                command="查询学生信息", description="查看学生", roles={UserRole.student}, scopes={HelperScope.student}
+            ),
+            Helper(
+                command="查询教师信息", description="查看教师", roles={UserRole.teacher}, scopes={HelperScope.teacher}
+            ),
+            Helper(command="查询请假", description="查看请假", roles={UserRole.student, UserRole.teacher}),
+        ]
+    )
+
+    student_catalog = CommandToolCatalog.from_helpers(helpers.get_roles_helpers(UserRole.user, UserRole.student))
+    teacher_catalog = CommandToolCatalog.from_helpers(helpers.get_roles_helpers(UserRole.user, UserRole.teacher))
+
+    assert student_catalog.get("查询学生信息") is not None
+    assert student_catalog.get("查询请假") is not None
+    assert student_catalog.get("查询教师信息") is None
+
+    assert teacher_catalog.get("查询教师信息") is not None
+    assert teacher_catalog.get("查询请假") is not None
+    assert teacher_catalog.get("查询学生信息") is None

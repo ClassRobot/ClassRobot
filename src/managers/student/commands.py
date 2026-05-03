@@ -2,7 +2,7 @@ from utils import tip
 from utils.roles import StudentRoleLang
 from utils.config import priority, comp_config
 from utils.params.student import get_columns_chinese
-from utils.helper import Param, Helper, UserRole, ParamMode
+from utils.helper import Param, Helper, HelperScope, UserRole, ParamMode
 from nonebot_plugin_alconna import Args, Field, Alconna, MultiVar, on_alconna
 
 query_cmd = on_alconna(
@@ -20,7 +20,9 @@ set_cmd = on_alconna(
             "values",
             MultiVar(str, flag="+"),
             Field(
-                completion=tip(f"修改方式如名字=张三 性别=男\n可以修改的内容:\n {', '.join(get_columns_chinese(['user_id']).values())}")
+                completion=tip(
+                    f"修改方式如名字=张三 性别=男\n可以修改的内容:\n {', '.join(get_columns_chinese(['user_id']).values())}"
+                )
             ),
         ],
     ),
@@ -38,6 +40,7 @@ __helpers__ = [
         description="查看当前账号绑定的学生信息、班级、学号和附加资料。",
         aliases={"学生信息", "我的学生信息"},
         roles={UserRole.student},
+        scopes={HelperScope.student},
     ),
     Helper(
         command="修改学生信息",
@@ -52,5 +55,6 @@ __helpers__ = [
             ),
         ],
         roles={UserRole.student},
-    )
+        scopes={HelperScope.student},
+    ),
 ]

@@ -1,7 +1,7 @@
 from typing import Optional
 
 from utils import ValidateName, FileOrOtherFile, tip
-from utils.helper import Param, Helper, UserRole, ParamMode
+from utils.helper import Param, Helper, HelperScope, UserRole, ParamMode
 from utils.config import priority, comp_config, alcoona_kwargs
 from nonebot_plugin_alconna import Args, Field, Alconna, on_alconna
 
@@ -37,6 +37,7 @@ create_classes_cmd = on_alconna(
 
 delete_classes_cmd = on_alconna(
     Alconna("删除班级", Args["classes_id?", Optional[int]]),
+    aliases={"解散班级"},
     skip_for_unmatch=False,
     comp_config=comp_config,
     priority=priority,
@@ -111,7 +112,9 @@ __helpers__ = [
             Param(name="学院名称", mode=ParamMode.OPTIONAL),
             Param(name="专业名称", mode=ParamMode.OPTIONAL),
         ],
-        roles={UserRole.user},
+        roles={UserRole.user, UserRole.teacher},
+        exclude_roles={UserRole.student},
+        scopes={HelperScope.teacher},
         ai_description="学生不可用；如果班级已存在且当前用户是该班级教师，则会把当前群绑定到已有班级。",
     ),
     Helper(
@@ -120,6 +123,7 @@ __helpers__ = [
         aliases={"班级列表", "我的班级"},
         params=[Param(name="班级ID", mode=ParamMode.OPTIONAL)],
         roles={UserRole.teacher},
+        scopes={HelperScope.teacher},
     ),
     Helper(
         command="查询入班申请",
@@ -127,6 +131,7 @@ __helpers__ = [
         aliases={"入班申请列表"},
         params=[Param(name="班级ID", mode=ParamMode.OPTIONAL)],
         roles={UserRole.teacher},
+        scopes={HelperScope.teacher},
     ),
     Helper(
         command="处理入班申请",
@@ -134,23 +139,29 @@ __helpers__ = [
         aliases={"审核入班申请"},
         params=[Param(name="申请ID"), Param(name="处理结果")],
         roles={UserRole.teacher},
+        scopes={HelperScope.teacher},
     ),
     Helper(
         command="加入班级",
         description="可通过班级ID加入指定班级；如果在班级群中执行且不携带班级ID，则会自动识别当前群对应的班级。",
         params=[Param(name="班级ID", mode=ParamMode.OPTIONAL)],
         roles={UserRole.user},
+        exclude_roles={UserRole.student, UserRole.teacher},
+        scopes={HelperScope.student},
     ),
     Helper(
         command="导入班级",
         description="通过 Excel 批量导入班级和学生数据，至少需要包含学校、学院、班级、姓名、学号列。",
         params=[Param(name="导入文件")],
-        roles={UserRole.teacher},
+        roles={UserRole.user, UserRole.teacher},
+        exclude_roles={UserRole.student},
+        scopes={HelperScope.teacher},
     ),
     Helper(
         command="退出班级",
         description="退出当前班级",
         roles={UserRole.student},
+        scopes={HelperScope.student},
     ),
     Helper(
         command="删除班级",
@@ -158,6 +169,7 @@ __helpers__ = [
         aliases={"解散班级"},
         params=[Param(name="班级ID", mode=ParamMode.OPTIONAL)],
         roles={UserRole.teacher},
+        scopes={HelperScope.teacher},
     ),
     Helper(
         command="修改班级加入方式",
@@ -167,5 +179,6 @@ __helpers__ = [
             Param(name="加入方式", mode=ParamMode.OPTIONAL),
         ],
         roles={UserRole.teacher},
+        scopes={HelperScope.teacher},
     ),
 ]

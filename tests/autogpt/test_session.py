@@ -1,4 +1,5 @@
 import json
+import pytest
 
 
 def test_record_observations_writes_traceable_context(loaded_plugins):
@@ -30,3 +31,29 @@ def test_record_observations_writes_traceable_context(loaded_plugins):
     assert payload[0]["trace_id"] == "autogpt-test"
     assert payload[0]["command"] == "查询课表"
     assert payload[0]["success"] is True
+
+
+@pytest.mark.asyncio
+async def test_record_workflow_writes_traceable_context(loaded_plugins):
+    from utils.helper import Helpers
+    from src.plugins.autogpt.util import ChatSession
+    from src.plugins.autogpt.schema import AgentWorkflow, WorkflowStep
+
+    session = ChatSession(user_id=1, helpers=Helpers())
+    workflow = AgentWorkflow(
+        trace_id="autogpt-workflow",
+        kind="command",
+        goal="查询课表",
+        steps=[WorkflowStep(step_id="step-1", title="执行命令：查询课表", command="查询课表")],
+    )
+
+    await session.record_workflow(workflow)
+
+    messages = session.messages.messages
+    assert len(messages) == 1
+    content = messages[0].single_modal()
+    assert content.startswith("# 系统工作流状态\ntrace_id: autogpt-workflow\n")
+
+    payload = json.loads(content.split("\n", 2)[2])
+    assert payload["trace_id"] == "autogpt-workflow"
+    assert payload["steps"][0]["command"] == "查询课表"

@@ -281,6 +281,72 @@ class UserBind(FilterModel, Model):
             return bind
 
 
+class AgentWorkflowCheckpoint(FilterModel, Model):
+    """保存每个用户最近一次 Agent 工作流的检查点。
+
+    当前阶段只持久化“最新状态”，用于解决待确认工作流在进程重启后丢失的问题。
+    更细粒度的历史运行记录和事件流审计可以在后续阶段继续补充。
+    """
+
+    user_id: Mapped[int] = mapped_column(Integer, nullable=False, unique=True)
+    """内部用户 ID。这里不做外键约束，避免 Agent 运行态存储和业务用户生命周期强耦合。"""
+    trace_id: Mapped[str] = mapped_column(String(64), nullable=False, server_default="")
+    """最近一次写入该检查点时对应的 trace_id。"""
+    kind: Mapped[str] = mapped_column(String(32), nullable=False, server_default="chat")
+    """工作流类型。"""
+    status: Mapped[str] = mapped_column(String(32), nullable=False, server_default="planned")
+    """工作流当前状态。"""
+    goal: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
+    """用户最终目标。"""
+    summary: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
+    """工作流摘要。"""
+    playbook_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    """命中的 playbook 标识。"""
+    playbook_name: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    """命中的 playbook 名称。"""
+    workflow_data: Mapped[dict] = mapped_column(JSON, nullable=False, server_default="{}")
+    """完整工作流快照，使用 JSON 便于恢复 Pydantic 模型。"""
+    created_at: Mapped[CreateAt]
+    updated_at: Mapped[UpdateAt]
+
+
+class AgentWorkflowRun(FilterModel, Model):
+    """保存每次 Agent 工作流运行的历史记录。"""
+
+    user_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    """内部用户 ID。"""
+    trace_id: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    """该次工作流运行的唯一 trace_id。"""
+    source_trace_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    """如果该运行由上一条待确认工作流恢复而来，记录来源 trace_id。"""
+    kind: Mapped[str] = mapped_column(String(32), nullable=False, server_default="chat")
+    """工作流类型。"""
+    status: Mapped[str] = mapped_column(String(32), nullable=False, server_default="planned")
+    """工作流当前状态。"""
+    goal: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
+    """用户最终目标。"""
+    summary: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
+    """工作流摘要。"""
+    playbook_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    """命中的 playbook 标识。"""
+    playbook_name: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    """命中的 playbook 名称。"""
+    approval_type: Mapped[str] = mapped_column(String(32), nullable=False, server_default="none")
+    """审批类型。"""
+    approval_status: Mapped[str] = mapped_column(String(32), nullable=False, server_default="not_required")
+    """审批状态。"""
+    approval_reason: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
+    """审批原因。"""
+    started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    """工作流开始执行时间。"""
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    """工作流结束时间。"""
+    workflow_data: Mapped[dict] = mapped_column(JSON, nullable=False, server_default="{}")
+    """完整工作流快照。"""
+    created_at: Mapped[CreateAt]
+    updated_at: Mapped[UpdateAt]
+
+
 class School(FilterModel, Model):
     """学校表"""
 
@@ -303,9 +369,7 @@ class School(FilterModel, Model):
     """学校与教师一对多关系"""
     students: Mapped[List["Student"]] = relationship("Student", lazy="selectin", back_populates="school")
     """学校与学生一对多关系"""
-    organizations: Mapped[List["Organization"]] = relationship(
-        "Organization", lazy="selectin", back_populates="school"
-    )
+    organizations: Mapped[List["Organization"]] = relationship("Organization", lazy="selectin", back_populates="school")
     """学校与组织一对多关系"""
 
 
@@ -458,6 +522,7 @@ class GroupBind(FilterModel, Model):
 
 class Files(FilterModel, Model):
     """表示文件模型。"""
+
     name: Mapped[str] = mapped_column(String(128), nullable=False)
     """文件名称"""
     file_md5: Mapped[str] = mapped_column(String(32), nullable=False, unique=True)
@@ -631,8 +696,7 @@ class Teacher(FilterModel, Model):
         返回:
             Teacher: 教师信息
         """
-        print(user.role)
-        assert user.role != UserRole.student, "teacher role is not student"
+        assert user.student is None, "teacher role is not student"
         teacher = await cls(name=name, user=user, school_id=school_id, college_id=college_id).create()
         await user.update(role=UserRole.teacher)
         return teacher
@@ -911,6 +975,7 @@ class Classes(FilterModel, Model):
 
 class ClassesJoinRequest(FilterModel, Model):
     """表示班级joinrequest模型。"""
+
     classes_id: Mapped[int] = mapped_column(Integer, ForeignKey(Classes.id, ondelete="CASCADE"), nullable=False)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey(User.id, ondelete="CASCADE"), nullable=False)
     join_method: Mapped[JoinMethod] = mapped_column(String(32), nullable=False)
@@ -1003,6 +1068,8 @@ class Student(FilterModel, Model):
         resolved_school_id = school_id if school_id is not None else classes.school_id
         student = await cls(name=name, classes=classes, user=user, school_id=resolved_school_id).create()
         await StudentExtra(student=student).create()  # 创建学生额外信息
+        if user.teacher is None:
+            await user.update(role=UserRole.student)
         return student
 
     async def update_classes(self, classes: Classes):
@@ -1155,8 +1222,7 @@ class OrganizationMember(FilterModel, Model):
 
     __table_args__ = (
         CheckConstraint(
-            "(student_id IS NOT NULL AND teacher_id IS NULL) OR "
-            "(student_id IS NULL AND teacher_id IS NOT NULL)",
+            "(student_id IS NOT NULL AND teacher_id IS NULL) OR " "(student_id IS NULL AND teacher_id IS NOT NULL)",
             name="ck_bot_organization_member_subject",
         ),
         UniqueConstraint("organization_id", "student_id", name="uq_bot_organization_member_student"),
@@ -1322,6 +1388,7 @@ class TaskCommits(FilterModel, Model):
 
 class ScheduledNotice(FilterModel, Model):
     """表示scheduled通知模型。"""
+
     creator_id: Mapped[int] = mapped_column(Integer, ForeignKey(User.id, ondelete="CASCADE"), nullable=False)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     """通知标题"""
@@ -1356,6 +1423,7 @@ class CurriculaTimetable(FilterModel, Model):
 # 班级或学生课表配置项
 class CurriculaConfig(FilterModel, Model):
     """描述用户课表的基础配置。"""
+
     name: Mapped[str | None] = mapped_column(String(64), nullable=True, unique=False, index=True)
     """课表配置项名称，一般是班级名称"""
     classes_id: Mapped[int | None] = mapped_column(
@@ -1396,6 +1464,7 @@ class CurriculaConfig(FilterModel, Model):
 # 共享课表
 class ShareCurriculaConfig(FilterModel, Model):
     """描述课表共享功能的配置。"""
+
     config_id: Mapped[int] = mapped_column(Integer, ForeignKey(CurriculaConfig.id, ondelete="CASCADE"), nullable=False)
     """用户ID"""
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey(User.id, ondelete="CASCADE"), nullable=False)
@@ -1410,6 +1479,7 @@ class ShareCurriculaConfig(FilterModel, Model):
 # 课表
 class Curricula(FilterModel, Model):
     """表示课表模型。"""
+
     config_id: Mapped[int] = mapped_column(
         Integer,
         ForeignKey(CurriculaConfig.id, ondelete="CASCADE"),
@@ -1439,6 +1509,7 @@ class Curricula(FilterModel, Model):
 
 class LeaveConfig(FilterModel, Model):
     """描述请假流程相关的配置。"""
+
     classes_id: Mapped[int] = mapped_column(
         Integer, ForeignKey(Classes.id, ondelete="CASCADE"), nullable=True, unique=True
     )
@@ -1480,6 +1551,7 @@ class LeaveWorkflow(FilterModel, Model):
 
 class StudentLeave(FilterModel, Model):
     """表示学生请假模型。"""
+
     start_date: Mapped[datetime] = mapped_column(DateTime, nullable=True)
     """请假开始时间"""
     end_date: Mapped[datetime] = mapped_column(DateTime, nullable=True)

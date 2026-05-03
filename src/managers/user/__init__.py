@@ -2,13 +2,11 @@ from uuid import uuid4
 
 from utils import Emoji
 from utils.cache import get_cache
-from nonebot.adapters import Event
 from utils.tools import StringCard
 from nonebot.matcher import Matcher
 from utils.session import EventSession
 from utils.models import User, UserBind
-from nonebot_plugin_waiter import waiter
-from utils.roles import UserRoleLang, StudentRoleLang
+from utils.roles import UserRole, UserRoleLang, StudentRoleLang
 from nonebot.params import ArgPlainText, EventPlainText
 from nonebot_plugin_alconna import UniMessage, AlconnaMatcher
 from utils.models.depends import UserDepends, UserOrCreatedDepends
@@ -141,6 +139,7 @@ async def _(
 @logout_cmd.handle()
 async def _(matcher: AlconnaMatcher, user: UserDepends, role: str):
     """处理当前命令或事件逻辑。"""
+    role = role.strip()
     if role not in [UserRoleLang.student, UserRoleLang.teacher, UserRoleLang.user]:
         await matcher.finish(Emoji.error + "角色不存在！")
 
@@ -160,29 +159,35 @@ async def _(matcher: AlconnaMatcher, user: UserDepends, role: str):
         elif user.student is not None:
             await matcher.finish(Emoji.error + "请先注销学生账号后再注销！")
 
+    # 把待注销的目标角色写入 matcher state，
+    # 由下一轮确认消息统一执行删除，避免把副作用耦合在 waiter 回调里。
+    matcher.state["logout_role"] = role
     await matcher.send(Emoji.warning + f"您确定要注销**{role}**账号吗？\n" f"注销后将无法恢复，是否继续？(yes/no)")
 
-    @waiter(waits=["message"], block=True)
-    async def listen(event: Event):
-        """监听并处理用户登录事件。"""
-        if event.get_message().extract_plain_text() != "yes":
-            await matcher.finish(Emoji.warning + "注销已取消！")
-            return False
-        if role == UserRoleLang.teacher and user.teacher:
-            await user.teacher.filter(id=user.teacher.id).delete()
-            return True
-        elif role == UserRoleLang.student and user.student:
-            await user.student.filter(id=user.student.id).delete()
-            return True
-        elif role == UserRoleLang.user:
-            await user.filter(id=user.id).delete()
-            return True
-        return False
 
-    response = await listen.wait(timeout=60)
-    if response is None:
-        await matcher.finish(Emoji.success + "注销响应超时取消注销！")
-    if response:
-        await matcher.finish(Emoji.success + "注销成功！")
+@logout_cmd.got("confirm")
+async def _(matcher: AlconnaMatcher, user: UserDepends, confirm: str = ArgPlainText()):
+    """确认并执行注销逻辑。"""
+    if confirm.strip().lower() != "yes":
+        await matcher.finish(Emoji.warning + "注销已取消！")
+
+    role = matcher.state.get("logout_role")
+    if role is None:
+        await matcher.finish(Emoji.error + "未找到待注销的角色信息，请重新发起注销命令。")
+    if user is None:
+        await matcher.finish(Emoji.error + "您没有绑定任何账号！")
+
+    if role == UserRoleLang.teacher and user.teacher:
+        next_role = UserRole.student if user.student is not None else UserRole.user
+        await user.teacher.filter(id=user.teacher.id).delete()
+        await user.update(role=next_role)
+    elif role == UserRoleLang.student and user.student:
+        next_role = UserRole.teacher if user.teacher is not None else UserRole.user
+        await user.student.filter(id=user.student.id).delete()
+        await user.update(role=next_role)
+    elif role == UserRoleLang.user:
+        await user.filter(id=user.id).delete()
     else:
-        await matcher.finish(Emoji.success + "注销已取消！")
+        await matcher.finish(Emoji.error + "目标账号不存在或已被注销，请刷新后重试。")
+
+    await matcher.finish(Emoji.success + "注销成功！")

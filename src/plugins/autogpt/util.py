@@ -13,13 +13,19 @@ from nonebot_plugin_alconna import UniMessage
 from utils.helper.depends import HelpersDepends
 from utils.models.depends import UserOrCreatedDepends
 from utils.llm.message import Content, Context, LLMRole, Messages
+from utils.llm.util import uni_message_to_contents
 
+from .checkpoints import WorkflowCheckpointStore
 from .exception import SessionLockError
 from .pipeline import MessageProcessingPipeline
-from .schema import ChatMessage, AutoTaskList, CommandObservation
+from .runs import WorkflowRunStore
+from .schema import AgentTurnResult, AgentWorkflow, AutoTaskList, ChatMessage, CommandObservation, IntentRoute
+from .workflow import clone_workflow_for_execution, workflow_requires_confirmation, workflow_to_auto_tasks
 
 pattern = r"!\[image\]\(([^)]+)\)"
 ProgressReporter = Callable[[str], Awaitable[None]]
+CONFIRM_PATTERNS = ("确认", "继续执行", "继续吧", "执行吧", "可以执行", "好的执行", "确认执行")
+CANCEL_PATTERNS = ("取消", "不用了", "算了", "停止", "终止", "先别执行", "取消执行")
 
 
 async def get_prompt_system(helpers: Helpers) -> str:
@@ -94,6 +100,11 @@ class ChatSession:
         self.messages = Messages()
         self.helpers = helpers
         self.last_trace_id = ""
+        self.last_workflow: AgentWorkflow | None = None
+        self.last_turn_result: AgentTurnResult | None = None
+        self.pending_workflow: AgentWorkflow | None = None
+        self.workflow_checkpoint_store = WorkflowCheckpointStore()
+        self.workflow_run_store = WorkflowRunStore()
 
     def is_last_duplicate_message(self, contents: list[Content]) -> bool:
         """检查即将发送的用户消息是否与上一条重复。
@@ -129,14 +140,14 @@ class ChatSession:
         self,
         message: str | UniMessage | ChatMessage,
         progress_reporter: ProgressReporter | None = None,
-    ) -> AutoTaskList | None:
+    ) -> AgentTurnResult:
         """处理用户消息并执行 AutoGPT 主流程。
 
         参数:
             message (str | UniMessage | ChatMessage): 用户输入的原始消息。
 
         返回:
-            AutoTaskList | None: 解析出的自动任务结果，不可生成时返回 `None`。
+            AgentTurnResult: 统一承载本轮路由、计划、工作流和自动任务结果。
         """
         if self.lock:
             raise SessionLockError("聊天锁已经被锁定，无法发送消息！")
@@ -144,16 +155,25 @@ class ChatSession:
             self.lock = True
             self.last_trace_id = f"autogpt-{uuid4().hex[:12]}"
             logger.info(f'AutoGPT trace "{self.last_trace_id}" started for user {self.user_id}')
+            await self.restore_pending_workflow()
+            if pending_result := await self.resolve_pending_workflow_action(message, trace_id=self.last_trace_id):
+                self.last_turn_result = pending_result
+                if pending_result.workflow is not None:
+                    self.last_workflow = pending_result.workflow
+                logger.info(f'AutoGPT trace "{self.last_trace_id}" resumed pending workflow for user {self.user_id}')
+                return pending_result
             pipeline = MessageProcessingPipeline(
                 helpers=self.helpers,
                 messages=self.messages,
                 trace_id=self.last_trace_id,
                 progress_reporter=progress_reporter,
             )
-            auto_tasks = await pipeline.process(message)
+            turn_result = await pipeline.process(message)
             self.messages = pipeline.messages
+            self.last_turn_result = turn_result
+            self.last_workflow = turn_result.workflow
             logger.info(f'AutoGPT trace "{self.last_trace_id}" finished for user {self.user_id}')
-            return auto_tasks
+            return turn_result
         except Exception as error:
             logger.exception(f'AutoGPT trace "{self.last_trace_id}" failed for user {self.user_id}: {error}')
             raise
@@ -172,8 +192,129 @@ class ChatSession:
         content = json.dumps(payload, ensure_ascii=False, default=str)
         self.messages.assistant_message(f"# 系统命令执行观察\ntrace_id: {trace_id or self.last_trace_id}\n{content}")
 
-    def clear(self) -> None:
+    async def record_workflow(self, workflow: AgentWorkflow, trace_id: str = "") -> None:
+        """把当前轮次的工作流状态写回会话。"""
+
+        self.last_workflow = workflow
+        if workflow_requires_confirmation(workflow) and workflow.status == "needs_confirm":
+            self.pending_workflow = workflow.copy(deep=True)
+        elif workflow.status in {"completed", "failed", "cancelled"} or not workflow.need_confirm:
+            self.pending_workflow = None
+        self._append_workflow_message(workflow, trace_id=trace_id)
+        await self.workflow_checkpoint_store.save_workflow(self.user_id, workflow)
+        await self.workflow_run_store.save_run(self.user_id, workflow)
+
+    async def restore_pending_workflow(self) -> AgentWorkflow | None:
+        """从持久化检查点恢复待确认工作流。"""
+
+        if self.pending_workflow is not None:
+            return self.pending_workflow
+
+        workflow = await self.workflow_checkpoint_store.load_pending_workflow(self.user_id)
+        if workflow is None:
+            return None
+
+        self.pending_workflow = workflow.copy(deep=True)
+        self.last_workflow = workflow
+        self._append_workflow_message(workflow, trace_id=workflow.trace_id)
+        return self.pending_workflow
+
+    async def resolve_pending_workflow_action(
+        self,
+        message: str | UniMessage | ChatMessage,
+        trace_id: str = "",
+    ) -> AgentTurnResult | None:
+        """处理上一轮待确认工作流的继续执行或取消。"""
+
+        if self.pending_workflow is None:
+            return None
+
+        contents = self._message_to_contents(message)
+        decision = self._classify_pending_workflow_decision(contents)
+        if decision is None:
+            return None
+
+        self.messages.user_message(contents)
+        current_trace_id = trace_id or self.last_trace_id
+        if decision == "cancel":
+            cancelled_workflow = self.pending_workflow.copy(deep=True)
+            cancelled_workflow.status = "cancelled"
+            if cancelled_workflow.approval.required:
+                cancelled_workflow.approval.status = "rejected"
+                cancelled_workflow.add_event("approval_rejected", "用户取消了待确认工作流。", status="rejected")
+            for step in cancelled_workflow.steps:
+                if step.approval.required:
+                    step.approval.status = "rejected"
+            cancelled_workflow.add_event("workflow_cancelled", "工作流已取消。", status="cancelled")
+            cancelled_workflow.finished_at = datetime.now()
+            self.pending_workflow = None
+            self.messages.assistant_message("已取消上一条待确认任务。")
+            await self.record_workflow(cancelled_workflow, trace_id=current_trace_id)
+            return AgentTurnResult(
+                route=IntentRoute(intent="chat", reply="已取消上一条待确认任务。", reason="用户取消待确认工作流。"),
+                auto_tasks=AutoTaskList(reply="已取消上一条待确认任务。"),
+            )
+
+        resumed_workflow = clone_workflow_for_execution(self.pending_workflow, trace_id=current_trace_id)
+        self.pending_workflow = None
+        reply = "好的，我继续为你处理。"
+        self.messages.assistant_message(reply)
+        self.last_workflow = resumed_workflow
+        await self.workflow_checkpoint_store.save_workflow(self.user_id, resumed_workflow)
+        await self.workflow_run_store.save_run(self.user_id, resumed_workflow)
+        return AgentTurnResult(
+            route=IntentRoute(
+                intent="complex_task" if len(resumed_workflow.steps) > 1 else "command",
+                requires_command=True,
+                reply=reply,
+                reason="用户确认执行待确认工作流。",
+            ),
+            auto_tasks=workflow_to_auto_tasks(resumed_workflow, reply=reply),
+            workflow=resumed_workflow,
+        )
+
+    @staticmethod
+    def _message_to_contents(message: str | UniMessage | ChatMessage) -> list[Content]:
+        """将消息统一转成内容列表。"""
+
+        if isinstance(message, ChatMessage):
+            return list(message.message)
+        return uni_message_to_contents(message)
+
+    @classmethod
+    def _classify_pending_workflow_decision(cls, contents: list[Content]) -> str | None:
+        """判断用户是在确认、取消，还是在补充新的自然语言信息。"""
+
+        text = cls._normalize_decision_text(contents)
+        if not text or len(text) > 12:
+            return None
+        if any(pattern in text for pattern in CANCEL_PATTERNS):
+            return "cancel"
+        if any(pattern in text for pattern in CONFIRM_PATTERNS):
+            return "confirm"
+        return None
+
+    @staticmethod
+    def _normalize_decision_text(contents: list[Content]) -> str:
+        """提取用户文本内容并归一化为短确认语句。"""
+
+        text = "".join(content.value for content in contents if content.type == "text")
+        return re.sub(r"[\s,，。！？!?.；;:：~～、]", "", text).lower()
+
+    def _append_workflow_message(self, workflow: AgentWorkflow, trace_id: str = "") -> None:
+        """把工作流快照写入会话消息，便于后续轮次继续引用。"""
+
+        content = json.dumps(workflow.dict(), ensure_ascii=False, default=str)
+        self.messages.assistant_message(
+            f"# 系统工作流状态\ntrace_id: {trace_id or workflow.trace_id or self.last_trace_id}\n{content}"
+        )
+
+    async def clear(self) -> None:
         """从会话管理器中移除当前会话。"""
+        await self.workflow_checkpoint_store.clear(self.user_id)
+        self.pending_workflow = None
+        self.last_workflow = None
+        self.last_turn_result = None
         chat_session_manager.sessions.pop(self.user_id, None)
 
 

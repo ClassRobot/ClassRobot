@@ -1,7 +1,7 @@
 from utils import tip
 from nonebot import on_command
 from utils.config import priority, comp_config
-from utils.helper import Helper, Context, UserRole
+from utils.helper import Helper, Context, HelperScope, UserRole
 from nonebot_plugin_alconna import Args, Field, Alconna, on_alconna
 
 self_info_cmd = on_alconna(Alconna("我的信息"), aliases={"个人信息", "用户信息"}, priority=priority, block=True)
@@ -19,7 +19,11 @@ logout_cmd = on_alconna(
         Args[
             "role",
             str,
-            Field(completion=tip("可以选择注销**用户**，**教师**或**学生**，一旦注销将无法恢复，相关数据也会被删除，请慎重！")),
+            Field(
+                completion=tip(
+                    "可以选择注销**用户**，**教师**或**学生**，一旦注销将无法恢复，相关数据也会被删除，请慎重！"
+                )
+            ),
         ],
     ),
     aliases={"删除账号", "账号注销"},
@@ -38,11 +42,15 @@ __helpers__ = [
         command="我的信息",
         description="查看自己的信息,是否为教师或学生",
         aliases={"个人信息", "用户信息"},
+        roles={UserRole.user},
+        scopes={HelperScope.user},
     ),
     Helper(
         command="绑定用户",
         description="用于在不同平台之间绑定同一个用户信息，执行命令后会生成一个token，将token发送给指定平台的机器人即可完成绑定",
         aliases={"绑定平台", "绑定", "换绑平台", "关联平台"},
+        roles={UserRole.user},
+        scopes={HelperScope.user},
         example=[
             Context(
                 rote="用户A",
@@ -66,6 +74,7 @@ __helpers__ = [
         command="注销",
         description="注销当前用户，删除相关数据",
         aliases={"删除账号", "账号注销"},
-        roles={UserRole.user, UserRole.teacher, UserRole.student},
+        roles={UserRole.user},
+        scopes={HelperScope.user},
     ),
 ]

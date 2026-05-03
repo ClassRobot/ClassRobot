@@ -3,7 +3,7 @@ from typing import Optional
 from utils import tip
 from utils.config import alcoona_kwargs
 from utils.extensions import AdminExtension
-from utils.helper import Param, Helper, UserRole, ParamMode
+from utils.helper import Param, Helper, HelperScope, UserRole, ParamMode
 from nonebot_plugin_alconna import Args, Field, Alconna, MultiVar, on_alconna
 
 add_school = on_alconna(
@@ -20,7 +20,9 @@ set_school = on_alconna(
     Alconna(
         "修改学校",
         Args["school_name", str, Field(completion=tip("请输入学校名称"))],
-        Args["values", MultiVar(str, flag="+"), Field(completion=tip("修改方式如 名称=新校名 地址=新地址 描述=学校说明"))],
+        Args[
+            "values", MultiVar(str, flag="+"), Field(completion=tip("修改方式如 名称=新校名 地址=新地址 描述=学校说明"))
+        ],
     ),
     **alcoona_kwargs,
     extensions=[AdminExtension],
@@ -181,42 +183,49 @@ __helpers__ = [
         description="添加学校基础信息。",
         params=[Param(name="学校名称"), Param(name="地址", mode=ParamMode.OPTIONAL)],
         roles={UserRole.admin},
+        scopes={HelperScope.admin},
     ),
     Helper(
         command="修改学校",
         description="修改学校名称、地址、描述，采用 key=value 形式传参。",
         params=[Param(name="学校名称"), Param(name="values", mode=ParamMode.ONE_OR_MORE)],
         roles={UserRole.admin},
+        scopes={HelperScope.admin},
     ),
     Helper(
         command="删除学校",
         description="删除学校及其下属学院、专业、班级和组织，执行前会二次确认。",
         params=[Param(name="学校名称")],
         roles={UserRole.admin},
+        scopes={HelperScope.admin},
     ),
     Helper(
         command="添加学院",
         description="为指定学校添加学院。",
         params=[Param(name="学校名称"), Param(name="学院名称")],
         roles={UserRole.admin},
+        scopes={HelperScope.admin},
     ),
     Helper(
         command="修改学院",
         description="修改指定学校下学院的名称或描述，采用 key=value 形式传参。",
         params=[Param(name="学校名称"), Param(name="学院名称"), Param(name="values", mode=ParamMode.ONE_OR_MORE)],
         roles={UserRole.admin},
+        scopes={HelperScope.admin},
     ),
     Helper(
         command="删除学院",
         description="删除指定学校下的学院及其专业、班级，执行前会二次确认。",
         params=[Param(name="学校名称"), Param(name="学院名称")],
         roles={UserRole.admin},
+        scopes={HelperScope.admin},
     ),
     Helper(
         command="添加专业",
         description="为指定学校下的学院添加专业。",
         params=[Param(name="学校名称"), Param(name="学院名称"), Param(name="专业名称")],
         roles={UserRole.admin},
+        scopes={HelperScope.admin},
     ),
     Helper(
         command="修改专业",
@@ -228,12 +237,14 @@ __helpers__ = [
             Param(name="values", mode=ParamMode.ONE_OR_MORE),
         ],
         roles={UserRole.admin},
+        scopes={HelperScope.admin},
     ),
     Helper(
         command="删除专业",
         description="删除指定专业及其关联班级，执行前会二次确认。",
         params=[Param(name="学校名称"), Param(name="学院名称"), Param(name="专业名称")],
         roles={UserRole.admin},
+        scopes={HelperScope.admin},
     ),
     Helper(
         command="添加组织",
@@ -245,24 +256,28 @@ __helpers__ = [
             Param(name="组织说明", mode=ParamMode.OPTIONAL),
         ],
         roles={UserRole.admin},
+        scopes={HelperScope.admin},
     ),
     Helper(
         command="修改组织",
         description="修改组织名称、类型、说明，采用 key=value 形式传参。",
         params=[Param(name="学校名称"), Param(name="组织名称"), Param(name="values", mode=ParamMode.ONE_OR_MORE)],
         roles={UserRole.admin},
+        scopes={HelperScope.admin},
     ),
     Helper(
         command="删除组织",
         description="删除指定学校下的组织，执行前会二次确认。",
         params=[Param(name="学校名称"), Param(name="组织名称")],
         roles={UserRole.admin},
+        scopes={HelperScope.admin},
     ),
     Helper(
         command="查询组织架构",
         description="查看学校、学院、专业、班级与组织的整体结构；不携带学校名称时返回学校列表。",
         aliases={"组织架构", "学校架构"},
         params=[Param(name="学校名称", mode=ParamMode.OPTIONAL)],
+        scopes={HelperScope.public},
     ),
     Helper(
         command="查询组织",
@@ -272,6 +287,7 @@ __helpers__ = [
             Param(name="学校名称", mode=ParamMode.OPTIONAL),
             Param(name="组织名称", mode=ParamMode.OPTIONAL),
         ],
+        scopes={HelperScope.public},
     ),
     Helper(
         command="加入组织",
@@ -282,7 +298,8 @@ __helpers__ = [
             Param(name="身份", mode=ParamMode.OPTIONAL),
             Param(name="岗位", mode=ParamMode.OPTIONAL),
         ],
-        roles={UserRole.user},
+        roles={UserRole.student, UserRole.teacher},
+        scopes={HelperScope.student, HelperScope.teacher},
         ai_description="执行时必须已经绑定学生或教师身份；普通用户不能直接成为组织成员。",
     ),
     Helper(
@@ -293,7 +310,8 @@ __helpers__ = [
             Param(name="组织名称"),
             Param(name="身份", mode=ParamMode.OPTIONAL),
         ],
-        roles={UserRole.user},
+        roles={UserRole.student, UserRole.teacher},
+        scopes={HelperScope.student, HelperScope.teacher},
         ai_description="执行时必须已经绑定学生或教师身份；若同时具备学生和教师身份，建议显式指定身份。",
     ),
 ]

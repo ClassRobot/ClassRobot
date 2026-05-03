@@ -1,6 +1,6 @@
 from utils import tip
 from utils.config import priority, comp_config
-from utils.helper import Param, Helper, UserRole, ParamMode
+from utils.helper import Param, Helper, HelperScope, UserRole, ParamMode
 from nonebot_plugin_alconna import Args, Field, Alconna, MultiVar, on_alconna
 
 query_teacher_cmd = on_alconna(
@@ -34,6 +34,7 @@ __helpers__ = [
         description="查询当前账号绑定的教师信息和所管理的班级。",
         aliases={"教师信息", "我的教师信息"},
         roles={UserRole.teacher},
+        scopes={HelperScope.teacher},
     ),
     Helper(
         command="修改教师信息",
@@ -47,5 +48,7 @@ __helpers__ = [
             ),
         ],
         roles={UserRole.user, UserRole.teacher},
+        exclude_roles={UserRole.student},
+        scopes={HelperScope.teacher},
     ),
 ]

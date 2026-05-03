@@ -1,7 +1,7 @@
 import importlib
 
-
 BASIC_HELPER_MODULES = {
+    "src.managers.auth.commands": {"登录教务系统"},
     "src.managers.group.commands": {
         "添加学校",
         "修改学校",
@@ -34,11 +34,15 @@ BASIC_HELPER_MODULES = {
     "src.managers.student.commands": {"查询学生信息", "修改学生信息"},
     "src.managers.teacher.commands": {"查询教师信息", "修改教师信息"},
     "src.managers.user.commands": {"我的信息", "绑定用户", "注销"},
-    "src.plugins.curriculum.commands": {"添加课表", "删除课表", "查询课表", "分享课表"},
+    "src.plugins.curriculum.commands": {"添加课表", "删除课表", "查询课表", "分享课表", "设置当前周"},
     "src.plugins.campus_map.commands": {"校园地图"},
     "src.plugins.find_at.commands": {"查找学生", "at"},
-    "src.plugins.leave.commands": {"请假", "查询请假", "设置请假推送", "删除请假"},
+    "src.plugins.leave.commands": {"请假", "请假列表", "设置请假推送", "删除请假"},
     "src.plugins.tasks.commands": {"提交任务", "创建任务", "删除任务", "导出任务", "查询任务"},
+    "src.plugins.helper": {"help"},
+    "src.plugins.autogpt": {"清空聊天"},
+    "src.others.image_generate.commands": {"图片生成"},
+    "src.others.pencraft.commands": {"文本创作"},
 }
 
 
@@ -82,3 +86,42 @@ def test_write_command_helpers_are_marked_by_name(loaded_plugins):
     assert "添加班级" in write_commands
     assert "删除任务" in write_commands
     assert "注销" in write_commands
+
+
+def test_helper_aliases_and_primary_names_are_invocable(loaded_plugins):
+    import importlib
+    import re
+
+    from nonebot.internal.matcher.matcher import MatcherMeta
+
+    for module_name in BASIC_HELPER_MODULES:
+        module = importlib.import_module(module_name)
+        helpers = getattr(module, "__helpers__", [])
+        matchers = []
+        triggers = set()
+        for value in vars(module).values():
+            if not isinstance(value, MatcherMeta):
+                continue
+            if getattr(value, "module_name", None) != module.__name__:
+                continue
+            matchers.append(value)
+            command_path = getattr(value, "_command_path", "")
+            if isinstance(command_path, str) and command_path:
+                triggers.add(command_path.split("::", 1)[-1])
+            triggers.update(re.findall(r"\('([^']+)',\)", str(getattr(value, "rule", ""))))
+
+        for helper in helpers:
+            assert helper.command in triggers
+
+            # `on_alconna(..., aliases={...})` 的别名不会稳定暴露在 matcher 元数据里，
+            # 因此这里只对可可靠提取 rule literal 的命令别名做断言，避免产生假阴性。
+            has_alconna_matcher = any(
+                isinstance(getattr(matcher, "_command_path", ""), str)
+                and getattr(matcher, "_command_path", "").split("::", 1)[-1] == helper.command
+                for matcher in matchers
+            )
+            if has_alconna_matcher:
+                continue
+
+            for alias in helper.aliases:
+                assert alias in triggers

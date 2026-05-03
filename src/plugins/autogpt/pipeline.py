@@ -13,8 +13,9 @@ from utils.llm.util import uni_message_to_contents
 from utils.llm.util import json_loads
 from utils.llm.agents.tools import AutoTaskAgent, ExtractAgent, RagAgent, SummaryAgent
 
-from .schema import AgentPlan, IntentRoute, AutoTaskList, ChatMessage
+from .schema import AgentPlan, IntentRoute, AutoTaskList, ChatMessage, AgentTurnResult
 from .command_tools import CommandToolCatalog
+from .workflow import build_turn_result
 
 ProgressReporter = Callable[[str], Awaitable[None]]
 
@@ -370,7 +371,7 @@ class MessageProcessingPipeline:
             PersistAssistantReplyNode(),
         ]
 
-    async def process(self, message: str | UniMessage | ChatMessage) -> AutoTaskList | None:
+    async def process(self, message: str | UniMessage | ChatMessage) -> AgentTurnResult:
         """执行完整消息处理流水线。"""
         state = PipelineState(trace_id=self.trace_id)
         for node in self.build_nodes(message):
@@ -387,4 +388,10 @@ class MessageProcessingPipeline:
                 raise
             duration_ms = (perf_counter() - started_at) * 1000
             logger.debug(f'AutoGPT trace "{self.trace_id}" node "{node_name}" finished in {duration_ms:.2f}ms')
-        return state.auto_tasks
+        return build_turn_result(
+            trace_id=self.trace_id,
+            route=state.intent_route,
+            plan=state.agent_plan,
+            auto_tasks=state.auto_tasks,
+            command_tools=self.command_tools,
+        )

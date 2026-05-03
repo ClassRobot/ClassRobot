@@ -1,6 +1,6 @@
 from utils.config import priority, comp_config
 from utils import ValidateName, tip, alias_product
-from utils.helper import Param, Helper, UserRole, ParamMode
+from utils.helper import Param, Helper, HelperScope, UserRole, ParamMode
 from nonebot_plugin_alconna import Args, File, Field, Image, Other, Alconna, MultiVar, on_alconna
 
 push_task_alias = alias_product(["上传", "提交"], ["作业", "任务"])
@@ -76,13 +76,15 @@ __helpers__ = [
         aliases=push_task_alias,
         params=[Param(name="任务名称/ID"), Param(name="[文件]/[图片]")],
         roles={UserRole.student},
+        scopes={HelperScope.student},
     ),
     Helper(
         command="创建任务",
         description="创建新的任务(名称不能为纯数字)",
         aliases=create_task_alias,
         params=[Param(name="任务名称/ID")],
-        roles={UserRole.teacher, UserRole.student},
+        roles={UserRole.student},
+        scopes={HelperScope.student},
     ),
     Helper(
         command="删除任务",
@@ -90,6 +92,7 @@ __helpers__ = [
         aliases=delete_task_alias,
         params=[Param(name="任务名称/ID")],
         roles={UserRole.teacher, UserRole.student},
+        scopes={HelperScope.student, HelperScope.teacher},
     ),
     Helper(
         command="导出任务",
@@ -97,6 +100,7 @@ __helpers__ = [
         aliases=export_task_alias,
         params=[Param(name="任务名称/ID")],
         roles={UserRole.teacher, UserRole.student},
+        scopes={HelperScope.student, HelperScope.teacher},
     ),
     Helper(
         command="查询任务",
@@ -104,6 +108,7 @@ __helpers__ = [
         aliases=query_task_alias,
         params=[Param(name="任务名称/ID", mode=ParamMode.OPTIONAL)],
         roles={UserRole.teacher, UserRole.student},
+        scopes={HelperScope.student, HelperScope.teacher},
     ),
 ]
 

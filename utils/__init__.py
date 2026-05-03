@@ -4,9 +4,15 @@ from typing import TypeVar, Callable
 from strenum import StrEnum
 from nonebot_plugin_alconna import File, Other
 
-from .tools import check_punctuation
-
 T = TypeVar("T")
+
+
+def check_punctuation(text: str, ignore: list[str] | None = None) -> bool:
+    """延迟导入标点检查实现，避免包级导入触发 NoneBot 依赖。"""
+
+    from .tools import check_punctuation as _check_punctuation
+
+    return _check_punctuation(text, ignore)
 
 
 ValidateName = lambda name: (None if name.isdigit() or check_punctuation(name) else name)  # noqa: E731
@@ -14,6 +20,7 @@ ValidateName = lambda name: (None if name.isdigit() or check_punctuation(name) e
 
 class Emoji(StrEnum):
     """定义项目中使用的表情符号枚举值。"""
+
     win = "🎉"
     "庆祝"
     error = "❌"

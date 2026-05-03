@@ -1,5 +1,20 @@
 # 项目结构说明
 
+## 一眼看懂项目
+
+```mermaid
+flowchart LR
+    Platform["平台入口\nQQ / OneBot"] --> Access["接入层\nsrc/managers / src/plugins / src/others / src/routers"]
+    Access --> Orchestrator["编排层\nsrc/plugins/autogpt / utils/session"]
+    Access --> Domain["业务层\nsrc/managers + 业务插件"]
+    Orchestrator --> Domain
+    Orchestrator --> Skills["能力层\nskills / utils/skills"]
+    Domain --> Infra["基础设施层\nutils/models / utils/llm / utils/tools"]
+    Skills --> Infra
+```
+
+如果你想看更完整的系统设计图，而不只是目录结构，可以继续阅读 [架构视图总览](../architecture/architecture-views.md)。
+
 ## 顶层目录
 
 - `src/`: NoneBot 插件与路由

@@ -6,8 +6,9 @@
 
 1. [配置说明](./configuration.md)
 2. [项目结构说明](./project-structure.md)
-3. [消息处理流程](../guides/message-processing-flow.md)
-4. [项目能力总览](../reference/capability-overview.md)
+3. [架构视图总览](../architecture/architecture-views.md)
+4. [消息处理流程](../guides/message-processing-flow.md)
+5. [项目能力总览](../reference/capability-overview.md)
 
 ## 当前收录
 
@@ -15,6 +16,8 @@
   - 说明 `.env` 中各个参数如何填写、哪些必须、哪些按需启用
 - [项目结构说明](./project-structure.md)
   - 说明源码、资源、skill、工具层与文档层应该如何摆放
+- [架构视图总览](../architecture/architecture-views.md)
+  - 用多张 Mermaid 图说明系统边界、模块分层、领域关系和运行时流程
 
 ## 放置建议
 

@@ -10,11 +10,18 @@ import warnings
 import threading
 from itertools import chain
 from types import MappingProxyType
-from distutils.version import StrictVersion
 from urllib.parse import ParseResult, unquote, parse_qs, urlparse
 from typing import Any, Set, List, Type, Tuple, Union, Mapping, TypeVar, Callable, Iterable, Optional, cast
 
 import async_timeout
+
+try:
+    from packaging.version import Version as StrictVersion
+except ImportError:
+    try:
+        from setuptools._distutils.version import StrictVersion
+    except ImportError:
+        from distutils.version import StrictVersion
 
 from .utils import str_if_bytes
 from .compat import Protocol, TypedDict
