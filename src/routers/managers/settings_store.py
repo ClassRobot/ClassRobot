@@ -21,6 +21,7 @@ from .service import mask_secret
 ENV_PATH = project_root / ".env"
 VALID_COS_SCHEMES = {"http", "https"}
 
+# 前端设置请求按分组字段提交；这里负责映射到真实的 .env 键名。
 FIELD_TO_ENV = {
     "base": {
         "global_proxy": "GLOBAL_PROXY",
@@ -54,10 +55,23 @@ FIELD_TO_ENV = {
 
 
 def _encrypt_config() -> EncryptConfig:
+    """从当前 NoneBot 配置构造加密配置对象。
+
+    Returns:
+        EncryptConfig: 解析后的加密配置。
+    """
     return EncryptConfig.parse_obj(get_driver().config.dict())
 
 
 def _model_configs_payload(mask: bool = True) -> list[dict[str, Any]]:
+    """序列化模型配置列表。
+
+    Args:
+        mask: 是否对模型 API key 做脱敏。
+
+    Returns:
+        list[dict[str, Any]]: 模型配置列表。
+    """
     configs = []
     for config in llm_config.llm_configs:
         item = config.dict()
@@ -68,6 +82,11 @@ def _model_configs_payload(mask: bool = True) -> list[dict[str, Any]]:
 
 
 def get_settings() -> dict[str, Any]:
+    """读取设置页需要的完整配置 payload。
+
+    Returns:
+        dict[str, Any]: 按页面分组组织的设置数据。
+    """
     driver_config = get_driver().config
     encrypt_config = _encrypt_config()
     return {
@@ -103,6 +122,14 @@ def get_settings() -> dict[str, Any]:
 
 
 def _stringify_env_value(value: Any) -> str:
+    """把 Python 值转换成 dotenv 可写入的字符串。
+
+    Args:
+        value: 原始配置值。
+
+    Returns:
+        str: 适合写入 ``.env`` 的字符串形式。
+    """
     if isinstance(value, (dict, list)):
         return json.dumps(value, ensure_ascii=False)
     if isinstance(value, bool):
@@ -111,6 +138,19 @@ def _stringify_env_value(value: Any) -> str:
 
 
 def _validate_string(value: Any, field: str, *, allow_blank: bool = True) -> str:
+    """校验字符串设置项。
+
+    Args:
+        value: 待校验的值。
+        field: 字段名，用于错误提示。
+        allow_blank: 是否允许空白字符串。
+
+    Returns:
+        str: 通过校验的字符串值。
+
+    Raises:
+        ValueError: 当值类型或内容不合法时抛出。
+    """
     if not isinstance(value, str):
         raise ValueError(f"Setting `{field}` must be a string")
     if not allow_blank and not value.strip():
@@ -119,6 +159,20 @@ def _validate_string(value: Any, field: str, *, allow_blank: bool = True) -> str
 
 
 def _validate_int(value: Any, field: str, *, minimum: int | None = None, maximum: int | None = None) -> int:
+    """校验整数设置项。
+
+    Args:
+        value: 待校验的值。
+        field: 字段名，用于错误提示。
+        minimum: 可选的最小值约束。
+        maximum: 可选的最大值约束。
+
+    Returns:
+        int: 通过校验的整数值。
+
+    Raises:
+        ValueError: 当值不是合法整数或超出范围时抛出。
+    """
     if isinstance(value, bool) or not isinstance(value, int):
         raise ValueError(f"Setting `{field}` must be an integer")
     if minimum is not None and value < minimum:
@@ -129,6 +183,19 @@ def _validate_int(value: Any, field: str, *, minimum: int | None = None, maximum
 
 
 def _validate_float(value: Any, field: str, *, minimum: float | None = None) -> float:
+    """校验浮点数设置项。
+
+    Args:
+        value: 待校验的值。
+        field: 字段名，用于错误提示。
+        minimum: 可选的最小值约束。
+
+    Returns:
+        float: 通过校验的浮点值。
+
+    Raises:
+        ValueError: 当值不是有限数字或超出范围时抛出。
+    """
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ValueError(f"Setting `{field}` must be a number")
     normalized = float(value)
@@ -140,6 +207,18 @@ def _validate_float(value: Any, field: str, *, minimum: float | None = None) -> 
 
 
 def _validate_model_configs(value: Any, field: str) -> list[dict[str, Any]]:
+    """校验模型配置列表。
+
+    Args:
+        value: 前端提交的模型配置列表。
+        field: 字段名，用于错误提示。
+
+    Returns:
+        list[dict[str, Any]]: 通过校验并标准化后的模型配置列表。
+
+    Raises:
+        ValueError: 当任一模型配置不合法时抛出。
+    """
     if not isinstance(value, list):
         raise ValueError(f"Setting `{field}` must be a list")
 
@@ -166,6 +245,16 @@ def _validate_model_configs(value: Any, field: str) -> list[dict[str, Any]]:
 
 
 def _validate_value(group: str, key: str, value: Any) -> Any:
+    """按设置分组分派字段校验逻辑。
+
+    Args:
+        group: 设置分组名称。
+        key: 分组内字段名。
+        value: 待校验的值。
+
+    Returns:
+        Any: 通过校验后的标准化值。
+    """
     field = f"{group}.{key}"
     if group == "base":
         if key in {"global_proxy", "wsl_share_dir"}:
@@ -200,6 +289,11 @@ def _validate_value(group: str, key: str, value: Any) -> Any:
 
 
 def _backup_env() -> Path | None:
+    """备份当前 ``.env`` 文件。
+
+    Returns:
+        Path | None: 备份文件路径；如果源文件不存在则返回 ``None``。
+    """
     if not ENV_PATH.exists():
         return None
     backup_path = ENV_PATH.with_suffix(f".env.manager-backup")
@@ -208,6 +302,18 @@ def _backup_env() -> Path | None:
 
 
 def update_settings(payload: dict[str, dict[str, Any] | None]) -> dict[str, Any]:
+    """校验并写入设置到 ``.env``。
+
+    Args:
+        payload: 前端提交的分组设置更新数据。
+
+    Returns:
+        dict[str, Any]: 保存结果、是否需要重启以及变更字段列表。
+
+    Raises:
+        RuntimeError: 当缺少 ``python-dotenv`` 依赖时抛出。
+        ValueError: 当字段名不支持或字段值校验失败时抛出。
+    """
     try:
         from dotenv import set_key
     except Exception as error:  # noqa: BLE001

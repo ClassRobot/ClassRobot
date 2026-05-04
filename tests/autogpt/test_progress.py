@@ -6,6 +6,7 @@ import pytest
     [
         ("chat", False, False, ""),
         ("violation", False, False, ""),
+        ("vision_file", False, False, "我先看一下图片或文件内容，请稍等~"),
         ("knowledge", True, False, "我查一下相关资料，请稍等~"),
         ("command", False, True, "我帮你处理一下，请稍等~"),
         ("complex_task", True, True, "我先查一下相关信息，再帮你处理，请稍等~"),

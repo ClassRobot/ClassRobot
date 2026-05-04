@@ -20,11 +20,16 @@ from .service import path_payload
 
 try:
     import psutil
-except ImportError:  # pragma: no cover - psutil is provided by the runtime in normal installs.
+except ImportError:  # pragma: no cover - 正常部署环境会提供 psutil，这里仅保留兜底逻辑。
     psutil = None  # type: ignore[assignment]
 
 
 async def check_database() -> dict[str, Any]:
+    """检查数据库连接和关键表计数。
+
+    Returns:
+        dict[str, Any]: 数据库状态、迁移版本和表计数结果。
+    """
     payload: dict[str, Any] = {"status": "ok", "tables": {}}
     try:
         async with get_session() as session:
@@ -39,6 +44,11 @@ async def check_database() -> dict[str, Any]:
 
 
 async def check_cache() -> dict[str, Any]:
+    """检查缓存连接状态。
+
+    Returns:
+        dict[str, Any]: 缓存状态和连接元信息。
+    """
     payload: dict[str, Any] = {
         "status": "ok",
         "host": cache_config.cache_host,
@@ -56,6 +66,11 @@ async def check_cache() -> dict[str, Any]:
 
 
 def check_paths() -> dict[str, Any]:
+    """返回关键运行时目录的存在状态。
+
+    Returns:
+        dict[str, Any]: 目录名到路径元信息的映射。
+    """
     return {
         "project_root": path_payload(project_root),
         "data_dir": path_payload(data_dir),
@@ -67,6 +82,11 @@ def check_paths() -> dict[str, Any]:
 
 
 def check_models() -> dict[str, Any]:
+    """汇总当前模型配置状态。
+
+    Returns:
+        dict[str, Any]: 模型数量、超时和名称等概要信息。
+    """
     configs = llm_config.llm_configs
     return {
         "status": "ok" if configs else "not_configured",
@@ -77,6 +97,11 @@ def check_models() -> dict[str, Any]:
 
 
 def check_cos() -> dict[str, Any]:
+    """检查对象存储配置状态。
+
+    Returns:
+        dict[str, Any]: COS 基本配置和是否已配置的结果。
+    """
     configured = bool(cos_config)
     return {
         "status": "configured" if configured else "not_configured",
@@ -87,6 +112,11 @@ def check_cos() -> dict[str, Any]:
 
 
 def check_ragflow() -> dict[str, Any]:
+    """检查 Ragflow 集成配置状态。
+
+    Returns:
+        dict[str, Any]: Ragflow URL、密钥存在性和状态信息。
+    """
     config = get_driver().config
     ragflow_url = getattr(config, "ragflow_url", None)
     ragflow_key = getattr(config, "ragflow_key", None)
@@ -98,6 +128,11 @@ def check_ragflow() -> dict[str, Any]:
 
 
 def check_runtime() -> dict[str, Any]:
+    """返回 Python 和 NoneBot 运行时基础信息。
+
+    Returns:
+        dict[str, Any]: 运行环境、驱动、监听地址等信息。
+    """
     driver = get_driver()
     return {
         "status": "ok",
@@ -110,10 +145,23 @@ def check_runtime() -> dict[str, Any]:
 
 
 def _bytes_payload(value: int | float) -> int:
+    """把 psutil 数值统一转换为整数。
+
+    Args:
+        value: 原始数值。
+
+    Returns:
+        int: 适合 JSON 序列化的整数字节数。
+    """
     return int(value)
 
 
 def _disk_items() -> list[dict[str, Any]]:
+    """收集磁盘占用信息。
+
+    Returns:
+        list[dict[str, Any]]: 每个可见分区的容量、剩余空间和占用率。
+    """
     if psutil is None:
         total, used, free = __import__("shutil").disk_usage(project_root)
         percent = round((used / total) * 100, 2) if total else 0
@@ -150,6 +198,11 @@ def _disk_items() -> list[dict[str, Any]]:
 
 
 def check_system_metrics() -> dict[str, Any]:
+    """收集系统资源和当前进程指标。
+
+    Returns:
+        dict[str, Any]: CPU、内存、磁盘和当前进程监控结果。
+    """
     if psutil is None:
         disks = _disk_items()
         return {
@@ -221,6 +274,14 @@ def check_system_metrics() -> dict[str, Any]:
 
 
 async def get_status(targets: list[str] | None = None) -> dict[str, Any]:
+    """按需执行状态检查。
+
+    Args:
+        targets: 需要执行的状态分组名称列表；为空时执行全部检查。
+
+    Returns:
+        dict[str, Any]: 已执行分组的状态结果集合。
+    """
     selected = set(targets or [])
     all_targets = not selected
     payload: dict[str, Any] = {}

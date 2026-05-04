@@ -19,7 +19,11 @@ SOURCE_ROOTS = (
 
 
 def get_nonebot_overview() -> dict[str, Any]:
-    """Return a read-only inventory of the current NoneBot runtime."""
+    """汇总 NoneBot 运行时、插件、命令、适配器和 Bot 信息。
+
+    Returns:
+        dict[str, Any]: 面向管理端总览页的只读运行时清单。
+    """
 
     commands_payload = list_commands()
     commands = commands_payload["items"]
@@ -63,6 +67,11 @@ def get_nonebot_overview() -> dict[str, Any]:
 
 
 def get_runtime_info() -> dict[str, Any]:
+    """读取 NoneBot 运行时初始化状态和基础配置。
+
+    Returns:
+        dict[str, Any]: 运行时状态、驱动、环境与错误列表。
+    """
     config_payload = _read_nonebot_config()
     payload: dict[str, Any] = {
         "initialized": False,
@@ -86,12 +95,20 @@ def get_runtime_info() -> dict[str, Any]:
                 "port": getattr(driver.config, "port", None),
             }
         )
-    except Exception as error:  # noqa: BLE001 - this endpoint must degrade safely during startup/tests.
+    except Exception as error:  # noqa: BLE001 - 启动阶段或测试环境中，此接口需要保证可安全降级。
         payload["errors"].append(f"NoneBot runtime is not initialized: {error}")
     return payload
 
 
 def list_plugins(commands: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+    """列出插件清单，并尽量合并运行时与源码扫描结果。
+
+    Args:
+        commands: 可选的命令扫描结果，避免重复扫描源码。
+
+    Returns:
+        dict[str, Any]: 插件列表、总数和错误信息。
+    """
     commands = commands if commands is not None else list_commands()["items"]
     config_payload = _read_nonebot_config()
     command_counts = Counter(item["plugin_module"] for item in commands if item.get("plugin_module"))
@@ -159,6 +176,11 @@ def list_plugins(commands: list[dict[str, Any]] | None = None) -> dict[str, Any]
 
 
 def list_adapters() -> dict[str, Any]:
+    """列出适配器声明与运行时注册状态。
+
+    Returns:
+        dict[str, Any]: 适配器列表、总数和错误信息。
+    """
     config_payload = _read_nonebot_config()
     declared = config_payload.get("adapters", [])
     declared_by_module = {item["module_name"]: item for item in declared if item.get("module_name")}
@@ -217,6 +239,11 @@ def list_adapters() -> dict[str, Any]:
 
 
 def list_bots() -> dict[str, Any]:
+    """列出当前在线 Bot 实例。
+
+    Returns:
+        dict[str, Any]: Bot 列表、总数和错误信息。
+    """
     items: list[dict[str, Any]] = []
     errors: list[str] = []
     try:
@@ -242,6 +269,11 @@ def list_bots() -> dict[str, Any]:
 
 
 def list_commands() -> dict[str, Any]:
+    """扫描源码中的命令声明并补全文档信息。
+
+    Returns:
+        dict[str, Any]: 命令列表、总数和扫描错误。
+    """
     commands: list[dict[str, Any]] = []
     errors: list[str] = []
     helper_index = _helper_index()
@@ -268,24 +300,40 @@ def list_commands() -> dict[str, Any]:
 
 
 class _CommandVisitor(ast.NodeVisitor):
+    """用于扫描命令声明的 AST Visitor。"""
+
     def __init__(self, path: Path):
+        """初始化访问器。
+
+        Args:
+            path: 当前正在扫描的 Python 文件路径。
+        """
         self.path = path
         self.items: list[dict[str, Any]] = []
 
     def visit_Assign(self, node: ast.Assign) -> None:  # noqa: N802
+        """处理赋值节点并尝试提取命令声明。"""
         self._collect(node.value, _target_names(node.targets))
         self.generic_visit(node)
 
     def visit_AnnAssign(self, node: ast.AnnAssign) -> None:  # noqa: N802
+        """处理带类型注解的赋值节点。"""
         if node.value is not None:
             self._collect(node.value, _target_names([node.target]))
         self.generic_visit(node)
 
     def visit_Expr(self, node: ast.Expr) -> None:  # noqa: N802
+        """处理独立表达式节点。"""
         self._collect(node.value, [])
         self.generic_visit(node)
 
     def _collect(self, node: ast.AST, target_names: list[str]) -> None:
+        """从函数调用节点中提取命令信息。
+
+        Args:
+            node: 当前 AST 节点。
+            target_names: 赋值目标变量名列表。
+        """
         if not isinstance(node, ast.Call):
             return
         payload = _command_payload_from_call(node)
@@ -310,6 +358,7 @@ class _CommandVisitor(ast.NodeVisitor):
 
 
 def _command_payload_from_call(node: ast.Call) -> dict[str, Any] | None:
+    """从 ``on_command`` 或 ``on_alconna`` 调用中提取命令定义。"""
     func_name = _call_name(node.func).rsplit(".", 1)[-1]
     if func_name == "on_command":
         command = _literal_string(node.args[0]) if node.args else None
@@ -344,6 +393,7 @@ def _enrich_command(
     helper_index: dict[str, dict[str, Any]],
     loaded_modules: set[str],
 ) -> dict[str, Any]:
+    """为源码扫描得到的命令补充帮助文档和加载状态。"""
     helper = helper_index.get(item["command"])
     if helper is None:
         helper = next((helper_index.get(alias) for alias in item.get("aliases", []) if helper_index.get(alias)), None)
@@ -359,6 +409,7 @@ def _enrich_command(
 
 
 def _read_nonebot_config() -> dict[str, Any]:
+    """读取 ``pyproject.toml`` 中的 NoneBot 配置块。"""
     payload: dict[str, Any] = {"plugins": [], "plugin_dirs": [], "adapters": [], "errors": []}
     try:
         with PYPROJECT_PATH.open("rb") as file:
@@ -381,6 +432,7 @@ def _read_nonebot_config() -> dict[str, Any]:
 
 
 def _metadata_payload(metadata: Any) -> dict[str, Any]:
+    """把插件 metadata 对象转换成普通字典。"""
     if metadata is None:
         return {}
     return {
@@ -396,6 +448,7 @@ def _metadata_payload(metadata: Any) -> dict[str, Any]:
 
 
 def _safe_adapter_name(adapter: Any) -> str | None:
+    """安全获取适配器名称。"""
     if adapter is None:
         return None
     try:
@@ -405,6 +458,7 @@ def _safe_adapter_name(adapter: Any) -> str | None:
 
 
 def _adapter_module_for_class(adapter_class: type[Any]) -> str:
+    """根据适配器类推断其声明模块名。"""
     declared = {
         item["module_name"]: item for item in _read_nonebot_config().get("adapters", []) if item.get("module_name")
     }
@@ -412,6 +466,7 @@ def _adapter_module_for_class(adapter_class: type[Any]) -> str:
 
 
 def _declared_adapter_module(class_module: str, declared_by_module: dict[str, dict[str, Any]]) -> str | None:
+    """把运行时类模块映射回 pyproject 中声明的适配器模块。"""
     return next(
         (
             module_name
@@ -423,6 +478,7 @@ def _declared_adapter_module(class_module: str, declared_by_module: dict[str, di
 
 
 def _helper_index() -> dict[str, dict[str, Any]]:
+    """构建帮助菜单命令索引，用于补全文档和参数信息。"""
     try:
         from utils.helper.config import helper_menu
     except Exception:  # noqa: BLE001
@@ -451,6 +507,7 @@ def _helper_index() -> dict[str, dict[str, Any]]:
 
 
 def _loaded_plugin_modules() -> set[str]:
+    """获取当前已加载插件模块集合。"""
     try:
         from nonebot import get_loaded_plugins
 
@@ -460,10 +517,12 @@ def _loaded_plugin_modules() -> set[str]:
 
 
 def _module_is_loaded(plugin_module: str, loaded_modules: set[str]) -> bool:
+    """判断插件模块是否已在运行时加载。"""
     return any(plugin_module == module or module.startswith(f"{plugin_module}.") for module in loaded_modules)
 
 
 def _source_plugin_summaries(commands: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """根据命令扫描结果推断源码插件摘要。"""
     grouped: dict[str, dict[str, Any]] = {}
     for command in commands:
         plugin_module = command["plugin_module"]
@@ -491,6 +550,7 @@ def _source_plugin_summaries(commands: list[dict[str, Any]]) -> list[dict[str, A
 
 
 def _command_count_for_module(command_counts: Counter[str], module_name: str) -> int:
+    """统计插件模块及其子模块命令数量。"""
     return sum(
         count
         for plugin_module, count in command_counts.items()
@@ -499,10 +559,12 @@ def _command_count_for_module(command_counts: Counter[str], module_name: str) ->
 
 
 def _should_skip_python_file(path: Path) -> bool:
+    """判断源码扫描时是否应跳过当前文件。"""
     return "__pycache__" in path.parts or path.name.startswith(".")
 
 
 def _target_names(targets: Iterable[ast.AST]) -> list[str]:
+    """提取赋值节点中的变量名列表。"""
     names: list[str] = []
     for target in targets:
         if isinstance(target, ast.Name):
@@ -513,6 +575,7 @@ def _target_names(targets: Iterable[ast.AST]) -> list[str]:
 
 
 def _call_name(node: ast.AST) -> str:
+    """把函数调用 AST 节点还原成点路径名称。"""
     if isinstance(node, ast.Name):
         return node.id
     if isinstance(node, ast.Attribute):
@@ -522,16 +585,19 @@ def _call_name(node: ast.AST) -> str:
 
 
 def _literal_string(node: ast.AST) -> str | None:
+    """尝试从 AST 节点中提取字符串字面量。"""
     return node.value if isinstance(node, ast.Constant) and isinstance(node.value, str) else None
 
 
 def _alconna_command(node: ast.AST) -> str | None:
+    """提取 ``Alconna`` 命令名称。"""
     if isinstance(node, ast.Call) and _call_name(node.func).rsplit(".", 1)[-1] == "Alconna" and node.args:
         return _literal_string(node.args[0])
     return _literal_string(node)
 
 
 def _keyword_strings(node: ast.Call, keyword_name: str) -> set[str]:
+    """提取调用关键字参数中的字符串集合。"""
     keyword = _find_keyword(node, keyword_name)
     if keyword is None:
         return set()
@@ -539,6 +605,7 @@ def _keyword_strings(node: ast.Call, keyword_name: str) -> set[str]:
 
 
 def _keyword_value(node: ast.Call, keyword_name: str) -> Any:
+    """提取调用关键字参数的原始值或表达式文本。"""
     keyword = _find_keyword(node, keyword_name)
     if keyword is None:
         return None
@@ -549,10 +616,12 @@ def _keyword_value(node: ast.Call, keyword_name: str) -> Any:
 
 
 def _find_keyword(node: ast.Call, keyword_name: str) -> ast.keyword | None:
+    """按名称查找调用中的关键字参数。"""
     return next((keyword for keyword in node.keywords if keyword.arg == keyword_name), None)
 
 
 def _string_collection(node: ast.AST) -> set[str]:
+    """从 AST 节点中提取字符串集合。"""
     if isinstance(node, (ast.Set, ast.List, ast.Tuple)):
         return {item.value for item in node.elts if isinstance(item, ast.Constant) and isinstance(item.value, str)}
     literal = _literal_string(node)
@@ -560,6 +629,7 @@ def _string_collection(node: ast.AST) -> set[str]:
 
 
 def _expression_text(node: ast.AST) -> str:
+    """把 AST 节点尽量还原成源码文本。"""
     try:
         return ast.unparse(node)
     except Exception:  # noqa: BLE001
@@ -567,6 +637,7 @@ def _expression_text(node: ast.AST) -> str:
 
 
 def _module_name_for_file(path: Path) -> str:
+    """根据文件路径推断 Python 模块名。"""
     relative = path.resolve().relative_to(project_root.resolve()).with_suffix("")
     parts = list(relative.parts)
     if parts[-1] == "__init__":
@@ -575,6 +646,7 @@ def _module_name_for_file(path: Path) -> str:
 
 
 def _plugin_identity_for_file(path: Path) -> tuple[str, str, str]:
+    """根据源码文件路径推断插件模块、插件名和命名空间。"""
     relative = path.resolve().relative_to(project_root.resolve())
     parts = relative.parts
     if len(parts) >= 3 and parts[0] == "src":
@@ -586,4 +658,5 @@ def _plugin_identity_for_file(path: Path) -> tuple[str, str, str]:
 
 
 def _count_by(items: Iterable[dict[str, Any]], key: str) -> dict[str, int]:
+    """按指定字段统计条目数量。"""
     return dict(sorted(Counter(str(item.get(key) or "unknown") for item in items).items()))

@@ -218,11 +218,17 @@ class ExtractAgent(BaseAgent):
         # Extraction compresses free-form dialogue into a structured context that can
         # be shared by retrieval and task planning without replaying all history.
         extract_messages.system_message(await extract.render({"history": self.message_to_string(messages)}))
+        latest_user_context = self.latest_user_context(messages)
+        multi_modal = latest_user_context is not None and not latest_user_context.text_only()
+        if latest_user_context is not None:
+            # 保留最后一条用户视觉消息作为原始输入，确保抽取阶段能直接看图，
+            # 而不是只读取历史 JSON 中的图片 URL 文本影子。
+            extract_messages.user_message(latest_user_context.content)
         response = await client_create(
             extract_messages,
-            multi_modal=False,
+            multi_modal=multi_modal,
             max_tokens=4096,
-            task_type=LLMTaskType.extract,
+            task_type=LLMTaskType.vision if multi_modal else LLMTaskType.extract,
         )
         text = response.choices[0].message.content or ""
         logger.debug(text)
@@ -239,6 +245,15 @@ class ExtractAgent(BaseAgent):
         """
         message = messages.get(LLMRole.system, LLMRole.user, LLMRole.assistant)
         return message.json(ensure_ascii=False)
+
+    @staticmethod
+    def latest_user_context(messages: Messages) -> Context | None:
+        """返回最近一条用户消息，供抽取阶段按需保留原始多模态输入。"""
+
+        for message in reversed(messages.messages):
+            if isinstance(message, Context) and message.role == LLMRole.user:
+                return message
+        return None
 
 
 class RagAgent(BaseAgent):
@@ -352,5 +367,9 @@ class AutoTaskAgent(BaseAgent):
         )
         planning_messages.user_message(context.content)
         logger.debug(planning_messages)
-        response = await client_create(planning_messages, task_type=LLMTaskType.plan)
+        response = await client_create(
+            planning_messages,
+            multi_modal=not context.text_only(),
+            task_type=LLMTaskType.vision if not context.text_only() else LLMTaskType.plan,
+        )
         return AutoTaskList.parse_str(response.choices[0].message.content or "")

@@ -8,6 +8,11 @@ from .service import relative_to_project
 
 
 def list_skills() -> dict[str, Any]:
+    """列出全部 Skill 清单。
+
+    Returns:
+        dict[str, Any]: Skill 列表及运行时加载状态。
+    """
     items = []
     loaded_names = set(skill_registry._classes)  # noqa: SLF001
     for manifest in sorted(skill_registry.manifests.values(), key=lambda item: item.name):
@@ -26,6 +31,17 @@ def list_skills() -> dict[str, Any]:
 
 
 def get_skill(name: str) -> dict[str, Any]:
+    """读取单个 Skill 详情。
+
+    Args:
+        name: Skill 名称。
+
+    Returns:
+        dict[str, Any]: Skill 详情，包括 manifest 正文。
+
+    Raises:
+        KeyError: 当 Skill 不存在时抛出。
+    """
     manifest = skill_registry.manifests.get(name)
     if manifest is None:
         raise KeyError(f"Skill `{name}` not found")
@@ -42,6 +58,11 @@ def get_skill(name: str) -> dict[str, Any]:
 
 
 def reload_skills() -> dict[str, Any]:
+    """重新加载 Skill 并返回最新清单。
+
+    Returns:
+        dict[str, Any]: 重载结果和最新 Skill 列表。
+    """
     loaded = skill_registry.load_skills()
     return {
         "reloaded": True,

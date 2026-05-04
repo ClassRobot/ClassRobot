@@ -9,6 +9,14 @@ from utils.models import AgentWorkflowRun, AgentWorkflowCheckpoint
 
 
 def _run_summary(run: AgentWorkflowRun) -> dict[str, Any]:
+    """序列化一条 Agent 运行记录摘要。
+
+    Args:
+        run: Agent 工作流运行模型实例。
+
+    Returns:
+        dict[str, Any]: 前端列表和详情头部共用的字段。
+    """
     return {
         "id": run.id,
         "user_id": run.user_id,
@@ -31,6 +39,14 @@ def _run_summary(run: AgentWorkflowRun) -> dict[str, Any]:
 
 
 def _checkpoint_summary(checkpoint: AgentWorkflowCheckpoint) -> dict[str, Any]:
+    """序列化一条工作流检查点摘要。
+
+    Args:
+        checkpoint: Agent 工作流检查点模型实例。
+
+    Returns:
+        dict[str, Any]: 检查点摘要字段。
+    """
     return {
         "id": checkpoint.id,
         "user_id": checkpoint.user_id,
@@ -54,6 +70,18 @@ async def list_runs(
     page: int = 1,
     page_size: int = 20,
 ) -> dict[str, Any]:
+    """按条件列出 Agent 运行记录。
+
+    Args:
+        status: 可选的运行状态过滤。
+        kind: 可选的工作流类型过滤。
+        q: 可选的 trace_id、goal 或 summary 模糊搜索词。
+        page: 页码，从 1 开始。
+        page_size: 每页条目数。
+
+    Returns:
+        dict[str, Any]: 标准分页结果。
+    """
     runs = await AgentWorkflowRun.filter().all()
     if status:
         runs = [run for run in runs if run.status == status]
@@ -82,6 +110,17 @@ async def list_runs(
 
 
 async def get_run(trace_id: str) -> dict[str, Any]:
+    """读取单条 Agent 运行详情。
+
+    Args:
+        trace_id: 运行记录的 trace_id。
+
+    Returns:
+        dict[str, Any]: 包含 ``workflow_data`` 的运行详情。
+
+    Raises:
+        KeyError: 当运行记录不存在时抛出。
+    """
     run = await AgentWorkflowRun.filter(trace_id=trace_id).first()
     if run is None:
         raise KeyError(trace_id)
@@ -96,6 +135,16 @@ async def list_checkpoints(
     page: int = 1,
     page_size: int = 20,
 ) -> dict[str, Any]:
+    """列出 Agent 工作流检查点。
+
+    Args:
+        status: 可选的检查点状态过滤。
+        page: 页码，从 1 开始。
+        page_size: 每页条目数。
+
+    Returns:
+        dict[str, Any]: 标准分页结果。
+    """
     checkpoints = await AgentWorkflowCheckpoint.filter().all()
     if status:
         checkpoints = [checkpoint for checkpoint in checkpoints if checkpoint.status == status]
@@ -112,6 +161,17 @@ async def list_checkpoints(
 
 
 async def get_checkpoint(user_id: int) -> dict[str, Any]:
+    """读取指定用户的检查点详情。
+
+    Args:
+        user_id: 用户 ID。
+
+    Returns:
+        dict[str, Any]: 包含 ``workflow_data`` 的检查点详情。
+
+    Raises:
+        KeyError: 当检查点不存在时抛出。
+    """
     checkpoint = await AgentWorkflowCheckpoint.filter(user_id=user_id).first()
     if checkpoint is None:
         raise KeyError(str(user_id))
@@ -121,6 +181,17 @@ async def get_checkpoint(user_id: int) -> dict[str, Any]:
 
 
 async def delete_checkpoint(user_id: int) -> dict[str, Any]:
+    """删除指定用户的检查点。
+
+    Args:
+        user_id: 用户 ID。
+
+    Returns:
+        dict[str, Any]: 删除结果。
+
+    Raises:
+        KeyError: 当检查点不存在时抛出。
+    """
     async with get_session() as session:
         checkpoint = await session.scalar(
             select(AgentWorkflowCheckpoint).where(AgentWorkflowCheckpoint.user_id == user_id)

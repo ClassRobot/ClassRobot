@@ -20,6 +20,11 @@ from utils.models import (
 
 
 def _group_load_options():
+    """返回群组中心查询共用的预加载关系配置。
+
+    Returns:
+        tuple[Any, ...]: SQLAlchemy ``selectinload`` 选项集合。
+    """
     return (
         selectinload(Group.creator),
         selectinload(Group.settings),
@@ -35,12 +40,28 @@ def _group_load_options():
 
 
 def _stringify(value: Any) -> str | None:
+    """把枚举或任意值统一转换成字符串。
+
+    Args:
+        value: 原始字段值。
+
+    Returns:
+        str | None: 字符串值；原值为 ``None`` 时返回 ``None``。
+    """
     if value is None:
         return None
     return str(value)
 
 
 def _user_brief(user: User | None) -> dict[str, Any] | None:
+    """构造群组中心内联用户摘要。
+
+    Args:
+        user: 用户模型实例或 ``None``。
+
+    Returns:
+        dict[str, Any] | None: 头像、昵称、用户名等简要信息。
+    """
     if user is None:
         return None
     return {
@@ -52,6 +73,14 @@ def _user_brief(user: User | None) -> dict[str, Any] | None:
 
 
 def _bind_payload(bind: GroupBind) -> dict[str, Any]:
+    """序列化群组平台绑定记录。
+
+    Args:
+        bind: 群组绑定模型实例。
+
+    Returns:
+        dict[str, Any]: 平台绑定展示字段。
+    """
     return {
         "id": bind.id,
         "name": bind.name,
@@ -64,6 +93,14 @@ def _bind_payload(bind: GroupBind) -> dict[str, Any]:
 
 
 def _class_identity(classes: Classes | None) -> dict[str, Any] | None:
+    """构造班级基础信息。
+
+    Args:
+        classes: 班级模型实例或 ``None``。
+
+    Returns:
+        dict[str, Any] | None: 班级基础字段；不存在时返回 ``None``。
+    """
     if classes is None:
         return None
     major_name = classes.major_ref.name if classes.major_ref else classes.major
@@ -82,6 +119,15 @@ def _class_identity(classes: Classes | None) -> dict[str, Any] | None:
 
 
 def _class_summary(classes: Classes | None, pending_join_count: int = 0) -> dict[str, Any] | None:
+    """构造带计数信息的班级摘要。
+
+    Args:
+        classes: 班级模型实例或 ``None``。
+        pending_join_count: 待处理入班申请数。
+
+    Returns:
+        dict[str, Any] | None: 班级基础字段加成员/申请计数。
+    """
     identity = _class_identity(classes)
     if identity is None or classes is None:
         return None
@@ -96,6 +142,16 @@ def _class_summary(classes: Classes | None, pending_join_count: int = 0) -> dict
 
 
 def _group_summary(group: Group, binds: list[GroupBind], pending_join_count: int = 0) -> dict[str, Any]:
+    """构造群组列表行摘要。
+
+    Args:
+        group: 群组模型实例。
+        binds: 该群组关联的平台绑定列表。
+        pending_join_count: 待处理入班申请数。
+
+    Returns:
+        dict[str, Any]: 群组中心列表行数据。
+    """
     classes = getattr(group, "classes", None)
     platforms = sorted({bind.platform_id for bind in binds})
     return {
@@ -115,6 +171,16 @@ def _group_summary(group: Group, binds: list[GroupBind], pending_join_count: int
 
 
 def _matches_query(group: Group, binds: list[GroupBind], q_lower: str) -> bool:
+    """判断群组是否命中搜索词。
+
+    Args:
+        group: 群组模型实例。
+        binds: 群组绑定列表。
+        q_lower: 已转小写的搜索词。
+
+    Returns:
+        bool: 命中任一可搜索字段时返回 ``True``。
+    """
     classes = getattr(group, "classes", None)
     haystacks = [
         group.name,
@@ -133,6 +199,12 @@ def _matches_query(group: Group, binds: list[GroupBind], q_lower: str) -> bool:
 
 
 async def _load_group_context() -> tuple[list[Group], dict[int, list[GroupBind]], dict[int, int]]:
+    """加载群组中心列表需要的全部上下文数据。
+
+    Returns:
+        tuple[list[Group], dict[int, list[GroupBind]], dict[int, int]]:
+            群组列表、按群组聚合的平台绑定、按班级聚合的申请计数。
+    """
     async with get_session() as session:
         groups = list(await session.scalars(select(Group).options(*_group_load_options())))
         group_ids = [group.id for group in groups]
@@ -169,6 +241,18 @@ async def list_groups(
     page: int = 1,
     page_size: int = 20,
 ) -> dict[str, Any]:
+    """列出群组中心表格数据。
+
+    Args:
+        q: 可选的群组、班级、平台等模糊搜索词。
+        platform_id: 可选的平台过滤条件。
+        join_method: 可选的入群方式过滤条件。
+        page: 页码，从 1 开始。
+        page_size: 每页条目数。
+
+    Returns:
+        dict[str, Any]: 标准分页结果。
+    """
     groups, binds_by_group, pending_by_class = await _load_group_context()
 
     if q:
@@ -208,6 +292,17 @@ async def list_groups(
 
 
 async def get_group_detail(group_id: int) -> dict[str, Any]:
+    """读取单个群组详情。
+
+    Args:
+        group_id: 群组 ID。
+
+    Returns:
+        dict[str, Any]: 群组、班级、成员、绑定和申请详情。
+
+    Raises:
+        KeyError: 当群组不存在时抛出。
+    """
     async with get_session() as session:
         group = await session.scalar(
             select(Group)

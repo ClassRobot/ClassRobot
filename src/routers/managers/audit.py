@@ -13,6 +13,14 @@ MAX_DETAIL_TEXT = 2000
 
 
 def _safe_detail(value: Any) -> Any:
+    """把任意 detail 数据转换成安全可序列化的内容。
+
+    Args:
+        value: 审计详情原始值，可能是字典、列表、元组或其他对象。
+
+    Returns:
+        Any: 可写入 JSONL 的裁剪后数据。
+    """
     if isinstance(value, dict):
         return {str(key): _safe_detail(item) for key, item in value.items()}
     if isinstance(value, list):
@@ -34,6 +42,18 @@ def log_event(
     detail: dict[str, Any] | None = None,
     session: ManagerSession | None = None,
 ) -> dict[str, Any]:
+    """写入一条管理端审计事件。
+
+    Args:
+        event_type: 事件分类，例如 ``settings``、``users``、``terminal``。
+        action: 具体动作名称。
+        status: 动作结果状态。
+        detail: 额外上下文信息。
+        session: 当前管理端会话，可选。
+
+    Returns:
+        dict[str, Any]: 已写入文件的审计 payload。
+    """
     payload = {
         "timestamp": datetime.now().isoformat(timespec="seconds"),
         "event_type": event_type,
@@ -50,6 +70,15 @@ def log_event(
 
 
 def list_events(*, limit: int = 100, event_type: str | None = None) -> dict[str, Any]:
+    """读取最近的审计事件。
+
+    Args:
+        limit: 最多返回的事件数量。
+        event_type: 可选的事件分类过滤条件。
+
+    Returns:
+        dict[str, Any]: 包含事件列表、总行数和审计文件路径的结果。
+    """
     safe_limit = min(max(limit, 1), 500)
     if not AUDIT_LOG_PATH.exists():
         return {"items": [], "total": 0, "path": str(AUDIT_LOG_PATH)}

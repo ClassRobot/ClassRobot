@@ -17,6 +17,11 @@ LOG_ROOTS = (
 
 
 def _iter_log_files() -> list[Path]:
+    """扫描允许目录下的日志文件。
+
+    Returns:
+        list[Path]: 已去重并排序的日志文件路径列表。
+    """
     files: list[Path] = []
     for root in LOG_ROOTS:
         if not root.exists():
@@ -27,6 +32,17 @@ def _iter_log_files() -> list[Path]:
 
 
 def _resolve_allowed_log(path_text: str) -> Path:
+    """校验请求的日志路径是否在白名单内。
+
+    Args:
+        path_text: 前端传入的日志绝对路径字符串。
+
+    Returns:
+        Path: 通过校验后的真实路径。
+
+    Raises:
+        PermissionError: 当路径不在允许集合中时抛出。
+    """
     target = Path(path_text).resolve()
     allowed = {path.resolve() for path in _iter_log_files()}
     if target not in allowed:
@@ -35,6 +51,11 @@ def _resolve_allowed_log(path_text: str) -> Path:
 
 
 def list_logs() -> dict[str, Any]:
+    """列出可查看的日志文件。
+
+    Returns:
+        dict[str, Any]: 包含日志文件元信息列表的结果。
+    """
     items = []
     for path in _iter_log_files():
         stat = path.stat()
@@ -51,6 +72,16 @@ def list_logs() -> dict[str, Any]:
 
 
 def read_log(path: str, *, offset: int = 0, limit: int = 500) -> dict[str, Any]:
+    """按偏移量读取日志内容。
+
+    Args:
+        path: 已允许的日志文件路径。
+        offset: 起始行偏移量。
+        limit: 最多读取的行数。
+
+    Returns:
+        dict[str, Any]: 包含所选行和总行数的结果。
+    """
     log_path = _resolve_allowed_log(path)
     lines = log_path.read_text("utf-8", errors="replace").splitlines()
     safe_offset = max(offset, 0)
@@ -66,6 +97,15 @@ def read_log(path: str, *, offset: int = 0, limit: int = 500) -> dict[str, Any]:
 
 
 def tail_log(path: str, *, lines: int = 300) -> dict[str, Any]:
+    """读取日志末尾若干行。
+
+    Args:
+        path: 已允许的日志文件路径。
+        lines: 需要返回的尾部行数。
+
+    Returns:
+        dict[str, Any]: 包含尾部日志行和偏移量的结果。
+    """
     log_path = _resolve_allowed_log(path)
     all_lines = log_path.read_text("utf-8", errors="replace").splitlines()
     safe_lines = min(max(lines, 1), 2000)

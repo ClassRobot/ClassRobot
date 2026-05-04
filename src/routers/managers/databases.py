@@ -33,14 +33,20 @@ SENSITIVE_COLUMN_HINTS = ("password", "token", "secret", "credential", "authoriz
 
 
 class DatabaseNotFoundError(KeyError):
+    """数据库连接标识不存在时抛出的异常。"""
+
     pass
 
 
 class TableNotFoundError(KeyError):
+    """目标数据表不存在时抛出的异常。"""
+
     pass
 
 
 class RowUpdateError(ValueError):
+    """数据库行编辑失败时抛出的结构化异常。"""
+
     def __init__(
         self,
         code: str,
@@ -52,6 +58,17 @@ class RowUpdateError(ValueError):
         detail: str | None = None,
         **extra: Any,
     ) -> None:
+        """初始化数据库行更新异常。
+
+        Args:
+            code: 机器可读错误码。
+            message: 面向前端展示的错误消息。
+            column: 相关字段名。
+            columns: 相关字段名列表。
+            hint: 可选的修复建议。
+            detail: 可选的底层错误详情。
+            **extra: 需要附加返回给前端的额外字段。
+        """
         super().__init__(message)
         self.code = code
         self.message = message
@@ -62,6 +79,11 @@ class RowUpdateError(ValueError):
         self.extra = extra
 
     def to_payload(self) -> dict[str, Any]:
+        """把异常转换成适合 HTTP 返回的结构化 payload。
+
+        Returns:
+            dict[str, Any]: 包含错误码、字段信息和修复提示的结果。
+        """
         payload: dict[str, Any] = {
             "code": self.code,
             "message": self.message,
@@ -81,6 +103,14 @@ class RowUpdateError(ValueError):
 
 
 def _mask_url(url: Any) -> str | None:
+    """对数据库连接串做密码脱敏。
+
+    Args:
+        url: SQLAlchemy URL 或任意可转字符串对象。
+
+    Returns:
+        str | None: 脱敏后的连接串。
+    """
     if url is None:
         return None
     if hasattr(url, "render_as_string"):
@@ -89,11 +119,28 @@ def _mask_url(url: Any) -> str | None:
 
 
 def _is_sensitive_column(name: str) -> bool:
+    """判断列名是否可能包含敏感信息。
+
+    Args:
+        name: 数据表列名。
+
+    Returns:
+        bool: 命中敏感关键字时返回 ``True``。
+    """
     lowered = name.lower()
     return any(hint in lowered for hint in SENSITIVE_COLUMN_HINTS)
 
 
 def _value_preview(column_name: str, value: Any) -> str:
+    """生成用于错误提示的字段值预览。
+
+    Args:
+        column_name: 列名。
+        value: 原始字段值。
+
+    Returns:
+        str: 截断后的预览字符串；敏感字段直接返回 ``<masked>``。
+    """
     if _is_sensitive_column(column_name):
         return "<masked>"
     text = repr(value)
@@ -108,6 +155,18 @@ def _invalid_value_error(
     *,
     hint: str | None = None,
 ) -> RowUpdateError:
+    """构造字段类型不匹配时的统一异常。
+
+    Args:
+        column: SQLAlchemy 列对象。
+        code: 错误码。
+        expected: 期望的值类型说明。
+        value: 实际提交的值。
+        hint: 可选的修复提示。
+
+    Returns:
+        RowUpdateError: 结构化错误对象。
+    """
     return RowUpdateError(
         code,
         f"字段 {column.name} 的值格式不正确，期望 {expected}。",
@@ -120,6 +179,7 @@ def _invalid_value_error(
 
 
 def _safe_database_detail(error: SQLAlchemyError) -> str:
+    """提取适合返回给前端的数据库错误详情。"""
     original = getattr(error, "orig", None)
     if original is not None:
         return str(original)
@@ -127,6 +187,7 @@ def _safe_database_detail(error: SQLAlchemyError) -> str:
 
 
 def _database_error_hint(detail: str) -> str:
+    """根据底层错误文本推断更友好的修复提示。"""
     lowered = detail.lower()
     if "foreign key" in lowered:
         return "外键约束未通过，请确认关联表中存在对应记录。"
@@ -144,6 +205,7 @@ def _database_error_from_exception(
     code: str,
     message: str,
 ) -> RowUpdateError:
+    """把 SQLAlchemy 异常统一包装成 ``RowUpdateError``。"""
     detail = _safe_database_detail(error)
     return RowUpdateError(
         code,
@@ -155,6 +217,7 @@ def _database_error_from_exception(
 
 
 def _serialize_value(value: Any) -> Any:
+    """把数据库值转换成 JSON 友好的形式。"""
     if isinstance(value, (datetime, date, time)):
         return value.isoformat()
     if isinstance(value, Decimal):
@@ -165,10 +228,12 @@ def _serialize_value(value: Any) -> Any:
 
 
 def _serialize_row(row: dict[str, Any]) -> dict[str, Any]:
+    """序列化一整行数据。"""
     return {key: _serialize_value(value) for key, value in row.items()}
 
 
 def _column_payload(column: dict[str, Any], primary_keys: set[str]) -> dict[str, Any]:
+    """把 inspector 返回的列信息转换成前端结构。"""
     name = column["name"]
     return {
         "name": name,
@@ -181,6 +246,7 @@ def _column_payload(column: dict[str, Any], primary_keys: set[str]) -> dict[str,
 
 
 def _foreign_key_payload(table_name: str, foreign_key: dict[str, Any]) -> dict[str, Any]:
+    """把外键信息转换成前端 ER 关系结构。"""
     constrained_columns = list(foreign_key.get("constrained_columns") or [])
     referred_columns = list(foreign_key.get("referred_columns") or [])
     return {
@@ -200,6 +266,7 @@ def _foreign_key_payload(table_name: str, foreign_key: dict[str, Any]) -> dict[s
 
 
 async def _get_primary_bind():
+    """获取主数据库绑定对象。"""
     async with get_session() as session:
         bind = session.bind
         if bind is None:
@@ -208,11 +275,24 @@ async def _get_primary_bind():
 
 
 def _assert_database_id(database_id: str) -> None:
+    """校验当前只支持的数据库连接标识。
+
+    Args:
+        database_id: 前端请求的数据库标识。
+
+    Raises:
+        DatabaseNotFoundError: 当数据库标识不是 ``primary`` 时抛出。
+    """
     if database_id != PRIMARY_DATABASE_ID:
         raise DatabaseNotFoundError(database_id)
 
 
 async def list_connections() -> dict[str, Any]:
+    """列出管理端可见的数据库连接。
+
+    Returns:
+        dict[str, Any]: 当前数据库连接列表。
+    """
     bind = await _get_primary_bind()
     url = getattr(bind, "url", None)
     dialect = getattr(bind, "dialect", None)
@@ -235,6 +315,18 @@ async def list_connections() -> dict[str, Any]:
 
 
 async def get_schema(database_id: str, *, schema: str | None = None) -> dict[str, Any]:
+    """读取指定数据库的表结构与外键关系。
+
+    Args:
+        database_id: 数据库标识。
+        schema: 可选的 schema 名称。
+
+    Returns:
+        dict[str, Any]: 表、列、主键和外键关系描述。
+
+    Raises:
+        DatabaseNotFoundError: 当数据库标识不存在时抛出。
+    """
     _assert_database_id(database_id)
     async with get_session() as session:
         connection = await session.connection()
@@ -282,6 +374,15 @@ async def get_schema(database_id: str, *, schema: str | None = None) -> dict[str
 
 
 async def list_tables(database_id: str, *, schema: str | None = None) -> dict[str, Any]:
+    """列出指定数据库中可见数据表的摘要。
+
+    Args:
+        database_id: 数据库标识。
+        schema: 可选的 schema 名称。
+
+    Returns:
+        dict[str, Any]: 数据表摘要列表。
+    """
     schema_payload = await get_schema(database_id, schema=schema)
     table_payloads = []
     async with get_session() as session:
@@ -313,6 +414,19 @@ async def list_tables(database_id: str, *, schema: str | None = None) -> dict[st
 
 
 async def _reflect_table(connection, table_name: str, *, schema: str | None = None) -> Table:
+    """反射读取单个数据表定义。
+
+    Args:
+        connection: 当前数据库连接。
+        table_name: 表名。
+        schema: 可选的 schema 名称。
+
+    Returns:
+        Table: SQLAlchemy 反射得到的数据表对象。
+
+    Raises:
+        TableNotFoundError: 当目标表不存在时抛出。
+    """
     def reflect(sync_connection):
         inspector = inspect(sync_connection)
         if table_name not in inspector.get_table_names(schema=schema):
@@ -331,6 +445,18 @@ async def get_table_rows(
     page: int = 1,
     page_size: int = 20,
 ) -> dict[str, Any]:
+    """分页读取指定表的数据行。
+
+    Args:
+        database_id: 数据库标识。
+        table_name: 表名。
+        schema: 可选的 schema 名称。
+        page: 页码，从 1 开始。
+        page_size: 每页条目数。
+
+    Returns:
+        dict[str, Any]: 表结构列信息和分页数据。
+    """
     _assert_database_id(database_id)
     offset = max(page - 1, 0) * page_size
     async with get_session() as session:
@@ -359,6 +485,7 @@ async def get_table_rows(
 
 
 def _table_column_payload(column) -> dict[str, Any]:
+    """序列化 SQLAlchemy 列对象。"""
     return {
         "name": column.name,
         "type": str(column.type),
@@ -370,6 +497,18 @@ def _table_column_payload(column) -> dict[str, Any]:
 
 
 def _coerce_value(column, value: Any) -> Any:
+    """按列类型把前端值转换成数据库可接受的 Python 值。
+
+    Args:
+        column: SQLAlchemy 列对象。
+        value: 前端提交的原始字段值。
+
+    Returns:
+        Any: 通过校验并转换后的 Python 值。
+
+    Raises:
+        RowUpdateError: 当字段值为空、类型不匹配或该列不允许编辑时抛出。
+    """
     if value is None:
         if column.primary_key:
             raise RowUpdateError(
@@ -490,6 +629,23 @@ async def update_table_row(
     values: dict[str, Any],
     schema: str | None = None,
 ) -> dict[str, Any]:
+    """更新指定表中的一行数据。
+
+    Args:
+        database_id: 数据库标识。
+        table_name: 表名。
+        pk: 主键字段和值映射。
+        values: 需要更新的列和值映射。
+        schema: 可选的 schema 名称。
+
+    Returns:
+        dict[str, Any]: 更新结果和刷新后的行数据。
+
+    Raises:
+        DatabaseNotFoundError: 当数据库标识不存在时抛出。
+        TableNotFoundError: 当目标表不存在时抛出。
+        RowUpdateError: 当主键不完整、字段不合法或数据库写入失败时抛出。
+    """
     _assert_database_id(database_id)
     if not pk:
         raise RowUpdateError(

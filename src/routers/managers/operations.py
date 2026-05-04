@@ -28,22 +28,27 @@ SCRIPT_ID_PATTERN = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_.-]{1,63}$")
 
 
 async def _check_config() -> dict[str, Any]:
+    """执行配置健康检查动作。"""
     return await status.get_status(["runtime", "paths", "models", "cos", "ragflow"])
 
 
 async def _check_database() -> dict[str, Any]:
+    """执行数据库健康检查动作。"""
     return await status.check_database()
 
 
 async def _validate_prompts() -> dict[str, Any]:
+    """执行 Prompt 校验动作。"""
     return prompts.validate_all_prompts()
 
 
 async def _reload_skills() -> dict[str, Any]:
+    """执行 Skill 重载动作。"""
     return skills.reload_skills()
 
 
 async def _test_models() -> dict[str, Any]:
+    """逐个测试当前模型配置。"""
     from .llm_models import test_model
     from utils.llm.config import plugin_config
 
@@ -57,6 +62,7 @@ async def _test_models() -> dict[str, Any]:
 
 
 async def _generate_sql() -> dict[str, Any]:
+    """根据 ORM 元数据生成建表 SQL 预览文件。"""
     import utils.models  # noqa: F401
 
     output_path = config_dir / "generated_sql_statements.sql"
@@ -70,6 +76,7 @@ async def _generate_sql() -> dict[str, Any]:
 
 
 async def _run_unit_tests() -> dict[str, Any]:
+    """运行管理端后端测试命令。"""
     process = await asyncio.create_subprocess_exec(
         sys.executable,
         "-m",
@@ -146,6 +153,11 @@ TERMINAL_COMMANDS: dict[str, dict[str, Any]] = {
 
 
 def list_actions() -> dict[str, Any]:
+    """列出管理端预置运维动作。
+
+    Returns:
+        dict[str, Any]: 动作 ID、标题和风险级别列表。
+    """
     return {
         "items": [
             {"action_id": action_id, "title": item["title"], "risk": item["risk"]}
@@ -155,6 +167,7 @@ def list_actions() -> dict[str, Any]:
 
 
 def _command_available(command: list[str]) -> bool:
+    """判断命令行程序是否在当前环境可执行。"""
     executable = command[0]
     if executable == sys.executable:
         return True
@@ -162,6 +175,11 @@ def _command_available(command: list[str]) -> bool:
 
 
 def list_terminal_commands() -> dict[str, Any]:
+    """列出允许直接运行的终端命令模板。
+
+    Returns:
+        dict[str, Any]: 终端命令列表及可用性信息。
+    """
     return {
         "items": [
             {
@@ -180,10 +198,12 @@ def list_terminal_commands() -> dict[str, Any]:
 
 
 def _now_text() -> str:
+    """返回秒级 ISO 时间字符串。"""
     return datetime.now().isoformat(timespec="seconds")
 
 
 def _normalize_timeout(value: Any) -> int:
+    """把超时值限制在允许范围内。"""
     try:
         timeout = int(value)
     except (TypeError, ValueError):
@@ -192,6 +212,17 @@ def _normalize_timeout(value: Any) -> int:
 
 
 def _resolve_command_cwd(cwd: str | None) -> Path:
+    """解析并校验命令执行目录。
+
+    Args:
+        cwd: 前端提交的工作目录。
+
+    Returns:
+        Path: 可用的工作目录路径。
+
+    Raises:
+        ValueError: 当目录不存在或不是文件夹时抛出。
+    """
     if not cwd:
         return project_root
     target = Path(cwd).expanduser().resolve()
@@ -201,6 +232,7 @@ def _resolve_command_cwd(cwd: str | None) -> Path:
 
 
 def _unquote_shell_arg(value: str) -> str:
+    """去掉包裹参数的对称引号。"""
     text = value.strip()
     if len(text) >= 2 and text[0] == text[-1] and text[0] in {'"', "'"}:
         return text[1:-1]
@@ -208,6 +240,7 @@ def _unquote_shell_arg(value: str) -> str:
 
 
 def _resolve_cd_target(raw_target: str, cwd: Path) -> Path:
+    """解析内建 ``cd`` 命令的目标目录。"""
     target_text = _unquote_shell_arg(raw_target.strip() or str(project_root))
     target = Path(target_text).expanduser()
     if not target.is_absolute():
@@ -219,6 +252,7 @@ def _resolve_cd_target(raw_target: str, cwd: Path) -> Path:
 
 
 def _handle_terminal_builtin(command: str, cwd: Path) -> dict[str, Any] | None:
+    """处理 ``pwd`` / ``cd`` 这类内建终端命令。"""
     stripped = command.strip()
     lowered = stripped.lower()
     if lowered in {"pwd", "cd"}:
@@ -247,6 +281,16 @@ def _handle_terminal_builtin(command: str, cwd: Path) -> dict[str, Any] | None:
 
 
 async def _run_shell_command(command: str, *, cwd: Path, timeout: int) -> dict[str, Any]:
+    """通过系统 shell 执行任意命令字符串。
+
+    Args:
+        command: 原始命令字符串。
+        cwd: 工作目录。
+        timeout: 超时秒数。
+
+    Returns:
+        dict[str, Any]: 退出码、耗时、超时标记和标准输出结果。
+    """
     started = time.perf_counter()
     if sys.platform == "win32":
         shell_executable = shutil.which("pwsh") or shutil.which("powershell")
@@ -298,6 +342,16 @@ async def _run_shell_command(command: str, *, cwd: Path, timeout: int) -> dict[s
 
 
 async def _run_command(command: list[str], *, cwd, timeout: int) -> dict[str, Any]:
+    """以参数数组形式执行命令。
+
+    Args:
+        command: 已拆分的可执行命令数组。
+        cwd: 工作目录。
+        timeout: 超时秒数。
+
+    Returns:
+        dict[str, Any]: 退出码、耗时、超时标记和标准输出结果。
+    """
     started = time.perf_counter()
     process = await asyncio.create_subprocess_exec(
         *command,
@@ -329,6 +383,18 @@ async def run_terminal_command(
     *,
     session: ManagerSession | None = None,
 ) -> dict[str, Any]:
+    """运行预置终端命令。
+
+    Args:
+        command_id: 预置命令 ID。
+        session: 当前管理端会话，可选。
+
+    Returns:
+        dict[str, Any]: 执行结果。
+
+        Raises:
+            KeyError: 当命令 ID 不存在时抛出。
+    """
     command = TERMINAL_COMMANDS.get(command_id)
     if command is None:
         raise KeyError(command_id)
@@ -409,6 +475,22 @@ async def execute_terminal_command(
     action: str = "manual",
     event_type: str = "terminal",
 ) -> dict[str, Any]:
+    """执行前端输入的任意终端命令。
+
+    Args:
+        command: 原始命令字符串。
+        cwd: 可选工作目录。
+        timeout: 可选超时秒数。
+        session: 当前管理端会话，可选。
+        action: 审计日志中记录的动作名。
+        event_type: 审计日志中的事件分类。
+
+    Returns:
+        dict[str, Any]: 执行结果。
+
+    Raises:
+        ValueError: 当命令为空或工作目录非法时抛出。
+    """
     stripped = command.strip()
     if not stripped:
         raise ValueError("Command is required")
@@ -460,6 +542,7 @@ async def execute_terminal_command(
 
 
 def _load_automation_scripts() -> list[dict[str, Any]]:
+    """从磁盘读取自动化脚本库。"""
     if not AUTOMATION_SCRIPT_PATH.exists():
         return []
     try:
@@ -472,6 +555,7 @@ def _load_automation_scripts() -> list[dict[str, Any]]:
 
 
 def _save_automation_scripts(items: list[dict[str, Any]]) -> None:
+    """把自动化脚本库写回磁盘。"""
     AUTOMATION_SCRIPT_PATH.parent.mkdir(parents=True, exist_ok=True)
     AUTOMATION_SCRIPT_PATH.write_text(
         json.dumps(items, ensure_ascii=False, indent=2),
@@ -480,6 +564,7 @@ def _save_automation_scripts(items: list[dict[str, Any]]) -> None:
 
 
 def _normalize_script_id(value: str | None) -> str:
+    """校验并标准化脚本 ID。"""
     script_id = (value or f"script_{uuid4().hex[:10]}").strip()
     if not SCRIPT_ID_PATTERN.match(script_id):
         raise ValueError("Script id must use 2-64 letters, numbers, dots, underscores, or hyphens")
@@ -487,6 +572,18 @@ def _normalize_script_id(value: str | None) -> str:
 
 
 def _script_payload(payload: dict[str, Any], *, existing: dict[str, Any] | None = None) -> dict[str, Any]:
+    """标准化自动化脚本 payload。
+
+    Args:
+        payload: 前端提交的新脚本或更新数据。
+        existing: 旧脚本数据，可选。
+
+    Returns:
+        dict[str, Any]: 标准化后的脚本对象。
+
+    Raises:
+        ValueError: 当脚本 ID、标题、命令、风险级别或工作目录不合法时抛出。
+    """
     current = dict(existing or {})
     now = _now_text()
     script_id = _normalize_script_id(str(payload.get("id") or current.get("id") or ""))
@@ -518,11 +615,24 @@ def _script_payload(payload: dict[str, Any], *, existing: dict[str, Any] | None 
 
 
 def list_automation_scripts() -> dict[str, Any]:
+    """列出脚本库中的自动化脚本。"""
     items = sorted(_load_automation_scripts(), key=lambda item: item.get("updated_at", ""), reverse=True)
     return {"items": items, "total": len(items), "path": str(AUTOMATION_SCRIPT_PATH)}
 
 
 def create_automation_script(payload: dict[str, Any], *, session: ManagerSession | None = None) -> dict[str, Any]:
+    """创建新的自动化脚本。
+
+    Args:
+        payload: 前端提交的脚本数据。
+        session: 当前管理端会话，可选。
+
+    Returns:
+        dict[str, Any]: 新创建的脚本对象。
+
+    Raises:
+        ValueError: 当脚本 ID 已存在或字段不合法时抛出。
+    """
     items = _load_automation_scripts()
     script = _script_payload(payload)
     if any(item.get("id") == script["id"] for item in items):
@@ -539,6 +649,20 @@ def update_automation_script(
     *,
     session: ManagerSession | None = None,
 ) -> dict[str, Any]:
+    """更新现有自动化脚本。
+
+    Args:
+        script_id: 脚本 ID。
+        payload: 需要更新的字段。
+        session: 当前管理端会话，可选。
+
+    Returns:
+        dict[str, Any]: 更新后的脚本对象。
+
+    Raises:
+        KeyError: 当脚本不存在时抛出。
+        ValueError: 当更新字段不合法时抛出。
+    """
     items = _load_automation_scripts()
     for index, item in enumerate(items):
         if item.get("id") == script_id:
@@ -551,6 +675,18 @@ def update_automation_script(
 
 
 def delete_automation_script(script_id: str, *, session: ManagerSession | None = None) -> dict[str, Any]:
+    """删除自动化脚本。
+
+    Args:
+        script_id: 脚本 ID。
+        session: 当前管理端会话，可选。
+
+    Returns:
+        dict[str, Any]: 删除结果。
+
+    Raises:
+        KeyError: 当脚本不存在时抛出。
+    """
     items = _load_automation_scripts()
     next_items = [item for item in items if item.get("id") != script_id]
     if len(next_items) == len(items):
@@ -561,6 +697,19 @@ def delete_automation_script(script_id: str, *, session: ManagerSession | None =
 
 
 async def run_automation_script(script_id: str, *, session: ManagerSession | None = None) -> dict[str, Any]:
+    """执行脚本库中的自动化脚本。
+
+    Args:
+        script_id: 脚本 ID。
+        session: 当前管理端会话，可选。
+
+    Returns:
+        dict[str, Any]: 脚本执行结果。
+
+    Raises:
+        KeyError: 当脚本不存在时抛出。
+        ValueError: 当脚本被禁用时抛出。
+    """
     script = next((item for item in _load_automation_scripts() if item.get("id") == script_id), None)
     if script is None:
         raise KeyError(script_id)
@@ -581,6 +730,18 @@ async def run_action(
     *,
     session: ManagerSession | None = None,
 ) -> dict[str, Any]:
+    """执行预置运维动作。
+
+    Args:
+        action_id: 动作 ID。
+        session: 当前管理端会话，可选。
+
+    Returns:
+        dict[str, Any]: 动作执行结果。
+
+    Raises:
+        KeyError: 当动作不存在时抛出。
+    """
     action = ACTION_REGISTRY.get(action_id)
     if action is None:
         raise KeyError(action_id)

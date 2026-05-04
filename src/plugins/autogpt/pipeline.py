@@ -79,11 +79,15 @@ class IntentRouteNode(WorkflowNode):
                 }
             )
         )
+        # 当本轮消息包含图片时，额外把当前用户消息作为真正的多模态输入交给路由器，
+        # 避免模型只能看到一个图片 URL 文本，从而错过视觉理解入口。
+        route_messages.user_message(state.user_content)
+        multi_modal = pipeline.has_visual_input(state.user_content)
         response = await client_create(
             route_messages,
-            multi_modal=False,
+            multi_modal=multi_modal,
             max_tokens=1024,
-            task_type=LLMTaskType.plan,
+            task_type=LLMTaskType.vision if multi_modal else LLMTaskType.plan,
         )
         text = response.choices[0].message.content or "{}"
         try:
@@ -103,14 +107,21 @@ class IntentRouteNode(WorkflowNode):
                 state.intent_route.requires_rag,
             )
         )
-        await pipeline.report_progress(pipeline.build_user_progress_message(state.intent_route))
+        progress_message = pipeline.build_user_progress_message(state.intent_route)
+        if not progress_message and multi_modal:
+            progress_message = "我先看一下图片或文件内容，请稍等~"
+        await pipeline.report_progress(progress_message)
 
         if state.intent_route.intent == "violation":
             state.auto_tasks = AutoTaskList(
                 reply=state.intent_route.reply or "用户发送的消息包含违规内容，已被屏蔽！",
                 is_violation=True,
             )
-        elif not state.intent_route.requires_command and not state.intent_route.requires_rag:
+        elif (
+            not state.intent_route.requires_command
+            and not state.intent_route.requires_rag
+            and not pipeline.has_visual_input(state.user_content)
+        ):
             state.auto_tasks = AutoTaskList(
                 reply=state.intent_route.reply or "我在，有什么需要我帮你处理的吗？",
                 need_confirm=state.intent_route.need_confirm,
@@ -313,6 +324,8 @@ class MessageProcessingPipeline:
 
         if route is None or route.intent in {"chat", "violation"}:
             return ""
+        if route.intent == "vision_file":
+            return "我先看一下图片或文件内容，请稍等~"
         if route.requires_rag and route.requires_command:
             return "我先查一下相关信息，再帮你处理，请稍等~"
         if route.requires_rag:
@@ -320,6 +333,12 @@ class MessageProcessingPipeline:
         if route.requires_command:
             return "我帮你处理一下，请稍等~"
         return ""
+
+    @staticmethod
+    def has_visual_input(contents: list[Content]) -> bool:
+        """判断当前消息是否包含需要视觉理解的内容。"""
+
+        return any(content.type in {"image", "file"} for content in contents)
 
     def normalize_message(self, message: str | UniMessage | ChatMessage) -> list[Content]:
         """将输入消息统一转换为内部内容结构。"""
