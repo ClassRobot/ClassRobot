@@ -292,21 +292,25 @@ flowchart TD
 
 命令层的权限开放主要依赖 `Helper.roles`。
 
-筛选方式在 `Helpers.get_roles_helpers()` 中实现，规则是：
+筛选方式主要体现在 `Helper.is_available_for(...)` 与 `Helpers.get_roles_helpers()` 中，规则是：
 
 - 如果命令没有声明 `roles`，默认所有用户都可见
-- 如果命令声明了 `roles`，则这些角色必须是当前用户有效角色集合的子集
+- 如果命令声明了 `roles`，当前用户只要命中其中任一角色即可通过
+- 如果命令声明了 `exclude_roles`，只要命中任一排除角色就会被拒绝
 
 需要特别注意：
 
-- 当前实现是“交集语义”
-- 也就是说，`roles={teacher, student}` 表示用户同时拥有 `teacher` 和 `student` 才会被筛出来
-- 它不是“教师或学生均可”的并集语义
+- 当前实现是“并集语义 + 排除优先”
+- 也就是说，`roles={teacher, student}` 表示教师或学生都可以通过
+- 如果还写了 `exclude_roles={student}`，那么学生会被显式排除
+- 真实执行前，`utils/helper/runtime.py` 绑定的 matcher 前置 guard 还会再做一次同规则校验
 
 因此当前应区分两件事：
 
 - `Helper.roles`：帮助系统和 AI 可见性过滤
 - 命令处理函数中的业务校验：真正执行时的限制逻辑
+
+如果你想结合代码理解整条“用户绑定 -> 角色派生 -> help/AutoGPT 可见性 -> matcher 鉴权”链路，建议继续阅读 [utils/helper/README.md](../../utils/helper/README.md)。
 
 ## 当前代码与目标模型的对应关系
 

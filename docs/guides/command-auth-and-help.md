@@ -2,6 +2,9 @@
 
 本文说明当前项目里“命令能不能用、`help` 怎么展示、AutoGPT 能看到什么命令”是如何统一起来的，便于后续继续扩展而不把权限逻辑写散。
 
+如果你想贴着实现读代码，建议同时打开 [utils/helper/README.md](../../utils/helper/README.md)。
+那份 README 会把“平台用户绑定 -> `User.roles` 派生 -> `HelpersDepends` 过滤 -> matcher 前置鉴权”的完整链路画成图。
+
 ## 设计目标
 
 - 命令的帮助文档、展示目录、可用角色、AI 提示使用同一份元数据维护
@@ -27,6 +30,17 @@
 - `Helper` = 单条命令的事实来源
 - `HelpersDepends` = 当前用户视角下的可见命令集
 - `bind_helper_access_guard` = 最后一道真实执行闸门
+
+## 用户身份从哪里来
+
+这套机制不是直接读取平台侧身份，而是先通过 `UserBind` 把平台用户映射成项目内的 `User`，再由 `User.roles` 派生出当前有效角色集合。
+
+- `utils/models/depends.py`
+  - 负责 `UserDepends` / `UserOrCreatedDepends`
+- `utils/models/models.py`
+  - 负责 `User.roles`
+- `utils/helper/README.md`
+  - 解释整条链路与常见陷阱
 
 ## `Helper` 字段语义
 
