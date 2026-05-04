@@ -4,12 +4,32 @@
 
 html {
   font-family: 'Fira Sans', system-ui, sans-serif;
+  min-height: 100%;
+  background: #fbfaf7;
 }
 
 body {
   margin: 0;
+  min-height: 100%;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background:
+    radial-gradient(circle at top left, rgba(231, 158, 124, 0.1), transparent 22%),
+    linear-gradient(180deg, #fcfbf8 0%, #f5f1eb 100%);
+  color: #191c19;
+}
+
+#app {
+  min-height: 100vh;
+}
+
+.dark {
+  background: #09090b;
+}
+
+.dark body {
+  background: #09090b;
+  color: #f4f4f5;
 }
 
 pre,

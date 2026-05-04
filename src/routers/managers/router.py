@@ -7,11 +7,14 @@ from .schemas import (
     LoginRequest,
     TokenResponse,
     AdminPatchRequest,
+    AutomationScriptCreateRequest,
+    AutomationScriptUpdateRequest,
     DatabaseRowUpdateRequest,
     StatusCheckRequest,
     PromptUpdateRequest,
     SettingsPatchRequest,
     ModelSettingsRequest,
+    TerminalExecuteRequest,
 )
 from .security import SESSION_TTL_SECONDS, manager_auth, manager_auth_token, token_store
 from .status import check_system_metrics, get_status
@@ -547,6 +550,64 @@ async def run_terminal_command(command_id: str, session=Depends(manager_auth)):
         return await operations.run_terminal_command(command_id, session=session)
     except KeyError as error:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Terminal command not found") from error
+
+
+@router.post("/operations/terminal/run")
+async def execute_terminal_command(payload: TerminalExecuteRequest, session=Depends(manager_auth)):
+    try:
+        return await operations.execute_terminal_command(
+            payload.command,
+            cwd=payload.cwd,
+            timeout=payload.timeout,
+            session=session,
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
+
+
+@router.get("/operations/scripts")
+async def list_automation_scripts(_=Depends(manager_auth)):
+    return operations.list_automation_scripts()
+
+
+@router.post("/operations/scripts")
+async def create_automation_script(payload: AutomationScriptCreateRequest, session=Depends(manager_auth)):
+    try:
+        return operations.create_automation_script(payload.dict(exclude_unset=True), session=session)
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
+
+
+@router.patch("/operations/scripts/{script_id}")
+async def update_automation_script(
+    script_id: str,
+    payload: AutomationScriptUpdateRequest,
+    session=Depends(manager_auth),
+):
+    try:
+        return operations.update_automation_script(script_id, payload.dict(exclude_unset=True), session=session)
+    except KeyError as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Automation script not found") from error
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
+
+
+@router.delete("/operations/scripts/{script_id}")
+async def delete_automation_script(script_id: str, session=Depends(manager_auth)):
+    try:
+        return operations.delete_automation_script(script_id, session=session)
+    except KeyError as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Automation script not found") from error
+
+
+@router.post("/operations/scripts/{script_id}/run")
+async def run_automation_script(script_id: str, session=Depends(manager_auth)):
+    try:
+        return await operations.run_automation_script(script_id, session=session)
+    except KeyError as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Automation script not found") from error
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
 
 
 @router.get("/operations/audit-log")

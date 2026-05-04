@@ -1,8 +1,16 @@
 <template>
-  <div class="flex h-screen overflow-hidden bg-surface dark:bg-zinc-950 text-on-surface dark:text-zinc-100">
+  <div class="relative isolate flex h-screen overflow-hidden bg-[#fbfaf7] text-on-surface dark:bg-zinc-950 dark:text-zinc-100">
+    <div class="pointer-events-none absolute inset-0 dark:hidden">
+      <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(231,158,124,0.08),_transparent_22%),radial-gradient(circle_at_78%_14%,_rgba(40,100,90,0.08),_transparent_18%),linear-gradient(180deg,_#fcfbf8_0%,_#f5f1eb_100%)]" />
+      <div class="absolute -left-12 top-10 h-56 w-56 rounded-full bg-[#f4ddd0]/55 blur-3xl" />
+      <div class="absolute bottom-12 right-[12%] h-52 w-52 rounded-full bg-[#eef2ea] blur-3xl" />
+      <div class="absolute right-[7%] top-[11%] h-[76%] w-[42%] opacity-75 [background-image:radial-gradient(rgba(200,195,185,0.95)_1px,transparent_1.8px)] [background-size:22px_22px] [mask-image:radial-gradient(circle_at_center,black_16%,transparent_72%)]" />
+      <div class="absolute left-[32%] top-[12%] h-24 w-64 opacity-55 [background-image:radial-gradient(rgba(209,202,192,0.95)_1px,transparent_1.8px)] [background-size:20px_20px] [mask-image:linear-gradient(90deg,transparent_0%,black_22%,black_78%,transparent_100%)]" />
+    </div>
+
     <!-- Sidebar -->
     <aside
-      class="fixed inset-y-0 left-0 z-30 flex flex-col overflow-visible border-r border-outline-variant dark:border-zinc-800 bg-surface-container-lowest dark:bg-zinc-900 transition-[width] duration-300 ease-out"
+      class="fixed inset-y-0 left-0 z-30 flex flex-col overflow-visible border-r border-outline-variant/80 bg-white/76 shadow-[0_20px_50px_rgba(132,121,106,0.08)] backdrop-blur-xl dark:border-zinc-800 dark:bg-zinc-900 transition-[width] duration-300 ease-out"
       :style="sidebarStyle"
     >
       <!-- Brand -->
@@ -82,7 +90,7 @@
       :style="mainStyle"
     >
       <!-- Top bar -->
-      <header class="flex h-topbar shrink-0 items-center gap-4 border-b border-outline-variant dark:border-zinc-800 bg-surface-container-lowest dark:bg-zinc-900 px-6">
+      <header class="flex h-topbar shrink-0 items-center gap-4 border-b border-outline-variant/80 bg-white/72 px-6 backdrop-blur-xl dark:border-zinc-800 dark:bg-zinc-900">
         <div class="flex items-center gap-3">
           <button
             @click="toggleSidebar"
@@ -118,8 +126,13 @@
       </header>
 
       <!-- Page content -->
-      <main class="flex-1 overflow-y-auto p-6">
-        <router-view />
+      <main class="relative flex-1 overflow-y-auto">
+        <div class="pointer-events-none absolute inset-0 dark:hidden">
+          <div class="absolute inset-x-[9%] top-0 h-28 rounded-b-[32px] bg-white/28 blur-2xl" />
+        </div>
+        <div class="relative z-10 p-6">
+          <router-view />
+        </div>
       </main>
     </div>
   </div>
@@ -132,7 +145,7 @@ import { useAuthStore } from '@/composables/useAuth'
 import { useTheme } from '@/composables/useTheme'
 import {
   LayoutDashboard, Users, Activity, Settings, Puzzle,
-  FileText, Cpu, Bot, Plug, Terminal, Database,
+  FileText, Cpu, Bot, Plug, Terminal, Database, FileCode2,
   RefreshCw, LogOut, PanelLeftClose, PanelLeftOpen,
 } from 'lucide-vue-next'
 import ThemeModeSwitch from '@/components/ThemeModeSwitch.vue'
@@ -213,7 +226,13 @@ const navGroups = [
   },
   { label: 'Agent', items: [{ to: '/agents', label: 'Agent 管理', icon: Bot }] },
   { label: '集成', items: [{ to: '/integrations', label: 'MCP / 集成', icon: Plug }] },
-  { label: '运维', items: [{ to: '/operations', label: '运维调试', icon: Terminal }] },
+  {
+    label: '运维',
+    items: [
+      { to: '/operations', label: '运维调试', icon: Terminal },
+      { to: '/automation-scripts', label: '自动化脚本', icon: FileCode2 },
+    ],
+  },
 ]
 
 onMounted(() => {

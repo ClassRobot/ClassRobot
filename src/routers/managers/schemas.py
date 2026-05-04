@@ -44,3 +44,30 @@ class ModelSettingsRequest(BaseModel):
 class DatabaseRowUpdateRequest(BaseModel):
     pk: dict[str, Any] = Field(default_factory=dict)
     values: dict[str, Any] = Field(default_factory=dict)
+
+
+class TerminalExecuteRequest(BaseModel):
+    command: str = Field(min_length=1)
+    cwd: str | None = None
+    timeout: int = Field(default=300, ge=1, le=600)
+
+
+class AutomationScriptCreateRequest(BaseModel):
+    id: str | None = None
+    title: str = Field(min_length=1)
+    description: str = ""
+    command: str = Field(min_length=1)
+    cwd: str | None = None
+    risk: str = "medium"
+    timeout: int = Field(default=300, ge=1, le=600)
+    enabled: bool = True
+
+
+class AutomationScriptUpdateRequest(BaseModel):
+    title: str | None = None
+    description: str | None = None
+    command: str | None = None
+    cwd: str | None = None
+    risk: str | None = None
+    timeout: int | None = Field(default=None, ge=1, le=600)
+    enabled: bool | None = None

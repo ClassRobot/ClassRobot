@@ -1,14 +1,15 @@
 <template>
-  <div ref="rootRef" class="relative" :class="wrapperClass">
+  <div ref="rootRef" class="relative min-w-0" :class="wrapperClass">
     <button
       type="button"
-      class="flex w-full items-center justify-between gap-3 rounded-lg border border-outline-variant bg-surface-container px-3 py-2 text-left text-body-sm text-on-surface transition-colors hover:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:border-primary-dark/60 dark:focus:ring-primary-dark/20"
+      class="flex min-w-0 w-full items-center justify-between gap-3 rounded-lg border border-outline-variant bg-surface-container px-3 py-2 text-left text-body-sm text-on-surface transition-colors hover:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:border-primary-dark/60 dark:focus:ring-primary-dark/20"
       :class="buttonClass"
       :disabled="disabled"
       :aria-expanded="open"
+      :title="selectedOption?.label || placeholder"
       @click="toggleOpen"
     >
-      <span class="truncate" :class="selectedOption ? 'text-on-surface dark:text-zinc-100' : 'text-on-surface-variant dark:text-zinc-500'">
+      <span class="min-w-0 flex-1 truncate" :class="selectedOption ? 'text-on-surface dark:text-zinc-100' : 'text-on-surface-variant dark:text-zinc-500'">
         {{ selectedOption?.label || placeholder }}
       </span>
       <ChevronDown
@@ -39,7 +40,7 @@
             :class="isSelected(option.value) ? 'bg-primary/12 text-primary dark:bg-primary-dark/18 dark:text-primary-dark' : 'text-on-surface-variant dark:text-zinc-300'"
             @click="selectOption(option.value)"
           >
-            <span class="truncate">{{ option.label }}</span>
+            <span class="min-w-0 flex-1 truncate" :title="option.label">{{ option.label }}</span>
             <Check v-if="isSelected(option.value)" :size="15" class="shrink-0" />
           </button>
         </div>

@@ -1,10 +1,15 @@
 from __future__ import annotations
 
+import json
+import re
 import sys
 import time
 import shutil
 import asyncio
+from datetime import datetime
+from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 from sqlalchemy.schema import CreateTable
 from nonebot_plugin_orm import Model
@@ -15,7 +20,11 @@ from . import audit, prompts, skills, status
 from .security import ManagerSession
 
 MANAGER_FRONTEND_ROOT = project_root / "website" / "managers"
+AUTOMATION_SCRIPT_PATH = config_dir / "manager_automation_scripts.json"
 TERMINAL_OUTPUT_LIMIT = 16000
+DEFAULT_COMMAND_TIMEOUT = 300
+MAX_COMMAND_TIMEOUT = 600
+SCRIPT_ID_PATTERN = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_.-]{1,63}$")
 
 
 async def _check_config() -> dict[str, Any]:
@@ -170,6 +179,124 @@ def list_terminal_commands() -> dict[str, Any]:
     }
 
 
+def _now_text() -> str:
+    return datetime.now().isoformat(timespec="seconds")
+
+
+def _normalize_timeout(value: Any) -> int:
+    try:
+        timeout = int(value)
+    except (TypeError, ValueError):
+        timeout = DEFAULT_COMMAND_TIMEOUT
+    return min(max(timeout, 1), MAX_COMMAND_TIMEOUT)
+
+
+def _resolve_command_cwd(cwd: str | None) -> Path:
+    if not cwd:
+        return project_root
+    target = Path(cwd).expanduser().resolve()
+    if not target.exists() or not target.is_dir():
+        raise ValueError(f"Working directory does not exist: {target}")
+    return target
+
+
+def _unquote_shell_arg(value: str) -> str:
+    text = value.strip()
+    if len(text) >= 2 and text[0] == text[-1] and text[0] in {'"', "'"}:
+        return text[1:-1]
+    return text
+
+
+def _resolve_cd_target(raw_target: str, cwd: Path) -> Path:
+    target_text = _unquote_shell_arg(raw_target.strip() or str(project_root))
+    target = Path(target_text).expanduser()
+    if not target.is_absolute():
+        target = cwd / target
+    target = target.resolve()
+    if not target.exists() or not target.is_dir():
+        raise ValueError(f"Working directory does not exist: {target}")
+    return target
+
+
+def _handle_terminal_builtin(command: str, cwd: Path) -> dict[str, Any] | None:
+    stripped = command.strip()
+    lowered = stripped.lower()
+    if lowered in {"pwd", "cd"}:
+        return {
+            "exit_code": 0,
+            "duration_ms": 0,
+            "timed_out": False,
+            "stdout": f"{cwd}\n",
+            "stderr": "",
+            "cwd": str(cwd),
+        }
+    if lowered.startswith("cd "):
+        target_text = stripped[3:].strip()
+        if target_text.lower().startswith("/d "):
+            target_text = target_text[3:].strip()
+        target = _resolve_cd_target(target_text, cwd)
+        return {
+            "exit_code": 0,
+            "duration_ms": 0,
+            "timed_out": False,
+            "stdout": f"{target}\n",
+            "stderr": "",
+            "cwd": str(target),
+        }
+    return None
+
+
+async def _run_shell_command(command: str, *, cwd: Path, timeout: int) -> dict[str, Any]:
+    started = time.perf_counter()
+    if sys.platform == "win32":
+        shell_executable = shutil.which("pwsh") or shutil.which("powershell")
+        if shell_executable:
+            powershell_command = f"& {command}" if command.lstrip().startswith(("'", '"')) else command
+            process = await asyncio.create_subprocess_exec(
+                shell_executable,
+                "-NoProfile",
+                "-NonInteractive",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-Command",
+                powershell_command,
+                cwd=str(cwd),
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+        else:
+            process = await asyncio.create_subprocess_shell(
+                command,
+                cwd=str(cwd),
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+    else:
+        process = await asyncio.create_subprocess_shell(
+            command,
+            cwd=str(cwd),
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+    try:
+        stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=timeout)
+        timed_out = False
+    except asyncio.TimeoutError:
+        process.kill()
+        stdout, stderr = await process.communicate()
+        timed_out = True
+
+    stdout_text = stdout.decode("utf-8", errors="replace")
+    stderr_text = stderr.decode("utf-8", errors="replace")
+    return {
+        "exit_code": process.returncode if not timed_out else 124,
+        "duration_ms": round((time.perf_counter() - started) * 1000),
+        "timed_out": timed_out,
+        "stdout": stdout_text[-TERMINAL_OUTPUT_LIMIT:],
+        "stderr": stderr_text[-TERMINAL_OUTPUT_LIMIT:],
+    }
+
+
 async def _run_command(command: list[str], *, cwd, timeout: int) -> dict[str, Any]:
     started = time.perf_counter()
     process = await asyncio.create_subprocess_exec(
@@ -271,6 +398,182 @@ async def run_terminal_command(
         "cwd": str(command["cwd"]),
         "command": " ".join(command["command"]),
     }
+
+
+async def execute_terminal_command(
+    command: str,
+    *,
+    cwd: str | None = None,
+    timeout: int = DEFAULT_COMMAND_TIMEOUT,
+    session: ManagerSession | None = None,
+    action: str = "manual",
+    event_type: str = "terminal",
+) -> dict[str, Any]:
+    stripped = command.strip()
+    if not stripped:
+        raise ValueError("Command is required")
+    working_dir = _resolve_command_cwd(cwd)
+    safe_timeout = _normalize_timeout(timeout)
+
+    try:
+        execution = _handle_terminal_builtin(stripped, working_dir)
+        if execution is None:
+            execution = await _run_shell_command(stripped, cwd=working_dir, timeout=safe_timeout)
+        status_text = "completed" if execution["exit_code"] == 0 else "failed"
+        error = "命令执行超时" if execution["timed_out"] else ""
+    except Exception as exc:  # noqa: BLE001
+        execution = {
+            "exit_code": 1,
+            "duration_ms": 0,
+            "timed_out": False,
+            "stdout": "",
+            "stderr": "",
+        }
+        status_text = "failed"
+        error = str(exc)
+
+    audit.log_event(
+        event_type,
+        action,
+        status_text,
+        detail={
+            "exit_code": execution["exit_code"],
+            "duration_ms": execution["duration_ms"],
+            "timed_out": execution["timed_out"],
+            "cwd": execution.get("cwd", str(working_dir)),
+            "command": stripped,
+        },
+        session=session,
+    )
+    return {
+        "command_id": action,
+        "status": status_text,
+        "exit_code": execution["exit_code"],
+        "duration_ms": execution["duration_ms"],
+        "timed_out": execution["timed_out"],
+        "error": error,
+        "stdout": execution["stdout"],
+        "stderr": execution["stderr"],
+        "cwd": execution.get("cwd", str(working_dir)),
+        "command": stripped,
+    }
+
+
+def _load_automation_scripts() -> list[dict[str, Any]]:
+    if not AUTOMATION_SCRIPT_PATH.exists():
+        return []
+    try:
+        payload = json.loads(AUTOMATION_SCRIPT_PATH.read_text("utf-8"))
+    except json.JSONDecodeError:
+        return []
+    if not isinstance(payload, list):
+        return []
+    return [item for item in payload if isinstance(item, dict)]
+
+
+def _save_automation_scripts(items: list[dict[str, Any]]) -> None:
+    AUTOMATION_SCRIPT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    AUTOMATION_SCRIPT_PATH.write_text(
+        json.dumps(items, ensure_ascii=False, indent=2),
+        "utf-8",
+    )
+
+
+def _normalize_script_id(value: str | None) -> str:
+    script_id = (value or f"script_{uuid4().hex[:10]}").strip()
+    if not SCRIPT_ID_PATTERN.match(script_id):
+        raise ValueError("Script id must use 2-64 letters, numbers, dots, underscores, or hyphens")
+    return script_id
+
+
+def _script_payload(payload: dict[str, Any], *, existing: dict[str, Any] | None = None) -> dict[str, Any]:
+    current = dict(existing or {})
+    now = _now_text()
+    script_id = _normalize_script_id(str(payload.get("id") or current.get("id") or ""))
+    title = str(payload.get("title", current.get("title", ""))).strip()
+    command = str(payload.get("command", current.get("command", ""))).strip()
+    if not title:
+        raise ValueError("Script title is required")
+    if not command:
+        raise ValueError("Script command is required")
+
+    risk = str(payload.get("risk", current.get("risk", "medium"))).strip() or "medium"
+    if risk not in {"low", "medium"}:
+        raise ValueError("Script risk must be low or medium")
+
+    cwd_value = payload.get("cwd", current.get("cwd"))
+    cwd_path = _resolve_command_cwd(str(cwd_value) if cwd_value else None)
+    return {
+        "id": script_id,
+        "title": title,
+        "description": str(payload.get("description", current.get("description", ""))).strip(),
+        "command": command,
+        "cwd": str(cwd_path),
+        "risk": risk,
+        "timeout": _normalize_timeout(payload.get("timeout", current.get("timeout", DEFAULT_COMMAND_TIMEOUT))),
+        "enabled": bool(payload.get("enabled", current.get("enabled", True))),
+        "created_at": current.get("created_at") or now,
+        "updated_at": now,
+    }
+
+
+def list_automation_scripts() -> dict[str, Any]:
+    items = sorted(_load_automation_scripts(), key=lambda item: item.get("updated_at", ""), reverse=True)
+    return {"items": items, "total": len(items), "path": str(AUTOMATION_SCRIPT_PATH)}
+
+
+def create_automation_script(payload: dict[str, Any], *, session: ManagerSession | None = None) -> dict[str, Any]:
+    items = _load_automation_scripts()
+    script = _script_payload(payload)
+    if any(item.get("id") == script["id"] for item in items):
+        raise ValueError("Script id already exists")
+    items.append(script)
+    _save_automation_scripts(items)
+    audit.log_event("script", "create_script", "completed", detail={"id": script["id"]}, session=session)
+    return script
+
+
+def update_automation_script(
+    script_id: str,
+    payload: dict[str, Any],
+    *,
+    session: ManagerSession | None = None,
+) -> dict[str, Any]:
+    items = _load_automation_scripts()
+    for index, item in enumerate(items):
+        if item.get("id") == script_id:
+            updated = _script_payload({"id": script_id, **payload}, existing=item)
+            items[index] = updated
+            _save_automation_scripts(items)
+            audit.log_event("script", "update_script", "completed", detail={"id": script_id}, session=session)
+            return updated
+    raise KeyError(script_id)
+
+
+def delete_automation_script(script_id: str, *, session: ManagerSession | None = None) -> dict[str, Any]:
+    items = _load_automation_scripts()
+    next_items = [item for item in items if item.get("id") != script_id]
+    if len(next_items) == len(items):
+        raise KeyError(script_id)
+    _save_automation_scripts(next_items)
+    audit.log_event("script", "delete_script", "completed", detail={"id": script_id}, session=session)
+    return {"deleted": True, "id": script_id}
+
+
+async def run_automation_script(script_id: str, *, session: ManagerSession | None = None) -> dict[str, Any]:
+    script = next((item for item in _load_automation_scripts() if item.get("id") == script_id), None)
+    if script is None:
+        raise KeyError(script_id)
+    if not script.get("enabled", True):
+        raise ValueError("Script is disabled")
+    return await execute_terminal_command(
+        str(script["command"]),
+        cwd=str(script.get("cwd") or project_root),
+        timeout=_normalize_timeout(script.get("timeout")),
+        session=session,
+        action=script_id,
+        event_type="script",
+    )
 
 
 async def run_action(

@@ -82,6 +82,12 @@ const router = createRouter({
           component: () => import('@/views/OperationsView.vue'),
           meta: { title: '运维调试', group: '运维' },
         },
+        {
+          path: 'automation-scripts',
+          name: 'AutomationScripts',
+          component: () => import('@/views/AutomationScriptsView.vue'),
+          meta: { title: '自动化脚本', group: '运维' },
+        },
       ],
     },
     {

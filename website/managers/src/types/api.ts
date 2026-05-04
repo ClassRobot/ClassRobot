@@ -597,6 +597,36 @@ export interface TerminalRunResult {
   command: string
 }
 
+export interface TerminalExecuteRequest {
+  command: string
+  cwd?: string
+  timeout?: number
+}
+
+export interface AutomationScriptItem {
+  id: string
+  title: string
+  description: string
+  command: string
+  cwd: string
+  risk: 'low' | 'medium'
+  timeout: number
+  enabled: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface AutomationScriptPayload {
+  id?: string
+  title: string
+  description?: string
+  command: string
+  cwd?: string
+  risk?: 'low' | 'medium'
+  timeout?: number
+  enabled?: boolean
+}
+
 export interface AuditLogItem {
   timestamp: string
   event_type: string

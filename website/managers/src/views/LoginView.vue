@@ -1,6 +1,10 @@
 <template>
-  <div class="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(77,163,148,0.14),_transparent_34%),linear-gradient(180deg,_#f8faf3_0%,_#eef2ea_100%)] text-on-surface dark:bg-[radial-gradient(circle_at_top_left,_rgba(77,163,148,0.16),_transparent_32%),radial-gradient(circle_at_bottom_right,_rgba(43,96,153,0.12),_transparent_28%),linear-gradient(180deg,_#111113_0%,_#09090b_100%)] dark:text-zinc-100">
+  <div class="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,_rgba(231,158,124,0.12),_transparent_24%),radial-gradient(circle_at_82%_14%,_rgba(40,100,90,0.08),_transparent_20%),linear-gradient(180deg,_#fcfbf8_0%,_#f5f1eb_100%)] text-on-surface dark:bg-[radial-gradient(circle_at_top_left,_rgba(77,163,148,0.16),_transparent_32%),radial-gradient(circle_at_bottom_right,_rgba(43,96,153,0.12),_transparent_28%),linear-gradient(180deg,_#111113_0%,_#09090b_100%)] dark:text-zinc-100">
     <div class="pointer-events-none absolute inset-0">
+      <div class="absolute inset-0 dark:hidden">
+        <div class="absolute right-[8%] top-[10%] h-[78%] w-[42%] opacity-70 [background-image:radial-gradient(rgba(200,195,185,0.92)_1px,transparent_1.8px)] [background-size:22px_22px] [mask-image:radial-gradient(circle_at_center,black_18%,transparent_72%)]" />
+        <div class="absolute left-[30%] top-[12%] h-24 w-64 opacity-50 [background-image:radial-gradient(rgba(209,202,192,0.95)_1px,transparent_1.8px)] [background-size:20px_20px] [mask-image:linear-gradient(90deg,transparent_0%,black_20%,black_80%,transparent_100%)]" />
+      </div>
       <div class="absolute left-[8%] top-20 h-48 w-48 rounded-full bg-primary/10 blur-3xl dark:bg-primary-dark/12" />
       <div class="absolute bottom-16 right-[10%] h-56 w-56 rounded-full bg-secondary/10 blur-3xl dark:bg-blue-500/10" />
     </div>

@@ -1,4 +1,5 @@
 import os
+import sys
 from pathlib import Path
 
 import nonebot
@@ -37,8 +38,10 @@ def reset_manager_tokens():
 @pytest.fixture(autouse=True)
 def isolate_manager_audit_log(monkeypatch, tmp_path):
     from src.routers.managers import audit
+    from src.routers.managers import operations
 
     monkeypatch.setattr(audit, "AUDIT_LOG_PATH", tmp_path / "manager_audit.jsonl")
+    monkeypatch.setattr(operations, "AUTOMATION_SCRIPT_PATH", tmp_path / "manager_automation_scripts.json")
 
 
 @pytest_asyncio.fixture
@@ -432,6 +435,87 @@ async def test_manager_terminal_commands_are_allowlisted_and_audited(manager_cli
     )
     assert audit_log.status_code == 200, audit_log.text
     assert audit_log.json()["items"][0]["action"] == "list_project_root"
+
+
+async def test_manager_direct_terminal_and_custom_scripts(manager_client, manager_auth_headers, tmp_path):
+    direct = await manager_client.post(
+        "/api/v1/manager/operations/terminal/run",
+        headers=manager_auth_headers,
+        json={
+            "command": f'"{sys.executable}" -c "print(\'direct-ok\')"',
+            "cwd": str(tmp_path),
+            "timeout": 10,
+        },
+    )
+    assert direct.status_code == 200, direct.text
+    direct_payload = direct.json()
+    assert direct_payload["status"] == "completed"
+    assert "direct-ok" in direct_payload["stdout"]
+    assert direct_payload["cwd"] == str(tmp_path.resolve())
+
+    changed_dir = await manager_client.post(
+        "/api/v1/manager/operations/terminal/run",
+        headers=manager_auth_headers,
+        json={"command": "cd ..", "cwd": str(tmp_path), "timeout": 10},
+    )
+    assert changed_dir.status_code == 200, changed_dir.text
+    assert changed_dir.json()["status"] == "completed"
+    assert changed_dir.json()["cwd"] == str(tmp_path.parent.resolve())
+
+    created = await manager_client.post(
+        "/api/v1/manager/operations/scripts",
+        headers=manager_auth_headers,
+        json={
+            "id": "test_script",
+            "title": "测试脚本",
+            "description": "script smoke test",
+            "command": f'"{sys.executable}" -c "print(\'script-ok\')"',
+            "cwd": str(tmp_path),
+            "risk": "low",
+            "timeout": 10,
+            "enabled": True,
+        },
+    )
+    assert created.status_code == 200, created.text
+    assert created.json()["id"] == "test_script"
+
+    listing = await manager_client.get("/api/v1/manager/operations/scripts", headers=manager_auth_headers)
+    assert listing.status_code == 200, listing.text
+    assert listing.json()["items"][0]["id"] == "test_script"
+
+    updated = await manager_client.patch(
+        "/api/v1/manager/operations/scripts/test_script",
+        headers=manager_auth_headers,
+        json={"title": "更新后的脚本", "risk": "medium"},
+    )
+    assert updated.status_code == 200, updated.text
+    assert updated.json()["title"] == "更新后的脚本"
+    assert updated.json()["risk"] == "medium"
+
+    run = await manager_client.post(
+        "/api/v1/manager/operations/scripts/test_script/run",
+        headers=manager_auth_headers,
+    )
+    assert run.status_code == 200, run.text
+    assert run.json()["status"] == "completed"
+    assert "script-ok" in run.json()["stdout"]
+
+    audit_log = await manager_client.get(
+        "/api/v1/manager/operations/audit-log",
+        headers=manager_auth_headers,
+        params={"event_type": "script"},
+    )
+    assert audit_log.status_code == 200, audit_log.text
+    actions = [item["action"] for item in audit_log.json()["items"]]
+    assert "test_script" in actions
+    assert "create_script" in actions
+
+    deleted = await manager_client.delete(
+        "/api/v1/manager/operations/scripts/test_script",
+        headers=manager_auth_headers,
+    )
+    assert deleted.status_code == 200, deleted.text
+    assert deleted.json() == {"deleted": True, "id": "test_script"}
 
 
 async def test_manager_database_catalog_rows_and_update(

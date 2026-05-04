@@ -1,6 +1,6 @@
 <template>
-  <div class="flex h-full flex-col gap-4">
-    <div class="flex items-start justify-between gap-4">
+  <div class="flex h-[calc(100vh-96px)] min-h-0 flex-col gap-4 overflow-hidden">
+    <div class="flex shrink-0 items-start justify-between gap-4">
       <div>
         <h1 class="font-h1 text-h1 text-on-surface dark:text-zinc-100">数据库管理</h1>
         <p class="mt-1 font-body-sm text-body-sm text-on-surface-variant dark:text-zinc-500">
@@ -17,11 +17,11 @@
       </button>
     </div>
 
-    <div v-if="message" class="rounded-lg border px-3 py-2 text-body-sm" :class="messageClass">
+    <div v-if="message" class="shrink-0 rounded-lg border px-3 py-2 text-body-sm" :class="messageClass">
       {{ message }}
     </div>
 
-    <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <div class="grid shrink-0 grid-cols-2 gap-3 lg:grid-cols-4">
       <div class="rounded-xl border border-outline-variant bg-surface-container-lowest p-4 dark:border-zinc-800 dark:bg-zinc-900">
         <div class="flex items-center justify-between">
           <span class="font-label-caps text-label-caps uppercase text-on-surface-variant dark:text-zinc-500">连接</span>
@@ -131,8 +131,8 @@
           </div>
         </div>
 
-        <div v-if="activeTab === 'schema'" class="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-y-auto p-4 2xl:grid-cols-[minmax(0,1fr)_360px]">
-          <div class="min-h-0">
+        <div v-if="activeTab === 'schema'" class="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-hidden p-4 2xl:grid-cols-[minmax(0,1fr)_360px]">
+          <div class="min-h-0 overflow-y-auto pr-1">
             <div class="mb-3 flex items-center gap-2 text-body-sm font-medium text-on-surface dark:text-zinc-200">
               <GitBranch :size="16" />
               ER 关系
@@ -170,11 +170,11 @@
             </div>
           </div>
 
-          <aside class="rounded-xl border border-outline-variant bg-surface-container-lowest dark:border-zinc-800 dark:bg-zinc-900">
-            <div class="border-b border-outline-variant px-4 py-3 dark:border-zinc-800">
+          <aside class="flex min-h-0 flex-col overflow-hidden rounded-xl border border-outline-variant bg-surface-container-lowest dark:border-zinc-800 dark:bg-zinc-900">
+            <div class="shrink-0 border-b border-outline-variant px-4 py-3 dark:border-zinc-800">
               <h3 class="font-h2 text-h2 text-on-surface dark:text-zinc-100">关系列表</h3>
             </div>
-            <div class="max-h-[520px] overflow-y-auto p-3">
+            <div class="min-h-0 flex-1 overflow-y-auto p-3">
               <div
                 v-for="relation in relationships"
                 :key="relation.label"
@@ -195,9 +195,9 @@
           </aside>
         </div>
 
-        <div v-else class="grid min-h-0 flex-1 grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <div v-else class="grid min-h-0 flex-1 grid-cols-1 overflow-hidden xl:grid-cols-[minmax(0,1fr)_360px]">
           <div class="flex min-w-0 flex-col overflow-hidden">
-            <div class="flex-1 overflow-auto">
+            <div class="min-h-0 flex-1 overflow-auto">
               <table class="w-full border-collapse text-left">
                 <thead class="sticky top-0 z-10 border-b border-outline-variant bg-surface-bright dark:border-zinc-800 dark:bg-zinc-900">
                   <tr>
@@ -239,7 +239,7 @@
                 </tbody>
               </table>
             </div>
-            <div class="flex items-center justify-between border-t border-outline-variant px-4 py-2 text-body-sm text-on-surface-variant dark:border-zinc-800 dark:text-zinc-500">
+            <div class="shrink-0 flex items-center justify-between border-t border-outline-variant px-4 py-2 text-body-sm text-on-surface-variant dark:border-zinc-800 dark:text-zinc-500">
               <span>共 {{ rows?.total || 0 }} 行，第 {{ page }}/{{ totalPages }} 页</span>
               <div class="flex gap-1">
                 <button class="rounded-lg border border-outline-variant px-2 py-1 disabled:cursor-not-allowed disabled:opacity-40 dark:border-zinc-700" :disabled="page <= 1" @click="changePage(page - 1)">上一页</button>
@@ -248,14 +248,14 @@
             </div>
           </div>
 
-          <aside class="border-t border-outline-variant bg-surface-container-lowest dark:border-zinc-800 dark:bg-zinc-900 xl:border-l xl:border-t-0">
-            <div class="flex items-center justify-between border-b border-outline-variant px-4 py-3 dark:border-zinc-800">
+          <aside class="flex min-h-0 flex-col overflow-hidden border-t border-outline-variant bg-surface-container-lowest dark:border-zinc-800 dark:bg-zinc-900 xl:border-l xl:border-t-0">
+            <div class="shrink-0 flex items-center justify-between border-b border-outline-variant px-4 py-3 dark:border-zinc-800">
               <h3 class="font-h2 text-h2 text-on-surface dark:text-zinc-100">行编辑</h3>
               <button v-if="selectedRow" type="button" class="rounded-lg p-1.5 text-on-surface-variant hover:bg-surface-container dark:text-zinc-400 dark:hover:bg-zinc-800" @click="closeRow">
                 <X :size="16" />
               </button>
             </div>
-            <div v-if="selectedRow && rows" class="max-h-[calc(100vh-300px)] overflow-y-auto p-4">
+            <div v-if="selectedRow && rows" class="min-h-0 flex-1 overflow-y-auto p-4">
               <div class="mb-4 rounded-lg border border-outline-variant bg-surface-container-low p-3 dark:border-zinc-800 dark:bg-zinc-800/55">
                 <div class="mb-1 flex items-center gap-2 text-body-sm font-medium text-on-surface dark:text-zinc-200">
                   <KeyRound :size="14" />
@@ -337,7 +337,7 @@
                 保存修改
               </button>
             </div>
-            <div v-else class="flex h-full min-h-[260px] items-center justify-center p-6 text-center text-body-sm text-on-surface-variant dark:text-zinc-500">
+            <div v-else class="flex min-h-0 flex-1 items-center justify-center p-6 text-center text-body-sm text-on-surface-variant dark:text-zinc-500">
               选择一行查看和编辑
             </div>
           </aside>
