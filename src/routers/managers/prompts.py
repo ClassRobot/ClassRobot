@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import shutil
 from datetime import datetime
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
 
 from jinja2 import Environment
@@ -13,9 +13,13 @@ from .service import relative_to_project
 
 
 def _safe_prompt_path(name: str) -> Path:
-    file_name = Path(name).name
-    if file_name != name:
+    # Reject both POSIX-style and Windows-style path traversal so the
+    # validation result stays consistent across Linux CI and Windows dev hosts.
+    posix_name = PurePosixPath(name).name
+    windows_name = PureWindowsPath(name).name
+    if posix_name != name or windows_name != name or name in {"", ".", ".."}:
         raise ValueError("Prompt name must be a file name")
+    file_name = name
     if not file_name.endswith(".jinja"):
         file_name = f"{file_name}.jinja"
     path = (prompts_dir / file_name).resolve()

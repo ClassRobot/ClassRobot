@@ -342,6 +342,13 @@ async def test_manager_prompts_validate_update_and_reject_invalid_name(
     assert prompt_path.read_text("utf-8") == "Hi {{ user }}!\n"
 
 
+async def test_safe_prompt_path_rejects_cross_platform_traversal():
+    from src.routers.managers.prompts import _safe_prompt_path
+
+    with pytest.raises(ValueError):
+        _safe_prompt_path("..\\secret")
+
+
 async def test_manager_logs_limit_access_to_allowed_roots(manager_client, manager_auth_headers, monkeypatch, tmp_path):
     from src.routers.managers import logs
 
