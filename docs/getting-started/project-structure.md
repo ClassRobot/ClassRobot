@@ -23,6 +23,7 @@ flowchart LR
 - `scripts/`: 仓库级辅助脚本
 - `migrations/`: 数据库迁移
 - `docs/`: 使用和开发文档
+- `website/`: Web 前端相关资源，当前预留 `website/managers/` 作为本地管理后台前端目录
 
 ## src 下的约定
 
@@ -30,6 +31,7 @@ flowchart LR
 - `src/plugins/`: 面向最终功能的主要插件
 - `src/others/`: 额外实验性或外部集成能力
 - `src/routers/`: 路由或路径相关模块
+- `src/routers/managers/`: 本地管理后台 API 预留目录，建议承载 `/api/v1/manager` 路由
 
 ## utils 下的约定
 
@@ -70,6 +72,7 @@ flowchart LR
 - 接入层
   - 当前优先放在 `src/plugins/`、`src/others/`、`src/routers/`
   - 未来如果引入 FastAPI，可逐步收敛到独立 `gateway/`、`interfaces/` 或 `src/routers/http/`
+  - 本地管理后台 API 先放在 `src/routers/managers/`，不要混入校园业务插件目录
 - Agent 核心层
   - 当前优先放在 `src/plugins/autogpt/`、`src/agents/`、`utils/llm/agents/`、`utils/session/`
   - 例如消息流水线、Planner、记忆层、上下文编排
@@ -82,6 +85,13 @@ flowchart LR
   - ORM 与业务数据放在 `utils/models/`
   - 知识检索接入放在 `utils/llm/agents/ragflow/`
   - 对象存储、OCR、文档处理等放在 `utils/tools/`
+
+## 文档目录补充
+
+- `docs/managers/`: 本地管理后台专题文档，包含范围、信息架构、接口、前端布局、权限数据、后端实现和实施路线
+- 后台专用接口文档放在 `docs/managers/api-design.md`
+- 通用外部接口文档仍放在 `docs/api/`
+- 后台前端布局和交互说明放在 `docs/managers/frontend-layout.md`
 
 推荐做法：
 

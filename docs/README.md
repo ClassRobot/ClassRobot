@@ -1,6 +1,6 @@
 # 文档中心
 
-`docs/` 现在按“上手、指南、参考、架构、API”分层组织，根目录只保留总入口，避免专题文档继续堆在同一层。
+`docs/` 现在按“上手、指南、参考、架构、API、管理后台”分层组织，根目录只保留总入口，避免专题文档继续堆在同一层。
 
 ## 文档分层
 
@@ -14,6 +14,8 @@
   - 面向系统设计与演进，重点回答“当前架构是什么、目标架构是什么、如何迁移”
 - `api/`
   - 面向接口使用者，集中放版本化接口文档
+- `managers/`
+  - 面向本地管理后台开发者，集中放后台范围、接口、界面、权限、实现路线和验收文档
 
 ## 快速导航
 
@@ -56,6 +58,17 @@
 - [API 文档总览](./api/README.md)
 - [API V1](./api/v1.md)
 
+### 管理后台
+
+- [本地管理后台文档](./managers/README.md)
+- [范围与需求说明](./managers/scope-and-requirements.md)
+- [信息架构与页面清单](./managers/information-architecture.md)
+- [接口设计](./managers/api-design.md)
+- [前端界面布局](./managers/frontend-layout.md)
+- [数据来源与权限策略](./managers/data-and-permissions.md)
+- [后端实现方案](./managers/backend-implementation.md)
+- [实施路线与验收清单](./managers/implementation-roadmap.md)
+
 ## 新增文档放置规则
 
 - 启动方式、环境配置、目录理解、阅读顺序，放到 `getting-started/`
@@ -63,6 +76,7 @@
 - 能力清单、命令说明、角色定义、稳定约束，放到 `reference/`
 - 架构设计、技术选型、演进路线、多服务拆分，放到 `architecture/`
 - 对外接口与版本说明，放到 `api/`
+- 本地管理后台的范围、页面、接口、权限、前端布局和落地路线，放到 `managers/`
 - `docs/` 根目录尽量只保留总入口，不再直接新增专题型 Markdown
 
 ## 命名与维护规范
