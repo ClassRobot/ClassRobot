@@ -35,6 +35,12 @@ const router = createRouter({
           meta: { title: '系统状态', group: '系统' },
         },
         {
+          path: 'databases',
+          name: 'Databases',
+          component: () => import('@/views/DatabasesView.vue'),
+          meta: { title: '数据库管理', group: '系统' },
+        },
+        {
           path: 'settings',
           name: 'Settings',
           component: () => import('@/views/SettingsView.vue'),

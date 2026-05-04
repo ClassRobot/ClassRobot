@@ -2,18 +2,19 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from . import agents, llm_models, logs, operations, prompts, settings_store, skills
+from . import audit, agents, databases, llm_models, logs, operations, prompts, settings_store, skills
 from .schemas import (
     LoginRequest,
     TokenResponse,
     AdminPatchRequest,
+    DatabaseRowUpdateRequest,
     StatusCheckRequest,
     PromptUpdateRequest,
     SettingsPatchRequest,
     ModelSettingsRequest,
 )
 from .security import SESSION_TTL_SECONDS, manager_auth, manager_auth_token, token_store
-from .status import get_status
+from .status import check_system_metrics, get_status
 
 router = APIRouter(prefix="/api/v1/manager", tags=["Manager"])
 
@@ -21,6 +22,7 @@ router = APIRouter(prefix="/api/v1/manager", tags=["Manager"])
 @router.post("/auth/login", response_model=TokenResponse)
 async def login(payload: LoginRequest):
     session_token, _ = token_store.login(payload.token)
+    audit.log_event("auth", "login", "completed")
     return TokenResponse(access_token=session_token, expires_in=SESSION_TTL_SECONDS)
 
 
@@ -37,6 +39,7 @@ async def auth_me(session=Depends(manager_auth)):
 @router.post("/auth/logout")
 async def logout(session_token: str = Depends(manager_auth_token)):
     token_store.logout(session_token)
+    audit.log_event("auth", "logout", "completed")
     return {"logged_out": True}
 
 
@@ -76,24 +79,40 @@ async def status_check(payload: StatusCheckRequest, _=Depends(manager_auth)):
     return await get_status(payload.targets)
 
 
+@router.get("/system/metrics")
+async def system_metrics(_=Depends(manager_auth)):
+    return check_system_metrics()
+
+
 @router.get("/settings")
 async def get_settings(_=Depends(manager_auth)):
     return settings_store.get_settings()
 
 
 @router.patch("/settings")
-async def update_settings(payload: SettingsPatchRequest, _=Depends(manager_auth)):
+async def update_settings(payload: SettingsPatchRequest, session=Depends(manager_auth)):
     try:
-        return settings_store.update_settings(payload.dict(exclude_unset=True))
+        result = settings_store.update_settings(payload.dict(exclude_unset=True))
+        audit.log_event(
+            "settings",
+            "update_settings",
+            "completed",
+            detail={"changed_keys": result.get("changed_keys", [])},
+            session=session,
+        )
+        return result
     except ValueError as error:
+        audit.log_event("settings", "update_settings", "failed", detail={"error": str(error)}, session=session)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
     except RuntimeError as error:
+        audit.log_event("settings", "update_settings", "failed", detail={"error": str(error)}, session=session)
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(error)) from error
 
 
 @router.post("/settings/security/rotate-token")
-async def rotate_token(_=Depends(manager_auth)):
+async def rotate_token(session=Depends(manager_auth)):
     token_store.rotate_startup_token(log_token=True)
+    audit.log_event("settings", "rotate_token", "completed", session=session)
     return {
         "rotated": True,
         "new_token_preview": token_store.preview_startup_token(),
@@ -126,22 +145,52 @@ async def get_user(user_id: int, _=Depends(manager_auth)):
 
 
 @router.patch("/users/{user_id}/admin")
-async def patch_user_admin(user_id: int, payload: AdminPatchRequest, _=Depends(manager_auth)):
+async def patch_user_admin(user_id: int, payload: AdminPatchRequest, session=Depends(manager_auth)):
     from .users import set_user_admin
 
     try:
-        return await set_user_admin(user_id, payload.is_admin)
+        result = await set_user_admin(user_id, payload.is_admin)
+        audit.log_event(
+            "users",
+            "patch_user_admin",
+            "completed",
+            detail={"user_id": user_id, "is_admin": payload.is_admin},
+            session=session,
+        )
+        return result
     except KeyError as error:
+        audit.log_event(
+            "users",
+            "patch_user_admin",
+            "failed",
+            detail={"user_id": user_id, "error": "User not found"},
+            session=session,
+        )
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found") from error
 
 
 @router.delete("/users/{user_id}/binds/{bind_id}")
-async def delete_user_bind(user_id: int, bind_id: int, _=Depends(manager_auth)):
+async def delete_user_bind(user_id: int, bind_id: int, session=Depends(manager_auth)):
     from .users import delete_user_bind as _delete_user_bind
 
     try:
-        return await _delete_user_bind(user_id, bind_id)
+        result = await _delete_user_bind(user_id, bind_id)
+        audit.log_event(
+            "users",
+            "delete_user_bind",
+            "completed",
+            detail={"user_id": user_id, "bind_id": bind_id},
+            session=session,
+        )
+        return result
     except KeyError as error:
+        audit.log_event(
+            "users",
+            "delete_user_bind",
+            "failed",
+            detail={"user_id": user_id, "bind_id": bind_id, "error": "Bind not found"},
+            session=session,
+        )
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bind not found") from error
 
 
@@ -159,8 +208,16 @@ async def get_skill(name: str, _=Depends(manager_auth)):
 
 
 @router.post("/skills/reload")
-async def reload_skills(_=Depends(manager_auth)):
-    return skills.reload_skills()
+async def reload_skills(session=Depends(manager_auth)):
+    result = skills.reload_skills()
+    audit.log_event(
+        "skills",
+        "reload_skills",
+        "completed",
+        detail={"loaded_classes": result.get("loaded_classes", [])},
+        session=session,
+    )
+    return result
 
 
 @router.get("/prompts")
@@ -179,12 +236,26 @@ async def get_prompt(name: str, _=Depends(manager_auth)):
 
 
 @router.put("/prompts/{name}")
-async def update_prompt(name: str, payload: PromptUpdateRequest, _=Depends(manager_auth)):
+async def update_prompt(name: str, payload: PromptUpdateRequest, session=Depends(manager_auth)):
     try:
-        return prompts.update_prompt(name, payload.content)
+        result = prompts.update_prompt(name, payload.content)
+        audit.log_event(
+            "prompts",
+            "update_prompt",
+            "completed" if result.get("saved") else "failed",
+            detail={"name": name, "saved": result.get("saved"), "valid": result.get("valid")},
+            session=session,
+        )
+        return result
     except FileNotFoundError as error:
+        audit.log_event(
+            "prompts", "update_prompt", "failed", detail={"name": name, "error": str(error)}, session=session
+        )
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
     except ValueError as error:
+        audit.log_event(
+            "prompts", "update_prompt", "failed", detail={"name": name, "error": str(error)}, session=session
+        )
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
 
 
@@ -204,22 +275,40 @@ async def list_model_items(_=Depends(manager_auth)):
 
 
 @router.put("/models")
-async def save_model_items(payload: ModelSettingsRequest, _=Depends(manager_auth)):
+async def save_model_items(payload: ModelSettingsRequest, session=Depends(manager_auth)):
     try:
-        return llm_models.save_models(payload.dict(exclude_unset=True))
+        result = llm_models.save_models(payload.dict(exclude_unset=True))
+        audit.log_event(
+            "models",
+            "save_models",
+            "completed",
+            detail={"model_count": len(result.get("items", [])) if isinstance(result.get("items"), list) else None},
+            session=session,
+        )
+        return result
     except ValueError as error:
+        audit.log_event("models", "save_models", "failed", detail={"error": str(error)}, session=session)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
     except RuntimeError as error:
+        audit.log_event("models", "save_models", "failed", detail={"error": str(error)}, session=session)
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(error)) from error
 
 
 @router.post("/models/{name}/test")
-async def test_model(name: str, _=Depends(manager_auth)):
+async def test_model(name: str, session=Depends(manager_auth)):
     try:
-        return await llm_models.test_model(name)
+        result = await llm_models.test_model(name)
+        audit.log_event(
+            "models", "test_model", "completed", detail={"name": name, "ok": result.get("ok")}, session=session
+        )
+        return result
     except KeyError as error:
+        audit.log_event(
+            "models", "test_model", "failed", detail={"name": name, "error": "Model config not found"}, session=session
+        )
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Model config not found") from error
     except Exception as error:  # noqa: BLE001
+        audit.log_event("models", "test_model", "failed", detail={"name": name, "error": str(error)}, session=session)
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(error)) from error
 
 
@@ -283,6 +372,123 @@ async def integrations(_=Depends(manager_auth)):
     }
 
 
+@router.get("/databases")
+async def list_database_connections(_=Depends(manager_auth)):
+    return await databases.list_connections()
+
+
+@router.get("/databases/{database_id}/schema")
+async def get_database_schema(
+    database_id: str,
+    schema: str | None = None,
+    _=Depends(manager_auth),
+):
+    try:
+        return await databases.get_schema(database_id, schema=schema)
+    except databases.DatabaseNotFoundError as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Database connection not found") from error
+
+
+@router.get("/databases/{database_id}/tables")
+async def list_database_tables(
+    database_id: str,
+    schema: str | None = None,
+    _=Depends(manager_auth),
+):
+    try:
+        return await databases.list_tables(database_id, schema=schema)
+    except databases.DatabaseNotFoundError as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Database connection not found") from error
+
+
+@router.get("/databases/{database_id}/tables/{table_name}/rows")
+async def get_database_table_rows(
+    database_id: str,
+    table_name: str,
+    schema: str | None = None,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    _=Depends(manager_auth),
+):
+    try:
+        return await databases.get_table_rows(
+            database_id,
+            table_name,
+            schema=schema,
+            page=page,
+            page_size=page_size,
+        )
+    except databases.DatabaseNotFoundError as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Database connection not found") from error
+    except databases.TableNotFoundError as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Table not found") from error
+
+
+@router.patch("/databases/{database_id}/tables/{table_name}/rows")
+async def update_database_table_row(
+    database_id: str,
+    table_name: str,
+    payload: DatabaseRowUpdateRequest,
+    schema: str | None = None,
+    session=Depends(manager_auth),
+):
+    try:
+        result = await databases.update_table_row(
+            database_id,
+            table_name,
+            pk=payload.pk,
+            values=payload.values,
+            schema=schema,
+        )
+        audit.log_event(
+            "databases",
+            "update_table_row",
+            "completed",
+            detail={"database_id": database_id, "schema": schema, "table": table_name},
+            session=session,
+        )
+        return result
+    except databases.DatabaseNotFoundError as error:
+        audit.log_event(
+            "databases",
+            "update_table_row",
+            "failed",
+            detail={"database_id": database_id, "table": table_name, "error": "Database connection not found"},
+            session=session,
+        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Database connection not found") from error
+    except databases.TableNotFoundError as error:
+        audit.log_event(
+            "databases",
+            "update_table_row",
+            "failed",
+            detail={"database_id": database_id, "table": table_name, "error": "Table not found"},
+            session=session,
+        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Table not found") from error
+    except databases.RowUpdateError as error:
+        audit.log_event(
+            "databases",
+            "update_table_row",
+            "failed",
+            detail={"database_id": database_id, "table": table_name, "error": error.to_payload()},
+            session=session,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=error.to_payload(),
+        ) from error
+    except ValueError as error:
+        audit.log_event(
+            "databases",
+            "update_table_row",
+            "failed",
+            detail={"database_id": database_id, "table": table_name, "error": str(error)},
+            session=session,
+        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
+
+
 @router.get("/logs")
 async def list_log_items(_=Depends(manager_auth)):
     return logs.list_logs()
@@ -303,14 +509,50 @@ async def read_log(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
 
 
+@router.get("/logs/tail")
+async def tail_log(
+    path: str,
+    lines: int = Query(300, ge=1, le=2000),
+    _=Depends(manager_auth),
+):
+    try:
+        return logs.tail_log(path, lines=lines)
+    except PermissionError as error:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(error)) from error
+    except FileNotFoundError as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
+
+
 @router.get("/operations/actions")
 async def list_operation_actions(_=Depends(manager_auth)):
     return operations.list_actions()
 
 
 @router.post("/operations/actions/{action_id}/run")
-async def run_operation_action(action_id: str, _=Depends(manager_auth)):
+async def run_operation_action(action_id: str, session=Depends(manager_auth)):
     try:
-        return await operations.run_action(action_id)
+        return await operations.run_action(action_id, session=session)
     except KeyError as error:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Operation action not found") from error
+
+
+@router.get("/operations/terminal/commands")
+async def list_terminal_commands(_=Depends(manager_auth)):
+    return operations.list_terminal_commands()
+
+
+@router.post("/operations/terminal/commands/{command_id}/run")
+async def run_terminal_command(command_id: str, session=Depends(manager_auth)):
+    try:
+        return await operations.run_terminal_command(command_id, session=session)
+    except KeyError as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Terminal command not found") from error
+
+
+@router.get("/operations/audit-log")
+async def list_audit_log(
+    event_type: str | None = None,
+    limit: int = Query(100, ge=1, le=500),
+    _=Depends(manager_auth),
+):
+    return audit.list_events(limit=limit, event_type=event_type)

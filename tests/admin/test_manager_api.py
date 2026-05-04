@@ -6,7 +6,7 @@ import httpx
 import pytest
 import pytest_asyncio
 from dotenv import dotenv_values
-from sqlalchemy import delete
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, MetaData, String, Table, delete
 
 pytestmark = pytest.mark.asyncio
 
@@ -32,6 +32,13 @@ def reset_manager_tokens():
     token_store.rotate_startup_token(log_token=False)
     yield
     token_store._sessions.clear()  # noqa: SLF001
+
+
+@pytest.fixture(autouse=True)
+def isolate_manager_audit_log(monkeypatch, tmp_path):
+    from src.routers.managers import audit
+
+    monkeypatch.setattr(audit, "AUDIT_LOG_PATH", tmp_path / "manager_audit.jsonl")
 
 
 @pytest_asyncio.fixture
@@ -71,6 +78,44 @@ async def manager_workflow_tables(loaded_plugins):
         await session.execute(delete(AgentWorkflowCheckpoint))
         await session.execute(delete(AgentWorkflowRun))
         await session.commit()
+
+
+@pytest_asyncio.fixture
+async def manager_database_tables(loaded_plugins):
+    from nonebot_plugin_orm import get_session
+
+    metadata = MetaData()
+    parent = Table(
+        "manager_db_parent",
+        metadata,
+        Column("id", Integer, primary_key=True),
+        Column("name", String(64), nullable=False),
+    )
+    child = Table(
+        "manager_db_child",
+        metadata,
+        Column("id", Integer, primary_key=True),
+        Column("parent_id", Integer, ForeignKey("manager_db_parent.id"), nullable=False),
+        Column("label", String(64), nullable=False),
+        Column("active", Boolean, nullable=False),
+    )
+
+    async with get_session() as session:
+        bind = session.bind
+        assert bind is not None
+
+    async with bind.begin() as connection:
+        await connection.run_sync(metadata.create_all)
+        await connection.execute(parent.insert(), {"id": 1, "name": "parent"})
+        await connection.execute(
+            child.insert(),
+            {"id": 10, "parent_id": 1, "label": "child-before", "active": True},
+        )
+
+    yield {"parent": parent, "child": child}
+
+    async with bind.begin() as connection:
+        await connection.run_sync(metadata.drop_all)
 
 
 @pytest_asyncio.fixture
@@ -304,6 +349,23 @@ async def test_manager_logs_limit_access_to_allowed_roots(manager_client, manage
     )
     assert forbidden.status_code == 403
 
+    tail_ok = await manager_client.get(
+        "/api/v1/manager/logs/tail",
+        headers=manager_auth_headers,
+        params={"path": str(allowed_path.resolve()), "lines": 2},
+    )
+    assert tail_ok.status_code == 200, tail_ok.text
+    assert tail_ok.json()["lines"] == ["second", "third"]
+
+
+async def test_manager_system_metrics_include_resource_usage(manager_client, manager_auth_headers):
+    response = await manager_client.get("/api/v1/manager/system/metrics", headers=manager_auth_headers)
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["status"] in {"ok", "warning", "error"}
+    assert payload["cpu"]["count"] >= 1
+    assert isinstance(payload["disks"], list)
+
 
 async def test_manager_operations_list_run_and_404_missing_action(manager_client, manager_auth_headers, monkeypatch):
     from src.routers.managers import operations
@@ -322,7 +384,9 @@ async def test_manager_operations_list_run_and_404_missing_action(manager_client
     action_ids = {item["action_id"] for item in listing.json()["items"]}
     assert "sample_action" in action_ids
 
-    run = await manager_client.post("/api/v1/manager/operations/actions/sample_action/run", headers=manager_auth_headers)
+    run = await manager_client.post(
+        "/api/v1/manager/operations/actions/sample_action/run", headers=manager_auth_headers
+    )
     assert run.status_code == 200, run.text
     run_payload = run.json()
     assert run_payload["status"] == "completed"
@@ -333,6 +397,161 @@ async def test_manager_operations_list_run_and_404_missing_action(manager_client
         headers=manager_auth_headers,
     )
     assert missing.status_code == 404
+
+    audit_log = await manager_client.get("/api/v1/manager/operations/audit-log", headers=manager_auth_headers)
+    assert audit_log.status_code == 200, audit_log.text
+    assert any(item["action"] == "sample_action" for item in audit_log.json()["items"])
+
+
+async def test_manager_terminal_commands_are_allowlisted_and_audited(manager_client, manager_auth_headers):
+    listing = await manager_client.get("/api/v1/manager/operations/terminal/commands", headers=manager_auth_headers)
+    assert listing.status_code == 200, listing.text
+    command_ids = {item["command_id"] for item in listing.json()["items"]}
+    assert "list_project_root" in command_ids
+
+    run = await manager_client.post(
+        "/api/v1/manager/operations/terminal/commands/list_project_root/run",
+        headers=manager_auth_headers,
+    )
+    assert run.status_code == 200, run.text
+    run_payload = run.json()
+    assert run_payload["command_id"] == "list_project_root"
+    assert run_payload["status"] == "completed"
+    assert "pyproject.toml" in run_payload["stdout"]
+
+    missing = await manager_client.post(
+        "/api/v1/manager/operations/terminal/commands/not_allowed/run",
+        headers=manager_auth_headers,
+    )
+    assert missing.status_code == 404
+
+    audit_log = await manager_client.get(
+        "/api/v1/manager/operations/audit-log",
+        headers=manager_auth_headers,
+        params={"event_type": "terminal"},
+    )
+    assert audit_log.status_code == 200, audit_log.text
+    assert audit_log.json()["items"][0]["action"] == "list_project_root"
+
+
+async def test_manager_database_catalog_rows_and_update(
+    manager_client,
+    manager_auth_headers,
+    manager_database_tables,
+):
+    connections = await manager_client.get("/api/v1/manager/databases", headers=manager_auth_headers)
+    assert connections.status_code == 200, connections.text
+    connection_payload = connections.json()
+    assert connection_payload["items"][0]["id"] == "primary"
+    assert connection_payload["items"][0]["editable"] is True
+
+    schema = await manager_client.get("/api/v1/manager/databases/primary/schema", headers=manager_auth_headers)
+    assert schema.status_code == 200, schema.text
+    schema_payload = schema.json()
+    table_names = {item["name"] for item in schema_payload["tables"]}
+    assert {"manager_db_parent", "manager_db_child"}.issubset(table_names)
+    relationships = {(item["source_table"], item["target_table"]) for item in schema_payload["relationships"]}
+    assert ("manager_db_child", "manager_db_parent") in relationships
+
+    tables = await manager_client.get("/api/v1/manager/databases/primary/tables", headers=manager_auth_headers)
+    assert tables.status_code == 200, tables.text
+    child_table = next(item for item in tables.json()["items"] if item["name"] == "manager_db_child")
+    assert child_table["row_count"] == 1
+    assert child_table["primary_key"] == ["id"]
+    assert child_table["foreign_key_count"] == 1
+
+    rows = await manager_client.get(
+        "/api/v1/manager/databases/primary/tables/manager_db_child/rows",
+        headers=manager_auth_headers,
+        params={"page_size": 5},
+    )
+    assert rows.status_code == 200, rows.text
+    rows_payload = rows.json()
+    assert rows_payload["total"] == 1
+    assert rows_payload["items"][0]["label"] == "child-before"
+
+    updated = await manager_client.patch(
+        "/api/v1/manager/databases/primary/tables/manager_db_child/rows",
+        headers=manager_auth_headers,
+        json={"pk": {"id": 10}, "values": {"label": "child-after"}},
+    )
+    assert updated.status_code == 200, updated.text
+    assert updated.json()["row"]["label"] == "child-after"
+
+    invalid = await manager_client.patch(
+        "/api/v1/manager/databases/primary/tables/manager_db_child/rows",
+        headers=manager_auth_headers,
+        json={"pk": {"id": 10}, "values": {"missing": "nope"}},
+    )
+    assert invalid.status_code == 400
+    invalid_detail = invalid.json()["detail"]
+    assert invalid_detail["code"] == "unknown_update_column"
+    assert invalid_detail["columns"] == ["missing"]
+
+
+async def test_manager_database_update_errors_are_structured(
+    manager_client,
+    manager_auth_headers,
+    manager_database_tables,
+):
+    endpoint = "/api/v1/manager/databases/primary/tables/manager_db_child/rows"
+
+    missing_pk = await manager_client.patch(
+        endpoint,
+        headers=manager_auth_headers,
+        json={"pk": {}, "values": {"label": "next"}},
+    )
+    assert missing_pk.status_code == 400
+    assert missing_pk.json()["detail"]["code"] == "primary_key_required"
+
+    primary_key_update = await manager_client.patch(
+        endpoint,
+        headers=manager_auth_headers,
+        json={"pk": {"id": 10}, "values": {"id": 11}},
+    )
+    assert primary_key_update.status_code == 400
+    primary_key_detail = primary_key_update.json()["detail"]
+    assert primary_key_detail["code"] == "primary_key_update_forbidden"
+    assert primary_key_detail["columns"] == ["id"]
+
+    invalid_integer = await manager_client.patch(
+        endpoint,
+        headers=manager_auth_headers,
+        json={"pk": {"id": 10}, "values": {"parent_id": "not-a-number"}},
+    )
+    assert invalid_integer.status_code == 400
+    integer_detail = invalid_integer.json()["detail"]
+    assert integer_detail["code"] == "invalid_integer"
+    assert integer_detail["column"] == "parent_id"
+    assert integer_detail["expected"] == "整数"
+
+    invalid_boolean = await manager_client.patch(
+        endpoint,
+        headers=manager_auth_headers,
+        json={"pk": {"id": 10}, "values": {"active": "maybe"}},
+    )
+    assert invalid_boolean.status_code == 400
+    boolean_detail = invalid_boolean.json()["detail"]
+    assert boolean_detail["code"] == "invalid_boolean"
+    assert boolean_detail["column"] == "active"
+
+    null_label = await manager_client.patch(
+        endpoint,
+        headers=manager_auth_headers,
+        json={"pk": {"id": 10}, "values": {"label": None}},
+    )
+    assert null_label.status_code == 400
+    null_detail = null_label.json()["detail"]
+    assert null_detail["code"] == "null_not_allowed"
+    assert null_detail["column"] == "label"
+
+    missing_row = await manager_client.patch(
+        endpoint,
+        headers=manager_auth_headers,
+        json={"pk": {"id": 999}, "values": {"label": "next"}},
+    )
+    assert missing_row.status_code == 400
+    assert missing_row.json()["detail"]["code"] == "row_not_found"
 
 
 async def test_manager_checkpoint_delete_returns_404_when_missing(

@@ -132,7 +132,7 @@ import { useAuthStore } from '@/composables/useAuth'
 import { useTheme } from '@/composables/useTheme'
 import {
   LayoutDashboard, Users, Activity, Settings, Puzzle,
-  FileText, Cpu, Bot, Plug, Terminal,
+  FileText, Cpu, Bot, Plug, Terminal, Database,
   RefreshCw, LogOut, PanelLeftClose, PanelLeftOpen,
 } from 'lucide-vue-next'
 import ThemeModeSwitch from '@/components/ThemeModeSwitch.vue'
@@ -199,6 +199,7 @@ const navGroups = [
     label: '系统',
     items: [
       { to: '/status', label: '系统状态', icon: Activity },
+      { to: '/databases', label: '数据库管理', icon: Database },
       { to: '/settings', label: '系统设置', icon: Settings },
     ],
   },

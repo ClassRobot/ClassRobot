@@ -14,3 +14,9 @@ export function readLog(
     .get('/logs/read', { params: { path, offset, limit } })
     .then((r) => r.data)
 }
+
+export function tailLog(path: string, lines = 300): Promise<LogReadResult> {
+  return client
+    .get('/logs/tail', { params: { path, lines } })
+    .then((r) => r.data)
+}

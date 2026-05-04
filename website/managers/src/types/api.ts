@@ -117,10 +117,169 @@ export interface StatusResponse {
   models?: ModelStatusSummary
   cos?: CosStatus
   ragflow?: RagflowStatus
+  system?: SystemMetrics
 }
 
 export interface StatusCheckRequest {
   targets?: string[]
+}
+
+export interface SystemCpuMetrics {
+  percent: number | null
+  count: number | null
+  physical_count?: number | null
+  load_average?: number[] | null
+}
+
+export interface SystemMemoryMetrics {
+  total: number
+  available?: number
+  used: number
+  free: number
+  percent: number
+}
+
+export interface SystemDiskMetrics {
+  device: string
+  mountpoint: string
+  fstype: string
+  total: number
+  used: number
+  free: number
+  percent: number
+}
+
+export interface SystemProcessMetrics {
+  pid: number
+  cpu_percent: number
+  memory_rss: number
+  memory_percent: number
+  threads: number
+  started_at: string
+  uptime_seconds: number
+}
+
+export interface SystemMetrics {
+  status: StatusLevel
+  timestamp: string
+  message?: string
+  cpu: SystemCpuMetrics
+  memory: SystemMemoryMetrics | null
+  swap: SystemMemoryMetrics | null
+  disks: SystemDiskMetrics[]
+  process: SystemProcessMetrics | null
+}
+
+// ─── Databases ──────────────────────────────────────────────
+export interface DatabaseConnection {
+  id: string
+  name: string
+  status: 'connected' | 'error'
+  kind: string
+  dialect: string | null
+  driver: string | null
+  url: string | null
+  database: string | null
+  editable: boolean
+}
+
+export interface DatabaseConnectionResponse {
+  items: DatabaseConnection[]
+  total: number
+}
+
+export interface DatabaseColumn {
+  name: string
+  type: string
+  nullable: boolean
+  default: string | null
+  primary_key: boolean
+  sensitive: boolean
+}
+
+export interface DatabaseForeignKey {
+  name: string | null
+  source_table: string
+  source_columns: string[]
+  target_schema: string | null
+  target_table: string
+  target_columns: string[]
+  label: string
+}
+
+export interface DatabaseTableSchema {
+  name: string
+  schema: string | null
+  columns: DatabaseColumn[]
+  primary_key: string[]
+  foreign_keys: DatabaseForeignKey[]
+}
+
+export interface DatabaseSchemaResponse {
+  database_id: string
+  schema: string | null
+  default_schema: string | null
+  schemas: string[]
+  tables: DatabaseTableSchema[]
+  relationships: DatabaseForeignKey[]
+}
+
+export interface DatabaseTableSummary {
+  name: string
+  schema: string | null
+  column_count: number
+  row_count: number | null
+  primary_key: string[]
+  foreign_key_count: number
+  editable: boolean
+}
+
+export interface DatabaseTableListResponse {
+  database_id: string
+  schema: string | null
+  items: DatabaseTableSummary[]
+  total: number
+}
+
+export type DatabaseRow = Record<string, unknown>
+
+export interface DatabaseTableRowsResponse {
+  database_id: string
+  schema: string | null
+  table: string
+  columns: DatabaseColumn[]
+  primary_key: string[]
+  items: DatabaseRow[]
+  page: number
+  page_size: number
+  total: number
+}
+
+export interface DatabaseRowUpdateRequest {
+  pk: Record<string, unknown>
+  values: Record<string, unknown>
+}
+
+export interface DatabaseRowUpdateResponse {
+  updated: boolean
+  database_id: string
+  schema: string | null
+  table: string
+  pk: Record<string, unknown>
+  row: DatabaseRow | null
+}
+
+export interface DatabaseMutationErrorDetail {
+  code: string
+  message: string
+  column?: string
+  columns?: string[]
+  hint?: string
+  detail?: string
+  expected?: string
+  received_type?: string
+  received_value?: string
+  database_error_type?: string
 }
 
 // ─── Users ──────────────────────────────────────────────────
@@ -412,4 +571,44 @@ export interface ActionRunResult {
   duration_ms: number
   error: string
   result: Record<string, unknown>
+}
+
+export interface TerminalCommandItem {
+  command_id: string
+  title: string
+  description: string
+  risk: 'low' | 'medium'
+  cwd: string
+  command: string
+  available: boolean
+  timeout: number
+}
+
+export interface TerminalRunResult {
+  command_id: string
+  status: 'completed' | 'failed'
+  exit_code: number
+  duration_ms: number
+  timed_out: boolean
+  error: string
+  stdout: string
+  stderr: string
+  cwd: string
+  command: string
+}
+
+export interface AuditLogItem {
+  timestamp: string
+  event_type: string
+  action: string
+  status: string
+  actor: string
+  session_id: string | null
+  detail: Record<string, unknown>
+}
+
+export interface AuditLogResponse {
+  items: AuditLogItem[]
+  total: number
+  path: string
 }

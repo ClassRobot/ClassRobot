@@ -7,7 +7,6 @@ from utils.config import data_dir, project_root
 
 from .service import relative_to_project
 
-
 LOG_GLOBS = ("*.log", "*.txt")
 LOG_ROOTS = (
     project_root / ".codex" / "tmp",
@@ -62,5 +61,20 @@ def read_log(path: str, *, offset: int = 0, limit: int = 500) -> dict[str, Any]:
         "offset": safe_offset,
         "limit": safe_limit,
         "total_lines": len(lines),
+        "lines": selected,
+    }
+
+
+def tail_log(path: str, *, lines: int = 300) -> dict[str, Any]:
+    log_path = _resolve_allowed_log(path)
+    all_lines = log_path.read_text("utf-8", errors="replace").splitlines()
+    safe_lines = min(max(lines, 1), 2000)
+    offset = max(len(all_lines) - safe_lines, 0)
+    selected = all_lines[offset:]
+    return {
+        "path": str(log_path),
+        "offset": offset,
+        "limit": safe_lines,
+        "total_lines": len(all_lines),
         "lines": selected,
     }

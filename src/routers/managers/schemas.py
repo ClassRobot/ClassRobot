@@ -39,3 +39,8 @@ class PromptUpdateRequest(BaseModel):
 class ModelSettingsRequest(BaseModel):
     llm_timeout: float | None = None
     llm_configs: list[dict[str, Any]] | None = None
+
+
+class DatabaseRowUpdateRequest(BaseModel):
+    pk: dict[str, Any] = Field(default_factory=dict)
+    values: dict[str, Any] = Field(default_factory=dict)
