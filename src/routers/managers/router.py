@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from . import audit, agents, databases, llm_models, logs, nonebot_runtime, operations, prompts, settings_store, skills
+from . import audit, agents, databases, groups, llm_models, logs, nonebot_runtime, operations, prompts, settings_store, skills
 from .schemas import (
     LoginRequest,
     TokenResponse,
@@ -230,6 +230,32 @@ async def delete_user_bind(user_id: int, bind_id: int, session=Depends(manager_a
             session=session,
         )
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bind not found") from error
+
+
+@router.get("/groups")
+async def list_group_items(
+    q: str | None = None,
+    platform_id: str | None = None,
+    join_method: str | None = None,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    _=Depends(manager_auth),
+):
+    return await groups.list_groups(
+        q=q,
+        platform_id=platform_id,
+        join_method=join_method,
+        page=page,
+        page_size=page_size,
+    )
+
+
+@router.get("/groups/{group_id}")
+async def get_group_item(group_id: int, _=Depends(manager_auth)):
+    try:
+        return await groups.get_group_detail(group_id)
+    except KeyError as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Group not found") from error
 
 
 @router.get("/skills")

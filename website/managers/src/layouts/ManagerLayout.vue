@@ -146,7 +146,7 @@ import { useTheme } from '@/composables/useTheme'
 import {
   LayoutDashboard, Users, Activity, Settings, Puzzle,
   FileText, Cpu, Bot, Plug, Terminal, Database, FileCode2,
-  RefreshCw, LogOut, PanelLeftClose, PanelLeftOpen,
+  MessageSquare, RefreshCw, LogOut, PanelLeftClose, PanelLeftOpen,
 } from 'lucide-vue-next'
 import ThemeModeSwitch from '@/components/ThemeModeSwitch.vue'
 
@@ -207,7 +207,13 @@ function handleLogout() {
 
 const navGroups = [
   { label: '概览', items: [{ to: '/overview', label: '总览', icon: LayoutDashboard }] },
-  { label: '身份', items: [{ to: '/users', label: '用户中心', icon: Users }] },
+  {
+    label: '身份',
+    items: [
+      { to: '/users', label: '用户中心', icon: Users },
+      { to: '/groups', label: '群组中心', icon: MessageSquare },
+    ],
+  },
   {
     label: '系统',
     items: [

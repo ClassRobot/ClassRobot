@@ -709,6 +709,50 @@ async def test_manager_users_include_avatar_in_summary_and_detail(
     assert detail_response.json()["avatar"] == avatar_url
 
 
+async def test_manager_groups_list_and_detail(
+    manager_client,
+    manager_auth_headers,
+    manager_user_orm,
+):
+    from utils.models import Classes, Teacher, User
+
+    suffix = uuid4().hex[:8]
+    creator = await User.create_user(nickname="群组创建者", username=f"manager_group_creator_{suffix}")
+    teacher_user = await User.create_user(nickname="群组教师", username=f"manager_group_teacher_{suffix}")
+    teacher = await Teacher.create_teacher("群组教师", teacher_user)
+    classes = await Classes.create_classes(
+        name=f"管理测试班级_{suffix}",
+        platform_name="QQ",
+        platform_id="qq.qq_api",
+        channel_id=f"manager-group-{suffix}",
+        guild_id=None,
+        user=creator,
+    )
+    await classes.bind_teacher(teacher)
+
+    response = await manager_client.get(
+        "/api/v1/manager/groups",
+        headers=manager_auth_headers,
+        params={"q": suffix},
+    )
+    assert response.status_code == 200, response.text
+    item = next(group for group in response.json()["items"] if group["id"] == classes.group_id)
+    assert item["class_info"]["name"] == classes.name
+    assert item["creator"]["id"] == creator.id
+    assert item["platforms"] == ["qq.qq_api"]
+    assert item["teacher_count"] == 1
+
+    detail = await manager_client.get(
+        f"/api/v1/manager/groups/{classes.group_id}",
+        headers=manager_auth_headers,
+    )
+    assert detail.status_code == 200, detail.text
+    payload = detail.json()
+    assert payload["class_detail"]["id"] == classes.id
+    assert payload["binds"][0]["channel_id"] == f"manager-group-{suffix}"
+    assert payload["teachers"][0]["user"]["id"] == teacher_user.id
+
+
 async def test_manager_user_delete_returns_structured_blockers(
     manager_client,
     manager_auth_headers,

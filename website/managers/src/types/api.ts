@@ -375,6 +375,97 @@ export interface UserMutationErrorDetail {
   blockers?: UserMutationBlocker[]
 }
 
+// ─── Groups / Classes ──────────────────────────────────────
+export interface ManagerUserBrief {
+  id: number
+  nickname: string
+  username: string
+  avatar: string | null
+}
+
+export interface GroupClassInfo {
+  id: number
+  name: string
+  school_id: number | null
+  school_name: string | null
+  college_id: number | null
+  college_name: string | null
+  major_id: number | null
+  major_name: string | null
+  student_count: number
+  teacher_count: number
+  pending_join_count: number
+  created_at: string
+  updated_at: string
+}
+
+export interface GroupSummary {
+  id: number
+  name: string
+  creator: ManagerUserBrief | null
+  join_method: string | null
+  class_info: GroupClassInfo | null
+  bind_count: number
+  platforms: string[]
+  student_count: number
+  teacher_count: number
+  pending_join_count: number
+  created_at: string
+  updated_at: string
+}
+
+export interface GroupBindInfo {
+  id: number
+  name: string | null
+  platform_id: string
+  channel_id: string
+  guild_id: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface GroupMemberTeacher {
+  id: number
+  name: string
+  role: string | null
+  class_role: string | null
+  school_name: string | null
+  college_name: string | null
+  user: ManagerUserBrief | null
+}
+
+export interface GroupMemberStudent {
+  id: number
+  name: string
+  role: string | null
+  school_name: string | null
+  user: ManagerUserBrief | null
+}
+
+export interface GroupJoinRequest {
+  id: number
+  user: ManagerUserBrief | null
+  join_method: string | null
+  describe: string | null
+  created_at: string
+}
+
+export interface GroupDetail extends GroupSummary {
+  group: {
+    id: number
+    name: string
+    creator: ManagerUserBrief | null
+    join_method: string | null
+    created_at: string
+    updated_at: string
+  }
+  class_detail: GroupClassInfo | null
+  binds: GroupBindInfo[]
+  teachers: GroupMemberTeacher[]
+  students: GroupMemberStudent[]
+  join_requests: GroupJoinRequest[]
+}
+
 // ─── Settings ───────────────────────────────────────────────
 export interface BaseSettings {
   global_proxy: string | null

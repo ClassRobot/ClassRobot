@@ -29,6 +29,12 @@ const router = createRouter({
           meta: { title: '用户中心', group: '身份' },
         },
         {
+          path: 'groups',
+          name: 'Groups',
+          component: () => import('@/views/GroupsView.vue'),
+          meta: { title: '群组中心', group: '身份' },
+        },
+        {
           path: 'status',
           name: 'Status',
           component: () => import('@/views/StatusView.vue'),
