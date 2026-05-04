@@ -1,6 +1,7 @@
 import os
 import sys
 from pathlib import Path
+from uuid import uuid4
 
 import nonebot
 import httpx
@@ -10,6 +11,20 @@ from dotenv import dotenv_values
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, MetaData, String, Table, delete
 
 pytestmark = pytest.mark.asyncio
+
+
+async def _recreate_admin_orm_schema() -> None:
+    import nonebot_plugin_orm as orm
+
+    if not hasattr(orm, "_metadatas") or not getattr(orm, "_metadatas", None):
+        orm._init_orm()
+    if hasattr(orm, "_scoped_sessions"):
+        await orm._scoped_sessions.remove()
+    for bind_name, metadata in orm._metadatas.items():
+        engine = orm._engines[bind_name]
+        async with engine.begin() as connection:
+            await connection.run_sync(metadata.drop_all)
+            await connection.run_sync(metadata.create_all)
 
 
 @pytest.fixture(scope="session")
@@ -119,6 +134,12 @@ async def manager_database_tables(loaded_plugins):
 
     async with bind.begin() as connection:
         await connection.run_sync(metadata.drop_all)
+
+
+@pytest_asyncio.fixture
+async def manager_user_orm(loaded_plugins):
+    await _recreate_admin_orm_schema()
+    yield
 
 
 @pytest_asyncio.fixture
@@ -636,6 +657,108 @@ async def test_manager_database_update_errors_are_structured(
     )
     assert missing_row.status_code == 400
     assert missing_row.json()["detail"]["code"] == "row_not_found"
+
+
+async def test_manager_user_delete_removes_user_and_binds(manager_client, manager_auth_headers, manager_user_orm):
+    from utils.models import User, UserBind
+
+    suffix = uuid4().hex[:8]
+    user = await User.create_user(nickname="待删用户", username=f"manager_delete_user_{suffix}")
+    await UserBind.bind_user("qq.qq_api", f"manager-delete-{suffix}", user)
+
+    response = await manager_client.delete(f"/api/v1/manager/users/{user.id}", headers=manager_auth_headers)
+    assert response.status_code == 200, response.text
+    assert response.json() == {"deleted": True, "user_id": user.id}
+    assert await User.filter(id=user.id).first() is None
+    assert await UserBind.filter(user_id=user.id).count() == 0
+
+
+async def test_manager_users_include_avatar_in_summary_and_detail(
+    manager_client,
+    manager_auth_headers,
+    manager_user_orm,
+):
+    from utils.models import User
+
+    suffix = uuid4().hex[:8]
+    avatar_url = f"https://example.com/avatar-{suffix}.png"
+    user = await User.create_user(
+        nickname="头像用户",
+        username=f"manager_avatar_user_{suffix}",
+        avatar=avatar_url,
+    )
+
+    summary_response = await manager_client.get("/api/v1/manager/users", headers=manager_auth_headers)
+    assert summary_response.status_code == 200, summary_response.text
+    summary_items = summary_response.json()["items"]
+    summary_item = next(item for item in summary_items if item["id"] == user.id)
+    assert summary_item["avatar"] == avatar_url
+
+    detail_response = await manager_client.get(
+        f"/api/v1/manager/users/{user.id}",
+        headers=manager_auth_headers,
+    )
+    assert detail_response.status_code == 200, detail_response.text
+    assert detail_response.json()["avatar"] == avatar_url
+
+
+async def test_manager_user_delete_returns_structured_blockers(
+    manager_client,
+    manager_auth_headers,
+    manager_user_orm,
+):
+    from utils.models import Classes, Teacher, User
+
+    suffix = uuid4().hex[:8]
+    creator = await User.create_user(nickname="班级创建者", username=f"manager_class_creator_{suffix}")
+    teacher_user = await User.create_user(nickname="待删教师", username=f"manager_teacher_delete_{suffix}")
+    teacher = await Teacher.create_teacher("待删教师", teacher_user)
+    classes = await Classes.create_classes(
+        name=f"删除校验班级_{suffix}",
+        platform_name="QQ",
+        platform_id="qq.qq_api",
+        channel_id=f"manager-delete-{suffix}",
+        guild_id=None,
+        user=creator,
+    )
+    await classes.bind_teacher(teacher)
+
+    response = await manager_client.delete(
+        f"/api/v1/manager/users/{teacher_user.id}",
+        headers=manager_auth_headers,
+    )
+    assert response.status_code == 400, response.text
+    detail = response.json()["detail"]
+    assert detail["code"] == "user_delete_blocked"
+    assert any(item["code"] == "teacher_has_classes" for item in detail["blockers"])
+
+
+async def test_manager_nonebot_runtime_inventory(manager_client, manager_auth_headers):
+    unauthorized = await manager_client.get("/api/v1/manager/nonebot")
+    assert unauthorized.status_code == 401
+
+    response = await manager_client.get("/api/v1/manager/nonebot", headers=manager_auth_headers)
+    assert response.status_code == 200, response.text
+    payload = response.json()
+
+    assert payload["runtime"]["initialized"] is True
+    assert payload["stats"]["commands"] >= 1
+    assert payload["stats"]["adapters"] >= 3
+    assert {"plugins", "commands", "adapters", "bots"}.issubset(payload)
+
+    command_names = {item["command"] for item in payload["commands"]}
+    assert {"token", "我的信息"}.issubset(command_names)
+
+    adapter_modules = {item["module_name"] for item in payload["adapters"]}
+    assert {
+        "nonebot.adapters.onebot.v11",
+        "nonebot.adapters.onebot.v12",
+        "nonebot.adapters.qq",
+    }.issubset(adapter_modules)
+
+    commands = await manager_client.get("/api/v1/manager/nonebot/commands", headers=manager_auth_headers)
+    assert commands.status_code == 200, commands.text
+    assert commands.json()["total"] == payload["stats"]["commands"]
 
 
 async def test_manager_checkpoint_delete_returns_404_when_missing(

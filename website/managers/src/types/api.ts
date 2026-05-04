@@ -288,6 +288,7 @@ export interface UserSummary {
   nickname: string
   username: string
   email: string | null
+  avatar: string | null
   phone: string | null
   roles: string[]
   is_admin: boolean
@@ -353,6 +354,25 @@ export interface UserDetail extends UserSummary {
 
 export interface AdminPatchRequest {
   is_admin: boolean
+}
+
+export interface UserDeleteResponse {
+  deleted: boolean
+  user_id: number
+}
+
+export interface UserMutationBlocker {
+  code: string
+  message: string
+  items?: string[]
+}
+
+export interface UserMutationErrorDetail {
+  code: string
+  message: string
+  hint?: string
+  detail?: string
+  blockers?: UserMutationBlocker[]
 }
 
 // ─── Settings ───────────────────────────────────────────────
@@ -538,6 +558,126 @@ export interface IntegrationsResponse {
   ragflow: RagflowStatus
   cos: CosStatus
   models: ModelStatusSummary
+}
+
+// ─── NoneBot Runtime ───────────────────────────────────────
+export interface NoneBotConfigAdapter {
+  name: string
+  module_name: string
+}
+
+export interface NoneBotRuntimeConfig {
+  plugins: string[]
+  plugin_dirs: string[]
+  adapters: NoneBotConfigAdapter[]
+  errors: string[]
+}
+
+export interface NoneBotRuntimeInfo {
+  initialized: boolean
+  driver: string | null
+  environment: string | null
+  host: string | null
+  port: number | null
+  config: NoneBotRuntimeConfig
+  errors: string[]
+}
+
+export interface NoneBotStats {
+  plugins: number
+  loaded_plugins: number
+  commands: number
+  documented_commands: number
+  adapters: number
+  registered_adapters: number
+  bots: number
+  online_bots: number
+}
+
+export interface NoneBotPluginItem {
+  name: string
+  module_name: string
+  display_name: string
+  description: string
+  usage: string
+  type: string | null
+  homepage: string | null
+  supported_adapters: string[]
+  loaded: boolean
+  source: 'runtime' | 'source_scan' | 'pyproject'
+  matcher_count: number
+  sub_plugin_count: number
+  parent: string | null
+  command_count: number
+}
+
+export interface NoneBotCommandParam {
+  name: string
+  description: string | null
+  mode: string | null
+}
+
+export interface NoneBotCommandItem {
+  id: string
+  command: string
+  aliases: string[]
+  matcher_type: 'command' | 'alconna'
+  priority: string | number | null
+  block: string | boolean | null
+  skip_for_unmatch: string | boolean | null
+  signature: string
+  documented: boolean
+  description: string
+  roles: string[]
+  scopes: string[]
+  params: NoneBotCommandParam[]
+  matcher_name: string | null
+  file: string
+  line: number
+  module_name: string
+  plugin_module: string
+  plugin_name: string
+  namespace: string
+  source: 'source_scan'
+  runtime_loaded: boolean
+}
+
+export interface NoneBotAdapterItem {
+  name: string
+  module_name: string
+  class_module: string | null
+  runtime_key: string | null
+  class_name: string | null
+  registered: boolean
+  source: 'runtime' | 'pyproject'
+  bot_count: number
+}
+
+export interface NoneBotBotItem {
+  self_id: string
+  type: string | null
+  adapter_name: string | null
+  adapter_module: string | null
+  connected: boolean
+  status: 'online'
+}
+
+export interface NoneBotListResponse<T> {
+  items: T[]
+  total: number
+  errors: string[]
+}
+
+export interface NoneBotOverviewResponse {
+  status: 'ok' | 'warning'
+  runtime: NoneBotRuntimeInfo
+  stats: NoneBotStats
+  command_sources: Record<string, number>
+  plugins: NoneBotPluginItem[]
+  commands: NoneBotCommandItem[]
+  adapters: NoneBotAdapterItem[]
+  bots: NoneBotBotItem[]
+  errors: string[]
 }
 
 // ─── Logs ───────────────────────────────────────────────────

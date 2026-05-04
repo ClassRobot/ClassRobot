@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from . import audit, agents, databases, llm_models, logs, operations, prompts, settings_store, skills
+from . import audit, agents, databases, llm_models, logs, nonebot_runtime, operations, prompts, settings_store, skills
 from .schemas import (
     LoginRequest,
     TokenResponse,
@@ -170,6 +170,41 @@ async def patch_user_admin(user_id: int, payload: AdminPatchRequest, session=Dep
             session=session,
         )
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found") from error
+
+
+@router.delete("/users/{user_id}")
+async def delete_user(user_id: int, session=Depends(manager_auth)):
+    from .users import UserMutationError, delete_user_account
+
+    try:
+        result = await delete_user_account(user_id)
+        audit.log_event(
+            "users",
+            "delete_user",
+            "completed",
+            detail={"user_id": user_id},
+            session=session,
+        )
+        return result
+    except KeyError as error:
+        audit.log_event(
+            "users",
+            "delete_user",
+            "failed",
+            detail={"user_id": user_id, "error": "User not found"},
+            session=session,
+        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found") from error
+    except UserMutationError as error:
+        payload = error.to_payload()
+        audit.log_event(
+            "users",
+            "delete_user",
+            "failed",
+            detail={"user_id": user_id, "error": payload},
+            session=session,
+        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=payload) from error
 
 
 @router.delete("/users/{user_id}/binds/{bind_id}")
@@ -373,6 +408,31 @@ async def integrations(_=Depends(manager_auth)):
         "cos": status_payload.get("cos", {}),
         "models": status_payload.get("models", {}),
     }
+
+
+@router.get("/nonebot")
+async def nonebot_overview(_=Depends(manager_auth)):
+    return nonebot_runtime.get_nonebot_overview()
+
+
+@router.get("/nonebot/plugins")
+async def list_nonebot_plugins(_=Depends(manager_auth)):
+    return nonebot_runtime.list_plugins()
+
+
+@router.get("/nonebot/commands")
+async def list_nonebot_commands(_=Depends(manager_auth)):
+    return nonebot_runtime.list_commands()
+
+
+@router.get("/nonebot/adapters")
+async def list_nonebot_adapters(_=Depends(manager_auth)):
+    return nonebot_runtime.list_adapters()
+
+
+@router.get("/nonebot/bots")
+async def list_nonebot_bots(_=Depends(manager_auth)):
+    return nonebot_runtime.list_bots()
 
 
 @router.get("/databases")

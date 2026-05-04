@@ -225,7 +225,14 @@ const navGroups = [
     ],
   },
   { label: 'Agent', items: [{ to: '/agents', label: 'Agent 管理', icon: Bot }] },
-  { label: '集成', items: [{ to: '/integrations', label: 'MCP / 集成', icon: Plug }] },
+  {
+    label: '集成',
+    items: [
+      { to: '/integrations', label: 'MCP / 集成', icon: Plug },
+      { to: '/nonebot/plugins', label: 'Plugin 管理', icon: Puzzle },
+      { to: '/nonebot/bots', label: 'Bot 管理', icon: Bot },
+    ],
+  },
   {
     label: '运维',
     items: [

@@ -77,6 +77,25 @@ const router = createRouter({
           meta: { title: 'MCP / 集成', group: '集成' },
         },
         {
+          path: 'nonebot',
+          name: 'NoneBot',
+          redirect: '/nonebot/plugins',
+        },
+        {
+          path: 'nonebot/plugins',
+          name: 'NoneBotPlugins',
+          component: () => import('@/views/NoneBotView.vue'),
+          props: { mode: 'plugin' },
+          meta: { title: 'Plugin 管理', group: '集成' },
+        },
+        {
+          path: 'nonebot/bots',
+          name: 'NoneBotBots',
+          component: () => import('@/views/NoneBotView.vue'),
+          props: { mode: 'bot' },
+          meta: { title: 'Bot 管理', group: '集成' },
+        },
+        {
           path: 'operations',
           name: 'Operations',
           component: () => import('@/views/OperationsView.vue'),

@@ -2,11 +2,43 @@ from __future__ import annotations
 
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import and_, delete as sql_delete, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 from nonebot_plugin_orm import get_session
 
-from utils.models import User, Student, Teacher, UserBind
+from utils.models import AgentWorkflowCheckpoint, AgentWorkflowRun, User, Student, Teacher, UserBind
+
+
+class UserMutationError(RuntimeError):
+    def __init__(
+        self,
+        code: str,
+        message: str,
+        *,
+        hint: str | None = None,
+        detail: str | None = None,
+        blockers: list[dict[str, Any]] | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.code = code
+        self.message = message
+        self.hint = hint
+        self.detail = detail
+        self.blockers = blockers or []
+
+    def to_payload(self) -> dict[str, Any]:
+        payload: dict[str, Any] = {
+            "code": self.code,
+            "message": self.message,
+        }
+        if self.hint:
+            payload["hint"] = self.hint
+        if self.detail:
+            payload["detail"] = self.detail
+        if self.blockers:
+            payload["blockers"] = self.blockers
+        return payload
 
 
 def _user_load_options():
@@ -31,6 +63,7 @@ def _user_summary(user: User) -> dict[str, Any]:
         "nickname": user.nickname,
         "username": user.username,
         "email": user.email,
+        "avatar": user.avatar,
         "phone": user.phone,
         "roles": _roles(user),
         "is_admin": user.is_admin,
@@ -51,6 +84,44 @@ def _bind_payload(bind: UserBind) -> dict[str, Any]:
         "created_at": bind.created_at,
         "updated_at": bind.updated_at,
     }
+
+
+async def _delete_fk_descendants(
+    session,
+    target_table,
+    pk_values: dict[str, Any],
+    seen: set[tuple[str, tuple[tuple[str, Any], ...]]],
+) -> None:
+    identity = (target_table.fullname, tuple(sorted(pk_values.items())))
+    if identity in seen:
+        return
+    seen.add(identity)
+
+    for child_table in target_table.metadata.tables.values():
+        for constraint in child_table.foreign_key_constraints:
+            elements = list(constraint.elements)
+            if not elements or any(element.column.table is not target_table for element in elements):
+                continue
+
+            target_columns = [element.column.name for element in elements]
+            if any(column_name not in pk_values for column_name in target_columns):
+                continue
+
+            where_clause = and_(*(element.parent == pk_values[element.column.name] for element in elements))
+            pk_columns = list(child_table.primary_key.columns)
+            child_rows: list[dict[str, Any]] = []
+
+            if pk_columns:
+                result = await session.execute(select(*pk_columns).where(where_clause))
+                child_rows = [
+                    {column.name: value for column, value in zip(pk_columns, row)}
+                    for row in result.fetchall()
+                ]
+
+            for child_pk in child_rows:
+                await _delete_fk_descendants(session, child_table, child_pk, seen)
+
+            await session.execute(sql_delete(child_table).where(where_clause))
 
 
 async def list_users(
@@ -162,3 +233,57 @@ async def delete_user_bind(user_id: int, bind_id: int) -> dict[str, Any]:
         raise KeyError(str(bind_id))
     await bind.delete()
     return {"deleted": True, "bind_id": bind_id}
+
+
+async def delete_user_account(user_id: int) -> dict[str, Any]:
+    async with get_session() as session:
+        user = await session.scalar(select(User).where(User.id == user_id).options(*_user_load_options()))
+        if user is None:
+            raise KeyError(str(user_id))
+
+        blockers: list[dict[str, Any]] = []
+
+        if user.teacher is not None and user.teacher.classes:
+            class_names = [item.name for item in user.teacher.classes[:6]]
+            blockers.append(
+                {
+                    "code": "teacher_has_classes",
+                    "message": f"教师身份仍绑定 {len(user.teacher.classes)} 个班级，请先移交或解除班级关联。",
+                    "items": class_names,
+                }
+            )
+
+        owned_groups = await user.get_groups()
+        if owned_groups:
+            group_names = [item.name for item in owned_groups[:6]]
+            blockers.append(
+                {
+                    "code": "owns_groups",
+                    "message": f"当前用户仍创建了 {len(owned_groups)} 个群组，请先处理这些群组后再删除账号。",
+                    "items": group_names,
+                }
+            )
+
+        if blockers:
+            raise UserMutationError(
+                "user_delete_blocked",
+                "删除账号前仍有业务关联数据未清理。",
+                hint="请先处理提示中的班级或群组关联，再重新执行删除。",
+                blockers=blockers,
+            )
+
+        try:
+            await _delete_fk_descendants(session, User.__table__, {"id": user.id}, set())
+            await session.execute(sql_delete(AgentWorkflowCheckpoint.__table__).where(AgentWorkflowCheckpoint.user_id == user.id))
+            await session.execute(sql_delete(AgentWorkflowRun.__table__).where(AgentWorkflowRun.user_id == user.id))
+            await session.execute(sql_delete(User.__table__).where(User.id == user.id))
+            await session.commit()
+        except IntegrityError as error:
+            raise UserMutationError(
+                "user_delete_conflict",
+                "删除账号失败，当前用户仍被其他业务数据引用。",
+                hint="请先检查群组、班级、组织或审批等关联数据是否已经清理。",
+                detail=str(getattr(error, "orig", error)),
+            ) from error
+
+    return {"deleted": True, "user_id": user_id}

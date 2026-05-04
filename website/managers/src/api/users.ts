@@ -4,6 +4,7 @@ import type {
   UserSummary,
   UserDetail,
   AdminPatchRequest,
+  UserDeleteResponse,
 } from '@/types/api'
 
 export interface UserListParams {
@@ -34,4 +35,8 @@ export function deleteUserBind(
   bindId: number,
 ): Promise<{ deleted: boolean; bind_id: number }> {
   return client.delete(`/users/${userId}/binds/${bindId}`).then((r) => r.data)
+}
+
+export function deleteUser(userId: number): Promise<UserDeleteResponse> {
+  return client.delete(`/users/${userId}`).then((r) => r.data)
 }
