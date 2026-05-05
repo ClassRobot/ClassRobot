@@ -2,6 +2,8 @@
 
 本文说明当前项目里“命令能不能用、`help` 怎么展示、AutoGPT 能看到什么命令”是如何统一起来的，便于后续继续扩展而不把权限逻辑写散。
 
+如果你正在看的是“后续应该如何把 `Helper`、命令声明、Agent 工具目录和统一执行器收敛成单一体系”，请继续阅读 [命令与 Agent 一体化架构设计](../architecture/command-agent-unified-architecture.md)。
+
 如果你想贴着实现读代码，建议同时打开 [utils/helper/README.md](../../utils/helper/README.md)。
 那份 README 会把“平台用户绑定 -> `User.roles` 派生 -> `HelpersDepends` 过滤 -> matcher 前置鉴权”的完整链路画成图。
 
@@ -15,19 +17,27 @@
 
 ## 核心链路
 
-当前链路统一由 `Helper` 元数据驱动：
+当前链路处于兼容迁移期：
+
+- 新命令优先由 `CommandSpec` 派生 `Helper`
+- 旧命令继续允许手写 `__helpers__`
+- `helper_menu` 仍是 `help` 渲染和 AutoGPT 可见命令集合的展示层入口
+
+运行时链路如下：
 
 1. 各命令模块在 `__helpers__` 中声明命令说明
-2. `src/plugins/helper/__init__.py` 在启动时调用 `bootstrap_helper_runtime(...)`
+2. 已迁移命令通过 `command_alconna()` / `command_command()` 把 `CommandSpec` 和 `Helper` 绑定到 matcher
+3. `src/plugins/helper/__init__.py` 在启动时调用 `bootstrap_helper_runtime(...)`
 3. `utils/helper/runtime.py` 会做两件事
-   - 汇总所有 `__helpers__` 到全局 `helper_menu`
-   - 把对应 helper 绑定到 matcher 前置鉴权 handler
-4. `utils/helper/depends.py` 根据 `user.roles` 过滤出当前用户可见的 `Helpers`
-5. `help` 命令、AutoGPT 命令目录、后续 helper agent 都应基于这份“已过滤”的 `Helpers` 工作
+   - 优先收集 matcher 上绑定的 helper，再兼容汇总 `__helpers__`
+   - 把 `CommandPolicy` / helper 鉴权绑定到 matcher 前置 handler
+4. `utils/helper/depends.py` 根据 `user.roles` 和命令软关闭状态过滤出当前用户可见的 `Helpers`
+5. `help` 命令、AutoGPT 命令目录、后续 helper agent 都基于这份“已过滤”的 `Helpers` 工作
 
 可以把它理解成：
 
-- `Helper` = 单条命令的事实来源
+- `CommandSpec` = 新命令的事实来源
+- `Helper` = 展示层和旧命令兼容视图
 - `HelpersDepends` = 当前用户视角下的可见命令集
 - `bind_helper_access_guard` = 最后一道真实执行闸门
 
@@ -107,7 +117,10 @@ AutoGPT 不再直接读取全量命令目录，而是依赖当前用户视角下
 - `src/plugins/autogpt/pipeline.py`
   - `MessageProcessingPipeline` 用当前用户 helpers 构建 `CommandToolCatalog`
 - `src/plugins/autogpt/command_tools.py`
-  - 只把当前 helpers 转成 Agent 可见的命令工具
+  - 优先把 `CommandSpec` 转成 Agent 可见工具，未迁移命令再从 `Helper` 转换
+- `src/plugins/autogpt/__init__.py`
+  - 执行命令时先走 `AgentCommandAdapter -> CommandExecutor`
+  - 若命令尚未 service 化，则回退到原来的 NoneBot 事件重放
 
 因此：
 
@@ -118,20 +131,13 @@ AutoGPT 不再直接读取全量命令目录，而是依赖当前用户视角下
 
 新增一个命令时，建议按下面顺序做：
 
-1. 在 `commands.py` 中定义 matcher
-2. 同模块补一条 `Helper(...)` 到 `__helpers__`
-3. 明确填写
-   - `command`
-   - `description`
-   - `aliases`
-   - `params`
-   - `roles`
-   - `exclude_roles`（如果需要）
-   - `scopes`
-   - `ai_description`（如果给 AutoGPT 额外约束会更稳）
-4. 确认 helper 描述与真实 matcher 行为一致
-5. 如果命令内部还存在业务侧身份判断，优先基于 `user.student` / `user.teacher` 或 `user.roles` 判断，不要继续依赖单值 `user.role`
-6. 补单元测试
+1. 在 `commands.py` 中优先使用 `command_alconna()` 定义 matcher。
+2. 用 `CommandBinding(...)` 填写角色、目录、风险等级、Agent 可见性和参数中文名。
+3. 若命令是多轮交互、文件上传或依赖 `got()`，先标记 `execution_mode="interactive"`。
+4. 若命令已抽出领域 service，注册 `command_executor.handler("命令名")`，让 Agent 和用户入口复用同一能力。
+5. 旧命令迁移期可以保留 `__helpers__`，但不要再新增第二套 Agent tool schema。
+6. 如果命令内部还存在业务侧身份判断，优先基于 `user.student` / `user.teacher` 或 `user.roles` 判断，不要继续依赖单值 `user.role`。
+7. 补单元测试，至少覆盖 `CommandSpec -> Helper`、Agent 工具目录和权限/软关闭行为。
 
 ## 关于 `user.role` 与 `user.roles`
 
@@ -155,6 +161,7 @@ AutoGPT 不再直接读取全量命令目录，而是依赖当前用户视角下
 - `utils/helper/schema.py`
 - `utils/helper/runtime.py`
 - `utils/helper/depends.py`
+- `src/commands/`
 - `src/plugins/helper/__init__.py`
 - `src/plugins/autogpt/command_tools.py`
 - `src/plugins/autogpt/pipeline.py`

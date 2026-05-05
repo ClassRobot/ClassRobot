@@ -18,6 +18,7 @@
 ## 文档导航
 
 - [架构视图总览](./architecture-views.md)
+- [命令与 Agent 一体化架构设计](./command-agent-unified-architecture.md)
 - [Agent 工作流编排架构](./agent-workflow-orchestration.md)
 - [统一 AI 平台架构总纲](./unified-ai-platform-handbook.md)
 - [当前系统架构设计](./current-system-architecture-design.md)
@@ -70,6 +71,7 @@
 ## 阅读建议
 
 - 如果你想先通过图理解“系统边界、分层、领域关系和运行时流程”，先读“架构视图总览”
+- 如果你正在重构命令系统，或要解决 `Helper / matcher / Agent tool` 多处同步问题，先读“命令与 Agent 一体化架构设计”
 - 如果你想理解当前 Agent 为什么要走“显式工作流 + NoneBot2 命令复用”的路线，先读“Agent 工作流编排架构”
 - 如果你现在概念很多、思路很乱，先读“统一 AI 平台架构总纲”
 - 如果你要先确定“当前系统到底该按什么架构继续开发”，先读“当前系统架构设计”

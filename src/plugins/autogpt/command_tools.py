@@ -20,6 +20,8 @@ class CommandToolParam(BaseModel):
     """参数是否必填。"""
     multiple: bool = False
     """参数是否可以出现多次。"""
+    value_type: str = "string"
+    """OpenAI tool schema 中使用的 JSON 基础类型。"""
 
     def to_prompt(self) -> str:
         """转换成适合提示词阅读的参数说明。"""
@@ -67,6 +69,29 @@ class CommandTool(BaseModel):
             risk_level=_infer_risk_level(helper),
         )
 
+    @classmethod
+    def from_spec(cls, spec) -> "CommandTool":
+        """从统一 CommandSpec 构建命令工具描述。"""
+
+        return cls(
+            name=_safe_tool_name(spec.name),
+            command=spec.name,
+            description=spec.description,
+            ai_description=spec.ai_description or "",
+            aliases=sorted(spec.aliases),
+            params=[
+                CommandToolParam(
+                    name=param.name,
+                    description=param.description or "",
+                    required=param.required,
+                    multiple=param.multiple,
+                    value_type=param.value_type,
+                )
+                for param in spec.params
+            ],
+            risk_level=spec.risk_level,
+        )
+
     @property
     def command_names(self) -> set[str]:
         """返回真实命令和别名集合。"""
@@ -100,11 +125,11 @@ class CommandTool(BaseModel):
         properties: dict[str, dict] = {}
         required: list[str] = []
         for param in self.params:
-            schema: dict = {"type": "string", "description": param.description or param.name}
+            schema: dict = {"type": param.value_type, "description": param.description or param.name}
             if param.multiple:
                 schema = {
                     "type": "array",
-                    "items": {"type": "string"},
+                    "items": {"type": param.value_type},
                     "description": param.description or param.name,
                 }
             properties[param.name] = schema
@@ -135,9 +160,21 @@ class CommandToolCatalog(BaseModel):
     def from_helpers(cls, helpers: Helpers) -> "CommandToolCatalog":
         """从当前用户可见 Helper 集合生成命令工具目录。"""
 
+        from src.commands.availability import command_availability
+        from src.commands.registry import command_registry
+
         catalog = cls()
         for helper in helpers:
-            catalog.append(CommandTool.from_helper(helper))
+            spec = command_registry.get(helper.command)
+            if spec is not None:
+                availability = command_availability.check(spec)
+                if not availability.available or not spec.agent_callable or spec.execution_mode == "disabled":
+                    continue
+                catalog.append(CommandTool.from_spec(spec))
+            else:
+                if not command_availability.is_helper_available(helper):
+                    continue
+                catalog.append(CommandTool.from_helper(helper))
         return catalog
 
     def append(self, tool: CommandTool) -> None:
@@ -188,6 +225,7 @@ def _param_from_helper_param(param: HelperParam) -> CommandToolParam:
         description=param.description or "",
         required=required,
         multiple=multiple,
+        value_type="string",
     )
 
 

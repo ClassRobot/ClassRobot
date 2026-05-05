@@ -1,84 +1,11 @@
 from utils import Emoji
-from utils.tools import StringCard
 from nonebot_plugin_alconna import AlconnaMatcher
-from utils.roles import UserRole
 from utils.models import School, College, Teacher
 from utils.models.depends import TeacherDepends, UserOrCreatedDepends
 
+from .presenters import render_teacher_card
+from .services import get_teacher_column_key, validate_teacher_scope_change
 from .commands import query_teacher_cmd, set_teacher_cmd
-
-TEACHER_COLUMNS = {
-    "name": ["姓名", "名字", "昵称"],
-    "school": ["学校", "学校名称"],
-    "college": ["学院", "学院名称"],
-}
-
-
-def get_teacher_column_key(value: str) -> str | None:
-    """解析教师可修改字段。"""
-    value = value.strip()
-    for key, aliases in TEACHER_COLUMNS.items():
-        if value in aliases:
-            return key
-    return None
-
-
-async def render_teacher_card(teacher: Teacher) -> str:
-    """渲染教师信息卡片。"""
-    school_name = teacher.school.name if teacher.school else "未设置"
-    college_name = teacher.college.name if teacher.college else "未设置"
-    organizations = await teacher.get_organizations()
-    organization_names = "、".join(organization.name for organization in organizations) if organizations else "暂无"
-
-    card = (
-        StringCard("教师信息")
-        .text(f"教师ID: {teacher.id}")
-        .text(f"姓名: {teacher.name}")
-        .text(f"归属学校: {school_name}")
-        .text(f"归属学院: {college_name}")
-        .text(f"管理班级数: {len(teacher.classes)}")
-        .text(f"所属组织: {organization_names}")
-        .text(f"创建日期: {teacher.created_at.strftime('%Y-%m-%d')}")
-    )
-
-    if teacher.classes:
-        card.hr("管理班级")
-        for classes in teacher.classes[:10]:
-            card.text(f"{classes.id}: {classes.name}")
-        if len(teacher.classes) > 10:
-            card.text("...班级较多，已截断展示")
-
-    return card.render()
-
-
-async def validate_teacher_scope_change(
-    matcher: AlconnaMatcher,
-    teacher: Teacher,
-    school: School | None,
-    college: College | None,
-):
-    """校验教师归属变更是否与已管理班级冲突。"""
-    if school is not None:
-        invalid_classes = [
-            classes for classes in teacher.classes if classes.school_id is not None and classes.school_id != school.id
-        ]
-        if invalid_classes:
-            await matcher.finish(
-                Emoji.error
-                + f"您已管理其他学校的班级，暂时不能修改归属学校。冲突班级: {'、'.join(classes.name for classes in invalid_classes[:5])}"
-            )
-
-    if college is not None:
-        invalid_classes = [
-            classes
-            for classes in teacher.classes
-            if classes.college_id is not None and classes.college_id != college.id
-        ]
-        if invalid_classes:
-            await matcher.finish(
-                Emoji.error
-                + f"您已管理其他学院的班级，暂时不能修改归属学院。冲突班级: {'、'.join(classes.name for classes in invalid_classes[:5])}"
-            )
 
 
 @query_teacher_cmd.handle()

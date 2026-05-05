@@ -1,5 +1,5 @@
 from inspect import isawaitable
-from typing import Any, Callable
+from typing import Any, Callable, Iterable
 
 from utils import Emoji
 from nonebot.rule import to_me
@@ -14,6 +14,9 @@ from nonebot import logger, on_command, on_message
 from nonebot.adapters.qq.exception import ActionFailed
 from nonebot.adapters.onebot.v12.exception import NetworkError
 from nonebot_plugin_alconna import Target, UniMsg, MsgTarget, UniMessage
+from src.commands.adapters import AgentCommandAdapter
+from src.commands.context import CommandExecutionContext
+from src.commands.registry import command_registry
 
 from .schema import Param, AutoTask, AutoTaskList, CommandObservation
 from .util import ChatSessionDepends, markdown_to_message
@@ -62,6 +65,30 @@ def stringify_command_output(message: Any) -> str:
     return str(message).strip()
 
 
+def auto_task_params_to_service_dict(task: AutoTask) -> dict[str, Any]:
+    """Convert AutoTask params into a dict for service-style command handlers."""
+
+    spec = command_registry.get(task.command)
+    text_params = [param for param in task.params if param.type == "text" and not param.separate]
+    image_params = [param for param in task.params if param.type == "image" and not param.separate]
+    payload: dict[str, Any] = {}
+
+    if spec is not None:
+        for index, command_param in enumerate(spec.params):
+            if index >= len(text_params):
+                break
+            if command_param.multiple:
+                payload[command_param.name] = [param.value for param in text_params[index:]]
+                break
+            payload[command_param.name] = text_params[index].value
+    else:
+        payload.update({f"arg{index}": param.value for index, param in enumerate(text_params)})
+
+    if image_params:
+        payload["images"] = [param.value for param in image_params]
+    return payload
+
+
 async def handle_event_with_output_capture(bot: Bot, event: Event) -> list[str]:
     """执行 NoneBot 事件，并捕获 matcher 发送给用户的回复。"""
 
@@ -96,12 +123,40 @@ async def dispatch_auto_task(
     task: AutoTask,
     target: Target,
     trace_id: str = "",
+    user_id: int | None = None,
+    roles: Iterable[UserRole | str] | None = None,
 ) -> list[CommandObservation]:
-    """把自动任务重新投递给 NoneBot，复用原有 matcher 与依赖。"""
+    """Dispatch an AutoTask through service executor first, then legacy matcher replay."""
 
     observations: list[CommandObservation] = []
     command_params = [param for param in task.params if not param.separate]
     logger.info(f'AutoGPT trace "{trace_id}" dispatch command "{task.command}"')
+    agent_adapter = AgentCommandAdapter()
+    if agent_adapter.can_execute(task.command):
+        result = await agent_adapter.execute(
+            task.command,
+            params=auto_task_params_to_service_dict(task),
+            context=CommandExecutionContext(
+                user_id=user_id,
+                roles=set(roles or []),
+                trace_id=trace_id,
+                invoker="agent_workflow",
+                extra={"dispatch": "autogpt"},
+            ),
+        )
+        message = result.summary or ("命令已通过统一执行器完成。" if result.success else "命令统一执行器调用失败。")
+        return [
+            CommandObservation(
+                trace_id=trace_id,
+                command=task.command,
+                params=command_params,
+                dispatch_type="command",
+                success=result.success,
+                message=message,
+                outputs=result.observation_outputs,
+            )
+        ]
+
     next_event = event.copy()
     next_event.__uniseg_message_id__ = str(id(next_event))
     next_event.get_message = update_message(task, target)
@@ -244,7 +299,13 @@ async def _(
         if workflow:
             executor = WorkflowExecutor(
                 dispatcher=lambda task: dispatch_auto_task(
-                    bot, event, task, target, trace_id=chat_session.last_trace_id
+                    bot,
+                    event,
+                    task,
+                    target,
+                    trace_id=chat_session.last_trace_id,
+                    user_id=chat_session.user_id,
+                    roles=chat_session.helpers.active_roles,
                 )
             )
             execution = await executor.execute(workflow)
@@ -258,7 +319,15 @@ async def _(
             for task in auto_task.tasks:
                 if chat_session.helpers.get_helper(task.command):
                     observations.extend(
-                        await dispatch_auto_task(bot, event, task, target, trace_id=chat_session.last_trace_id)
+                        await dispatch_auto_task(
+                            bot,
+                            event,
+                            task,
+                            target,
+                            trace_id=chat_session.last_trace_id,
+                            user_id=chat_session.user_id,
+                            roles=chat_session.helpers.active_roles,
+                        )
                     )
                 else:
                     observations.append(

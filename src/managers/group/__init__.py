@@ -1,11 +1,27 @@
 from utils import Emoji
-from nonebot.adapters import Event
 from utils.tools import StringCard
-from nonebot_plugin_waiter import waiter
 from utils.models import School, College, Major, Classes, Organization, OrganizationMember
 from nonebot_plugin_alconna import AlconnaMatcher
 from utils.models.depends import UserOrCreatedDepends
 
+from .constants import (
+    MAJOR_UPDATE_FIELDS,
+    SCHOOL_UPDATE_FIELDS,
+    COLLEGE_UPDATE_FIELDS,
+    ORGANIZATION_TYPE_MAPPING,
+    ORGANIZATION_UPDATE_FIELDS,
+)
+from .services import (
+    confirm_action,
+    resolve_identity,
+    parse_update_values,
+    delete_classes_groups,
+    get_major_or_finish,
+    get_school_or_finish,
+    get_college_or_finish,
+    get_organization_or_finish,
+    get_organization_type_label,
+)
 from .commands import (
     add_school,
     set_school,
@@ -24,185 +40,6 @@ from .commands import (
     join_organization,
     exit_organization,
 )
-
-ORGANIZATION_TYPE_MAPPING = {
-    "general": "general",
-    "通用": "general",
-    "departmental": "departmental",
-    "院系": "departmental",
-    "interest": "interest",
-    "兴趣": "interest",
-    "governance": "governance",
-    "治理": "governance",
-    "temporary": "temporary",
-    "临时": "temporary",
-    "class": "class",
-    "班级": "class",
-}
-
-ORGANIZATION_TYPE_LABELS = {
-    "general": "通用组织",
-    "departmental": "院系组织",
-    "interest": "兴趣组织",
-    "governance": "治理组织",
-    "temporary": "临时组织",
-    "class": "班级组织",
-}
-
-IDENTITY_MAPPING = {
-    "student": "student",
-    "学生": "student",
-    "teacher": "teacher",
-    "教师": "teacher",
-}
-
-SCHOOL_UPDATE_FIELDS = {
-    "name": ["名称", "学校名称"],
-    "address": ["地址", "位置"],
-    "description": ["描述", "说明", "简介"],
-}
-
-COLLEGE_UPDATE_FIELDS = {
-    "name": ["名称", "学院名称"],
-    "description": ["描述", "说明", "简介"],
-}
-
-MAJOR_UPDATE_FIELDS = {
-    "name": ["名称", "专业名称"],
-    "description": ["描述", "说明", "简介"],
-}
-
-ORGANIZATION_UPDATE_FIELDS = {
-    "name": ["名称", "组织名称"],
-    "organization_type": ["类型", "组织类型"],
-    "description": ["描述", "说明", "简介"],
-}
-
-
-def get_organization_type_label(organization_type: str) -> str:
-    """返回组织类型的展示文案。"""
-    return ORGANIZATION_TYPE_LABELS.get(organization_type, organization_type)
-
-
-def parse_update_values(values: list[str], mapping: dict[str, list[str]]) -> dict[str, str]:
-    """解析 key=value 形式的更新字段。"""
-    options = {}
-    for item in values:
-        key_value = item.split("=", 1)
-        if len(key_value) != 2:
-            raise ValueError(f"参数 {item} 格式错误，应采用 名称=新值 的形式。")
-        raw_key, raw_value = key_value
-        raw_key = raw_key.strip()
-        raw_value = raw_value.strip()
-        if not raw_value:
-            continue
-        for field, aliases in mapping.items():
-            if raw_key in aliases:
-                options[field] = raw_value
-                break
-    return options
-
-
-async def confirm_action(matcher: AlconnaMatcher, prompt: str) -> bool:
-    """确认危险操作。"""
-    await matcher.send(prompt)
-
-    @waiter(waits=["message"], block=True)
-    async def listen(event: Event):
-        """等待确认消息。"""
-        return event.get_message().extract_plain_text().strip().lower()
-
-    response = await listen.wait(timeout=60)
-    return response == "yes"
-
-
-async def delete_classes_groups(classes_list: list[Classes]):
-    """删除班级时顺带删除关联群组，避免留下孤儿绑定。"""
-    for classes in classes_list:
-        group = classes.group
-        settings = group.settings
-        await classes.filter(id=classes.id).delete()
-        await group.filter(id=group.id).delete()
-        if settings is not None:
-            await settings.filter(id=settings.id).delete()
-
-
-async def get_school_or_finish(matcher: AlconnaMatcher, school_name: str) -> School:
-    """解析学校对象。"""
-    school_name = school_name.strip()
-    school = await School.filter(name=school_name).first()
-    if school is None:
-        await matcher.finish(Emoji.error + f"学校`{school_name}`不存在！")
-    return school
-
-
-async def get_college_or_finish(matcher: AlconnaMatcher, school: School, college_name: str) -> College:
-    """解析学院对象。"""
-    college_name = college_name.strip()
-    college = await College.filter(name=college_name, school_id=school.id).first()
-    if college is None:
-        await matcher.finish(Emoji.error + f"学院`{college_name}`不存在于学校`{school.name}`下！")
-    return college
-
-
-async def get_major_or_finish(
-    matcher: AlconnaMatcher,
-    school: School,
-    college: College,
-    major_name: str,
-) -> Major:
-    """解析专业对象。"""
-    major_name = major_name.strip()
-    major = await Major.filter(name=major_name, school_id=school.id, college_id=college.id).first()
-    if major is None:
-        await matcher.finish(Emoji.error + f"专业`{major_name}`不存在于学院`{college.name}`下！")
-    return major
-
-
-async def get_organization_or_finish(
-    matcher: AlconnaMatcher,
-    school: School,
-    organization_name: str,
-) -> Organization:
-    """解析组织对象。"""
-    organization_name = organization_name.strip()
-    organizations = await Organization.filter(name=organization_name, school_id=school.id).all()
-    if not organizations:
-        await matcher.finish(Emoji.error + f"组织`{organization_name}`不存在于学校`{school.name}`下！")
-    if len(organizations) > 1:
-        organization_types = "、".join(get_organization_type_label(org.organization_type) for org in organizations)
-        await matcher.finish(
-            Emoji.error + f"学校`{school.name}`下存在多个同名组织`{organization_name}`，当前类型包括：{organization_types}"
-        )
-    return organizations[0]
-
-
-async def resolve_identity(
-    matcher: AlconnaMatcher,
-    user: UserOrCreatedDepends,
-    identity: str | None,
-) -> tuple[str, object]:
-    """解析当前用户操作组织时使用的身份。"""
-    if identity:
-        identity = IDENTITY_MAPPING.get(identity.strip().lower())
-        if identity is None:
-            await matcher.finish(Emoji.error + "身份只支持：学生 或 教师")
-    elif user.student and user.teacher:
-        await matcher.finish(Emoji.error + "您同时具备学生和教师身份，请补充指定身份：学生 或 教师")
-    elif user.student:
-        identity = "student"
-    elif user.teacher:
-        identity = "teacher"
-    else:
-        await matcher.finish(Emoji.error + "您还没有绑定学生或教师身份，无法操作组织成员关系。")
-
-    if identity == "student":
-        if user.student is None:
-            await matcher.finish(Emoji.error + "当前账号没有绑定学生身份。")
-        return identity, user.student
-    if user.teacher is None:
-        await matcher.finish(Emoji.error + "当前账号没有绑定教师身份。")
-    return "teacher", user.teacher
 
 
 @add_school.handle()

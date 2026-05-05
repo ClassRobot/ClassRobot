@@ -40,7 +40,6 @@ BASIC_HELPER_MODULES = {
     "src.plugins.helper": {"help"},
     "src.plugins.autogpt": {"清空聊天"},
     "src.others.image_generate.commands": {"图片生成"},
-    "src.others.pencraft.commands": {"文本创作"},
 }
 
 

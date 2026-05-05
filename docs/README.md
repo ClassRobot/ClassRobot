@@ -44,6 +44,7 @@
 
 - [AI 架构专题](./architecture/README.md)
 - [架构视图总览](./architecture/architecture-views.md)
+- [命令与 Agent 一体化架构设计](./architecture/command-agent-unified-architecture.md)
 - [Agent 工作流编排架构](./architecture/agent-workflow-orchestration.md)
 - [统一 AI 平台架构总纲](./architecture/unified-ai-platform-handbook.md)
 - [当前系统架构设计](./architecture/current-system-architecture-design.md)

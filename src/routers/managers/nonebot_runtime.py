@@ -6,6 +6,8 @@ from collections import Counter
 from pathlib import Path
 from typing import Any, Iterable
 
+from nonebot import get_adapters, get_bots, get_driver, get_loaded_plugins
+
 from utils.config import project_root
 
 from .service import relative_to_project
@@ -82,21 +84,16 @@ def get_runtime_info() -> dict[str, Any]:
         "config": config_payload,
         "errors": list(config_payload.get("errors", [])),
     }
-    try:
-        from nonebot import get_driver
-
-        driver = get_driver()
-        payload.update(
-            {
-                "initialized": True,
-                "driver": str(getattr(driver.config, "driver", "")),
-                "environment": getattr(driver.config, "environment", None),
-                "host": getattr(driver.config, "host", None),
-                "port": getattr(driver.config, "port", None),
-            }
-        )
-    except Exception as error:  # noqa: BLE001 - 启动阶段或测试环境中，此接口需要保证可安全降级。
-        payload["errors"].append(f"NoneBot runtime is not initialized: {error}")
+    driver = get_driver()
+    payload.update(
+        {
+            "initialized": True,
+            "driver": str(getattr(driver.config, "driver", "")),
+            "environment": getattr(driver.config, "environment", None),
+            "host": getattr(driver.config, "host", None),
+            "port": getattr(driver.config, "port", None),
+        }
+    )
     return payload
 
 
@@ -116,31 +113,26 @@ def list_plugins(commands: list[dict[str, Any]] | None = None) -> dict[str, Any]
     errors: list[str] = []
     seen_modules: set[str] = set()
 
-    try:
-        from nonebot import get_loaded_plugins
-
-        for plugin in sorted(get_loaded_plugins(), key=lambda item: item.module_name):
-            metadata = _metadata_payload(plugin.metadata)
-            item = {
-                "name": plugin.name,
-                "module_name": plugin.module_name,
-                "display_name": metadata.get("name") or plugin.name,
-                "description": metadata.get("description") or "",
-                "usage": metadata.get("usage") or "",
-                "type": metadata.get("type"),
-                "homepage": metadata.get("homepage"),
-                "supported_adapters": metadata.get("supported_adapters", []),
-                "loaded": True,
-                "source": "runtime",
-                "matcher_count": len(getattr(plugin, "matcher", set()) or []),
-                "sub_plugin_count": len(getattr(plugin, "sub_plugins", set()) or []),
-                "parent": getattr(plugin.parent_plugin, "module_name", None) if plugin.parent_plugin else None,
-                "command_count": _command_count_for_module(command_counts, plugin.module_name),
-            }
-            seen_modules.add(plugin.module_name)
-            plugin_items.append(item)
-    except Exception as error:  # noqa: BLE001
-        errors.append(f"Unable to read loaded plugins: {error}")
+    for plugin in sorted(get_loaded_plugins(), key=lambda item: item.module_name):
+        metadata = _metadata_payload(plugin.metadata)
+        item = {
+            "name": plugin.name,
+            "module_name": plugin.module_name,
+            "display_name": metadata.get("name") or plugin.name,
+            "description": metadata.get("description") or "",
+            "usage": metadata.get("usage") or "",
+            "type": metadata.get("type"),
+            "homepage": metadata.get("homepage"),
+            "supported_adapters": metadata.get("supported_adapters", []),
+            "loaded": True,
+            "source": "runtime",
+            "matcher_count": len(getattr(plugin, "matcher", set()) or []),
+            "sub_plugin_count": len(getattr(plugin, "sub_plugins", set()) or []),
+            "parent": getattr(plugin.parent_plugin, "module_name", None) if plugin.parent_plugin else None,
+            "command_count": _command_count_for_module(command_counts, plugin.module_name),
+        }
+        seen_modules.add(plugin.module_name)
+        plugin_items.append(item)
 
     for source_plugin in _source_plugin_summaries(commands):
         module_name = source_plugin["module_name"]
@@ -188,30 +180,25 @@ def list_adapters() -> dict[str, Any]:
     errors: list[str] = []
     seen_modules: set[str] = set()
 
-    try:
-        from nonebot import get_adapters
-
-        for key, adapter in sorted(get_adapters().items(), key=lambda entry: entry[0]):
-            adapter_class = adapter.__class__
-            class_module = adapter_class.__module__
-            module_name = _declared_adapter_module(class_module, declared_by_module) or class_module
-            adapter_name = _safe_adapter_name(adapter) or key
-            declared_item = declared_by_module.get(module_name, {})
-            seen_modules.add(module_name)
-            items.append(
-                {
-                    "name": declared_item.get("name") or adapter_name,
-                    "module_name": module_name,
-                    "class_module": class_module,
-                    "runtime_key": key,
-                    "class_name": adapter_class.__name__,
-                    "registered": True,
-                    "source": "runtime",
-                    "bot_count": 0,
-                }
-            )
-    except Exception as error:  # noqa: BLE001
-        errors.append(f"Unable to read registered adapters: {error}")
+    for key, adapter in sorted(get_adapters().items(), key=lambda entry: entry[0]):
+        adapter_class = adapter.__class__
+        class_module = adapter_class.__module__
+        module_name = _declared_adapter_module(class_module, declared_by_module) or class_module
+        adapter_name = _safe_adapter_name(adapter) or key
+        declared_item = declared_by_module.get(module_name, {})
+        seen_modules.add(module_name)
+        items.append(
+            {
+                "name": declared_item.get("name") or adapter_name,
+                "module_name": module_name,
+                "class_module": class_module,
+                "runtime_key": key,
+                "class_name": adapter_class.__name__,
+                "registered": True,
+                "source": "runtime",
+                "bot_count": 0,
+            }
+        )
 
     for declared_item in declared:
         module_name = declared_item.get("module_name")
@@ -246,25 +233,20 @@ def list_bots() -> dict[str, Any]:
     """
     items: list[dict[str, Any]] = []
     errors: list[str] = []
-    try:
-        from nonebot import get_bots
-
-        for self_id, bot in sorted(get_bots().items(), key=lambda entry: entry[0]):
-            adapter = getattr(bot, "adapter", None) or getattr(bot, "_adapter", None)
-            adapter_class = adapter.__class__ if adapter is not None else None
-            adapter_module = _adapter_module_for_class(adapter_class) if adapter_class else None
-            items.append(
-                {
-                    "self_id": getattr(bot, "self_id", self_id),
-                    "type": getattr(bot, "type", None),
-                    "adapter_name": _safe_adapter_name(adapter) if adapter is not None else None,
-                    "adapter_module": adapter_module,
-                    "connected": True,
-                    "status": "online",
-                }
-            )
-    except Exception as error:  # noqa: BLE001
-        errors.append(f"Unable to read connected bots: {error}")
+    for self_id, bot in sorted(get_bots().items(), key=lambda entry: entry[0]):
+        adapter = getattr(bot, "adapter", None) or getattr(bot, "_adapter", None)
+        adapter_class = adapter.__class__ if adapter is not None else None
+        adapter_module = _adapter_module_for_class(adapter_class) if adapter_class else None
+        items.append(
+            {
+                "self_id": getattr(bot, "self_id", self_id),
+                "type": getattr(bot, "type", None),
+                "adapter_name": _safe_adapter_name(adapter) if adapter is not None else None,
+                "adapter_module": adapter_module,
+                "connected": True,
+                "status": "online",
+            }
+        )
     return {"items": items, "total": len(items), "errors": errors}
 
 
@@ -277,6 +259,7 @@ def list_commands() -> dict[str, Any]:
     commands: list[dict[str, Any]] = []
     errors: list[str] = []
     helper_index = _helper_index()
+    registry_index = _registry_command_index()
     loaded_modules = _loaded_plugin_modules()
 
     for root in SOURCE_ROOTS:
@@ -293,7 +276,16 @@ def list_commands() -> dict[str, Any]:
                 continue
             visitor = _CommandVisitor(path)
             visitor.visit(tree)
-            commands.extend(_enrich_command(item, helper_index, loaded_modules) for item in visitor.items)
+            commands.extend(
+                _enrich_command(item, helper_index, registry_index, loaded_modules)
+                for item in visitor.items
+            )
+
+    seen_commands = {item.get("command") for item in commands}
+    for payload in _registry_command_payloads():
+        if payload["command"] in seen_commands:
+            continue
+        commands.append(_registry_payload_to_command_item(payload, loaded_modules))
 
     commands.sort(key=lambda item: (item.get("namespace", ""), item.get("plugin_name", ""), item.get("line", 0)))
     return {"items": commands, "total": len(commands), "errors": errors}
@@ -360,11 +352,11 @@ class _CommandVisitor(ast.NodeVisitor):
 def _command_payload_from_call(node: ast.Call) -> dict[str, Any] | None:
     """从 ``on_command`` 或 ``on_alconna`` 调用中提取命令定义。"""
     func_name = _call_name(node.func).rsplit(".", 1)[-1]
-    if func_name == "on_command":
+    if func_name in {"on_command", "command_command"}:
         command = _literal_string(node.args[0]) if node.args else None
         matcher_type = "command"
         signature = _expression_text(node.args[0]) if node.args else ""
-    elif func_name == "on_alconna":
+    elif func_name in {"on_alconna", "command_alconna"}:
         command = _alconna_command(node.args[0]) if node.args else None
         matcher_type = "alconna"
         signature = _expression_text(node.args[0]) if node.args else ""
@@ -391,20 +383,93 @@ def _command_payload_from_call(node: ast.Call) -> dict[str, Any] | None:
 def _enrich_command(
     item: dict[str, Any],
     helper_index: dict[str, dict[str, Any]],
+    registry_index: dict[str, dict[str, Any]],
     loaded_modules: set[str],
 ) -> dict[str, Any]:
     """为源码扫描得到的命令补充帮助文档和加载状态。"""
+    registry_payload = registry_index.get(item["command"])
+    if registry_payload is None:
+        registry_payload = next(
+            (registry_index.get(alias) for alias in item.get("aliases", []) if registry_index.get(alias)),
+            None,
+        )
+    if registry_payload:
+        source_fields = {
+            "id": item.get("id"),
+            "matcher_name": item.get("matcher_name"),
+            "file": item.get("file"),
+            "line": item.get("line"),
+            "module_name": item.get("module_name"),
+            "plugin_module": item.get("plugin_module") or registry_payload.get("plugin_module"),
+            "plugin_name": item.get("plugin_name"),
+            "namespace": item.get("namespace"),
+            "source": item.get("source"),
+            "matcher_type": item.get("matcher_type"),
+            "priority": item.get("priority"),
+            "block": item.get("block"),
+            "skip_for_unmatch": item.get("skip_for_unmatch"),
+            "signature": item.get("signature"),
+        }
+        item.update(registry_payload)
+        item.update({key: value for key, value in source_fields.items() if value is not None})
+        item["aliases"] = sorted({*item.get("aliases", []), *registry_payload.get("aliases", [])})
+
     helper = helper_index.get(item["command"])
     if helper is None:
         helper = next((helper_index.get(alias) for alias in item.get("aliases", []) if helper_index.get(alias)), None)
-    if helper:
+    if helper and not registry_payload:
         item["documented"] = True
         item["description"] = helper.get("description", "")
         item["roles"] = helper.get("roles", [])
         item["scopes"] = helper.get("scopes", [])
         item["params"] = helper.get("params", [])
         item["aliases"] = sorted({*item.get("aliases", []), *helper.get("aliases", [])})
+    elif helper:
+        item["aliases"] = sorted({*item.get("aliases", []), *helper.get("aliases", [])})
     item["runtime_loaded"] = _module_is_loaded(item["plugin_module"], loaded_modules)
+    return item
+
+
+def _registry_command_index() -> dict[str, dict[str, Any]]:
+    """读取统一命令注册表索引。"""
+    try:
+        from src.commands.discovery import registered_command_index
+    except Exception:  # noqa: BLE001
+        return {}
+    return registered_command_index()
+
+
+def _registry_command_payloads() -> list[dict[str, Any]]:
+    """读取统一命令注册表条目。"""
+    try:
+        from src.commands.discovery import registered_command_payloads
+    except Exception:  # noqa: BLE001
+        return []
+    return registered_command_payloads()
+
+
+def _registry_payload_to_command_item(payload: dict[str, Any], loaded_modules: set[str]) -> dict[str, Any]:
+    """把注册表条目转换成管理端命令清单条目。"""
+    plugin_module = payload.get("plugin_module") or ""
+    plugin_name = plugin_module.rsplit(".", 1)[-1] if plugin_module else "unknown"
+    namespace = plugin_module.split(".")[1] if plugin_module.startswith("src.") and len(plugin_module.split(".")) > 1 else "registry"
+    item = {
+        **payload,
+        "matcher_name": None,
+        "file": None,
+        "line": 0,
+        "module_name": plugin_module,
+        "plugin_module": plugin_module,
+        "plugin_name": plugin_name,
+        "namespace": namespace,
+        "source": "command_registry",
+        "matcher_type": "registered",
+        "priority": None,
+        "block": None,
+        "skip_for_unmatch": None,
+        "signature": payload["command"],
+        "runtime_loaded": _module_is_loaded(plugin_module, loaded_modules),
+    }
     return item
 
 
@@ -508,12 +573,7 @@ def _helper_index() -> dict[str, dict[str, Any]]:
 
 def _loaded_plugin_modules() -> set[str]:
     """获取当前已加载插件模块集合。"""
-    try:
-        from nonebot import get_loaded_plugins
-
-        return {plugin.module_name for plugin in get_loaded_plugins()}
-    except Exception:  # noqa: BLE001
-        return set()
+    return {plugin.module_name for plugin in get_loaded_plugins()}
 
 
 def _module_is_loaded(plugin_module: str, loaded_modules: set[str]) -> bool:

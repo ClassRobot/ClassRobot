@@ -55,8 +55,23 @@ def bind_helper_access_guard(matcher: type[Matcher], helper: Helper) -> None:
         return
 
     from utils.models.depends import UserOrCreatedDepends
+    from src.commands.availability import command_availability
+    from src.commands.context import CommandExecutionContext
+    from src.commands.policy import command_policy
 
     async def _guard(runtime_matcher: Matcher, user: UserOrCreatedDepends, __helper: Helper = helper):
+        spec = getattr(runtime_matcher, "__command_spec__", None)
+        if spec is not None:
+            context = CommandExecutionContext(user_id=user.id, roles=set(user.roles), invoker="user_command")
+            decision = command_policy.check(spec, context)
+            if decision.allowed:
+                return
+            await runtime_matcher.finish(f"您当前无法使用“{__helper.command}”命令：{decision.reason}")
+
+        availability = command_availability.check(None, __helper.command)
+        if not availability.available:
+            await runtime_matcher.finish(f"“{__helper.command}”命令当前不可用：{availability.reason}")
+
         if __helper.is_available_for(*user.roles):
             return
         await runtime_matcher.finish(f"您当前身份暂无权限使用“{__helper.command}”命令。")
@@ -82,6 +97,37 @@ def bind_module_helpers(module: ModuleType, helpers: Iterable[Helper]) -> None:
         bind_helper_access_guard(matcher, matched_helper)
 
 
+def collect_bound_helpers(module: ModuleType) -> list[Helper]:
+    """Collect helpers that are directly attached to matcher objects."""
+
+    helpers: list[Helper] = []
+    seen_commands: set[str] = set()
+    for matcher in iter_module_matchers(module):
+        helper = getattr(matcher, "__helper__", None)
+        if not isinstance(helper, Helper):
+            continue
+        if helper.command in seen_commands:
+            continue
+        seen_commands.add(helper.command)
+        helpers.append(helper)
+        bind_helper_access_guard(matcher, helper)
+    return helpers
+
+
+def merge_helpers(*helper_groups: Iterable[Helper]) -> list[Helper]:
+    """Merge helper groups while keeping the first definition for each command."""
+
+    helpers: list[Helper] = []
+    seen_commands: set[str] = set()
+    for group in helper_groups:
+        for helper in group:
+            if helper.command in seen_commands:
+                continue
+            seen_commands.add(helper.command)
+            helpers.append(helper)
+    return helpers
+
+
 def bootstrap_helper_runtime(plugins: Iterable[Plugin]) -> None:
     """重建帮助目录，并把帮助元数据同步绑定到命令鉴权链路。"""
 
@@ -89,10 +135,13 @@ def bootstrap_helper_runtime(plugins: Iterable[Plugin]) -> None:
 
     for plugin in plugins:
         for module in filter(None, (plugin.module, getattr(plugin.module, "commands", None))):
-            helpers = getattr(module, "__helpers__", None)
+            bound_helpers = collect_bound_helpers(module)
+            legacy_helpers = getattr(module, "__helpers__", None) or []
+            helpers = merge_helpers(bound_helpers, legacy_helpers)
             if not helpers:
                 continue
             helper_menu.extend(helpers)
-            bind_module_helpers(module, helpers)
+            if legacy_helpers:
+                bind_module_helpers(module, legacy_helpers)
 
-    logger.info("helper runtime bootstrapped with %s helpers", len(helper_menu.helpers))
+    logger.info("helper runtime bootstrapped with {} helpers", len(helper_menu.helpers))
