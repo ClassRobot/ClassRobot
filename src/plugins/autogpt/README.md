@@ -10,6 +10,15 @@
 
 如果你是第一次接手这部分代码，建议按本文顺序阅读，再对照目录中的源码一起看。
 
+在阅读边界上，可以这样理解：
+
+- [docs/guides/agent-module.md](../../../docs/guides/agent-module.md)
+  - 讲“为什么要这样改、接下来要往哪里演进”
+- [docs/architecture/agent-workflow-orchestration.md](../../../docs/architecture/agent-workflow-orchestration.md)
+  - 讲“显式工作流、检查点、恢复和审计为什么这样设计”
+- 本文
+  - 讲“`src/plugins/autogpt/` 这套代码现在具体是怎么组织的”
+
 ## 1. 模块定位
 
 这里的 AutoGPT 不是一个“直接操作数据库的万能 AI”，而是项目里的自然语言编排层。

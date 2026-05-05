@@ -1,11 +1,12 @@
 from utils import Emoji
-from utils.tools import StringCard
-from utils.roles import StudentRoleLang
 from utils.models.depends import StudentDepends
 from nonebot_plugin_alconna import AlconnaMatcher
 from utils.params.student import is_user_key, get_column_key, is_student_key, is_student_extra_key
 
 from .commands import query_cmd, set_cmd
+from .presenters import render_student_card
+# 导入统一命令 service，确保插件加载时完成 command_executor 注册。
+from . import services as _
 
 
 @query_cmd.handle()
@@ -13,41 +14,7 @@ async def _(matcher: AlconnaMatcher, student: StudentDepends):
     """查询学生信息。"""
     if student is None:
         await matcher.finish(Emoji.error + "您还未绑定学生信息！！")
-
-    school_name = student.school.name if student.school else "未设置"
-    major_name = student.classes.major_ref.name if student.classes.major_ref else (student.classes.major or "未设置")
-    organizations = await student.get_organizations()
-    organization_names = "、".join(organization.name for organization in organizations) if organizations else "暂无"
-    student_role = StudentRoleLang[student.role] if student.role in StudentRoleLang._member_names_ else student.role
-
-    card = (
-        StringCard("学生信息")
-        .text(f"学生ID: {student.id}")
-        .text(f"姓名: {student.name}")
-        .text(f"角色: {student_role}")
-        .text(f"学校: {school_name}")
-        .text(f"班级ID: {student.classes.id}")
-        .text(f"班级名称: {student.classes.name}")
-        .text(f"专业: {major_name}")
-        .text(f"所属组织: {organization_names}")
-        .text(f"创建日期: {student.created_at.strftime('%Y-%m-%d')}")
-    )
-
-    if student.extra:
-        if student.extra.student_code:
-            card.text(f"学号: {student.extra.student_code}")
-        if student.extra.dormitory:
-            card.text(f"寝室: {student.extra.dormitory}")
-        if student.extra.family_contact:
-            card.text(f"家庭联系方式: {student.extra.family_contact}")
-        if student.extra.political_status:
-            card.text(f"政治面貌: {student.extra.political_status}")
-        if student.extra.family_address:
-            card.text(f"家庭地址: {student.extra.family_address}")
-        if student.extra.nation:
-            card.text(f"民族: {student.extra.nation}")
-
-    await matcher.finish(card.render())
+    await matcher.finish(await render_student_card(student))
 
 
 @set_cmd.handle()

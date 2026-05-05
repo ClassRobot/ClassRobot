@@ -2,6 +2,8 @@
 
 基于 Vue 3 + TypeScript + Tailwind CSS + Less 的本地管理平台前端。
 
+如果你想看“为什么要做这个后台、范围是什么、接口怎么设计”，先读 [docs/managers/README.md](../../docs/managers/README.md)；本文主要聚焦前端本地开发与目录结构。
+
 ## 快速开始
 
 ```bash

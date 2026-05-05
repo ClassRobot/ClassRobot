@@ -115,3 +115,85 @@ def test_command_tool_catalog_prefers_registered_spec_and_respects_agent_visibil
         assert disabled_catalog.get("测试Agent工具") is None
     finally:
         command_availability.clear()
+
+
+@pytest.mark.asyncio
+async def test_command_executor_can_query_current_user_info(loaded_plugins, models):
+    from src.commands import CommandExecutionContext, command_executor
+    from utils.roles import UserRole
+
+    user = await models.create_user(account_id=12001, nickname="信息测试用户")
+    school = await models.create_school("用户信息学校")
+    college = await models.create_college(school, "信息学院")
+    await models.create_teacher(user, name="信息老师", school=school, college=college)
+
+    result = await command_executor.execute(
+        "我的信息",
+        {},
+        CommandExecutionContext(
+            user_id=user.id,
+            roles={UserRole.user, UserRole.teacher},
+            invoker="agent_workflow",
+        ),
+    )
+
+    assert result.success is True
+    assert result.data["user_id"] == user.id
+    assert "用户信息" in result.visible_outputs[0]
+    assert "教师信息" in result.visible_outputs[0]
+    assert "信息老师" in result.visible_outputs[0]
+
+
+@pytest.mark.asyncio
+async def test_command_executor_can_query_teacher_profile(loaded_plugins, models):
+    from src.commands import CommandExecutionContext, command_executor
+    from utils.roles import UserRole
+
+    user = await models.create_user(account_id=12002, nickname="教师执行器用户")
+    school = await models.create_school("教师命令学校")
+    college = await models.create_college(school, "教师学院")
+    teacher = await models.create_teacher(user, name="执行器教师", school=school, college=college)
+
+    result = await command_executor.execute(
+        "查询教师信息",
+        {},
+        CommandExecutionContext(
+            user_id=user.id,
+            roles={UserRole.user, UserRole.teacher},
+            invoker="agent_workflow",
+        ),
+    )
+
+    assert result.success is True
+    assert result.data["teacher_id"] == teacher.id
+    assert "教师信息" in result.visible_outputs[0]
+    assert "执行器教师" in result.visible_outputs[0]
+    assert "教师命令学校" in result.visible_outputs[0]
+
+
+@pytest.mark.asyncio
+async def test_command_executor_can_query_student_profile(loaded_plugins, models):
+    from src.commands import CommandExecutionContext, command_executor
+    from utils.roles import UserRole
+
+    owner = await models.create_user(account_id=12003, nickname="学生班主任")
+    teacher = await models.create_teacher(owner, name="学生班主任")
+    classes = await models.create_classes(name="执行器班级", owner=owner, group_id=22003, teacher=teacher)
+    user = await models.create_user(account_id=12004, nickname="学生执行器用户")
+    student = await models.create_student(user, classes=classes, name="执行器学生")
+
+    result = await command_executor.execute(
+        "查询学生信息",
+        {},
+        CommandExecutionContext(
+            user_id=user.id,
+            roles={UserRole.user, UserRole.student},
+            invoker="agent_workflow",
+        ),
+    )
+
+    assert result.success is True
+    assert result.data["student_id"] == student.id
+    assert "学生信息" in result.visible_outputs[0]
+    assert "执行器学生" in result.visible_outputs[0]
+    assert "执行器班级" in result.visible_outputs[0]

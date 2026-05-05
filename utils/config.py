@@ -79,3 +79,15 @@ leave_dir.mkdir(parents=True, exist_ok=True)
 
 autogpt_dir = data_dir / "autogpt"
 autogpt_dir.mkdir(parents=True, exist_ok=True)
+
+storage_dir = data_dir / "storage"
+storage_dir.mkdir(parents=True, exist_ok=True)
+
+public_storage_dir = storage_dir / "public"
+public_storage_dir.mkdir(parents=True, exist_ok=True)
+
+group_storage_dir = storage_dir / "groups"
+group_storage_dir.mkdir(parents=True, exist_ok=True)
+
+user_storage_dir = storage_dir / "users"
+user_storage_dir.mkdir(parents=True, exist_ok=True)

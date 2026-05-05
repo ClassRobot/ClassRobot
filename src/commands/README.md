@@ -2,6 +2,8 @@
 
 `src/commands` 是项目命令体系的统一元数据、权限策略、可用性与执行调度层。
 
+如果你要看“为什么会有这层，以及它和 Agent、`Helper`、统一执行器是什么关系”，请先阅读 [命令与 Agent 一体化架构设计](../../docs/architecture/command-agent-unified-architecture.md)。本文只聚焦当前代码目录的职责和落地方式，尽量不重复写整套架构推导。
+
 它的目标不是一次性替换现有业务插件，而是先把命令的公共事实和运行策略收敛起来：
 
 - 从 `on_alconna` / `on_command` 派生命令元数据

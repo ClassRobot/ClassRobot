@@ -2,8 +2,11 @@ from __future__ import annotations
 
 from nonebot_plugin_alconna import AlconnaMatcher
 
+from src.commands import CommandExecutionContext, CommandResult, command_executor
 from utils import Emoji
-from utils.models import College, School, Teacher
+from utils.models import College, School, Teacher, User
+
+from .presenters import render_teacher_card
 
 TEACHER_COLUMNS = {
     "name": ["姓名", "名字", "昵称"],
@@ -11,6 +14,38 @@ TEACHER_COLUMNS = {
     "college": ["学院", "学院名称"],
 }
 """教师信息命令支持修改的字段和中文别名。"""
+
+
+@command_executor.handler("查询教师信息")
+async def execute_query_teacher(params: dict, context: CommandExecutionContext) -> CommandResult:
+    """执行统一的“查询教师信息”命令。
+
+    Args:
+        params: 统一命令参数。
+        context: 命令执行上下文。
+
+    Returns:
+        CommandResult: 标准化命令执行结果。
+    """
+
+    if context.user_id is None:
+        return CommandResult.fail("缺少用户 ID，无法查询教师信息。")
+
+    user = await User.get_user(context.user_id)
+    if user is None or user.teacher is None:
+        return CommandResult.fail("当前账号还未绑定教师信息。")
+
+    card = await render_teacher_card(user.teacher)
+    return CommandResult.ok(
+        "已查询教师信息。",
+        visible_outputs=[card],
+        context_outputs=[card],
+        data={
+            "teacher_id": user.teacher.id,
+            "user_id": user.id,
+            "classes_count": len(user.teacher.classes),
+        },
+    )
 
 
 def get_teacher_column_key(value: str) -> str | None:

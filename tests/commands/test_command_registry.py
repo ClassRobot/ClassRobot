@@ -77,6 +77,16 @@ EXPECTED_COMMAND_OBJECTS = {
         "export_task_cmd": "导出任务",
         "query_task_cmd": "查询任务",
     },
+    "src.plugins.file_manager.commands": {
+        "pwd_cmd": "pwd",
+        "ls_cmd": "ls",
+        "cd_cmd": "cd",
+        "mkdir_cmd": "mkdir",
+        "touch_cmd": "touch",
+        "rm_cmd": "rm",
+        "cat_cmd": "cat",
+        "upload_file_cmd": "上传文件",
+    },
     "src.plugins.helper": {"help_cmd": "help"},
     "src.plugins.autogpt": {"clear_chat": "清空聊天"},
 }

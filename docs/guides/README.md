@@ -28,7 +28,6 @@
 - 要扩展能力边界，先读 [Skill 系统说明](./skill-system.md)
 - 要理解请求在系统中怎么流动，先读 [消息处理流程](./message-processing-flow.md)
 - 要扩展命令、权限或帮助目录，先读 [命令鉴权与 Help/AutoGPT 统一机制](./command-auth-and-help.md)
-- 如果你要进一步重构命令系统与 Agent 共用能力内核，再读 [命令与 Agent 一体化架构设计](../architecture/command-agent-unified-architecture.md)
 - 要开发或调整智能能力，先读 [AutoGPT 智能能力改进方案](./agent-module.md)
 - 要理解工作流模板和确认恢复机制，接着读 [Agent Playbook 与确认执行](./agent-playbooks.md)
 - 要进一步看架构层面的边界与演进路线，再进入 [架构专题](../architecture/README.md)

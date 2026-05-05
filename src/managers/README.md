@@ -2,6 +2,12 @@
 
 `src/managers` 负责用户、教师、学生、班级、学校组织等和身份强相关的命令模块。这里的命令会直接影响用户身份、班级归属和组织结构，因此目录职责需要保持清晰，避免把命令声明、帮助元数据和业务辅助逻辑混在同一个文件中。
 
+如果你想先理解角色、组织关系和命令口径，而不是直接看代码，建议先阅读：
+
+- [角色与组织关系说明](../../docs/reference/role-reference.md)
+- [命令使用文档](../../docs/reference/command-reference.md)
+- [命令鉴权与 Help/AutoGPT 统一机制](../../docs/guides/command-auth-and-help.md)
+
 ## 模块职责
 
 - `commands.py`: 只放命令注册、别名、参数声明、权限扩展和 `__helpers__` 帮助元数据。

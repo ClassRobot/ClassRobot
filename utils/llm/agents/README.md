@@ -4,7 +4,14 @@
 
 这个模块的目标是作为项目内 AI 编排底座：机器人运行在自己的项目里，接入 QQ/NoneBot，调用项目内工具与命令，模型可以换成火山方舟、DeepSeek、通义千问、Kimi、智谱等国内 OpenAI 兼容服务。
 
-更完整的项目接入边界见 [docs/guides/agent-module.md](../../../docs/guides/agent-module.md)。
+阅读边界建议如下：
+
+- [docs/guides/agent-module.md](../../../docs/guides/agent-module.md)
+  - 看项目内 Agent 主链路如何演进
+- [src/plugins/autogpt/README.md](../../../src/plugins/autogpt/README.md)
+  - 看用户侧 AutoGPT 入口如何落在源码里
+- 本文
+  - 看 `utils.llm.agents` 这个基础模块如何直接使用
 
 ## 使用前提
 

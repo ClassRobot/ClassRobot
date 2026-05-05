@@ -56,7 +56,13 @@ def test_basic_commands_are_available_to_autogpt_command_tools(loaded_plugins):
     helper_menu.extend(collect_helpers())
     catalog = CommandToolCatalog.from_helpers(helper_menu)
 
+    from src.commands.registry import command_registry
+
     for helper in collect_helpers():
+        spec = command_registry.get(helper.command)
+        if spec is not None and not spec.agent_callable:
+            assert catalog.get(helper.command) is None
+            continue
         tool = catalog.get(helper.command)
         assert tool is not None
         assert tool.command == helper.command
@@ -73,8 +79,13 @@ def test_write_commands_are_not_marked_low_risk(loaded_plugins):
     helper_menu.extend(collect_helpers())
     catalog = CommandToolCatalog.from_helpers(helper_menu)
 
+    from src.commands.registry import command_registry
+
     write_prefixes = ("添加", "修改", "删除", "创建", "提交", "导入", "退出", "加入", "请假", "注销", "设置")
     for helper in collect_helpers():
+        spec = command_registry.get(helper.command)
+        if spec is not None and not spec.agent_callable:
+            continue
         if helper.command.startswith(write_prefixes):
             tool = catalog.get(helper.command)
             assert tool is not None

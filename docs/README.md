@@ -44,13 +44,9 @@
 
 - [AI 架构专题](./architecture/README.md)
 - [架构视图总览](./architecture/architecture-views.md)
-- [命令与 Agent 一体化架构设计](./architecture/command-agent-unified-architecture.md)
 - [Agent 工作流编排架构](./architecture/agent-workflow-orchestration.md)
+- [命令与 Agent 一体化架构设计](./architecture/command-agent-unified-architecture.md)
 - [统一 AI 平台架构总纲](./architecture/unified-ai-platform-handbook.md)
-- [当前系统架构设计](./architecture/current-system-architecture-design.md)
-- [当前系统整合图映射](./architecture/current-system-integration.md)
-- [目标架构蓝图](./architecture/target-ai-architecture.md)
-- [技术决策与工程规范](./architecture/technology-decisions.md)
 - [迁移路线图](./architecture/migration-roadmap.md)
 - [软件工程流程方案](./architecture/software-engineering-process.md)
 
@@ -69,6 +65,29 @@
 - [数据来源与权限策略](./managers/data-and-permissions.md)
 - [后端实现方案](./managers/backend-implementation.md)
 - [实施路线与验收清单](./managers/implementation-roadmap.md)
+
+## 建议阅读路线
+
+- 想先把项目跑起来：
+  - 从 [上手指南](./getting-started/README.md) 开始，再看 [配置说明](./getting-started/configuration.md)
+- 想知道消息是怎么流转的：
+  - 先看 [消息处理流程](./guides/message-processing-flow.md)，再看 [架构视图总览](./architecture/architecture-views.md)
+- 想做命令、权限或 Agent 相关开发：
+  - 先看 [命令鉴权与 Help/AutoGPT 统一机制](./guides/command-auth-and-help.md)
+  - 再看 [命令与 Agent 一体化架构设计](./architecture/command-agent-unified-architecture.md)
+- 想做 Skill、文件处理或图片处理能力：
+  - 先看 [Skill 系统说明](./guides/skill-system.md)
+- 想推进本地管理后台：
+  - 从 [本地管理后台文档](./managers/README.md) 进入专题
+
+兼容说明：
+
+- `docs/architecture/current-system-architecture-design.md`
+- `docs/architecture/current-system-integration.md`
+- `docs/architecture/target-ai-architecture.md`
+- `docs/architecture/technology-decisions.md`
+
+以上四篇为了兼容历史链接仍然保留，但不再作为主阅读入口。
 
 ## 新增文档放置规则
 

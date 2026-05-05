@@ -37,6 +37,7 @@ BASIC_HELPER_MODULES = {
     "src.plugins.find_at.commands": {"查找学生", "at"},
     "src.plugins.leave.commands": {"请假", "请假列表", "设置请假推送", "删除请假"},
     "src.plugins.tasks.commands": {"提交任务", "创建任务", "删除任务", "导出任务", "查询任务"},
+    "src.plugins.file_manager.commands": {"pwd", "ls", "cd", "mkdir", "touch", "rm", "cat", "上传文件"},
     "src.plugins.helper": {"help"},
     "src.plugins.autogpt": {"清空聊天"},
     "src.others.image_generate.commands": {"图片生成"},

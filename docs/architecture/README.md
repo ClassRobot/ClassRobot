@@ -1,6 +1,6 @@
 # AI 架构专题
 
-> 核验日期：2026-04-18
+> 核验日期：2026-05-05
 
 ## 目标
 
@@ -17,16 +17,29 @@
 
 ## 文档导航
 
+### 主读文档
+
 - [架构视图总览](./architecture-views.md)
-- [命令与 Agent 一体化架构设计](./command-agent-unified-architecture.md)
-- [Agent 工作流编排架构](./agent-workflow-orchestration.md)
+  - 适合先快速建立“系统边界、分层和运行流程”的整体图景
 - [统一 AI 平台架构总纲](./unified-ai-platform-handbook.md)
+  - 适合统一 Domain、Tool、Skill、Agent、RAG、MCP、Workflow 等概念边界
+- [Agent 工作流编排架构](./agent-workflow-orchestration.md)
+  - 适合理解 AutoGPT 为什么正在演进成显式工作流
+- [命令与 Agent 一体化架构设计](./command-agent-unified-architecture.md)
+  - 适合理解命令系统、`Helper`、统一执行器和 Agent 工具目录如何收敛
+- [迁移路线图](./migration-roadmap.md)
+  - 适合安排阶段性重构顺序
+- [软件工程流程方案](./software-engineering-process.md)
+  - 适合建立长期开发、测试、发布和治理规范
+
+### 兼容页
+
+下面几篇文档为了兼容历史链接仍然保留，但其内容已经被主读文档拆分吸收：
+
 - [当前系统架构设计](./current-system-architecture-design.md)
 - [当前系统整合图映射](./current-system-integration.md)
 - [目标架构蓝图](./target-ai-architecture.md)
 - [技术决策与工程规范](./technology-decisions.md)
-- [迁移路线图](./migration-roadmap.md)
-- [软件工程流程方案](./software-engineering-process.md)
 
 ## 适用范围
 
@@ -71,12 +84,8 @@
 ## 阅读建议
 
 - 如果你想先通过图理解“系统边界、分层、领域关系和运行时流程”，先读“架构视图总览”
-- 如果你正在重构命令系统，或要解决 `Helper / matcher / Agent tool` 多处同步问题，先读“命令与 Agent 一体化架构设计”
 - 如果你想理解当前 Agent 为什么要走“显式工作流 + NoneBot2 命令复用”的路线，先读“Agent 工作流编排架构”
+- 如果你想理解命令系统为什么要和 Agent 工具目录、统一执行器收敛到同一套元数据，先读“命令与 Agent 一体化架构设计”
 - 如果你现在概念很多、思路很乱，先读“统一 AI 平台架构总纲”
-- 如果你要先确定“当前系统到底该按什么架构继续开发”，先读“当前系统架构设计”
-- 如果你只想先看全貌，先读“目标架构蓝图”
-- 如果你想知道这些分层在当前仓库里分别落在哪，先读“当前系统整合图映射”
-- 如果你马上要开始重构，接着读“技术决策与工程规范”
 - 如果你要安排真实开发顺序，接着读“迁移路线图”
-- 如果你要把团队协作、测试、发布和运维流程落地，最后读“软件工程流程方案”
+- 如果你要把团队协作、测试、发布和运维流程落地，再读“软件工程流程方案”

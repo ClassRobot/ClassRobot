@@ -10,6 +10,13 @@
 
 如果你要改命令权限、补帮助文档、接 AutoGPT 命令目录，或者排查“为什么这个身份看得到/用不了某个命令”，先从这里读起。
 
+为了避免概念性说明和实现细节反复写两遍，可以这样区分：
+
+- [docs/guides/command-auth-and-help.md](../../docs/guides/command-auth-and-help.md)
+  - 更适合先理解整体机制与开发约定
+- 本文
+  - 更适合对照 `utils/helper/` 和相关依赖源码排查真实运行时行为
+
 ## 相关文件
 
 - `utils/models/depends.py`

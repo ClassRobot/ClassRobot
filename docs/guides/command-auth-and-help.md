@@ -2,10 +2,9 @@
 
 本文说明当前项目里“命令能不能用、`help` 怎么展示、AutoGPT 能看到什么命令”是如何统一起来的，便于后续继续扩展而不把权限逻辑写散。
 
-如果你正在看的是“后续应该如何把 `Helper`、命令声明、Agent 工具目录和统一执行器收敛成单一体系”，请继续阅读 [命令与 Agent 一体化架构设计](../architecture/command-agent-unified-architecture.md)。
+如果你正在看的是”后续应该如何把 `Helper`、命令声明、Agent 工具目录和统一执行器收敛成单一体系”，请继续阅读 [架构视图总览](../architecture/architecture-views.md) 中的”显式命令运行时流程”部分。
 
-如果你想贴着实现读代码，建议同时打开 [utils/helper/README.md](../../utils/helper/README.md)。
-那份 README 会把“平台用户绑定 -> `User.roles` 派生 -> `HelpersDepends` 过滤 -> matcher 前置鉴权”的完整链路画成图。
+实现链路的核心代码分布在 `utils/helper/depends.py`（鉴权依赖）、`utils/helper/runtime.py`（启动时绑定 matcher guard）和 `src/plugins/helper/__init__.py`（引导入口）中。整条链路是：平台用户绑定 → `User.roles` 派生 → `HelpersDepends` 过滤 → matcher 前置鉴权。
 
 ## 设计目标
 
