@@ -47,7 +47,7 @@ class FileEntry:
     name: str
     path: str
     is_dir: bool
-    size: int
+    size: int | None = None
 
 
 class FileSpace:
@@ -136,11 +136,12 @@ class FileSpace:
         self._write_cwd(resolved.relative_parts)
         return resolved.display
 
-    def list_entries(self, path: str | None = None) -> tuple[str, list[FileEntry]]:
+    def list_entries(self, path: str | None = None, *, include_size: bool = False) -> tuple[str, list[FileEntry]]:
         """列出目录内容或查看单个文件信息。
 
         Args:
             path: 可选路径，默认使用当前工作目录。
+            include_size: 是否额外统计条目大小。默认关闭，避免 ``ls`` 场景产生多余性能开销。
 
         Returns:
             tuple[str, list[FileEntry]]: 展示路径和目录条目列表。
@@ -154,8 +155,10 @@ class FileSpace:
         if not resolved.path.exists():
             raise FileSpaceError(f"路径不存在：{resolved.display}")
         if resolved.path.is_file():
-            return resolved.display, [self._entry_for(resolved.path)]
-        entries = [self._entry_for(item) for item in resolved.path.iterdir() if not item.name.startswith(".")]
+            return resolved.display, [self._entry_for(resolved.path, include_size=include_size)]
+        entries = [
+            self._entry_for(item, include_size=include_size) for item in resolved.path.iterdir() if not item.name.startswith(".")
+        ]
         entries.sort(key=lambda item: (not item.is_dir, item.name.lower()))
         return resolved.display, entries
 
@@ -385,15 +388,19 @@ class FileSpace:
 
         return tuple(path.resolve(strict=False).relative_to(self.home_dir.resolve()).parts)
 
-    def _entry_for(self, path: Path) -> FileEntry:
+    def _entry_for(self, path: Path, *, include_size: bool = False) -> FileEntry:
         """把真实路径转换为展示条目。"""
 
         relative_parts = self._relative_parts(path)
+        is_dir = path.is_dir()
+        size = None
+        if include_size:
+            size = directory_size(path) if is_dir else path.stat().st_size
         return FileEntry(
-            name=path.name + ("/" if path.is_dir() else ""),
+            name=path.name + ("/" if is_dir else ""),
             path=self.display_path(relative_parts),
-            is_dir=path.is_dir(),
-            size=directory_size(path) if path.is_dir() else path.stat().st_size,
+            is_dir=is_dir,
+            size=size,
         )
 
     def _ensure_removable(self, resolved: ResolvedPath) -> None:

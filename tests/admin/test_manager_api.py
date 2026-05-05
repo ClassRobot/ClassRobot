@@ -59,6 +59,32 @@ def isolate_manager_audit_log(monkeypatch, tmp_path):
     monkeypatch.setattr(operations, "AUTOMATION_SCRIPT_PATH", tmp_path / "manager_automation_scripts.json")
 
 
+@pytest.fixture(autouse=True)
+def isolate_manager_command_state(monkeypatch, tmp_path):
+    from src.commands.availability import command_availability
+    from src.routers.managers import command_state
+
+    monkeypatch.setattr(command_state, "AVAILABILITY_STATE_PATH", tmp_path / "manager_command_availability.json")
+    monkeypatch.setattr(command_state, "_STATE_LOADED", False)
+    command_availability.clear()
+    command_state.load_availability_state(force=True)
+    yield
+    command_availability.clear()
+    command_state._STATE_LOADED = False  # noqa: SLF001
+
+
+@pytest.fixture
+def manager_storage(monkeypatch, tmp_path):
+    from src.routers.managers import chat_history as manager_chat_history
+    from src.routers.managers import files as manager_files
+    from utils.storage import StorageManager
+
+    isolated_storage = StorageManager(root=tmp_path / "storage")
+    monkeypatch.setattr(manager_files, "storage_manager", isolated_storage)
+    monkeypatch.setattr(manager_chat_history, "storage_manager", isolated_storage)
+    return isolated_storage
+
+
 @pytest_asyncio.fixture
 async def manager_auth_headers(manager_client):
     from src.routers.managers.security import token_store
@@ -810,6 +836,299 @@ async def test_manager_nonebot_runtime_inventory(manager_client, manager_auth_he
     commands = await manager_client.get("/api/v1/manager/nonebot/commands", headers=manager_auth_headers)
     assert commands.status_code == 200, commands.text
     assert commands.json()["total"] == payload["stats"]["commands"]
+
+
+async def test_manager_nonebot_availability_controls(manager_client, manager_auth_headers):
+    command_update = await manager_client.patch(
+        "/api/v1/manager/nonebot/commands/pwd/availability",
+        headers=manager_auth_headers,
+        json={"enabled": False, "reason": "maintenance"},
+    )
+    assert command_update.status_code == 200, command_update.text
+    assert command_update.json()["enabled"] is False
+    assert command_update.json()["reason"] == "maintenance"
+
+    availability = await manager_client.get("/api/v1/manager/nonebot/availability", headers=manager_auth_headers)
+    assert availability.status_code == 200, availability.text
+    assert availability.json()["commands"]["pwd"]["enabled"] is False
+
+    overview = await manager_client.get("/api/v1/manager/nonebot", headers=manager_auth_headers)
+    assert overview.status_code == 200, overview.text
+    pwd_command = next(item for item in overview.json()["commands"] if item["command"] == "pwd")
+    assert pwd_command["available"] is False
+    assert pwd_command["availability_reason"] == "maintenance"
+
+    plugin_update = await manager_client.patch(
+        "/api/v1/manager/nonebot/plugins/src.plugins.file_manager/availability",
+        headers=manager_auth_headers,
+        json={"enabled": False, "reason": "plugin-disabled"},
+    )
+    assert plugin_update.status_code == 200, plugin_update.text
+    assert plugin_update.json()["enabled"] is False
+
+    plugin_listing = await manager_client.get("/api/v1/manager/nonebot/plugins", headers=manager_auth_headers)
+    assert plugin_listing.status_code == 200, plugin_listing.text
+    file_manager_plugin = next(
+        item for item in plugin_listing.json()["items"] if item["module_name"] == "src.plugins.file_manager"
+    )
+    assert file_manager_plugin["available"] is False
+    assert file_manager_plugin["availability_reason"] == "plugin-disabled"
+
+
+async def test_manager_file_space_management_api(
+    manager_client,
+    manager_auth_headers,
+    manager_user_orm,
+    manager_storage,
+):
+    from utils.models import Classes, User
+
+    suffix = uuid4().hex[:8]
+    user = await User.create_user(nickname="文件用户", username=f"manager_file_user_{suffix}")
+    creator = await User.create_user(nickname="文件群创建者", username=f"manager_file_group_{suffix}")
+    group_channel_id = f"manager-files-{suffix}"
+    await Classes.create_classes(
+        name=f"文件测试班级_{suffix}",
+        platform_name="QQ",
+        platform_id="qq.qq_api",
+        channel_id=group_channel_id,
+        guild_id=None,
+        user=creator,
+    )
+
+    user_space = manager_storage.user_space(user.id)
+    group_space = manager_storage.group_space(group_channel_id)
+
+    user_space.touch("documents/readme.txt")
+    user_space.resolve("documents/readme.txt", reject_escape=True).path.write_text("hello user space", "utf-8")
+    group_space.touch("images/group-note.txt")
+    group_space.resolve("images/group-note.txt", reject_escape=True).path.write_text("hello group space", "utf-8")
+
+    spaces = await manager_client.get("/api/v1/manager/files/spaces", headers=manager_auth_headers)
+    assert spaces.status_code == 200, spaces.text
+    space_items = spaces.json()["items"]
+    user_item = next(item for item in space_items if item["kind"] == "user" and item["owner_id"] == str(user.id))
+    group_item = next(item for item in space_items if item["kind"] == "group" and item["owner_id"] == group_channel_id)
+    assert user_item["linked"] is True
+    assert group_item["title"] == f"文件测试班级_{suffix}"
+
+    detail = await manager_client.get(
+        f"/api/v1/manager/files/spaces/user/{user.id}",
+        headers=manager_auth_headers,
+    )
+    assert detail.status_code == 200, detail.text
+    assert detail.json()["cwd"] == "~"
+
+    entries = await manager_client.get(
+        f"/api/v1/manager/files/spaces/user/{user.id}/entries",
+        headers=manager_auth_headers,
+        params={"path": "documents"},
+    )
+    assert entries.status_code == 200, entries.text
+    assert any(item["name"] == "readme.txt" for item in entries.json()["items"])
+
+    preview = await manager_client.get(
+        f"/api/v1/manager/files/spaces/user/{user.id}/read",
+        headers=manager_auth_headers,
+        params={"path": "documents/readme.txt"},
+    )
+    assert preview.status_code == 200, preview.text
+    assert preview.json()["content"] == "hello user space"
+
+    mkdir = await manager_client.post(
+        f"/api/v1/manager/files/spaces/user/{user.id}/directories",
+        headers=manager_auth_headers,
+        json={"path": "documents/generated"},
+    )
+    assert mkdir.status_code == 200, mkdir.text
+    assert mkdir.json()["created"] is True
+
+    write = await manager_client.put(
+        f"/api/v1/manager/files/spaces/user/{user.id}/write",
+        headers=manager_auth_headers,
+        json={"path": "documents/readme.txt", "content": "updated by manager"},
+    )
+    assert write.status_code == 200, write.text
+    assert write.json()["saved"] is True
+
+    preview_after_write = await manager_client.get(
+        f"/api/v1/manager/files/spaces/user/{user.id}/read",
+        headers=manager_auth_headers,
+        params={"path": "documents/readme.txt"},
+    )
+    assert preview_after_write.status_code == 200, preview_after_write.text
+    assert preview_after_write.json()["content"] == "updated by manager"
+
+    delete_file = await manager_client.delete(
+        f"/api/v1/manager/files/spaces/user/{user.id}/entry",
+        headers=manager_auth_headers,
+        params={"path": "documents/readme.txt"},
+    )
+    assert delete_file.status_code == 200, delete_file.text
+    assert delete_file.json()["deleted"] is True
+
+    delete_dir = await manager_client.delete(
+        f"/api/v1/manager/files/spaces/user/{user.id}/entry",
+        headers=manager_auth_headers,
+        params={"path": "documents/generated", "recursive": True},
+    )
+    assert delete_dir.status_code == 200, delete_dir.text
+    assert delete_dir.json()["deleted"] is True
+
+    traversal = await manager_client.get(
+        f"/api/v1/manager/files/spaces/user/{user.id}/entries",
+        headers=manager_auth_headers,
+        params={"path": "../"},
+    )
+    assert traversal.status_code == 400
+
+
+async def test_manager_chat_history_management_api(
+    manager_client,
+    manager_auth_headers,
+    manager_user_orm,
+    manager_storage,
+):
+    from utils.models import Classes, User
+    from utils.storage import ChatHistoryStore, MessageActorRole
+
+    suffix = uuid4().hex[:8]
+    private_user = await User.create_user(nickname="聊天用户", username=f"manager_chat_user_{suffix}")
+    creator = await User.create_user(nickname="聊天群创建者", username=f"manager_chat_group_{suffix}")
+    classes = await Classes.create_classes(
+        name=f"聊天记录班级_{suffix}",
+        platform_name="QQ",
+        platform_id="qq.qq_api",
+        channel_id=f"manager-chat-{suffix}",
+        guild_id=None,
+        user=creator,
+    )
+
+    store = ChatHistoryStore(manager_storage)
+    await store.record_user_chat_message(
+        user_id=private_user.id,
+        user_name=private_user.nickname,
+        plain_text="我想查询奖学金申请进度",
+        raw_text="我想查询奖学金申请进度",
+        actor_role=MessageActorRole.user,
+        message_id="pm-user-1",
+        platform="onebot11.qq_client",
+        platform_name="QQ",
+        bot_id="114514",
+        platform_user_id="manager-user-platform",
+        metadata={"source": "manager_api_test", "scene": "private_inbound"},
+    )
+    await store.record_user_chat_message(
+        user_id=private_user.id,
+        user_name=private_user.nickname,
+        actor_id="assistant",
+        actor_name="ClassRobot",
+        plain_text="奖学金申请还在审核中",
+        raw_text="奖学金申请还在审核中",
+        actor_role=MessageActorRole.assistant,
+        message_id="pm-assistant-1",
+        platform="onebot11.qq_client",
+        platform_name="QQ",
+        bot_id="114514",
+        platform_user_id="114514",
+        metadata={"source": "manager_api_test", "scene": "private_outbound"},
+    )
+    await store.record_group_collect_message(
+        group_id=classes.group_id,
+        user_id="u1",
+        user_name="张三",
+        plain_text="今天班会调课吗",
+        raw_text="今天班会调课吗",
+        message_id="gm-1",
+        platform="qq.qq_api",
+        platform_name="QQ",
+        channel_id=f"manager-chat-{suffix}",
+        bot_id="114514",
+        platform_user_id="u1",
+        metadata={"source": "manager_api_test", "scene": "group_collect"},
+    )
+    await store.record_group_collect_message(
+        group_id=classes.group_id,
+        user_id="u2",
+        user_name="李四",
+        plain_text="调课通知已经发了吗",
+        raw_text="调课通知已经发了吗",
+        message_id="gm-2",
+        platform="qq.qq_api",
+        platform_name="QQ",
+        channel_id=f"manager-chat-{suffix}",
+        bot_id="114514",
+        platform_user_id="u2",
+        metadata={"source": "manager_api_test", "scene": "group_collect"},
+    )
+
+    spaces = await manager_client.get("/api/v1/manager/chat-history/spaces", headers=manager_auth_headers)
+    assert spaces.status_code == 200, spaces.text
+    items = spaces.json()["items"]
+
+    user_item = next(item for item in items if item["kind"] == "user" and item["owner_id"] == str(private_user.id))
+    group_item = next(item for item in items if item["kind"] == "group" and item["owner_id"] == str(classes.group_id))
+
+    assert user_item["linked"] is True
+    assert user_item["message_count"] == 2
+    assert user_item["actor_counts"]["assistant"] == 1
+    assert user_item["direction_counts"]["inbound"] == 1
+    assert user_item["direction_counts"]["outbound"] == 1
+    assert group_item["title"] == f"聊天记录班级_{suffix}"
+    assert group_item["record_counts"]["collect"] == 2
+    assert f"manager-chat-{suffix}" in group_item["owner"]["channels"]
+
+    detail = await manager_client.get(
+        f"/api/v1/manager/chat-history/spaces/user/{private_user.id}",
+        headers=manager_auth_headers,
+    )
+    assert detail.status_code == 200, detail.text
+    detail_payload = detail.json()
+    assert detail_payload["message_count"] == 2
+    assert detail_payload["latest_message_preview"] == "奖学金申请还在审核中"
+
+    assistant_messages = await manager_client.get(
+        f"/api/v1/manager/chat-history/spaces/user/{private_user.id}/messages",
+        headers=manager_auth_headers,
+        params={"actor_role": "assistant", "direction": "outbound"},
+    )
+    assert assistant_messages.status_code == 200, assistant_messages.text
+    assistant_payload = assistant_messages.json()
+    assert assistant_payload["total"] == 1
+    assert assistant_payload["items"][0]["user_name"] == "ClassRobot"
+    assert assistant_payload["items"][0]["record_kind"] == "chat"
+    assert assistant_payload["items"][0]["direction"] == "outbound"
+    assert assistant_payload["items"][0]["owner_kind"] == "user"
+    assert assistant_payload["items"][0]["owner_id"] == str(private_user.id)
+    assert assistant_payload["items"][0]["platform"] == "onebot11.qq_client"
+    assert assistant_payload["items"][0]["bot_id"] == "114514"
+    assert assistant_payload["items"][0]["metadata"]["scene"] == "private_outbound"
+
+    group_messages = await manager_client.get(
+        f"/api/v1/manager/chat-history/spaces/group/{classes.group_id}/messages",
+        headers=manager_auth_headers,
+        params={"record_kind": "collect", "q": "调课"},
+    )
+    assert group_messages.status_code == 200, group_messages.text
+    group_payload = group_messages.json()
+    assert group_payload["total"] == 2
+    assert group_payload["items"][0]["user_name"] in {"张三", "李四"}
+    assert group_payload["items"][0]["channel_id"] == f"manager-chat-{suffix}"
+    assert group_payload["items"][0]["direction"] == "inbound"
+
+    invalid_filter = await manager_client.get(
+        f"/api/v1/manager/chat-history/spaces/group/{classes.group_id}/messages",
+        headers=manager_auth_headers,
+        params={"record_kind": "unknown"},
+    )
+    assert invalid_filter.status_code == 400
+
+    invalid_direction = await manager_client.get(
+        f"/api/v1/manager/chat-history/spaces/group/{classes.group_id}/messages",
+        headers=manager_auth_headers,
+        params={"direction": "sideways"},
+    )
+    assert invalid_direction.status_code == 400
 
 
 async def test_manager_checkpoint_delete_returns_404_when_missing(

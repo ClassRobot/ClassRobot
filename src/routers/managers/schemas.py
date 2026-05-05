@@ -67,6 +67,26 @@ class DatabaseRowUpdateRequest(BaseModel):
     values: dict[str, Any] = Field(default_factory=dict)
 
 
+class AvailabilityUpdateRequest(BaseModel):
+    """更新命令或插件软开关状态的请求体。"""
+
+    enabled: bool
+    reason: str = ""
+
+
+class FileSpaceWriteRequest(BaseModel):
+    """写入文件空间文本文件的请求体。"""
+
+    path: str = Field(min_length=1)
+    content: str
+
+
+class FileSpaceDirectoryCreateRequest(BaseModel):
+    """在文件空间中创建目录的请求体。"""
+
+    path: str = Field(min_length=1)
+
+
 class TerminalExecuteRequest(BaseModel):
     """运维页直接执行终端命令的请求体。"""
 

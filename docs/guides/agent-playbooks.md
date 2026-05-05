@@ -27,7 +27,7 @@
 
 ## 当前内置模板
 
-当前内置在 [playbooks.py](D:/Nakamoto/Documents/Codes/Python/ClassRobot/src/plugins/autogpt/playbooks.py) 里的模板包括：
+当前内置在 [playbooks.py](../../src/plugins/autogpt/playbooks.py) 里的模板包括：
 
 - `class_bootstrap_and_notice`
   - `添加班级 -> 修改班级加入方式 -> 创建通知`
@@ -163,7 +163,7 @@ sequenceDiagram
 
 ## 相关代码
 
-- [workflow.py](D:/Nakamoto/Documents/Codes/Python/ClassRobot/src/plugins/autogpt/workflow.py)
-- [playbooks.py](D:/Nakamoto/Documents/Codes/Python/ClassRobot/src/plugins/autogpt/playbooks.py)
-- [util.py](D:/Nakamoto/Documents/Codes/Python/ClassRobot/src/plugins/autogpt/util.py)
-- [__init__.py](D:/Nakamoto/Documents/Codes/Python/ClassRobot/src/plugins/autogpt/__init__.py)
+- [workflow.py](../../src/plugins/autogpt/workflow.py)
+- [playbooks.py](../../src/plugins/autogpt/playbooks.py)
+- [util.py](../../src/plugins/autogpt/util.py)
+- [__init__.py](../../src/plugins/autogpt/__init__.py)

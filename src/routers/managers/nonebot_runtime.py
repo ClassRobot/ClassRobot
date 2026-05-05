@@ -10,6 +10,7 @@ from nonebot import get_adapters, get_bots, get_driver, get_loaded_plugins
 
 from utils.config import project_root
 
+from .command_state import load_availability_state
 from .service import relative_to_project
 
 PYPROJECT_PATH = project_root / "pyproject.toml"
@@ -27,6 +28,7 @@ def get_nonebot_overview() -> dict[str, Any]:
         dict[str, Any]: 面向管理端总览页的只读运行时清单。
     """
 
+    load_availability_state()
     commands_payload = list_commands()
     commands = commands_payload["items"]
     plugins_payload = list_plugins(commands)
@@ -54,6 +56,11 @@ def get_nonebot_overview() -> dict[str, Any]:
             "loaded_plugins": sum(1 for item in plugins if item.get("loaded")),
             "commands": len(commands),
             "documented_commands": sum(1 for item in commands if item.get("documented")),
+            "available_commands": sum(1 for item in commands if item.get("available", True)),
+            "disabled_commands": sum(1 for item in commands if not item.get("available", True)),
+            "service_commands": sum(1 for item in commands if item.get("execution_mode") == "service"),
+            "agent_callable_commands": sum(1 for item in commands if item.get("agent_callable")),
+            "registry_commands": sum(1 for item in commands if item.get("metadata_source") == "command_registry"),
             "adapters": len(adapters),
             "registered_adapters": sum(1 for item in adapters if item.get("registered")),
             "bots": len(bots),
@@ -106,6 +113,7 @@ def list_plugins(commands: list[dict[str, Any]] | None = None) -> dict[str, Any]
     Returns:
         dict[str, Any]: 插件列表、总数和错误信息。
     """
+    load_availability_state()
     commands = commands if commands is not None else list_commands()["items"]
     config_payload = _read_nonebot_config()
     command_counts = Counter(item["plugin_module"] for item in commands if item.get("plugin_module"))
@@ -130,6 +138,8 @@ def list_plugins(commands: list[dict[str, Any]] | None = None) -> dict[str, Any]
             "sub_plugin_count": len(getattr(plugin, "sub_plugins", set()) or []),
             "parent": getattr(plugin.parent_plugin, "module_name", None) if plugin.parent_plugin else None,
             "command_count": _command_count_for_module(command_counts, plugin.module_name),
+            **_plugin_command_stats(commands, plugin.module_name),
+            **_plugin_availability_payload(plugin.module_name),
         }
         seen_modules.add(plugin.module_name)
         plugin_items.append(item)
@@ -160,6 +170,8 @@ def list_plugins(commands: list[dict[str, Any]] | None = None) -> dict[str, Any]
                 "sub_plugin_count": 0,
                 "parent": None,
                 "command_count": 0,
+                **_plugin_command_stats(commands, plugin_name),
+                **_plugin_availability_payload(plugin_name),
             }
         )
 
@@ -256,6 +268,7 @@ def list_commands() -> dict[str, Any]:
     Returns:
         dict[str, Any]: 命令列表、总数和扫描错误。
     """
+    load_availability_state()
     commands: list[dict[str, Any]] = []
     errors: list[str] = []
     helper_index = _helper_index()
@@ -374,9 +387,19 @@ def _command_payload_from_call(node: ast.Call) -> dict[str, Any] | None:
         "signature": signature,
         "documented": False,
         "description": "",
+        "ai_description": "",
         "roles": [],
+        "exclude_roles": [],
         "scopes": [],
         "params": [],
+        "tags": [],
+        "risk_level": "low",
+        "agent_callable": False,
+        "execution_mode": "legacy_event",
+        "available": True,
+        "availability_reason": "",
+        "tool_name": None,
+        "metadata_source": "source_scan",
     }
 
 
@@ -387,6 +410,8 @@ def _enrich_command(
     loaded_modules: set[str],
 ) -> dict[str, Any]:
     """为源码扫描得到的命令补充帮助文档和加载状态。"""
+    from src.commands.availability import command_availability
+
     registry_payload = registry_index.get(item["command"])
     if registry_payload is None:
         registry_payload = next(
@@ -420,12 +445,29 @@ def _enrich_command(
     if helper and not registry_payload:
         item["documented"] = True
         item["description"] = helper.get("description", "")
+        item["ai_description"] = helper.get("ai_description", "")
         item["roles"] = helper.get("roles", [])
+        item["exclude_roles"] = helper.get("exclude_roles", [])
         item["scopes"] = helper.get("scopes", [])
         item["params"] = helper.get("params", [])
+        item["tags"] = helper.get("tags", [])
+        item["risk_level"] = helper.get("risk_level", "low")
+        item["agent_callable"] = helper.get("agent_callable", True)
+        item["execution_mode"] = helper.get("execution_mode", "legacy_event")
+        item["tool_name"] = helper.get("tool_name")
         item["aliases"] = sorted({*item.get("aliases", []), *helper.get("aliases", [])})
+        item["metadata_source"] = helper.get("metadata_source", "helper")
     elif helper:
         item["aliases"] = sorted({*item.get("aliases", []), *helper.get("aliases", [])})
+
+    availability_decision = command_availability.check(None, item["command"])
+    plugin_state = command_availability.plugin_state(item.get("plugin_module"))
+    if not availability_decision.available:
+        item["available"] = False
+        item["availability_reason"] = availability_decision.reason
+    elif not plugin_state.enabled:
+        item["available"] = False
+        item["availability_reason"] = plugin_state.reason or f"插件 {item.get('plugin_module') or ''} 已关闭"
     item["runtime_loaded"] = _module_is_loaded(item["plugin_module"], loaded_modules)
     return item
 
@@ -471,6 +513,35 @@ def _registry_payload_to_command_item(payload: dict[str, Any], loaded_modules: s
         "runtime_loaded": _module_is_loaded(plugin_module, loaded_modules),
     }
     return item
+
+
+def _plugin_availability_payload(plugin_module: str) -> dict[str, Any]:
+    """读取插件级软开关状态。"""
+
+    from src.commands.availability import command_availability
+
+    state = command_availability.plugin_state(plugin_module)
+    return {
+        "available": state.enabled,
+        "availability_reason": state.reason,
+    }
+
+
+def _plugin_command_stats(commands: list[dict[str, Any]], plugin_module: str) -> dict[str, int]:
+    """统计指定插件及其子模块下的命令元数据。"""
+
+    related_commands = [
+        item
+        for item in commands
+        if item.get("plugin_module") == plugin_module or str(item.get("plugin_module") or "").startswith(f"{plugin_module}.")
+    ]
+    return {
+        "available_command_count": sum(1 for item in related_commands if item.get("available", True)),
+        "disabled_command_count": sum(1 for item in related_commands if not item.get("available", True)),
+        "service_command_count": sum(1 for item in related_commands if item.get("execution_mode") == "service"),
+        "agent_callable_command_count": sum(1 for item in related_commands if item.get("agent_callable")),
+        "high_risk_command_count": sum(1 for item in related_commands if item.get("risk_level") == "high"),
+    }
 
 
 def _read_nonebot_config() -> dict[str, Any]:
@@ -545,6 +616,7 @@ def _declared_adapter_module(class_module: str, declared_by_module: dict[str, di
 def _helper_index() -> dict[str, dict[str, Any]]:
     """构建帮助菜单命令索引，用于补全文档和参数信息。"""
     try:
+        from utils.helper import ParamMode
         from utils.helper.config import helper_menu
     except Exception:  # noqa: BLE001
         return {}
@@ -554,17 +626,29 @@ def _helper_index() -> dict[str, dict[str, Any]]:
         payload = {
             "command": helper.command,
             "description": helper.description,
+            "ai_description": helper.ai_description or "",
             "aliases": sorted(map(str, helper.aliases)),
             "roles": sorted(map(str, helper.roles)),
+            "exclude_roles": sorted(map(str, helper.exclude_roles)),
             "scopes": sorted(map(str, helper.display_scopes)),
             "params": [
                 {
                     "name": param.name,
-                    "description": param.description,
+                    "description": param.description or "",
                     "mode": str(param.mode) if param.mode else None,
+                    "value_type": "string",
+                    "multiple": param.mode in {ParamMode.ONE_OR_MORE, ParamMode.ZERO_OR_MORE},
+                    "source_name": None,
+                    "required": param.mode not in {ParamMode.OPTIONAL, ParamMode.ZERO_OR_MORE},
                 }
                 for param in helper.params
             ],
+            "tags": sorted(map(str, helper.tags)),
+            "risk_level": "low",
+            "agent_callable": True,
+            "execution_mode": "legacy_event",
+            "tool_name": None,
+            "metadata_source": "helper",
         }
         for command in helper.commands:
             index[str(command)] = payload
@@ -603,9 +687,24 @@ def _source_plugin_summaries(commands: list[dict[str, Any]]) -> list[dict[str, A
                 "sub_plugin_count": 0,
                 "parent": None,
                 "command_count": 0,
+                "available": True,
+                "availability_reason": "",
+                "available_command_count": 0,
+                "disabled_command_count": 0,
+                "service_command_count": 0,
+                "agent_callable_command_count": 0,
+                "high_risk_command_count": 0,
             },
         )
         grouped[plugin_module]["command_count"] += 1
+        grouped[plugin_module]["available_command_count"] += 1 if command.get("available", True) else 0
+        grouped[plugin_module]["disabled_command_count"] += 0 if command.get("available", True) else 1
+        grouped[plugin_module]["service_command_count"] += 1 if command.get("execution_mode") == "service" else 0
+        grouped[plugin_module]["agent_callable_command_count"] += 1 if command.get("agent_callable") else 0
+        grouped[plugin_module]["high_risk_command_count"] += 1 if command.get("risk_level") == "high" else 0
+        if not command.get("available", True):
+            grouped[plugin_module]["available"] = False
+            grouped[plugin_module]["availability_reason"] = command.get("availability_reason", "")
     return sorted(grouped.values(), key=lambda item: item["module_name"])
 
 

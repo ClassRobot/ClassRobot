@@ -30,8 +30,10 @@
 - [开发指南总览](./guides/README.md)
 - [Skill 系统说明](./guides/skill-system.md)
 - [消息处理流程](./guides/message-processing-flow.md)
+- [消息历史存储与归属说明](./guides/message-history-storage.md)
 - [AutoGPT 智能能力改进方案](./guides/agent-module.md)
 - [Agent Playbook 与确认执行](./guides/agent-playbooks.md)
+- [Agent 工程化研发手册](./guides/agent-engineering-playbook.md)
 
 ### 参考资料
 
@@ -72,9 +74,13 @@
   - 从 [上手指南](./getting-started/README.md) 开始，再看 [配置说明](./getting-started/configuration.md)
 - 想知道消息是怎么流转的：
   - 先看 [消息处理流程](./guides/message-processing-flow.md)，再看 [架构视图总览](./architecture/architecture-views.md)
+- 想接入消息采集、群历史检索或用户聊天落盘：
+  - 先看 [消息历史存储与归属说明](./guides/message-history-storage.md)
 - 想做命令、权限或 Agent 相关开发：
   - 先看 [命令鉴权与 Help/AutoGPT 统一机制](./guides/command-auth-and-help.md)
   - 再看 [命令与 Agent 一体化架构设计](./architecture/command-agent-unified-architecture.md)
+- 想推进 Agent、Tool、Skill、MCP、RAG 或 Prompt 工程化：
+  - 先看 [Agent 工程化研发手册](./guides/agent-engineering-playbook.md)，再按需回到 [AutoGPT 智能能力改进方案](./guides/agent-module.md)
 - 想做 Skill、文件处理或图片处理能力：
   - 先看 [Skill 系统说明](./guides/skill-system.md)
 - 想推进本地管理后台：

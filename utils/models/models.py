@@ -240,7 +240,12 @@ class UserBind(FilterModel, Model):
             Optional[User]: 用户信息
         """
         if bind := await cls.get_bind(platform_id, account_id):
-            return bind.user
+            user = await User.get_user(bind.user_id)
+            if user is not None:
+                return user
+            # 某些删除路径下可能遗留失效绑定，这里顺手清理，避免后续把脏关系
+            # 误判成“账号仍然存在”。
+            await bind.delete()
 
     @classmethod
     async def bind_user(

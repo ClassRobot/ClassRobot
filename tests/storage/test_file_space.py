@@ -69,6 +69,24 @@ def test_file_space_file_crud_and_protected_directories(loaded_plugins, tmp_path
     assert not (space.home_dir / "documents" / "readme.txt").exists()
 
 
+def test_file_space_list_entries_skips_size_calculation_by_default(loaded_plugins, tmp_path):
+    from utils.storage import StorageManager
+
+    space = StorageManager(tmp_path / "storage").user_space(30001)
+    space.mkdir("documents/project")
+    space.touch("documents/readme.txt")
+
+    display, entries = space.list_entries("documents")
+
+    assert display == "~/documents"
+    assert [entry.name for entry in entries] == ["project/", "readme.txt"]
+    assert all(entry.size is None for entry in entries)
+
+    _, entries_with_size = space.list_entries("documents", include_size=True)
+    assert entries_with_size[0].size == 0
+    assert entries_with_size[1].size == 0
+
+
 @pytest.mark.asyncio
 async def test_collect_upload_payloads_downloads_file_url(loaded_plugins, monkeypatch):
     from nonebot_plugin_alconna import File

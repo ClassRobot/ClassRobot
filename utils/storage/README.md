@@ -23,6 +23,36 @@
         └── audio/
 ```
 
+## 聊天记录约定
+
+`chat` 目录不仅保存运行时状态，也用于承载消息历史数据库：
+
+- 系统群环境采集消息：
+  - `storage/groups/{system_group_id}/chat/messages.db`
+- 用户聊天消息：
+  - `storage/users/{user_id}/chat/messages.db`
+- 机器人回复消息：
+  - 按回复目标落到对应的 `groups/{system_group_id}` 或 `users/{user_id}` 空间
+
+这里的 `system_group_id` 指系统内 `Group.id`，不是平台原始群号。
+
+当前统一消息表为 `messages`，并通过 `record_kind` 和 `direction` 区分：
+
+- `collect`
+  - 系统群环境采集消息
+- `chat`
+  - 人机聊天消息，包括私聊聊天、命令回复和群内机器人回复
+- `inbound`
+  - 用户或平台发给机器人的消息
+- `outbound`
+  - 机器人发出的消息
+
+这样做的目的，是让 Agent 和后续开发能直接知道：
+
+- 要看群环境上下文，就去系统群空间读 `collect`
+- 要看人机聊天流，就读对应空间的 `chat`
+- 要区分用户输入和机器人输出，就过滤 `direction`
+
 ## 使用方式
 
 ```python
@@ -49,3 +79,5 @@ display, entries = space.list_entries()
 - 后续聊天记录落盘时，应优先写入 `space.chat_dir`，不要混入 `home`。
 - 后台管理或 Agent 工具需要访问文件时，应复用 `StorageManager` / `FileSpace`，不要自行拼接路径。
 - 如果新增文件类型分类，只需要调整 `DEFAULT_HOME_DIRS`，新空间初始化时会自动创建目录。
+- 如果新增消息历史能力，优先复用 `utils.storage.chat_history.ChatHistoryStore`，不要自行创建新的 SQLite 结构。
+- 需要读取消息历史字段含义时，可参考 `docs/guides/message-history-storage.md`。

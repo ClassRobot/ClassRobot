@@ -305,7 +305,12 @@ class WorkflowExecutor:
                     status="failed",
                 )
                 workflow.add_event("workflow_failed", failed_observation.message, status="failed")
-                result.user_message = "我执行到一半出现了问题，有些步骤可能没有完成，请稍后重试或分步执行。"
+                unsent_outputs = collect_unsent_observation_outputs(observations)
+                result.user_message = (
+                    "\n\n".join(unsent_outputs)
+                    if unsent_outputs
+                    else "我执行到一半出现了问题，有些步骤可能没有完成，请稍后重试或分步执行。"
+                )
                 return result
 
             step.status = "completed"
@@ -322,6 +327,9 @@ class WorkflowExecutor:
         workflow.status = "completed"
         workflow.finished_at = datetime.now()
         workflow.add_event("workflow_completed", "工作流已完成。", status="completed")
+        unsent_outputs = collect_unsent_observation_outputs(result.observations)
+        if unsent_outputs:
+            result.user_message = "\n\n".join(unsent_outputs)
         return result
 
 
@@ -382,3 +390,20 @@ def workflow_requires_confirmation(workflow: AgentWorkflow) -> bool:
     """判断当前工作流是否属于“待确认后可直接执行”的状态。"""
 
     return workflow.need_confirm and bool(workflow.steps)
+
+
+def collect_unsent_observation_outputs(observations: list[CommandObservation]) -> list[str]:
+    """收集尚未发给用户的命令可见输出，避免 service-style 命令静默完成。"""
+
+    outputs: list[str] = []
+    seen: set[str] = set()
+    for observation in observations:
+        if observation.outputs_sent_to_user:
+            continue
+        for output in observation.outputs:
+            text = output.strip()
+            if not text or text in seen:
+                continue
+            outputs.append(text)
+            seen.add(text)
+    return outputs

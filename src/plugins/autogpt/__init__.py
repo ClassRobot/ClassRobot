@@ -6,6 +6,7 @@ from nonebot.rule import to_me
 from utils.helper import Helper, HelperScope
 from utils.roles import UserRole
 from utils.config import priority
+from utils.session import EventSession
 from src.agents.skills import markdown_to_image_skill
 from nonebot.matcher import Matcher
 from nonebot.message import handle_event
@@ -20,7 +21,7 @@ from src.commands.registry import command_registry
 
 from .schema import Param, AutoTask, AutoTaskList, CommandObservation
 from .util import ChatSessionDepends, markdown_to_message
-from .workflow import WorkflowExecutor
+from .workflow import WorkflowExecutor, collect_unsent_observation_outputs
 
 auto_gpt = on_message(priority=priority * 10, block=True, rule=to_me())
 clear_chat = on_command("清空聊天", aliases={"重置聊天", "聊天清空", "聊天重置"}, priority=priority, block=True)
@@ -125,8 +126,12 @@ async def dispatch_auto_task(
     trace_id: str = "",
     user_id: int | None = None,
     roles: Iterable[UserRole | str] | None = None,
+    platform_id: str | None = None,
+    channel_id: str | None = None,
+    guild_id: str | None = None,
+    platform_name: str | None = None,
 ) -> list[CommandObservation]:
-    """Dispatch an AutoTask through service executor first, then legacy matcher replay."""
+    """首先尝试通过统一服务执行器调度自动任务，若不支持则降级使用传统 matcher 进行事件回放。"""
 
     observations: list[CommandObservation] = []
     command_params = [param for param in task.params if not param.separate]
@@ -139,9 +144,16 @@ async def dispatch_auto_task(
             context=CommandExecutionContext(
                 user_id=user_id,
                 roles=set(roles or []),
+                platform=platform_id or str(getattr(target, "adapter", "") or ""),
+                channel_id=channel_id if not getattr(target, "private", False) else None,
+                guild_id=guild_id,
                 trace_id=trace_id,
                 invoker="agent_workflow",
-                extra={"dispatch": "autogpt"},
+                extra={
+                    "dispatch": "autogpt",
+                    "target_platform": getattr(target, "platform", None),
+                    "platform_name": platform_name or "",
+                },
             ),
         )
         message = result.summary or ("命令已通过统一执行器完成。" if result.success else "命令统一执行器调用失败。")
@@ -153,7 +165,9 @@ async def dispatch_auto_task(
                 dispatch_type="command",
                 success=result.success,
                 message=message,
-                outputs=result.observation_outputs,
+                outputs=result.visible_outputs,
+                context_outputs=result.observation_outputs,
+                outputs_sent_to_user=False,
             )
         ]
 
@@ -175,6 +189,8 @@ async def dispatch_auto_task(
                     else "命令已投递给 NoneBot 事件系统，但未捕获到命令回复。"
                 ),
                 outputs=outputs,
+                context_outputs=outputs,
+                outputs_sent_to_user=True,
             )
         )
     except Exception as error:
@@ -211,6 +227,8 @@ async def dispatch_auto_task(
                             else "分离参数已投递给 NoneBot 事件系统，但未捕获到命令回复。"
                         ),
                         outputs=outputs,
+                        context_outputs=outputs,
+                        outputs_sent_to_user=True,
                     )
                 )
             except Exception as error:
@@ -252,6 +270,7 @@ async def _(
     matcher: Matcher,
     message: UniMsg,
     target: MsgTarget,
+    platform: EventSession,
     chat_session: ChatSessionDepends,
 ):
     """处理当前命令或事件逻辑。"""
@@ -276,7 +295,6 @@ async def _(
         return
     elif auto_task.is_violation:
         await matcher.finish(auto_task.reply)
-        return
 
     if auto_task.reply:
         try:
@@ -306,6 +324,10 @@ async def _(
                     trace_id=chat_session.last_trace_id,
                     user_id=chat_session.user_id,
                     roles=chat_session.helpers.active_roles,
+                    platform_id=platform.platform,
+                    channel_id=platform.channel_id,
+                    guild_id=platform.guild_id,
+                    platform_name=platform.platform_name,
                 )
             )
             execution = await executor.execute(workflow)
@@ -313,7 +335,12 @@ async def _(
                 chat_session.record_observations(execution.observations, trace_id=chat_session.last_trace_id)
             await chat_session.record_workflow(execution.workflow, trace_id=chat_session.last_trace_id)
             if execution.user_message:
-                await matcher.send(Emoji.error + execution.user_message)
+                user_message = (
+                    Emoji.error + execution.user_message
+                    if execution.workflow.status == "failed"
+                    else execution.user_message
+                )
+                await matcher.send(await markdown_to_message(user_message).export(adapter=target.adapter, bot=bot))
         else:
             observations: list[CommandObservation] = []
             for task in auto_task.tasks:
@@ -327,6 +354,10 @@ async def _(
                             trace_id=chat_session.last_trace_id,
                             user_id=chat_session.user_id,
                             roles=chat_session.helpers.active_roles,
+                            platform_id=platform.platform,
+                            channel_id=platform.channel_id,
+                            guild_id=platform.guild_id,
+                            platform_name=platform.platform_name,
                         )
                     )
                 else:
@@ -343,6 +374,11 @@ async def _(
                     await matcher.send(Emoji.error + f"无法调用`{task.command}`命令，因为该命令不存在！")
             if observations:
                 chat_session.record_observations(observations, trace_id=chat_session.last_trace_id)
+                unsent_outputs = collect_unsent_observation_outputs(observations)
+                if unsent_outputs:
+                    await matcher.send(
+                        await markdown_to_message("\n\n".join(unsent_outputs)).export(adapter=target.adapter, bot=bot)
+                    )
 
 
 __helpers__ = [

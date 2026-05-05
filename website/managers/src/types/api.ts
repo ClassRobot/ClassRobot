@@ -80,6 +80,10 @@ export interface CacheStatus {
   status: StatusLevel
   host: string
   port: number
+  configured_backend?: string
+  backend?: string
+  path?: string
+  local_path?: string
   message?: string
 }
 
@@ -280,6 +284,215 @@ export interface DatabaseMutationErrorDetail {
   received_type?: string
   received_value?: string
   database_error_type?: string
+}
+
+// ─── File Spaces ───────────────────────────────────────────
+export type FileSpaceKind = 'user' | 'group'
+
+export interface FileSpaceOwner {
+  type: 'user' | 'group'
+  id?: number
+  nickname?: string
+  username?: string
+  avatar?: string | null
+  group_id?: number
+  group_name?: string
+  class_id?: number | null
+  class_name?: string | null
+  platform_id?: string
+  channel_id?: string
+}
+
+export interface FileSpaceSummary {
+  key: string
+  kind: FileSpaceKind
+  owner_id: string
+  title: string
+  subtitle: string
+  linked: boolean
+  owner: FileSpaceOwner | null
+  cwd: string
+  space_root: string
+  home_path: string
+  chat_path: string
+  default_directories: string[]
+  has_chat_state: boolean
+  file_count: number
+  directory_count: number
+  total_size: number
+  updated_at: string | null
+}
+
+export interface FileSpaceEntry {
+  name: string
+  path: string
+  is_dir: boolean
+  size: number
+  updated_at: string | null
+  extension: string
+}
+
+export interface FileSpaceListResponse {
+  items: FileSpaceSummary[]
+  total: number
+  root: string
+}
+
+export interface FileSpaceDetail extends FileSpaceSummary {
+  path: string
+  parent_path: string
+  can_go_up: boolean
+  items: FileSpaceEntry[]
+  total: number
+}
+
+export interface FileSpaceEntriesResponse {
+  path: string
+  parent_path: string
+  can_go_up: boolean
+  items: FileSpaceEntry[]
+  total: number
+}
+
+export interface FileSpaceTextPreview {
+  path: string
+  content: string
+  truncated: boolean
+  size: number
+  updated_at: string | null
+  extension: string
+}
+
+export interface FileSpaceWriteRequest {
+  path: string
+  content: string
+}
+
+export interface FileSpaceWriteResult {
+  saved: boolean
+  path: string
+  size: number
+  updated_at: string | null
+}
+
+export interface FileSpaceDirectoryCreateRequest {
+  path: string
+}
+
+export interface FileSpaceDirectoryCreateResult {
+  created: boolean
+  path: string
+}
+
+export interface FileSpaceDeleteResult {
+  deleted: boolean
+  path: string | null
+}
+
+// ─── Chat History ──────────────────────────────────────────
+export type ChatHistorySpaceKind = 'user' | 'group'
+export type ChatHistoryRecordKind = 'collect' | 'chat'
+export type ChatHistoryActorRole = 'user' | 'assistant' | 'system'
+export type ChatHistoryDirection = 'inbound' | 'outbound'
+
+export interface ChatHistorySpaceOwner {
+  type: 'user' | 'group'
+  id?: number
+  nickname?: string
+  username?: string
+  avatar?: string | null
+  group_id?: number
+  group_name?: string
+  class_id?: number | null
+  class_name?: string | null
+  creator?: ManagerUserBrief | null
+  bind_count?: number
+  platforms?: string[]
+  channels?: string[]
+}
+
+export interface ChatHistoryRecordCounts {
+  collect: number
+  chat: number
+}
+
+export interface ChatHistoryActorCounts {
+  user: number
+  assistant: number
+  system: number
+}
+
+export interface ChatHistoryDirectionCounts {
+  inbound: number
+  outbound: number
+}
+
+export interface ChatHistorySpaceSummary {
+  key: string
+  kind: ChatHistorySpaceKind
+  owner_id: string
+  title: string
+  subtitle: string
+  linked: boolean
+  owner: ChatHistorySpaceOwner | null
+  chat_path: string
+  db_path: string
+  db_size: number
+  message_count: number
+  participant_count: number
+  record_counts: ChatHistoryRecordCounts
+  actor_counts: ChatHistoryActorCounts
+  direction_counts: ChatHistoryDirectionCounts
+  latest_message_at: string | null
+  latest_message_preview: string
+  latest_message_user_name: string
+  latest_message_actor_role: string
+  latest_message_record_kind: string
+  latest_message_direction: string
+}
+
+export interface ChatHistorySpaceListResponse {
+  items: ChatHistorySpaceSummary[]
+  total: number
+  root: string
+}
+
+export interface ChatHistorySpaceDetail extends ChatHistorySpaceSummary {}
+
+export interface ChatHistoryMessage {
+  event_key: string
+  owner_kind: ChatHistorySpaceKind
+  owner_id: string
+  record_kind: ChatHistoryRecordKind
+  direction: ChatHistoryDirection
+  actor_role: ChatHistoryActorRole
+  message_id: string
+  user_id: string
+  user_name: string
+  plain_text: string
+  raw_text: string
+  display_text: string
+  created_at: string
+  platform: string
+  platform_name: string
+  channel_id: string | null
+  guild_id: string | null
+  bot_id: string
+  platform_user_id: string
+  metadata: Record<string, unknown>
+}
+
+export interface ChatHistoryMessageListResponse {
+  kind: ChatHistorySpaceKind
+  owner_id: string
+  q: string
+  record_kind: ChatHistoryRecordKind | null
+  actor_role: ChatHistoryActorRole | null
+  direction: ChatHistoryDirection | null
+  items: ChatHistoryMessage[]
+  page: number
+  page_size: number
+  total: number
 }
 
 // ─── Users ──────────────────────────────────────────────────
@@ -679,6 +892,11 @@ export interface NoneBotStats {
   loaded_plugins: number
   commands: number
   documented_commands: number
+  available_commands: number
+  disabled_commands: number
+  service_commands: number
+  agent_callable_commands: number
+  registry_commands: number
   adapters: number
   registered_adapters: number
   bots: number
@@ -700,36 +918,57 @@ export interface NoneBotPluginItem {
   sub_plugin_count: number
   parent: string | null
   command_count: number
+  available: boolean
+  availability_reason: string
+  available_command_count: number
+  disabled_command_count: number
+  service_command_count: number
+  agent_callable_command_count: number
+  high_risk_command_count: number
 }
 
 export interface NoneBotCommandParam {
   name: string
   description: string | null
   mode: string | null
+  value_type?: string | null
+  multiple?: boolean
+  source_name?: string | null
+  required?: boolean
 }
 
 export interface NoneBotCommandItem {
   id: string
   command: string
   aliases: string[]
-  matcher_type: 'command' | 'alconna'
+  matcher_type: 'command' | 'alconna' | 'registered'
   priority: string | number | null
   block: string | boolean | null
   skip_for_unmatch: string | boolean | null
   signature: string
   documented: boolean
   description: string
+  ai_description?: string
   roles: string[]
+  exclude_roles?: string[]
   scopes: string[]
   params: NoneBotCommandParam[]
+  tags?: string[]
+  risk_level?: string
+  agent_callable?: boolean
+  execution_mode?: string
+  available?: boolean
+  availability_reason?: string
+  tool_name?: string | null
+  metadata_source?: string
   matcher_name: string | null
-  file: string
+  file: string | null
   line: number
   module_name: string
   plugin_module: string
   plugin_name: string
   namespace: string
-  source: 'source_scan'
+  source: 'source_scan' | 'command_registry'
   runtime_loaded: boolean
 }
 
@@ -769,6 +1008,12 @@ export interface NoneBotOverviewResponse {
   adapters: NoneBotAdapterItem[]
   bots: NoneBotBotItem[]
   errors: string[]
+}
+
+export interface NoneBotAvailabilityResponse {
+  commands: Record<string, { enabled: boolean; reason: string; updated_at: string }>
+  plugins: Record<string, { enabled: boolean; reason: string; updated_at: string }>
+  path: string
 }
 
 // ─── Logs ───────────────────────────────────────────────────

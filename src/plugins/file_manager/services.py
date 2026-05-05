@@ -96,23 +96,10 @@ def format_entries(title: str, entries: list[FileEntry]) -> str:
 
     for entry in entries[:50]:
         icon = EntryIcon.directory if entry.is_dir else EntryIcon.file
-        size = format_size(entry.size)
-        card.text(f"{icon} {entry.name} {size}")
+        card.text(f"{icon} {entry.name}")
     if len(entries) > 50:
         card.text(f"...已截断展示，剩余 {len(entries) - 50} 项")
     return card.render()
-
-
-def format_size(size: int) -> str:
-    """格式化文件大小。"""
-
-    units = ("B", "KB", "MB", "GB")
-    value = float(size)
-    for unit in units:
-        if value < 1024 or unit == units[-1]:
-            return f"{value:.0f}{unit}" if unit == "B" else f"{value:.1f}{unit}"
-        value /= 1024
-    return f"{size}B"
 
 
 def parse_rm_args(values: tuple[str, ...] | list[str]) -> tuple[list[str], bool, bool]:

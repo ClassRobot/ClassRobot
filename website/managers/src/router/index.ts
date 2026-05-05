@@ -47,6 +47,18 @@ const router = createRouter({
           meta: { title: '数据库管理', group: '系统' },
         },
         {
+          path: 'files',
+          name: 'Files',
+          component: () => import('@/views/FilesView.vue'),
+          meta: { title: '文件空间', group: '系统' },
+        },
+        {
+          path: 'chat-history',
+          name: 'ChatHistory',
+          component: () => import('@/views/ChatHistoryView.vue'),
+          meta: { title: '聊天记录', group: '系统' },
+        },
+        {
           path: 'settings',
           name: 'Settings',
           component: () => import('@/views/SettingsView.vue'),

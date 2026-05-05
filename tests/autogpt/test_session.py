@@ -40,6 +40,33 @@ def test_record_observations_writes_traceable_context(loaded_plugins):
     assert "今天上午第一节是高等数学。" in output_context
 
 
+def test_record_observations_prefers_context_outputs_for_agent_context(loaded_plugins):
+    from utils.helper import Helpers
+    from src.plugins.autogpt.util import ChatSession
+    from src.plugins.autogpt.schema import CommandObservation
+
+    session = ChatSession(user_id=1, helpers=Helpers())
+    session.last_trace_id = "autogpt-context-output"
+
+    session.record_observations(
+        [
+            CommandObservation(
+                trace_id="autogpt-context-output",
+                command="我的信息",
+                success=True,
+                message="命令已通过统一执行器完成。",
+                outputs=["用户信息：昵称是小王，角色是教师。"],
+                context_outputs=["当前用户昵称小王，已绑定教师身份。"],
+                outputs_sent_to_user=False,
+            )
+        ]
+    )
+
+    output_context = session.messages.messages[-1].single_modal()
+    assert "当前用户昵称小王，已绑定教师身份。" in output_context
+    assert "用户信息：昵称是小王，角色是教师。" not in output_context
+
+
 @pytest.mark.asyncio
 async def test_record_workflow_writes_traceable_context(loaded_plugins):
     from utils.helper import Helpers

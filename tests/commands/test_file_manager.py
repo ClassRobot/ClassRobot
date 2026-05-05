@@ -47,7 +47,7 @@ async def test_private_file_commands_keep_user_space_isolated(app, onebot, send_
         bot = onebot.create_bot(ctx)
         event = onebot.private_event("ls", user_id=11001, nickname="文件用户", message_id=5)
         ctx.receive_event(bot, event)
-    recorder.assert_any("文件列表", "📄", "note.txt", absent=("文件 note.txt",))
+    recorder.assert_any("文件列表", "📄", "note.txt", absent=("文件 note.txt", "0B", "KB", "MB"))
 
     async with app.test_matcher(cd_cmd) as ctx:
         recorder = send_recorder(ctx)

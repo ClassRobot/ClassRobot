@@ -194,9 +194,10 @@ class ChatSession:
 
         output_sections = []
         for observation in observations:
-            if not observation.outputs:
+            context_outputs = observation.context_outputs or observation.outputs
+            if not context_outputs:
                 continue
-            outputs = "\n".join(f"- {output}" for output in observation.outputs)
+            outputs = "\n".join(f"- {output}" for output in context_outputs)
             output_sections.append(f"命令：{observation.command}\n{outputs}")
         if output_sections:
             self.messages.assistant_message(

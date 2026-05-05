@@ -3,6 +3,8 @@ from __future__ import annotations
 from inspect import _empty, stack
 from typing import Any
 
+from nonebot import logger
+from nonebot.adapters import Bot, Event
 from arclet.alconna import Alconna
 from arclet.alconna.typing import MultiVar
 from pydantic import BaseModel, Field
@@ -58,6 +60,7 @@ def command_alconna(alconna: Alconna, *, binding: CommandBinding | None = None, 
         aliases=_normalize_aliases(aliases),
     )
     _bind_spec_to_matcher(matcher, spec)
+    _bind_command_history_recorder(matcher, spec)
     return matcher
 
 
@@ -87,6 +90,7 @@ def command_command(command: str, *, binding: CommandBinding | None = None, alia
         aliases=_normalize_aliases(aliases),
     )
     _bind_spec_to_matcher(matcher, spec)
+    _bind_command_history_recorder(matcher, spec)
     return matcher
 
 
@@ -182,6 +186,82 @@ def _bind_spec_to_matcher(matcher, spec: CommandSpec) -> None:
     matcher.__command_spec__ = spec
     matcher.__helper__ = helper
     matcher.__helper_command__ = helper.command
+
+
+def _bind_command_history_recorder(matcher, spec: CommandSpec) -> None:
+    """为命令 matcher 挂载输入记录器。
+
+    Args:
+        matcher: NoneBot matcher 类型对象。
+        spec: 当前 matcher 对应的命令元数据。
+    """
+
+    if spec.execution_mode == "interactive":
+        return
+
+    async def record_command_input(bot: Bot, event: Event) -> None:
+        """在命令业务处理前记录用户输入。"""
+
+        try:
+            if not _event_looks_like_command_trigger(event, spec):
+                return
+
+            from src.plugins.chat_context.collector import record_command_message
+            from src.plugins.chat_context.outbound import install_outbound_message_recorder
+            from src.plugins.chat_context.resolvers import resolve_session_from_event
+
+            install_outbound_message_recorder(bot)
+            platform = resolve_session_from_event(bot, event)
+            if platform is None:
+                return
+
+            await record_command_message(
+                platform,
+                event,
+                bot,
+                command_name=spec.name,
+                command_aliases=spec.aliases,
+                plugin_module=spec.plugin_module,
+            )
+        except Exception as error:
+            logger.warning(f"记录命令 `{spec.name}` 的聊天输入失败：{error}")
+
+    record_command_input.__name__ = f"record_command_input_{id(spec)}"
+    matcher.handle()(record_command_input)
+
+
+def _event_looks_like_command_trigger(event: Event, spec: CommandSpec) -> bool:
+    """判断当前事件文本是否像该命令的首条触发消息。
+
+    多轮交互命令在 `got` / `receive` 阶段收到的确认消息，例如 `yes`、`no`
+    或附件补充消息，不应再次按“命令输入”写入聊天记录，否则会干扰交互态
+    matcher 的执行边界。
+
+    Args:
+        event: 当前平台事件。
+        spec: 当前 matcher 对应的命令元数据。
+
+    Returns:
+        bool: 看起来是首条命令触发消息时返回 ``True``。
+    """
+
+    get_plaintext = getattr(event, "get_plaintext", None)
+    if not callable(get_plaintext):
+        return False
+
+    text = " ".join(str(get_plaintext() or "").split())
+    if not text:
+        return False
+
+    for command_name in sorted(spec.commands, key=len, reverse=True):
+        candidate = " ".join(str(command_name).split())
+        if not candidate:
+            continue
+        if text == candidate:
+            return True
+        if text.startswith(candidate) and len(text) > len(candidate) and text[len(candidate)].isspace():
+            return True
+    return False
 
 
 def _params_from_alconna(alconna: Alconna, binding: CommandBinding) -> list[CommandParam]:

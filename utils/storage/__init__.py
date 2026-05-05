@@ -1,3 +1,19 @@
+from .chat_history import (
+    ChatHistoryRecord,
+    ChatHistoryStore,
+    GroupChatHistoryStore,
+    MESSAGE_DB_NAME,
+    MESSAGE_TABLE_NAME,
+    MessageActorRole,
+    MessageDirection,
+    MessageOwnerKind,
+    MessageRecordKind,
+    NON_TEXT_PLACEHOLDER,
+    chat_history_store,
+    normalize_message_text,
+    normalize_raw_message,
+    parse_metadata,
+)
 from .files import (
     DEFAULT_HOME_DIRS,
     FileEntry,
@@ -10,12 +26,26 @@ from .files import (
 )
 
 __all__ = [
+    "ChatHistoryRecord",
+    "ChatHistoryStore",
     "DEFAULT_HOME_DIRS",
     "FileEntry",
     "FileSpace",
     "FileSpaceError",
     "FileSpaceKind",
+    "GroupChatHistoryStore",
+    "MESSAGE_DB_NAME",
+    "MESSAGE_TABLE_NAME",
+    "MessageActorRole",
+    "MessageDirection",
+    "MessageOwnerKind",
+    "MessageRecordKind",
+    "NON_TEXT_PLACEHOLDER",
     "PathEscapeError",
     "StorageManager",
+    "chat_history_store",
+    "normalize_message_text",
+    "normalize_raw_message",
+    "parse_metadata",
     "storage_manager",
 ]

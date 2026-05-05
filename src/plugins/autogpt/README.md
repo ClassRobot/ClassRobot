@@ -372,8 +372,12 @@ AutoGPT 的“可理解性”主要来自这些显式对象：
 - 是主命令还是分离参数
 - 是否成功投递到 NoneBot 事件系统
 - 命令 matcher 实际发给用户的回复文本 `outputs`
+- service-style 命令是否已经把 `outputs` 发给用户
+- 面向 Agent 继续规划的紧凑结果 `context_outputs`
 
 当前执行器会在不影响用户正常收到命令回复的前提下捕获这些输出，并通过 `ChatSession.record_observations()` 写回会话上下文。这样下一轮 Agent 能看到“命令返回了什么”，而不是只知道“命令被投递了”。
+
+如果命令已经迁移到统一 service 执行器，它不会再经过 matcher 自动发送消息。此时 `CommandObservation.outputs_sent_to_user=false`，`WorkflowExecutor` 会把 `visible_outputs` 汇总成 `WorkflowExecutionResult.user_message`，由 AutoGPT 入口统一发送给用户，同时把 `context_outputs` 写回会话上下文。这样 service-style 命令不会静默完成，Agent 也能继续基于结构化结果规划。
 
 ## 7. 流水线节点说明
 
@@ -382,12 +386,18 @@ AutoGPT 的“可理解性”主要来自这些显式对象：
 1. `SummaryHistoryNode`
 2. `NormalizeUserInputNode`
 3. `AppendUserMessageNode`
-4. `IntentRouteNode`
-5. `ExtractContextNode`
-6. `PlannerNode`
-7. `ExecutionPolicyNode`
-8. `RetrieveKnowledgeNode`
-9. `PlanTasksNode`
+4. `LocalContextQueryNode`
+5. `IntentRouteNode`
+6. `DirectVisionReplyNode`
+7. `ExtractContextNode`
+8. `PlannerNode`
+9. `ExecutionPolicyNode`
+10. `RetrieveKnowledgeNode`
+11. `PlanTasksNode`
+12. `ValidateAutoTasksNode`
+13. `PersistAssistantReplyNode`
+
+`LocalContextQueryNode` 会先处理不需要模型猜测的本地状态问题，例如“我是不是管理员”“我现在在哪个班级”“我有创建班级吗”“我明天有什么课”。这些请求会直接路由到 `我的信息`、`查询班级` 或 `查询课表`，让系统先拿真实数据，再把结果写回上下文。
 10. `ValidateAutoTasksNode`
 11. `PersistAssistantReplyNode`
 
@@ -513,6 +523,7 @@ flowchart TD
 3. 收集 `CommandObservation`。
 4. 失败即停。
 5. 更新 `workflow.events` 和状态。
+6. 对 service-style 命令，把尚未发给用户的 `visible_outputs` 汇总到 `WorkflowExecutionResult.user_message`。
 
 ### 9.3 工作流状态流转
 

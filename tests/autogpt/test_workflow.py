@@ -168,6 +168,37 @@ async def test_workflow_executor_runs_steps_in_order(loaded_plugins):
 
 
 @pytest.mark.asyncio
+async def test_workflow_executor_surfaces_unsent_service_outputs(loaded_plugins):
+    from src.plugins.autogpt.schema import AgentWorkflow, CommandObservation, WorkflowStep
+    from src.plugins.autogpt.workflow import WorkflowExecutor
+
+    async def dispatch(task):
+        return [
+            CommandObservation(
+                trace_id="autogpt-service-output",
+                command=task.command,
+                success=True,
+                message="命令已通过统一执行器完成。",
+                outputs=["用户信息：你是教师用户。"],
+                context_outputs=["当前用户已绑定教师身份。"],
+                outputs_sent_to_user=False,
+            )
+        ]
+
+    workflow = AgentWorkflow(
+        trace_id="autogpt-service-output",
+        kind="command",
+        goal="查询我的信息",
+        steps=[WorkflowStep(step_id="step-1", title="执行命令：我的信息", command="我的信息")],
+    )
+
+    execution = await WorkflowExecutor(dispatch).execute(workflow)
+
+    assert execution.workflow.status == "completed"
+    assert execution.user_message == "用户信息：你是教师用户。"
+
+
+@pytest.mark.asyncio
 async def test_workflow_executor_stops_on_failed_step(loaded_plugins):
     from src.plugins.autogpt.schema import AgentWorkflow, CommandObservation, Param, WorkflowStep
     from src.plugins.autogpt.workflow import WorkflowExecutor

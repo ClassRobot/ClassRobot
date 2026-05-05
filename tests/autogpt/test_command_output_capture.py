@@ -50,3 +50,10 @@ def test_stringify_command_output_falls_back_to_message_string(loaded_plugins):
     from src.plugins import autogpt as autogpt_module
 
     assert autogpt_module.stringify_command_output(123) == "123"
+
+
+def test_autogpt_relies_on_global_send_recorder(loaded_plugins):
+    from src.plugins import autogpt as autogpt_module
+
+    assert not hasattr(autogpt_module, "record_reply_history")
+    assert not hasattr(autogpt_module, "send_reply_and_record")

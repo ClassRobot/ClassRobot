@@ -1,6 +1,7 @@
 import client from './client'
 import type {
   NoneBotAdapterItem,
+  NoneBotAvailabilityResponse,
   NoneBotBotItem,
   NoneBotCommandItem,
   NoneBotListResponse,
@@ -30,5 +31,26 @@ export async function fetchNoneBotAdapters(): Promise<NoneBotListResponse<NoneBo
 
 export async function fetchNoneBotBots(): Promise<NoneBotListResponse<NoneBotBotItem>> {
   const { data } = await client.get('/nonebot/bots')
+  return data
+}
+
+export async function fetchNoneBotAvailability(): Promise<NoneBotAvailabilityResponse> {
+  const { data } = await client.get('/nonebot/availability')
+  return data
+}
+
+export async function updateNoneBotCommandAvailability(
+  commandName: string,
+  payload: { enabled: boolean; reason?: string },
+): Promise<{ target: 'command'; key: string; enabled: boolean; reason: string; updated_at: string }> {
+  const { data } = await client.patch(`/nonebot/commands/${encodeURIComponent(commandName)}/availability`, payload)
+  return data
+}
+
+export async function updateNoneBotPluginAvailability(
+  pluginModule: string,
+  payload: { enabled: boolean; reason?: string },
+): Promise<{ target: 'plugin'; key: string; enabled: boolean; reason: string; updated_at: string }> {
+  const { data } = await client.patch(`/nonebot/plugins/${encodeURIComponent(pluginModule)}/availability`, payload)
   return data
 }

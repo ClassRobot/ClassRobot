@@ -87,6 +87,9 @@ EXPECTED_COMMAND_OBJECTS = {
         "cat_cmd": "cat",
         "upload_file_cmd": "上传文件",
     },
+    "src.plugins.chat_context.commands": {
+        "query_group_history_cmd": "检索群聊记录",
+    },
     "src.plugins.helper": {"help_cmd": "help"},
     "src.plugins.autogpt": {"clear_chat": "清空聊天"},
 }

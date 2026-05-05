@@ -91,22 +91,70 @@
     >
       <!-- Top bar -->
       <header class="flex h-topbar shrink-0 items-center gap-4 border-b border-outline-variant/80 bg-white/72 px-6 backdrop-blur-xl dark:border-zinc-800 dark:bg-zinc-900">
-        <div class="flex items-center gap-3">
-          <button
-            @click="toggleSidebar"
-            class="flex h-8 w-8 items-center justify-center rounded-lg text-on-surface-variant dark:text-zinc-400 hover:bg-surface-container dark:hover:bg-zinc-800 transition-colors"
-            :title="collapsed ? '展开导航' : '收起导航'"
-          >
-            <PanelLeftOpen v-if="collapsed" :size="18" />
-            <PanelLeftClose v-else :size="18" />
-          </button>
-          <h1 class="text-sm font-semibold text-on-surface dark:text-zinc-100">{{ pageTitle }}</h1>
-          <span class="flex items-center gap-1.5 rounded-full bg-primary/10 dark:bg-primary-dark/15 px-2.5 py-0.5 text-[11px] font-medium text-primary dark:text-primary-dark">
-            <span class="w-1.5 h-1.5 rounded-full bg-primary dark:bg-primary-dark"></span>
-            运行中
-          </span>
+        <div class="flex min-w-0 flex-1 items-center gap-4">
+          <div class="flex shrink-0 items-center gap-3">
+            <button
+              @click="toggleSidebar"
+              class="flex h-8 w-8 items-center justify-center rounded-lg text-on-surface-variant dark:text-zinc-400 hover:bg-surface-container dark:hover:bg-zinc-800 transition-colors"
+              :title="collapsed ? '展开导航' : '收起导航'"
+            >
+              <PanelLeftOpen v-if="collapsed" :size="18" />
+              <PanelLeftClose v-else :size="18" />
+            </button>
+            <h1 class="text-sm font-semibold text-on-surface dark:text-zinc-100">{{ pageTitle }}</h1>
+            <span class="flex items-center gap-1.5 rounded-full bg-primary/10 dark:bg-primary-dark/15 px-2.5 py-0.5 text-[11px] font-medium text-primary dark:text-primary-dark">
+              <span class="w-1.5 h-1.5 rounded-full bg-primary dark:bg-primary-dark"></span>
+              运行中
+            </span>
+          </div>
+
+          <div class="relative hidden min-w-0 max-w-[360px] flex-1 md:block">
+            <Search :size="15" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant/80 dark:text-zinc-500" />
+            <input
+              v-model="globalSearch"
+              type="search"
+              class="h-10 w-full rounded-xl border border-outline-variant/80 bg-surface-container-lowest pl-9 pr-3 text-body-sm text-on-surface outline-none transition-colors focus:border-primary focus:bg-white dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:border-primary-dark dark:focus:bg-zinc-950"
+              placeholder="搜索页面、功能、管理入口..."
+              @focus="openSearchPanel"
+              @blur="handleSearchBlur"
+              @keydown.enter.prevent="openFirstSearchResult"
+              @keydown.esc="closeSearchPanel"
+            />
+
+            <div
+              v-if="searchPanelVisible"
+              class="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-40 overflow-hidden rounded-xl border border-outline-variant/80 bg-white/96 shadow-[0_20px_50px_rgba(15,23,42,0.12)] backdrop-blur-xl dark:border-zinc-800 dark:bg-zinc-900/96 dark:shadow-[0_20px_50px_rgba(0,0,0,0.45)]"
+            >
+              <div class="border-b border-outline-variant/70 px-3 py-2 text-[11px] text-on-surface-variant dark:border-zinc-800 dark:text-zinc-500">
+                {{ normalizedSearchQuery ? `搜索结果 ${Math.min(filteredSearchItems.length, 8)} 项` : '快捷入口' }}
+              </div>
+
+              <div v-if="filteredSearchItems.length" class="max-h-[360px] overflow-y-auto p-2">
+                <button
+                  v-for="item in filteredSearchItems.slice(0, 8)"
+                  :key="item.to"
+                  type="button"
+                  class="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors hover:bg-surface-container dark:hover:bg-zinc-800/80"
+                  @mousedown.prevent="navigateToSearchItem(item)"
+                >
+                  <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary dark:bg-primary-dark/15 dark:text-primary-dark">
+                    <component :is="item.icon" :size="16" />
+                  </span>
+                  <span class="min-w-0 flex-1">
+                    <span class="block truncate text-body-sm font-medium text-on-surface dark:text-zinc-100">{{ item.label }}</span>
+                    <span class="block truncate text-[11px] text-on-surface-variant dark:text-zinc-500">{{ item.group }} · {{ item.to }}</span>
+                  </span>
+                </button>
+              </div>
+
+              <div v-else class="px-3 py-4 text-body-sm text-on-surface-variant dark:text-zinc-500">
+                没有匹配的功能入口
+              </div>
+            </div>
+          </div>
         </div>
-        <div class="ml-auto flex items-center gap-2">
+
+        <div class="flex items-center gap-2">
           <ThemeModeSwitch />
           <button
             @click="handleRefresh"
@@ -145,8 +193,8 @@ import { useAuthStore } from '@/composables/useAuth'
 import { useTheme } from '@/composables/useTheme'
 import {
   LayoutDashboard, Users, Activity, Settings, Puzzle,
-  FileText, Cpu, Bot, Plug, Terminal, Database, FileCode2,
-  MessageSquare, RefreshCw, LogOut, PanelLeftClose, PanelLeftOpen,
+  FileText, Cpu, Bot, Plug, Terminal, Database, FileCode2, FolderKanban,
+  MessageSquare, History, RefreshCw, LogOut, PanelLeftClose, PanelLeftOpen, Search,
 } from 'lucide-vue-next'
 import ThemeModeSwitch from '@/components/ThemeModeSwitch.vue'
 
@@ -158,10 +206,13 @@ const SIDEBAR_COLLAPSE_KEY = 'classrobot-manager-sidebar-collapsed'
 const expandedSidebarWidth = '240px'
 const collapsedSidebarWidth = '84px'
 const collapsed = ref(false)
+const globalSearch = ref('')
+const searchPanelOpen = ref(false)
 
 const pageTitle = computed(() => (route.meta.title as string) || 'ClassRobot Manager')
 const sidebarStyle = computed(() => ({ width: collapsed.value ? collapsedSidebarWidth : expandedSidebarWidth }))
 const mainStyle = computed(() => ({ marginLeft: collapsed.value ? collapsedSidebarWidth : expandedSidebarWidth }))
+const normalizedSearchQuery = computed(() => globalSearch.value.trim().toLowerCase())
 
 function isActive(to: string) {
   return route.path === to || route.path.startsWith(to + '/')
@@ -205,48 +256,113 @@ function handleLogout() {
   router.push({ name: 'Login' })
 }
 
-const navGroups = [
+type NavItem = {
+  to: string
+  label: string
+  icon: object
+  keywords?: string[]
+}
+
+type NavGroup = {
+  label: string
+  items: NavItem[]
+}
+
+type SearchItem = NavItem & {
+  group: string
+  searchText: string
+}
+
+const navGroups: NavGroup[] = [
   { label: '概览', items: [{ to: '/overview', label: '总览', icon: LayoutDashboard }] },
   {
     label: '身份',
     items: [
-      { to: '/users', label: '用户中心', icon: Users },
-      { to: '/groups', label: '群组中心', icon: MessageSquare },
+      { to: '/users', label: '用户中心', icon: Users, keywords: ['用户', '账号', '绑定', 'teacher', 'student'] },
+      { to: '/groups', label: '群组中心', icon: MessageSquare, keywords: ['群组', '班级', '群聊'] },
     ],
   },
   {
     label: '系统',
     items: [
-      { to: '/status', label: '系统状态', icon: Activity },
-      { to: '/databases', label: '数据库管理', icon: Database },
-      { to: '/settings', label: '系统设置', icon: Settings },
+      { to: '/status', label: '系统状态', icon: Activity, keywords: ['状态', '监控', 'cpu', '内存', '磁盘'] },
+      { to: '/databases', label: '数据库管理', icon: Database, keywords: ['数据库', '表', 'schema', 'er'] },
+      { to: '/files', label: '文件空间', icon: FolderKanban, keywords: ['文件', '目录', '空间', 'storage'] },
+      { to: '/chat-history', label: '聊天记录', icon: History, keywords: ['聊天', '消息', '历史', '会话'] },
+      { to: '/settings', label: '系统设置', icon: Settings, keywords: ['设置', '配置', 'system'] },
     ],
   },
   {
     label: 'AI 资产',
     items: [
-      { to: '/skills', label: 'Skill 管理', icon: Puzzle },
-      { to: '/prompts', label: 'Prompt 管理', icon: FileText },
-      { to: '/models', label: 'Model 管理', icon: Cpu },
+      { to: '/skills', label: 'Skill 管理', icon: Puzzle, keywords: ['skill', '技能'] },
+      { to: '/prompts', label: 'Prompt 管理', icon: FileText, keywords: ['prompt', '提示词'] },
+      { to: '/models', label: 'Model 管理', icon: Cpu, keywords: ['model', 'llm', '模型'] },
     ],
   },
-  { label: 'Agent', items: [{ to: '/agents', label: 'Agent 管理', icon: Bot }] },
+  { label: 'Agent', items: [{ to: '/agents', label: 'Agent 管理', icon: Bot, keywords: ['agent', '工作流', 'run'] }] },
   {
     label: '集成',
     items: [
-      { to: '/integrations', label: 'MCP / 集成', icon: Plug },
-      { to: '/nonebot/plugins', label: 'Plugin 管理', icon: Puzzle },
-      { to: '/nonebot/bots', label: 'Bot 管理', icon: Bot },
+      { to: '/integrations', label: 'MCP / 集成', icon: Plug, keywords: ['mcp', '集成', 'integration'] },
+      { to: '/nonebot/plugins', label: 'Plugin 管理', icon: Puzzle, keywords: ['nonebot', 'plugin', '命令', '插件'] },
+      { to: '/nonebot/bots', label: 'Bot 管理', icon: Bot, keywords: ['nonebot', 'bot', '适配器'] },
     ],
   },
   {
     label: '运维',
     items: [
-      { to: '/operations', label: '运维调试', icon: Terminal },
-      { to: '/automation-scripts', label: '自动化脚本', icon: FileCode2 },
+      { to: '/operations', label: '运维调试', icon: Terminal, keywords: ['终端', '日志', '调试', 'ops'] },
+      { to: '/automation-scripts', label: '自动化脚本', icon: FileCode2, keywords: ['脚本', '自动化', 'script'] },
     ],
   },
 ]
+
+const searchItems = computed<SearchItem[]>(() =>
+  navGroups.flatMap((group) =>
+    group.items.map((item) => ({
+      ...item,
+      group: group.label,
+      searchText: [group.label, item.label, item.to, ...(item.keywords || [])].join(' ').toLowerCase(),
+    })),
+  ),
+)
+
+const filteredSearchItems = computed(() => {
+  const query = normalizedSearchQuery.value
+  if (!query) return searchItems.value
+  return searchItems.value.filter((item) => item.searchText.includes(query))
+})
+
+const searchPanelVisible = computed(() => searchPanelOpen.value)
+
+function openSearchPanel() {
+  searchPanelOpen.value = true
+}
+
+function closeSearchPanel() {
+  searchPanelOpen.value = false
+}
+
+function handleSearchBlur() {
+  window.setTimeout(() => {
+    searchPanelOpen.value = false
+  }, 120)
+}
+
+async function navigateToSearchItem(item: SearchItem) {
+  globalSearch.value = ''
+  searchPanelOpen.value = false
+  if (route.path !== item.to) {
+    await router.push(item.to)
+  }
+}
+
+async function openFirstSearchResult() {
+  const firstItem = filteredSearchItems.value[0]
+  if (!firstItem) return
+  await navigateToSearchItem(firstItem)
+}
 
 onMounted(() => {
   collapsed.value = localStorage.getItem(SIDEBAR_COLLAPSE_KEY) === 'true'
@@ -255,4 +371,12 @@ onMounted(() => {
 watch(collapsed, (value) => {
   localStorage.setItem(SIDEBAR_COLLAPSE_KEY, String(value))
 })
+
+watch(
+  () => route.fullPath,
+  () => {
+    globalSearch.value = ''
+    searchPanelOpen.value = false
+  },
+)
 </script>

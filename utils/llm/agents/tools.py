@@ -341,7 +341,12 @@ class AutoTaskAgent(BaseAgent):
         """返回自动任务智能体的注册名称。"""
         return "auto_task_agent"
 
-    async def execute(self, context: Context, knowledge: str | None = None, plan: str | None = None) -> AutoTaskList:
+    async def execute(
+        self,
+        context: Context,
+        knowledge: str | None = None,
+        plan: str | None = None,
+    ) -> AutoTaskList:
         """根据抽取上下文与补充知识生成最终任务规划结果。
 
         参数:

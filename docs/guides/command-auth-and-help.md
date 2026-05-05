@@ -21,22 +21,25 @@
 - 新命令优先由 `CommandSpec` 派生 `Helper`
 - 旧命令继续允许手写 `__helpers__`
 - `helper_menu` 仍是 `help` 渲染和 AutoGPT 可见命令集合的展示层入口
+- 通过 `command_alconna()` / `command_command()` 注册的非交互命令，会自动绑定命令输入记录 hook，保证聊天记录与命令定义强绑定
 
 运行时链路如下：
 
 1. 各命令模块在 `__helpers__` 中声明命令说明
 2. 已迁移命令通过 `command_alconna()` / `command_command()` 把 `CommandSpec` 和 `Helper` 绑定到 matcher
+   同时也会为非交互命令自动绑定 `command_input_hook`，把用户显式命令输入写入聊天记录
 3. `src/plugins/helper/__init__.py` 在启动时调用 `bootstrap_helper_runtime(...)`
-3. `utils/helper/runtime.py` 会做两件事
+4. `utils/helper/runtime.py` 会做两件事
    - 优先收集 matcher 上绑定的 helper，再兼容汇总 `__helpers__`
    - 把 `CommandPolicy` / helper 鉴权绑定到 matcher 前置 handler
-4. `utils/helper/depends.py` 根据 `user.roles` 和命令软关闭状态过滤出当前用户可见的 `Helpers`
-5. `help` 命令、AutoGPT 命令目录、后续 helper agent 都基于这份“已过滤”的 `Helpers` 工作
+5. `utils/helper/depends.py` 根据 `user.roles` 和命令软关闭状态过滤出当前用户可见的 `Helpers`
+6. `help` 命令、AutoGPT 命令目录、后续 helper agent 都基于这份“已过滤”的 `Helpers` 工作
 
 可以把它理解成：
 
 - `CommandSpec` = 新命令的事实来源
 - `Helper` = 展示层和旧命令兼容视图
+- `command_input_hook` = 非交互命令的聊天记录入口，保证显式命令输入一定可审计
 - `HelpersDepends` = 当前用户视角下的可见命令集
 - `bind_helper_access_guard` = 最后一道真实执行闸门
 

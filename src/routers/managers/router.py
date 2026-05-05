@@ -2,19 +2,37 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from . import audit, agents, databases, groups, llm_models, logs, nonebot_runtime, operations, prompts, settings_store, skills
+from . import (
+    audit,
+    agents,
+    chat_history,
+    command_state,
+    databases,
+    files,
+    groups,
+    llm_models,
+    logs,
+    nonebot_runtime,
+    operations,
+    prompts,
+    settings_store,
+    skills,
+)
 from .schemas import (
-    LoginRequest,
-    TokenResponse,
     AdminPatchRequest,
     AutomationScriptCreateRequest,
     AutomationScriptUpdateRequest,
+    AvailabilityUpdateRequest,
     DatabaseRowUpdateRequest,
-    StatusCheckRequest,
+    FileSpaceDirectoryCreateRequest,
+    FileSpaceWriteRequest,
+    LoginRequest,
+    ModelSettingsRequest,
     PromptUpdateRequest,
     SettingsPatchRequest,
-    ModelSettingsRequest,
+    StatusCheckRequest,
     TerminalExecuteRequest,
+    TokenResponse,
 )
 from .security import SESSION_TTL_SECONDS, manager_auth, manager_auth_token, token_store
 from .status import check_system_metrics, get_status
@@ -529,6 +547,68 @@ async def list_nonebot_commands(_=Depends(manager_auth)):
     return nonebot_runtime.list_commands()
 
 
+@router.get("/nonebot/availability")
+async def get_nonebot_availability(_=Depends(manager_auth)):
+    """读取命令与插件软开关状态。"""
+    return command_state.availability_payload()
+
+
+@router.patch("/nonebot/commands/{command_name}/availability")
+async def update_nonebot_command_availability(
+    command_name: str,
+    payload: AvailabilityUpdateRequest,
+    session=Depends(manager_auth),
+):
+    """更新一条命令的软开关状态。"""
+    try:
+        result = command_state.update_command_state(command_name, payload.enabled, payload.reason)
+        audit.log_event(
+            "nonebot",
+            "update_command_availability",
+            "completed",
+            detail={"command": command_name, "enabled": payload.enabled},
+            session=session,
+        )
+        return result
+    except ValueError as error:
+        audit.log_event(
+            "nonebot",
+            "update_command_availability",
+            "failed",
+            detail={"command": command_name, "error": str(error)},
+            session=session,
+        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
+
+
+@router.patch("/nonebot/plugins/{plugin_module}/availability")
+async def update_nonebot_plugin_availability(
+    plugin_module: str,
+    payload: AvailabilityUpdateRequest,
+    session=Depends(manager_auth),
+):
+    """更新一个插件模块的软开关状态。"""
+    try:
+        result = command_state.update_plugin_state(plugin_module, payload.enabled, payload.reason)
+        audit.log_event(
+            "nonebot",
+            "update_plugin_availability",
+            "completed",
+            detail={"plugin_module": plugin_module, "enabled": payload.enabled},
+            session=session,
+        )
+        return result
+    except ValueError as error:
+        audit.log_event(
+            "nonebot",
+            "update_plugin_availability",
+            "failed",
+            detail={"plugin_module": plugin_module, "error": str(error)},
+            session=session,
+        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
+
+
 @router.get("/nonebot/adapters")
 async def list_nonebot_adapters(_=Depends(manager_auth)):
     """列出 NoneBot 适配器清单。"""
@@ -539,6 +619,284 @@ async def list_nonebot_adapters(_=Depends(manager_auth)):
 async def list_nonebot_bots(_=Depends(manager_auth)):
     """列出当前在线 Bot 清单。"""
     return nonebot_runtime.list_bots()
+
+
+@router.get("/files/spaces")
+async def list_manager_file_spaces(
+    kind: str | None = None,
+    q: str | None = None,
+    _=Depends(manager_auth),
+):
+    """列出当前系统已存在的文件空间。"""
+    try:
+        return await files.list_file_spaces(kind=kind, q=q)
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
+
+
+@router.get("/files/spaces/{space_kind}/{owner_id}")
+async def get_manager_file_space_detail(
+    space_kind: str,
+    owner_id: str,
+    _=Depends(manager_auth),
+):
+    """读取单个文件空间的摘要与当前目录。"""
+    try:
+        return await files.get_file_space_detail(space_kind, owner_id)
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
+    except FileNotFoundError as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
+
+
+@router.get("/files/spaces/{space_kind}/{owner_id}/entries")
+async def list_manager_file_space_entries(
+    space_kind: str,
+    owner_id: str,
+    path: str | None = None,
+    _=Depends(manager_auth),
+):
+    """读取文件空间目录条目。"""
+    try:
+        return await files.list_file_space_entries(space_kind, owner_id, path=path)
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
+    except FileNotFoundError as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
+    except (files.FileSpaceError, files.PathEscapeError) as error:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
+
+
+@router.get("/files/spaces/{space_kind}/{owner_id}/read")
+async def read_manager_file_space_text(
+    space_kind: str,
+    owner_id: str,
+    path: str,
+    limit: int = Query(16384, ge=256, le=65536),
+    _=Depends(manager_auth),
+):
+    """读取文件空间中的文本文件。"""
+    try:
+        return await files.read_file_space_text(space_kind, owner_id, path=path, limit=limit)
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
+    except FileNotFoundError as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
+    except (files.FileSpaceError, files.PathEscapeError) as error:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
+
+
+@router.put("/files/spaces/{space_kind}/{owner_id}/write")
+async def write_manager_file_space_text(
+    space_kind: str,
+    owner_id: str,
+    payload: FileSpaceWriteRequest,
+    session=Depends(manager_auth),
+):
+    """写入文件空间中的文本文件。"""
+    try:
+        result = await files.write_file_space_text(space_kind, owner_id, payload.path, payload.content)
+        audit.log_event(
+            "files",
+            "write_file_space_text",
+            "completed",
+            detail={"kind": space_kind, "owner_id": owner_id, "path": payload.path},
+            session=session,
+        )
+        return result
+    except ValueError as error:
+        audit.log_event(
+            "files",
+            "write_file_space_text",
+            "failed",
+            detail={"kind": space_kind, "owner_id": owner_id, "path": payload.path, "error": str(error)},
+            session=session,
+        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
+    except FileNotFoundError as error:
+        audit.log_event(
+            "files",
+            "write_file_space_text",
+            "failed",
+            detail={"kind": space_kind, "owner_id": owner_id, "path": payload.path, "error": str(error)},
+            session=session,
+        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
+    except (files.FileSpaceError, files.PathEscapeError) as error:
+        audit.log_event(
+            "files",
+            "write_file_space_text",
+            "failed",
+            detail={"kind": space_kind, "owner_id": owner_id, "path": payload.path, "error": str(error)},
+            session=session,
+        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
+
+
+@router.post("/files/spaces/{space_kind}/{owner_id}/directories")
+async def create_manager_file_space_directory(
+    space_kind: str,
+    owner_id: str,
+    payload: FileSpaceDirectoryCreateRequest,
+    session=Depends(manager_auth),
+):
+    """在文件空间中创建目录。"""
+    try:
+        result = await files.create_file_space_directory(space_kind, owner_id, payload.path)
+        audit.log_event(
+            "files",
+            "create_file_space_directory",
+            "completed",
+            detail={"kind": space_kind, "owner_id": owner_id, "path": payload.path},
+            session=session,
+        )
+        return result
+    except ValueError as error:
+        audit.log_event(
+            "files",
+            "create_file_space_directory",
+            "failed",
+            detail={"kind": space_kind, "owner_id": owner_id, "path": payload.path, "error": str(error)},
+            session=session,
+        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
+    except FileNotFoundError as error:
+        audit.log_event(
+            "files",
+            "create_file_space_directory",
+            "failed",
+            detail={"kind": space_kind, "owner_id": owner_id, "path": payload.path, "error": str(error)},
+            session=session,
+        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
+    except (files.FileSpaceError, files.PathEscapeError) as error:
+        audit.log_event(
+            "files",
+            "create_file_space_directory",
+            "failed",
+            detail={"kind": space_kind, "owner_id": owner_id, "path": payload.path, "error": str(error)},
+            session=session,
+        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
+
+
+@router.delete("/files/spaces/{space_kind}/{owner_id}/entry")
+async def delete_manager_file_space_entry(
+    space_kind: str,
+    owner_id: str,
+    path: str,
+    recursive: bool = False,
+    force: bool = False,
+    session=Depends(manager_auth),
+):
+    """删除文件空间中的文件或目录。"""
+    try:
+        result = await files.delete_file_space_entry(
+            space_kind,
+            owner_id,
+            path,
+            recursive=recursive,
+            force=force,
+        )
+        audit.log_event(
+            "files",
+            "delete_file_space_entry",
+            "completed",
+            detail={
+                "kind": space_kind,
+                "owner_id": owner_id,
+                "path": path,
+                "recursive": recursive,
+                "force": force,
+            },
+            session=session,
+        )
+        return result
+    except ValueError as error:
+        audit.log_event(
+            "files",
+            "delete_file_space_entry",
+            "failed",
+            detail={"kind": space_kind, "owner_id": owner_id, "path": path, "error": str(error)},
+            session=session,
+        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
+    except FileNotFoundError as error:
+        audit.log_event(
+            "files",
+            "delete_file_space_entry",
+            "failed",
+            detail={"kind": space_kind, "owner_id": owner_id, "path": path, "error": str(error)},
+            session=session,
+        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
+    except (files.FileSpaceError, files.PathEscapeError) as error:
+        audit.log_event(
+            "files",
+            "delete_file_space_entry",
+            "failed",
+            detail={"kind": space_kind, "owner_id": owner_id, "path": path, "error": str(error)},
+            session=session,
+        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
+
+
+@router.get("/chat-history/spaces")
+async def list_manager_chat_spaces(
+    kind: str | None = None,
+    q: str | None = None,
+    _=Depends(manager_auth),
+):
+    """列出当前系统中已有聊天记录的空间。"""
+    try:
+        return await chat_history.list_chat_spaces(kind=kind, q=q)
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
+
+
+@router.get("/chat-history/spaces/{space_kind}/{owner_id}")
+async def get_manager_chat_space_detail(
+    space_kind: str,
+    owner_id: str,
+    _=Depends(manager_auth),
+):
+    """读取单个聊天空间的摘要详情。"""
+    try:
+        return await chat_history.get_chat_space_detail(space_kind, owner_id)
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
+    except FileNotFoundError as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
+
+
+@router.get("/chat-history/spaces/{space_kind}/{owner_id}/messages")
+async def list_manager_chat_messages(
+    space_kind: str,
+    owner_id: str,
+    q: str | None = None,
+    record_kind: str | None = None,
+    actor_role: str | None = None,
+    direction: str | None = None,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+    _=Depends(manager_auth),
+):
+    """分页读取指定聊天空间中的消息记录。"""
+    try:
+        return await chat_history.list_chat_messages(
+            space_kind,
+            owner_id,
+            q=q,
+            record_kind=record_kind,
+            actor_role=actor_role,
+            direction=direction,
+            page=page,
+            page_size=page_size,
+        )
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
+    except FileNotFoundError as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
 
 
 @router.get("/databases")

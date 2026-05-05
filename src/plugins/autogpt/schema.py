@@ -128,7 +128,11 @@ class CommandObservation(BaseModel):
     message: str = ""
     """投递结果说明。"""
     outputs: list[str] = Field(default_factory=list)
-    """命令执行过程中实际发送给用户的消息文本。"""
+    """命令执行产生的用户可见消息文本。"""
+    context_outputs: list[str] = Field(default_factory=list)
+    """写入 Agent 上下文的紧凑结果，未提供时回退到 outputs。"""
+    outputs_sent_to_user: bool = True
+    """outputs 是否已经由命令 matcher 自己发送给用户。"""
     created_at: datetime = Field(default_factory=datetime.now)
     """观察记录创建时间。"""
 

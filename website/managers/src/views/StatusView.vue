@@ -210,7 +210,15 @@ const metricsUpdatedAt = computed(() => {
 const cards = computed(() => [
   { key: 'runtime', label: '运行状态', status: statusData.value?.runtime?.status || 'not_configured', value: statusData.value?.runtime?.python_version || '-', sub: statusData.value?.runtime?.driver || '' },
   { key: 'database', label: '数据库', status: statusData.value?.database?.status || 'not_configured', value: statusData.value?.database?.alembic_version?.slice(0, 8) || '-', sub: `${Object.values(statusData.value?.database?.tables || {}).reduce((a, b) => a + b, 0)} 条记录` },
-  { key: 'cache', label: '缓存', status: statusData.value?.cache?.status || 'not_configured', value: `${statusData.value?.cache?.host || '-'}:${statusData.value?.cache?.port || ''}`, sub: statusData.value?.cache?.message || '' },
+  {
+    key: 'cache',
+    label: '缓存',
+    status: statusData.value?.cache?.status || 'not_configured',
+    value: statusData.value?.cache?.backend || statusData.value?.cache?.configured_backend || `${statusData.value?.cache?.host || '-'}:${statusData.value?.cache?.port || ''}`,
+    sub: statusData.value?.cache?.backend === 'local'
+      ? statusData.value?.cache?.local_path || statusData.value?.cache?.path || '本地缓存兜底'
+      : statusData.value?.cache?.message || `${statusData.value?.cache?.host || '-'}:${statusData.value?.cache?.port || ''}`,
+  },
   { key: 'models', label: '模型', status: statusData.value?.models?.status || 'not_configured', value: `${statusData.value?.models?.configured || 0}`, sub: statusData.value?.models?.names?.join(', ') || '未配置' },
   { key: 'cos', label: 'COS 存储', status: statusData.value?.cos?.status || 'not_configured', value: statusData.value?.cos?.region || '-', sub: statusData.value?.cos?.bucket || '' },
   { key: 'ragflow', label: 'RAGFlow', status: statusData.value?.ragflow?.status || 'not_configured', value: statusData.value?.ragflow?.has_key ? '已配置' : '未配置', sub: statusData.value?.ragflow?.url || '' },

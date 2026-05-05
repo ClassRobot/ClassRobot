@@ -184,8 +184,17 @@ const dbValue = computed(() => statusData.value?.database?.alembic_version?.slic
 const dbSub = computed(() => `${Object.values(statusData.value?.database?.tables || {}).reduce((a, b) => a + b, 0)} 条记录`)
 
 const cacheStatus = computed(() => statusData.value?.cache?.status || 'not_configured')
-const cacheValue = computed(() => statusData.value?.cache ? `${statusData.value.cache.host}:${statusData.value.cache.port}` : '-')
-const cacheSub = computed(() => statusData.value?.cache?.message || '连接检查')
+const cacheValue = computed(() => {
+  const cache = statusData.value?.cache
+  if (!cache) return '-'
+  return cache.backend || cache.configured_backend || `${cache.host}:${cache.port}`
+})
+const cacheSub = computed(() => {
+  const cache = statusData.value?.cache
+  if (!cache) return '连接检查'
+  if (cache.backend === 'local') return cache.local_path || cache.path || '本地缓存兜底'
+  return cache.message || `${cache.host}:${cache.port}`
+})
 
 const modelStatus = computed(() => overview.value?.assets.models ? 'ok' : 'not_configured')
 const modelValue = computed(() => `${overview.value?.assets.models || 0}`)

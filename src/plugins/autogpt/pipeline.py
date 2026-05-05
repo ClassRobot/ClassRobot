@@ -13,7 +13,7 @@ from utils.llm.util import uni_message_to_contents
 from utils.llm.util import json_loads
 from utils.llm.agents.tools import AutoTaskAgent, ExtractAgent, RagAgent, SummaryAgent
 
-from .schema import AgentPlan, IntentRoute, AutoTask, AutoTaskList, ChatMessage, AgentTurnResult
+from .schema import AgentPlan, IntentRoute, AutoTask, AutoTaskList, ChatMessage, AgentTurnResult, Param
 from .command_tools import CommandToolCatalog
 from .workflow import build_turn_result
 
@@ -76,7 +76,7 @@ class LocalContextQueryNode(WorkflowNode):
             requires_command=True,
             requires_rag=False,
             need_confirm=False,
-            reason="用户正在查询当前账号身份或权限状态，直接调用本地用户信息命令。",
+            reason="用户正在查询本地账号、班级或课表状态，直接调用项目内查询命令。",
         )
         state.auto_tasks = auto_tasks
 
@@ -391,35 +391,142 @@ class MessageProcessingPipeline:
     def resolve_local_context_query(self, contents: list[Content]) -> AutoTaskList | None:
         """把确定性的本地上下文问题路由到已有项目命令。"""
 
+        if not self.is_self_identity_query(contents):
+            if class_task := self.resolve_class_context_query(contents):
+                return class_task
+            if schedule_task := self.resolve_schedule_context_query(contents):
+                return schedule_task
+            return None
         if self.helpers.get_helper("我的信息") is None:
             return None
-        if not self.is_self_identity_query(contents):
-            return None
         return AutoTaskList(tasks=[AutoTask(command="我的信息", params=[])], need_confirm=False)
+
+    def resolve_class_context_query(self, contents: list[Content]) -> AutoTaskList | None:
+        """把高频班级状态问题路由到班级或用户信息查询命令。"""
+
+        normalized = self.normalized_text_query(contents)
+        if not normalized or self.contains_mutating_words(normalized):
+            return None
+
+        class_words = ("班级", "班", "班群")
+        managed_words = ("创建", "管理", "负责", "拥有", "有创建", "有管理", "我的班级", "班级列表")
+        membership_words = ("在哪个", "哪个班", "所在", "属于", "加入", "当前班级", "我的班")
+        query_words = (
+            "吗",
+            "么",
+            "是否",
+            "是不是",
+            "什么",
+            "哪个",
+            "哪些",
+            "查看",
+            "查询",
+            "查一下",
+            "告诉我",
+            "当前",
+            "我的",
+            "列表",
+            "有",
+        )
+
+        if not any(word in normalized for word in class_words):
+            return None
+        if not any(word in normalized for word in query_words):
+            return None
+
+        if any(word in normalized for word in managed_words) and self.helpers.get_helper("查询班级") is not None:
+            return AutoTaskList(tasks=[AutoTask(command="查询班级", params=[])], need_confirm=False)
+        if any(word in normalized for word in membership_words) and self.helpers.get_helper("我的信息") is not None:
+            return AutoTaskList(tasks=[AutoTask(command="我的信息", params=[])], need_confirm=False)
+        return None
+
+    def resolve_schedule_context_query(self, contents: list[Content]) -> AutoTaskList | None:
+        """把本人课表查询路由到查询课表命令，并尽量补上常见日期偏移。"""
+
+        normalized = self.normalized_text_query(contents)
+        if not normalized or self.contains_mutating_words(normalized):
+            return None
+        if self.helpers.get_helper("查询课表") is None:
+            return None
+
+        schedule_words = ("课表", "课程表", "课程", "上课", "有课", "什么课")
+        query_words = (
+            "吗",
+            "么",
+            "什么",
+            "哪些",
+            "查看",
+            "查询",
+            "查一下",
+            "告诉我",
+            "我的",
+            "今天",
+            "明天",
+            "后天",
+            "昨天",
+        )
+        if not any(word in normalized for word in schedule_words):
+            return None
+        if not any(word in normalized for word in query_words):
+            return None
+
+        params = []
+        if "后天" in normalized:
+            params.append(Param(type="text", value="2"))
+        elif "明天" in normalized:
+            params.append(Param(type="text", value="1"))
+        elif "昨天" in normalized:
+            params.append(Param(type="text", value="-1"))
+        return AutoTaskList(tasks=[AutoTask(command="查询课表", params=params)], need_confirm=False)
 
     @staticmethod
     def is_self_identity_query(contents: list[Content]) -> bool:
         """判断用户是否在询问自己的身份、角色或管理员状态。"""
 
-        if any(content.type != "text" for content in contents):
-            return False
-        normalized = "".join(content.value for content in contents if content.type == "text").strip()
-        normalized = "".join(normalized.split())
+        normalized = MessageProcessingPipeline.normalized_text_query(contents)
         if not normalized:
             return False
 
         self_words = ("我", "我的", "自己", "本人")
         identity_words = ("身份", "角色", "权限", "管理员", "学生", "教师", "老师", "班干部")
         query_words = ("吗", "么", "是否", "是不是", "是", "什么", "哪些", "查看", "查询", "查一下", "告诉我", "当前")
-        action_words = ("成为", "设置", "添加", "修改", "删除", "注销", "绑定", "创建", "申请")
 
-        if any(word in normalized for word in action_words):
+        if MessageProcessingPipeline.contains_mutating_words(normalized):
             return False
         return (
             any(word in normalized for word in self_words)
             and any(word in normalized for word in identity_words)
             and any(word in normalized for word in query_words)
         )
+
+    @staticmethod
+    def normalized_text_query(contents: list[Content]) -> str:
+        """提取纯文本消息并去掉空白，供本地确定性路由使用。"""
+
+        if any(content.type != "text" for content in contents):
+            return ""
+        text = "".join(content.value for content in contents if content.type == "text").strip()
+        return "".join(text.split())
+
+    @staticmethod
+    def contains_mutating_words(text: str) -> bool:
+        """识别会修改状态的词，避免本地查询规则误拦截写操作。"""
+
+        action_words = (
+            "成为",
+            "设置",
+            "添加",
+            "修改",
+            "删除",
+            "注销",
+            "绑定",
+            "申请",
+            "创建一个",
+            "新建",
+            "导入",
+            "上传",
+        )
+        return any(word in text for word in action_words)
 
     @staticmethod
     def should_direct_reply_from_vision(route: IntentRoute | None, contents: list[Content]) -> bool:
