@@ -73,11 +73,7 @@ def _scan_owner_ids(kind: str, manager: StorageManager | None = None) -> list[st
     root = _space_root(kind, manager)
     if not root.exists():
         return []
-    return sorted(
-        child.name
-        for child in root.iterdir()
-        if child.is_dir() and not child.name.startswith(".")
-    )
+    return sorted(child.name for child in root.iterdir() if child.is_dir() and not child.name.startswith("."))
 
 
 def _timestamp_text(timestamp: float | None) -> str | None:
@@ -334,10 +330,7 @@ def _list_entries(space: FileSpace, path: str | None = None) -> dict[str, Any]:
     else:
         entries = [item for item in resolved.path.iterdir() if not item.name.startswith(".")]
         entries.sort(key=lambda item: (not item.is_dir(), item.name.lower()))
-        items = [
-            _entry_payload(space, _display_path(space, item), item.name, item)
-            for item in entries
-        ]
+        items = [_entry_payload(space, _display_path(space, item), item.name, item) for item in entries]
 
     parent_parts = resolved.relative_parts[:-1] if resolved.relative_parts else tuple()
     return {

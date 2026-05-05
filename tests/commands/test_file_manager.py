@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import pytest
 
-
 pytestmark = pytest.mark.asyncio
 
 
-async def test_private_file_commands_keep_user_space_isolated(app, onebot, send_recorder, monkeypatch, tmp_path, models):
+async def test_private_file_commands_keep_user_space_isolated(
+    app, onebot, send_recorder, monkeypatch, tmp_path, models
+):
     import src.plugins.file_manager.services as file_services
     from src.plugins.file_manager.commands import cd_cmd, ls_cmd, mkdir_cmd, pwd_cmd, rm_cmd, touch_cmd
     from utils.storage import StorageManager

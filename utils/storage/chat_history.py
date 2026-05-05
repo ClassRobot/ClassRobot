@@ -206,7 +206,9 @@ class ChatHistoryStore:
             owner_kind=MessageOwnerKind.group,
             owner_id=group_id,
             record_kind=MessageRecordKind.chat,
-            direction=MessageDirection.outbound if actor_role == MessageActorRole.assistant else MessageDirection.inbound,
+            direction=(
+                MessageDirection.outbound if actor_role == MessageActorRole.assistant else MessageDirection.inbound
+            ),
             actor_role=actor_role,
             user_id=actor_id_text,
             user_name=actor_name_text,
@@ -249,7 +251,9 @@ class ChatHistoryStore:
             owner_kind=MessageOwnerKind.user,
             owner_id=user_id,
             record_kind=MessageRecordKind.chat,
-            direction=MessageDirection.outbound if actor_role == MessageActorRole.assistant else MessageDirection.inbound,
+            direction=(
+                MessageDirection.outbound if actor_role == MessageActorRole.assistant else MessageDirection.inbound
+            ),
             actor_role=actor_role,
             user_id=actor_id if actor_id is not None else user_id,
             user_name=actor_name if actor_name is not None else user_name,
@@ -690,9 +694,7 @@ class ChatHistoryStore:
         connection.execute(
             f"CREATE INDEX IF NOT EXISTS idx_messages_record_kind_created_ts ON {MESSAGE_TABLE_NAME} (record_kind, created_ts DESC)"
         )
-        connection.execute(
-            f"CREATE INDEX IF NOT EXISTS idx_messages_user_id ON {MESSAGE_TABLE_NAME} (user_id)"
-        )
+        connection.execute(f"CREATE INDEX IF NOT EXISTS idx_messages_user_id ON {MESSAGE_TABLE_NAME} (user_id)")
         connection.execute(
             f"CREATE INDEX IF NOT EXISTS idx_messages_platform_channel ON {MESSAGE_TABLE_NAME} (platform, channel_id)"
         )
@@ -704,8 +706,7 @@ class ChatHistoryStore:
         """补齐旧版 SQLite 消息表缺失的字段。"""
 
         existing_columns = {
-            str(row["name"])
-            for row in connection.execute(f"PRAGMA table_info({MESSAGE_TABLE_NAME})").fetchall()
+            str(row["name"]) for row in connection.execute(f"PRAGMA table_info({MESSAGE_TABLE_NAME})").fetchall()
         }
         required_columns = {
             "owner_kind": "TEXT NOT NULL DEFAULT ''",

@@ -6,7 +6,6 @@ from uuid import uuid4
 import pytest
 from nonebug import NONEBOT_INIT_KWARGS, NONEBOT_START_LIFESPAN
 
-
 pytest_plugins = ("nonebug",)
 
 
@@ -43,10 +42,27 @@ def pytest_collection_modifyitems(items):
     os.chdir(project_root)
 
 
+def _register_test_adapters() -> None:
+    """为测试环境预注册项目实际使用的 OneBot 适配器。"""
+
+    import nonebot
+    from nonebot.adapters.onebot.v11 import Adapter as OneBot11Adapter
+    from nonebot.adapters.onebot.v12 import Adapter as OneBot12Adapter
+
+    driver = nonebot.get_driver()
+    registered = nonebot.get_adapters()
+    for adapter in (OneBot11Adapter, OneBot12Adapter):
+        if adapter.get_name() not in registered:
+            driver.register_adapter(adapter)
+
+
 @pytest.fixture(scope="session")
 def loaded_plugins():
     """Load project plugins through NoneBot before importing plugin submodules."""
 
     from nonebot.plugin import load_from_toml
 
+    # 在插件导入前先注册当前驱动可承载的适配器，避免 plugin-alconna
+    # 在测试初始化早期误判“当前没有任何适配器”并输出运行时警告。
+    _register_test_adapters()
     return load_from_toml("pyproject.toml")

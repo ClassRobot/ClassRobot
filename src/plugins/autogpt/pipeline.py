@@ -171,7 +171,8 @@ class DirectVisionReplyNode(WorkflowNode):
         )
         reply = (response.choices[0].message.content or "").strip()
         state.auto_tasks = AutoTaskList(
-            reply=reply or "我看到了这张图片，但还不能可靠判断具体内容，你可以发更清晰一点的图片或补一句你想让我看什么。",
+            reply=reply
+            or "我看到了这张图片，但还不能可靠判断具体内容，你可以发更清晰一点的图片或补一句你想让我看什么。",
             need_confirm=False,
         )
 

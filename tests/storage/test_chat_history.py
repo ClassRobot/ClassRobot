@@ -59,9 +59,15 @@ def test_group_chat_history_store_returns_recent_messages_without_query(loaded_p
     store = GroupChatHistoryStore(StorageManager(tmp_path / "storage"))
     now = datetime.now()
 
-    store._record_group_message_sync("30001", "u1", "张三", "第一条消息", "第一条消息", "m1", now - timedelta(minutes=3))
-    store._record_group_message_sync("30001", "u2", "李四", "第二条消息", "第二条消息", "m2", now - timedelta(minutes=2))
-    store._record_group_message_sync("30001", "u3", "王五", "第三条消息", "第三条消息", "m3", now - timedelta(minutes=1))
+    store._record_group_message_sync(
+        "30001", "u1", "张三", "第一条消息", "第一条消息", "m1", now - timedelta(minutes=3)
+    )
+    store._record_group_message_sync(
+        "30001", "u2", "李四", "第二条消息", "第二条消息", "m2", now - timedelta(minutes=2)
+    )
+    store._record_group_message_sync(
+        "30001", "u3", "王五", "第三条消息", "第三条消息", "m3", now - timedelta(minutes=1)
+    )
 
     records = store._search_group_messages_sync("30001", "", 2, 50, "m3")
 

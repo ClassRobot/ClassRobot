@@ -3,7 +3,6 @@ import re
 
 from nonebot.internal.matcher.matcher import MatcherMeta
 
-
 EXPECTED_COMMAND_OBJECTS = {
     "src.managers.classes.commands": {
         "import_classes_cmd": "导入班级",

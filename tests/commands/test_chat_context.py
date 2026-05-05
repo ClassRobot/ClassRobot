@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import pytest
 
-
 pytestmark = pytest.mark.asyncio
 
 
@@ -104,7 +103,9 @@ async def test_group_messages_can_be_collected_and_queried(
         event = onebot.group_event("我不同意临时调课", user_id=13002, group_id=23001, nickname="李四", message_id=2)
         ctx.receive_event(bot, event)
 
-    command_event = onebot.group_event("检索群聊记录 调课", user_id=13003, group_id=23001, nickname="王五", message_id=3)
+    command_event = onebot.group_event(
+        "检索群聊记录 调课", user_id=13003, group_id=23001, nickname="王五", message_id=3
+    )
 
     async with app.test_matcher([chat_context_module.message_history_collector, query_group_history_cmd]) as ctx:
         recorder = send_recorder(ctx)
@@ -150,7 +151,14 @@ async def test_group_command_input_and_response_are_recorded_without_message_col
     import src.plugins.file_manager.services as file_services
     from src.plugins.file_manager.commands import ls_cmd
     from utils.models import Classes, User
-    from utils.storage import ChatHistoryStore, MessageActorRole, MessageDirection, MessageOwnerKind, MessageRecordKind, StorageManager
+    from utils.storage import (
+        ChatHistoryStore,
+        MessageActorRole,
+        MessageDirection,
+        MessageOwnerKind,
+        MessageRecordKind,
+        StorageManager,
+    )
 
     manager = StorageManager(tmp_path / "storage")
     store = ChatHistoryStore(manager)
@@ -301,7 +309,9 @@ async def test_private_command_input_and_response_are_recorded(
     recorder.assert_any("~")
 
 
-async def test_private_assistant_messages_are_recorded_under_user_chat_space(monkeypatch, onebot, tmp_path, loaded_plugins):
+async def test_private_assistant_messages_are_recorded_under_user_chat_space(
+    monkeypatch, onebot, tmp_path, loaded_plugins
+):
     import src.plugins.chat_context.collector as collector_module
     from utils.models import User, UserBind
     from utils.session import BaseSession
@@ -382,7 +392,9 @@ async def test_private_assistant_message_does_not_recreate_deleted_user(monkeypa
     assert not manager.root.joinpath("users").exists() or list(manager.root.joinpath("users").iterdir()) == []
 
 
-async def test_group_assistant_messages_are_recorded_under_group_chat_space(monkeypatch, onebot, tmp_path, loaded_plugins):
+async def test_group_assistant_messages_are_recorded_under_group_chat_space(
+    monkeypatch, onebot, tmp_path, loaded_plugins
+):
     import src.plugins.chat_context.collector as collector_module
     from utils.models import Classes, User
     from utils.session import BaseSession
@@ -440,7 +452,9 @@ async def test_unbound_platform_group_message_is_not_persisted(app, onebot, monk
 
     async with app.test_matcher(chat_context_module.message_history_collector) as ctx:
         bot = onebot.create_bot(ctx)
-        event = onebot.group_event("这是一个未绑定群的消息", user_id=15001, group_id=99999, nickname="路人甲", message_id=7)
+        event = onebot.group_event(
+            "这是一个未绑定群的消息", user_id=15001, group_id=99999, nickname="路人甲", message_id=7
+        )
         ctx.receive_event(bot, event)
 
     group_dirs = [item for item in manager.root.joinpath("groups").iterdir() if item.is_dir()]

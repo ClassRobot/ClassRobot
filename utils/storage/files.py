@@ -157,7 +157,9 @@ class FileSpace:
         if resolved.path.is_file():
             return resolved.display, [self._entry_for(resolved.path, include_size=include_size)]
         entries = [
-            self._entry_for(item, include_size=include_size) for item in resolved.path.iterdir() if not item.name.startswith(".")
+            self._entry_for(item, include_size=include_size)
+            for item in resolved.path.iterdir()
+            if not item.name.startswith(".")
         ]
         entries.sort(key=lambda item: (not item.is_dir, item.name.lower()))
         return resolved.display, entries

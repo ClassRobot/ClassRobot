@@ -295,11 +295,7 @@ async def _space_indexes(
         group_list = list(groups)
         group_index = {str(group.id): group for group in group_list}
 
-        binds = await session.scalars(
-            select(GroupBind)
-            .where(GroupBind.group_id.in_(group_ids))
-            .order_by(GroupBind.id)
-        )
+        binds = await session.scalars(select(GroupBind).where(GroupBind.group_id.in_(group_ids)).order_by(GroupBind.id))
         for bind in binds:
             binds_by_group.setdefault(bind.group_id, []).append(bind)
     return user_index, group_index, binds_by_group
@@ -383,14 +379,16 @@ def _owner_payload(
             "group_name": group.name,
             "class_id": classes.id if isinstance(classes, Classes) else None,
             "class_name": classes.name if isinstance(classes, Classes) else None,
-            "creator": {
-                "id": group.creator.id,
-                "nickname": group.creator.nickname,
-                "username": group.creator.username,
-                "avatar": group.creator.avatar,
-            }
-            if group.creator is not None
-            else None,
+            "creator": (
+                {
+                    "id": group.creator.id,
+                    "nickname": group.creator.nickname,
+                    "username": group.creator.username,
+                    "avatar": group.creator.avatar,
+                }
+                if group.creator is not None
+                else None
+            ),
             "bind_count": len(binds),
             "platforms": platforms,
             "channels": channel_ids,

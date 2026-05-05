@@ -17,7 +17,9 @@ query_group_history_cmd = command_alconna(
     Alconna(
         "检索群聊记录",
         Args["query", MultiVar(str, "*"), Field(default=(), completion="可选：输入关键词，例如 迟到、调课、值日")],
-        meta=CommandMeta(description="检索当前已绑定系统群组的近期采集消息，用于回顾争议点、谁说过什么、刚才聊了什么。"),
+        meta=CommandMeta(
+            description="检索当前已绑定系统群组的近期采集消息，用于回顾争议点、谁说过什么、刚才聊了什么。"
+        ),
     ),
     aliases={"查询群聊记录", "回顾群聊", "群聊记录", "总结群聊"},
     binding=CommandBinding(

@@ -72,9 +72,7 @@ async def test_self_admin_query_routes_to_self_info_command_without_llm(loaded_p
         trace_id="self-admin-query",
     )
 
-    result = await pipeline.process(
-        ChatMessage(message=[Content(type="text", value="我的身份是管理员吗")])
-    )
+    result = await pipeline.process(ChatMessage(message=[Content(type="text", value="我的身份是管理员吗")]))
 
     assert result.route is not None
     assert result.route.intent == "command"
@@ -89,12 +87,8 @@ def test_self_identity_query_does_not_match_mutating_requests(loaded_plugins):
     from utils.llm.message import Content
     from src.plugins.autogpt.pipeline import MessageProcessingPipeline
 
-    assert MessageProcessingPipeline.is_self_identity_query(
-        [Content(type="text", value="我想成为管理员")]
-    ) is False
-    assert MessageProcessingPipeline.is_self_identity_query(
-        [Content(type="text", value="我的身份是管理员吗")]
-    ) is True
+    assert MessageProcessingPipeline.is_self_identity_query([Content(type="text", value="我想成为管理员")]) is False
+    assert MessageProcessingPipeline.is_self_identity_query([Content(type="text", value="我的身份是管理员吗")]) is True
 
 
 @pytest.mark.asyncio

@@ -9,7 +9,6 @@ from src.commands.availability import AvailabilityState, command_availability
 
 from .service import manager_config_path
 
-
 AVAILABILITY_STATE_PATH = manager_config_path("manager_command_availability.json")
 _STATE_LOADED = False
 

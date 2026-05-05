@@ -201,9 +201,7 @@ class ChatSession:
             output_sections.append(f"命令：{observation.command}\n{outputs}")
         if output_sections:
             self.messages.assistant_message(
-                "# 系统命令返回结果\n"
-                f"trace_id: {trace_id or self.last_trace_id}\n"
-                + "\n\n".join(output_sections)
+                "# 系统命令返回结果\n" f"trace_id: {trace_id or self.last_trace_id}\n" + "\n\n".join(output_sections)
             )
 
     async def record_workflow(self, workflow: AgentWorkflow, trace_id: str = "") -> None:

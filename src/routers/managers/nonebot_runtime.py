@@ -290,8 +290,7 @@ def list_commands() -> dict[str, Any]:
             visitor = _CommandVisitor(path)
             visitor.visit(tree)
             commands.extend(
-                _enrich_command(item, helper_index, registry_index, loaded_modules)
-                for item in visitor.items
+                _enrich_command(item, helper_index, registry_index, loaded_modules) for item in visitor.items
             )
 
     seen_commands = {item.get("command") for item in commands}
@@ -494,7 +493,11 @@ def _registry_payload_to_command_item(payload: dict[str, Any], loaded_modules: s
     """把注册表条目转换成管理端命令清单条目。"""
     plugin_module = payload.get("plugin_module") or ""
     plugin_name = plugin_module.rsplit(".", 1)[-1] if plugin_module else "unknown"
-    namespace = plugin_module.split(".")[1] if plugin_module.startswith("src.") and len(plugin_module.split(".")) > 1 else "registry"
+    namespace = (
+        plugin_module.split(".")[1]
+        if plugin_module.startswith("src.") and len(plugin_module.split(".")) > 1
+        else "registry"
+    )
     item = {
         **payload,
         "matcher_name": None,
@@ -533,7 +536,8 @@ def _plugin_command_stats(commands: list[dict[str, Any]], plugin_module: str) ->
     related_commands = [
         item
         for item in commands
-        if item.get("plugin_module") == plugin_module or str(item.get("plugin_module") or "").startswith(f"{plugin_module}.")
+        if item.get("plugin_module") == plugin_module
+        or str(item.get("plugin_module") or "").startswith(f"{plugin_module}.")
     ]
     return {
         "available_command_count": sum(1 for item in related_commands if item.get("available", True)),
