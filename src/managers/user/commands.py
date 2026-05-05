@@ -40,7 +40,8 @@ token_cmd = on_command("token", priority=priority, block=True)
 __helpers__ = [
     Helper(
         command="我的信息",
-        description="查看自己的信息,是否为教师或学生",
+        description="查看自己的账号信息、当前角色、是否为管理员、是否为教师或学生",
+        ai_description="当用户询问“我是谁”“我的身份是什么”“我是不是管理员/教师/学生/班干部”“我有哪些权限/角色”时，优先调用该命令查询当前账号信息，不要要求用户补充QQ群身份。",
         aliases={"个人信息", "用户信息"},
         roles={UserRole.user},
         scopes={HelperScope.user},

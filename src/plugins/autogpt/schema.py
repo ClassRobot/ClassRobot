@@ -127,6 +127,8 @@ class CommandObservation(BaseModel):
     """是否成功投递到 NoneBot 事件系统。"""
     message: str = ""
     """投递结果说明。"""
+    outputs: list[str] = Field(default_factory=list)
+    """命令执行过程中实际发送给用户的消息文本。"""
     created_at: datetime = Field(default_factory=datetime.now)
     """观察记录创建时间。"""
 

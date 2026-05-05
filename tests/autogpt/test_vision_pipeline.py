@@ -53,7 +53,7 @@ async def test_visual_message_does_not_short_circuit_to_generic_reply(loaded_plu
     assert state.intent_route.reply == "这是一张动漫头像。"
     assert captured["kwargs"]["multi_modal"] is True
     assert captured["kwargs"]["task_type"].value == "vision"
-    assert reports == ["我先看一下图片或文件内容，请稍等~"]
+    assert reports == []
 
     route_messages = captured["messages"]
     latest_message = route_messages.messages[-1]
@@ -96,3 +96,54 @@ async def test_extract_agent_uses_latest_visual_message_as_multimodal_input(load
     extract_messages = captured["messages"]
     latest_message = extract_messages.messages[-1]
     assert latest_message.content == messages.messages[-1].content
+
+
+@pytest.mark.asyncio
+async def test_simple_visual_question_replies_directly_without_progress(loaded_plugins, monkeypatch):
+    from utils.helper import Helpers
+    from utils.llm.message import Content, Messages
+    from src.plugins.autogpt import pipeline as pipeline_module
+    from src.plugins.autogpt.schema import ChatMessage
+
+    calls: list[dict[str, object]] = []
+    reports: list[str] = []
+
+    async def fake_client_create(messages, **kwargs):
+        calls.append({"messages": messages, "kwargs": kwargs})
+        if len(calls) == 1:
+            return build_llm_response(
+                '{"intent":"vision_file","reply":null,"requires_command":false,"requires_rag":false,'
+                '"need_confirm":false,"reason":"用户在直接询问图片内容。"}'
+            )
+        if len(calls) == 2:
+            return build_llm_response("这是一张紫色调的二次元女生头像。")
+        raise AssertionError("simple visual reply should not continue into planner/extract nodes")
+
+    async def report(message: str) -> None:
+        reports.append(message)
+
+    monkeypatch.setattr(pipeline_module, "client_create", fake_client_create)
+
+    pipeline = pipeline_module.MessageProcessingPipeline(
+        Helpers(),
+        Messages(),
+        trace_id="vision-direct",
+        progress_reporter=report,
+    )
+
+    result = await pipeline.process(
+        ChatMessage(
+            message=[
+                Content(type="text", value="这张图是什么"),
+                Content(type="image", value="https://example.com/avatar.png"),
+            ]
+        )
+    )
+
+    assert result.auto_tasks is not None
+    assert result.auto_tasks.reply == "这是一张紫色调的二次元女生头像。"
+    assert result.auto_tasks.need_confirm is False
+    assert reports == []
+    assert len(calls) == 2
+    assert calls[0]["kwargs"]["task_type"].value == "vision"
+    assert calls[1]["kwargs"]["task_type"].value == "vision"

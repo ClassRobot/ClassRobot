@@ -12,6 +12,7 @@
 6. 如果需要项目命令，把 requires_command 设为 true，并在 candidate_commands 写候选命令名。
 7. candidate_commands 必须来自“当前可用命令”，可以使用命令主名或别名，不能编造。
 8. high 风险操作必须通过 confirmation_question 向用户确认，should_execute 应为 false。
+9. 用户询问自己的账号身份、角色、权限、是否为管理员/教师/学生/班干部时，优先候选“我的信息”，requires_command=true，should_execute=true，missing_info=[]；不要要求用户补充 QQ 群身份。
 
 ## 输出格式
 

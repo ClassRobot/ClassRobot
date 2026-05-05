@@ -13,7 +13,7 @@ from utils.llm.util import uni_message_to_contents
 from utils.llm.util import json_loads
 from utils.llm.agents.tools import AutoTaskAgent, ExtractAgent, RagAgent, SummaryAgent
 
-from .schema import AgentPlan, IntentRoute, AutoTaskList, ChatMessage, AgentTurnResult
+from .schema import AgentPlan, IntentRoute, AutoTask, AutoTaskList, ChatMessage, AgentTurnResult
 from .command_tools import CommandToolCatalog
 from .workflow import build_turn_result
 
@@ -64,10 +64,29 @@ class AppendUserMessageNode(WorkflowNode):
         pipeline.messages.user_message(state.user_content)
 
 
+class LocalContextQueryNode(WorkflowNode):
+    """优先处理不需要模型猜测的本地上下文查询。"""
+
+    async def run(self, pipeline: "MessageProcessingPipeline", state: PipelineState) -> None:
+        auto_tasks = pipeline.resolve_local_context_query(state.user_content)
+        if auto_tasks is None:
+            return
+        state.intent_route = IntentRoute(
+            intent="command",
+            requires_command=True,
+            requires_rag=False,
+            need_confirm=False,
+            reason="用户正在查询当前账号身份或权限状态，直接调用本地用户信息命令。",
+        )
+        state.auto_tasks = auto_tasks
+
+
 class IntentRouteNode(WorkflowNode):
     """先判断消息类型，避免所有请求都进入重型规划链路。"""
 
     async def run(self, pipeline: "MessageProcessingPipeline", state: PipelineState) -> None:
+        if state.auto_tasks is not None:
+            return
         route_messages = Messages()
         route_messages.extend(pipeline.messages.get(LLMRole.system))
         route_messages.system_message(
@@ -107,9 +126,11 @@ class IntentRouteNode(WorkflowNode):
                 state.intent_route.requires_rag,
             )
         )
-        progress_message = pipeline.build_user_progress_message(state.intent_route)
-        if not progress_message and multi_modal:
-            progress_message = "我先看一下图片或文件内容，请稍等~"
+        progress_message = ""
+        if not pipeline.should_direct_reply_from_vision(state.intent_route, state.user_content):
+            progress_message = pipeline.build_user_progress_message(state.intent_route)
+            if not progress_message and multi_modal:
+                progress_message = "我先看一下图片或文件内容，请稍等~"
         await pipeline.report_progress(progress_message)
 
         if state.intent_route.intent == "violation":
@@ -126,6 +147,33 @@ class IntentRouteNode(WorkflowNode):
                 reply=state.intent_route.reply or "我在，有什么需要我帮你处理的吗？",
                 need_confirm=state.intent_route.need_confirm,
             )
+
+
+class DirectVisionReplyNode(WorkflowNode):
+    """对无需命令和检索的简单图片问答直接给出最终回复。"""
+
+    async def run(self, pipeline: "MessageProcessingPipeline", state: PipelineState) -> None:
+        if state.auto_tasks is not None or state.intent_route is None:
+            return
+        if not pipeline.should_direct_reply_from_vision(state.intent_route, state.user_content):
+            return
+
+        reply_messages = Messages()
+        reply_messages.extend(pipeline.messages.get(LLMRole.system))
+        reply_messages.system_message(await Prompt("vision_reply").render())
+        reply_messages.extend(pipeline.messages.get(LLMRole.user, LLMRole.assistant))
+
+        response = await client_create(
+            reply_messages,
+            multi_modal=True,
+            max_tokens=2048,
+            task_type=LLMTaskType.vision,
+        )
+        reply = (response.choices[0].message.content or "").strip()
+        state.auto_tasks = AutoTaskList(
+            reply=reply or "我看到了这张图片，但还不能可靠判断具体内容，你可以发更清晰一点的图片或补一句你想让我看什么。",
+            need_confirm=False,
+        )
 
 
 class ExtractContextNode(WorkflowNode):
@@ -340,6 +388,51 @@ class MessageProcessingPipeline:
 
         return any(content.type in {"image", "file"} for content in contents)
 
+    def resolve_local_context_query(self, contents: list[Content]) -> AutoTaskList | None:
+        """把确定性的本地上下文问题路由到已有项目命令。"""
+
+        if self.helpers.get_helper("我的信息") is None:
+            return None
+        if not self.is_self_identity_query(contents):
+            return None
+        return AutoTaskList(tasks=[AutoTask(command="我的信息", params=[])], need_confirm=False)
+
+    @staticmethod
+    def is_self_identity_query(contents: list[Content]) -> bool:
+        """判断用户是否在询问自己的身份、角色或管理员状态。"""
+
+        if any(content.type != "text" for content in contents):
+            return False
+        normalized = "".join(content.value for content in contents if content.type == "text").strip()
+        normalized = "".join(normalized.split())
+        if not normalized:
+            return False
+
+        self_words = ("我", "我的", "自己", "本人")
+        identity_words = ("身份", "角色", "权限", "管理员", "学生", "教师", "老师", "班干部")
+        query_words = ("吗", "么", "是否", "是不是", "是", "什么", "哪些", "查看", "查询", "查一下", "告诉我", "当前")
+        action_words = ("成为", "设置", "添加", "修改", "删除", "注销", "绑定", "创建", "申请")
+
+        if any(word in normalized for word in action_words):
+            return False
+        return (
+            any(word in normalized for word in self_words)
+            and any(word in normalized for word in identity_words)
+            and any(word in normalized for word in query_words)
+        )
+
+    @staticmethod
+    def should_direct_reply_from_vision(route: IntentRoute | None, contents: list[Content]) -> bool:
+        """判断当前图片消息是否应走直接视觉回复快路径。"""
+
+        if route is None:
+            return False
+        if route.requires_command or route.requires_rag or route.need_confirm:
+            return False
+        if route.intent not in {"chat", "vision_file"}:
+            return False
+        return any(content.type == "image" for content in contents)
+
     def normalize_message(self, message: str | UniMessage | ChatMessage) -> list[Content]:
         """将输入消息统一转换为内部内容结构。"""
         if isinstance(message, ChatMessage):
@@ -380,7 +473,9 @@ class MessageProcessingPipeline:
             SummaryHistoryNode(),
             NormalizeUserInputNode(message),
             AppendUserMessageNode(),
+            LocalContextQueryNode(),
             IntentRouteNode(),
+            DirectVisionReplyNode(),
             ExtractContextNode(),
             PlannerNode(),
             ExecutionPolicyNode(),

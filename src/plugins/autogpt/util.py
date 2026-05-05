@@ -183,14 +183,27 @@ class ChatSession:
     def record_observations(self, observations: list[CommandObservation], trace_id: str = "") -> None:
         """把命令执行观察写回会话，供下一轮规划参考。
 
-        这里记录的是“事件是否成功投递到项目命令系统”，不是业务命令
-        最终是否完成。真正的业务结果仍由对应 matcher 回复用户。
+        除投递状态外，也会记录命令实际发送给用户的回复文本，让下一轮
+        Agent 能基于工具结果继续回答，而不是重复调用同一个命令。
         """
         if not observations:
             return
         payload = [observation.dict() for observation in observations]
         content = json.dumps(payload, ensure_ascii=False, default=str)
         self.messages.assistant_message(f"# 系统命令执行观察\ntrace_id: {trace_id or self.last_trace_id}\n{content}")
+
+        output_sections = []
+        for observation in observations:
+            if not observation.outputs:
+                continue
+            outputs = "\n".join(f"- {output}" for output in observation.outputs)
+            output_sections.append(f"命令：{observation.command}\n{outputs}")
+        if output_sections:
+            self.messages.assistant_message(
+                "# 系统命令返回结果\n"
+                f"trace_id: {trace_id or self.last_trace_id}\n"
+                + "\n\n".join(output_sections)
+            )
 
     async def record_workflow(self, workflow: AgentWorkflow, trace_id: str = "") -> None:
         """把当前轮次的工作流状态写回会话。"""

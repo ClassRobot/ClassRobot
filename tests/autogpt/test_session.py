@@ -18,12 +18,13 @@ def test_record_observations_writes_traceable_context(loaded_plugins):
                 params=[Param(type="text", value="今天")],
                 success=True,
                 message="命令已投递给 NoneBot 事件系统。",
+                outputs=["今天上午第一节是高等数学。"],
             )
         ]
     )
 
     messages = session.messages.messages
-    assert len(messages) == 1
+    assert len(messages) == 2
     content = messages[0].single_modal()
     assert content.startswith("# 系统命令执行观察\ntrace_id: autogpt-test\n")
 
@@ -31,6 +32,12 @@ def test_record_observations_writes_traceable_context(loaded_plugins):
     assert payload[0]["trace_id"] == "autogpt-test"
     assert payload[0]["command"] == "查询课表"
     assert payload[0]["success"] is True
+    assert payload[0]["outputs"] == ["今天上午第一节是高等数学。"]
+
+    output_context = messages[1].single_modal()
+    assert output_context.startswith("# 系统命令返回结果\ntrace_id: autogpt-test\n")
+    assert "命令：查询课表" in output_context
+    assert "今天上午第一节是高等数学。" in output_context
 
 
 @pytest.mark.asyncio

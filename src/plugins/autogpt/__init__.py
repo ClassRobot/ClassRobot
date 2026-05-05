@@ -1,4 +1,5 @@
-from typing import Callable
+from inspect import isawaitable
+from typing import Any, Callable
 
 from utils import Emoji
 from nonebot.rule import to_me
@@ -50,6 +51,45 @@ def update_separate_message(param: Param, target: Target) -> Callable[[], Messag
     return lambda: message
 
 
+def stringify_command_output(message: Any) -> str:
+    """把命令回复转换成适合写入 Agent 上下文的文本。"""
+
+    extract_plain_text = getattr(message, "extract_plain_text", None)
+    if callable(extract_plain_text):
+        text = extract_plain_text()
+        if text:
+            return text.strip()
+    return str(message).strip()
+
+
+async def handle_event_with_output_capture(bot: Bot, event: Event) -> list[str]:
+    """执行 NoneBot 事件，并捕获 matcher 发送给用户的回复。"""
+
+    outputs: list[str] = []
+    original_send = bot.send
+    capture_event = event
+    capture_message_id = getattr(event, "__uniseg_message_id__", None)
+
+    async def send_wrapper(event: Event, message: str | Message, **kwargs: Any) -> Any:
+        result = original_send(event=event, message=message, **kwargs)
+        if isawaitable(result):
+            result = await result
+        send_message_id = getattr(event, "__uniseg_message_id__", None)
+        if event is not capture_event and (not capture_message_id or send_message_id != capture_message_id):
+            return result
+        output = stringify_command_output(message)
+        if output:
+            outputs.append(output)
+        return result
+
+    bot.send = send_wrapper
+    try:
+        await handle_event(bot, event)
+    finally:
+        bot.send = original_send
+    return outputs
+
+
 async def dispatch_auto_task(
     bot: Bot,
     event: Event,
@@ -66,7 +106,7 @@ async def dispatch_auto_task(
     next_event.__uniseg_message_id__ = str(id(next_event))
     next_event.get_message = update_message(task, target)
     try:
-        await handle_event(bot, next_event)
+        outputs = await handle_event_with_output_capture(bot, next_event)
         observations.append(
             CommandObservation(
                 trace_id=trace_id,
@@ -74,7 +114,12 @@ async def dispatch_auto_task(
                 params=command_params,
                 dispatch_type="command",
                 success=True,
-                message="命令已投递给 NoneBot 事件系统。",
+                message=(
+                    f"命令已投递给 NoneBot 事件系统，并捕获到 {len(outputs)} 条命令回复。"
+                    if outputs
+                    else "命令已投递给 NoneBot 事件系统，但未捕获到命令回复。"
+                ),
+                outputs=outputs,
             )
         )
     except Exception as error:
@@ -97,7 +142,7 @@ async def dispatch_auto_task(
             next_event.__uniseg_message_id__ = str(id(next_event))
             next_event.get_message = update_separate_message(param, target)
             try:
-                await handle_event(bot, next_event)
+                outputs = await handle_event_with_output_capture(bot, next_event)
                 observations.append(
                     CommandObservation(
                         trace_id=trace_id,
@@ -105,7 +150,12 @@ async def dispatch_auto_task(
                         params=[param],
                         dispatch_type="separate_param",
                         success=True,
-                        message="分离参数已投递给 NoneBot 事件系统。",
+                        message=(
+                            f"分离参数已投递给 NoneBot 事件系统，并捕获到 {len(outputs)} 条命令回复。"
+                            if outputs
+                            else "分离参数已投递给 NoneBot 事件系统，但未捕获到命令回复。"
+                        ),
+                        outputs=outputs,
                     )
                 )
             except Exception as error:
