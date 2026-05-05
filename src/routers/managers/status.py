@@ -53,12 +53,17 @@ async def check_cache() -> dict[str, Any]:
         "status": "ok",
         "host": cache_config.cache_host,
         "port": cache_config.cache_port,
+        "configured_backend": cache_config.cache_backend,
     }
     try:
-        from utils.cache import get_cache
+        from utils.cache import get_cache, get_cache_backend_hint, get_cache_storage_path
 
         async with get_cache() as cache:
             await cache.ping()
+        payload["backend"] = get_cache_backend_hint()
+        payload["path"] = str(get_cache_storage_path())
+        if payload["backend"] == "local":
+            payload["local_path"] = payload["path"]
     except Exception as error:  # noqa: BLE001
         payload["status"] = "warning"
         payload["message"] = str(error)

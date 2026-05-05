@@ -3,8 +3,7 @@ from nonebot.adapters import Bot, Event
 from nonebot_plugin_alconna import Alconna
 from utils.session import session as get_session
 from utils.models.depends import get_user_depends
-from nonebot_plugin_alconna import UniMessage, get_target
-from nonebot_plugin_alconna import Extension as BaseExtension
+from nonebot_plugin_alconna import UniMessage, get_target, Extension as BaseExtension
 
 
 class AdminExtension(BaseExtension):
