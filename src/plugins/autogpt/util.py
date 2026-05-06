@@ -17,6 +17,7 @@ from utils.llm.util import uni_message_to_contents
 
 from .checkpoints import WorkflowCheckpointStore
 from .exception import SessionLockError
+from .knowledge import AgentRuntimeContext
 from .pipeline import MessageProcessingPipeline
 from .runs import WorkflowRunStore
 from .schema import AgentTurnResult, AgentWorkflow, AutoTaskList, ChatMessage, CommandObservation, IntentRoute
@@ -140,6 +141,7 @@ class ChatSession:
         self,
         message: str | UniMessage | ChatMessage,
         progress_reporter: ProgressReporter | None = None,
+        runtime_context: AgentRuntimeContext | None = None,
     ) -> AgentTurnResult:
         """处理用户消息并执行 AutoGPT 主流程。
 
@@ -167,6 +169,7 @@ class ChatSession:
                 messages=self.messages,
                 trace_id=self.last_trace_id,
                 progress_reporter=progress_reporter,
+                runtime_context=runtime_context,
             )
             turn_result = await pipeline.process(message)
             self.messages = pipeline.messages

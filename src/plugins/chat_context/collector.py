@@ -11,7 +11,11 @@ from pydantic import BaseModel, Extra
 from utils.session import BaseSession
 from utils.storage import MessageActorRole, chat_history_store, normalize_message_text, normalize_raw_message
 
-from .resolvers import resolve_bound_group_id, resolve_or_create_private_user, resolve_private_user
+from .resolvers import (
+    resolve_or_create_bound_group,
+    resolve_or_create_private_user,
+    resolve_private_user,
+)
 
 ALCONNA_TEXT_FALLBACK_ERRORS = (SerializeFailed, NotImplementedError, ValueError)
 """alconna 文本解析允许兜底的异常类型。
@@ -201,12 +205,12 @@ async def collect_message(platform: BaseSession, event: Event, bot: Bot | None =
     if message_text.fallback_reason:
         metadata["message_fallback_reason"] = message_text.fallback_reason
     if platform.is_group:
-        group_id = await resolve_bound_group_id(platform)
-        if group_id is None:
+        group = await resolve_or_create_bound_group(platform, event)
+        if group is None:
             return
 
         await chat_history_store.record_group_collect_message(
-            group_id=group_id,
+            group_id=group.id,
             message_id=getattr(event, "message_id", None),
             user_id=platform.user_id,
             user_name=resolve_sender_name(event),
@@ -283,12 +287,12 @@ async def record_command_message(
         metadata["message_fallback_reason"] = message_text.fallback_reason
 
     if platform.is_group:
-        group_id = await resolve_bound_group_id(platform)
-        if group_id is None:
+        group = await resolve_or_create_bound_group(platform, event)
+        if group is None:
             return
 
         await chat_history_store.record_group_chat_message(
-            group_id=group_id,
+            group_id=group.id,
             plain_text=message_text.plain_text,
             raw_text=message_text.raw_text,
             actor_role=MessageActorRole.user,
@@ -355,12 +359,12 @@ async def record_assistant_message(
     }
 
     if platform.is_group:
-        group_id = await resolve_bound_group_id(platform)
-        if group_id is None:
+        group = await resolve_or_create_bound_group(platform, event)
+        if group is None:
             return
 
         await chat_history_store.record_group_chat_message(
-            group_id=group_id,
+            group_id=group.id,
             plain_text=normalized_plain_text or normalized_raw_text,
             raw_text=normalized_raw_text,
             actor_role=MessageActorRole.assistant,

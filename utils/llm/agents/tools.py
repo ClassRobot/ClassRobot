@@ -335,6 +335,7 @@ class AutoTaskAgent(BaseAgent):
 
     helpers: Helpers
     command_tools_prompt: str = ""
+    skill_catalog_prompt: str = ""
 
     @classmethod
     def name(cls) -> str:
@@ -367,6 +368,7 @@ class AutoTaskAgent(BaseAgent):
                     "knowledge": knowledge,
                     "plan": plan,
                     "command_tools": self.command_tools_prompt,
+                    "skill_catalog": self.skill_catalog_prompt,
                 }
             )
         )

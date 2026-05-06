@@ -15,6 +15,7 @@ from utils.llm.agents.tools import AutoTaskAgent, ExtractAgent, RagAgent, Summar
 
 from .schema import AgentPlan, IntentRoute, AutoTask, AutoTaskList, ChatMessage, AgentTurnResult, Param
 from .command_tools import CommandToolCatalog
+from .knowledge import AgentLocalKnowledgeRetriever, AgentRuntimeContext, AgentSkillCatalog
 from .workflow import build_turn_result
 
 ProgressReporter = Callable[[str], Awaitable[None]]
@@ -28,6 +29,7 @@ class PipelineState(BaseModel):
     intent_route: IntentRoute | None = None
     agent_plan: AgentPlan | None = None
     extracted_context: Context | None = None
+    local_knowledge: str | None = None
     retrieved_knowledge: str | None = None
     auto_tasks: AutoTaskList | None = None
 
@@ -94,6 +96,7 @@ class IntentRouteNode(WorkflowNode):
                 {
                     "helpers": pipeline.helpers,
                     "command_tools": pipeline.command_tools,
+                    "skill_catalog": pipeline.skill_catalog_prompt,
                     "history": pipeline.serialize_recent_history(),
                 }
             )
@@ -142,6 +145,7 @@ class IntentRouteNode(WorkflowNode):
             not state.intent_route.requires_command
             and not state.intent_route.requires_rag
             and not pipeline.has_visual_input(state.user_content)
+            and not pipeline.can_retrieve_local_knowledge(state.user_content)
         ):
             state.auto_tasks = AutoTaskList(
                 reply=state.intent_route.reply or "我在，有什么需要我帮你处理的吗？",
@@ -177,6 +181,20 @@ class DirectVisionReplyNode(WorkflowNode):
         )
 
 
+class RetrieveLocalKnowledgeNode(WorkflowNode):
+    """按需检索聊天记录、文件空间和其他本地上下文。"""
+
+    async def run(self, pipeline: "MessageProcessingPipeline", state: PipelineState) -> None:
+        if state.auto_tasks is not None:
+            return
+        if not pipeline.can_retrieve_local_knowledge(state.user_content):
+            return
+        query = pipeline.text_query_from_contents(state.user_content)
+        state.local_knowledge = await pipeline.local_knowledge_retriever.retrieve(query, pipeline.runtime_context)
+        if state.local_knowledge:
+            logger.info(f'AutoGPT trace "{state.trace_id}" loaded local knowledge context')
+
+
 class ExtractContextNode(WorkflowNode):
     """从当前会话中抽取结构化上下文。"""
 
@@ -200,8 +218,10 @@ class PlannerNode(WorkflowNode):
                 {
                     "helpers": pipeline.helpers,
                     "command_tools": pipeline.command_tools,
+                    "skill_catalog": pipeline.skill_catalog_prompt,
                     "route": state.intent_route.json(ensure_ascii=False) if state.intent_route else "{}",
                     "context": state.extracted_context.single_modal(),
+                    "local_knowledge": state.local_knowledge,
                     "history": pipeline.serialize_recent_history(),
                 }
             )
@@ -295,9 +315,10 @@ class PlanTasksNode(WorkflowNode):
             helpers=pipeline.helpers,
             messages=pipeline.messages,
             command_tools_prompt=pipeline.command_tools.to_prompt(),
+            skill_catalog_prompt=pipeline.skill_catalog_prompt,
         ).execute(
             state.extracted_context,
-            state.retrieved_knowledge,
+            pipeline.combine_knowledge(state.local_knowledge, state.retrieved_knowledge),
             plan=state.agent_plan.json(ensure_ascii=False) if state.agent_plan else None,
         )
 
@@ -348,12 +369,17 @@ class MessageProcessingPipeline:
         messages: Messages,
         trace_id: str = "",
         progress_reporter: ProgressReporter | None = None,
+        runtime_context: AgentRuntimeContext | None = None,
+        local_knowledge_retriever: AgentLocalKnowledgeRetriever | None = None,
     ) -> None:
         self.helpers = helpers
         self.command_tools = CommandToolCatalog.from_helpers(helpers)
+        self.skill_catalog_prompt = AgentSkillCatalog().to_prompt()
         self.messages = messages
         self.trace_id = trace_id
         self.progress_reporter = progress_reporter
+        self.runtime_context = runtime_context
+        self.local_knowledge_retriever = local_knowledge_retriever or AgentLocalKnowledgeRetriever()
         self._last_progress = ""
 
     async def report_progress(self, message: str) -> None:
@@ -388,6 +414,26 @@ class MessageProcessingPipeline:
         """判断当前消息是否包含需要视觉理解的内容。"""
 
         return any(content.type in {"image", "file"} for content in contents)
+
+    @staticmethod
+    def text_query_from_contents(contents: list[Content]) -> str:
+        """提取当前用户消息中的文本查询。"""
+
+        return " ".join(content.value for content in contents if content.type == "text").strip()
+
+    @staticmethod
+    def should_retrieve_local_knowledge(contents: list[Content]) -> bool:
+        """判断是否需要检索聊天记录或文件空间。"""
+
+        from .knowledge import should_search_chat_history, should_search_files
+
+        query = MessageProcessingPipeline.text_query_from_contents(contents)
+        return bool(query and (should_search_chat_history(query) or should_search_files(query)))
+
+    def can_retrieve_local_knowledge(self, contents: list[Content]) -> bool:
+        """判断当前轮次是否具备本地知识检索条件。"""
+
+        return self.runtime_context is not None and self.should_retrieve_local_knowledge(contents)
 
     def resolve_local_context_query(self, contents: list[Content]) -> AutoTaskList | None:
         """把确定性的本地上下文问题路由到已有项目命令。"""
@@ -568,6 +614,17 @@ class MessageProcessingPipeline:
 
         return bool((route and route.requires_rag) or (plan and plan.requires_rag))
 
+    @staticmethod
+    def combine_knowledge(local_knowledge: str | None, rag_knowledge: str | None) -> str | None:
+        """合并本地检索结果和外部 RAG 结果。"""
+
+        sections = []
+        if local_knowledge:
+            sections.append("# 本地上下文检索结果\n" + local_knowledge)
+        if rag_knowledge:
+            sections.append("# 外部知识库检索结果\n" + rag_knowledge)
+        return "\n\n".join(sections) if sections else None
+
     def resolve_candidate_commands(self, plan: AgentPlan | None) -> set[str]:
         """将 Planner 候选命令解析成当前 Helper 中真实存在的命令名。"""
 
@@ -583,6 +640,7 @@ class MessageProcessingPipeline:
             AppendUserMessageNode(),
             LocalContextQueryNode(),
             IntentRouteNode(),
+            RetrieveLocalKnowledgeNode(),
             DirectVisionReplyNode(),
             ExtractContextNode(),
             PlannerNode(),

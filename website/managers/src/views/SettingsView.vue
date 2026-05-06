@@ -47,7 +47,7 @@
           加载中...
         </div>
 
-        <form v-else class="h-full overflow-y-auto p-5 pb-24" @submit.prevent="save">
+        <form v-else-if="activeTab !== 'runtime'" class="h-full overflow-y-auto p-5 pb-24" @submit.prevent="save">
           <div class="grid grid-cols-1 gap-5">
             <label
               v-for="field in currentTab?.fields"
@@ -112,6 +112,104 @@
             {{ message }}
           </div>
         </form>
+
+        <div v-else class="h-full overflow-y-auto p-5 pb-24">
+          <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <div class="rounded-lg border border-outline-variant bg-surface-container px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950/40">
+              <div class="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.16em] text-on-surface-variant dark:text-zinc-500">
+                <Cpu :size="14" />
+                Driver
+              </div>
+              <p class="mt-2 truncate font-code-inline text-code-inline text-on-surface dark:text-zinc-200" :title="runtimeConfig?.driver || 'driver'">
+                {{ runtimeConfig?.driver || 'unknown' }}
+              </p>
+            </div>
+            <div class="rounded-lg border border-outline-variant bg-surface-container px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950/40">
+              <div class="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.16em] text-on-surface-variant dark:text-zinc-500">
+                <FileText :size="14" />
+                配置模型
+              </div>
+              <p class="mt-2 truncate font-code-inline text-code-inline text-on-surface dark:text-zinc-200" :title="runtimeConfig?.config_model || 'config model'">
+                {{ runtimeConfig?.config_model || 'unknown' }}
+              </p>
+            </div>
+            <div class="rounded-lg border border-outline-variant bg-surface-container px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950/40">
+              <div class="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.16em] text-on-surface-variant dark:text-zinc-500">
+                <KeyRound :size="14" />
+                配置项
+              </div>
+              <p class="mt-2 font-h2 text-h2 text-on-surface dark:text-zinc-100">{{ runtimeConfig?.total ?? 0 }}</p>
+            </div>
+            <div class="rounded-lg border border-outline-variant bg-surface-container px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950/40">
+              <div class="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.16em] text-on-surface-variant dark:text-zinc-500">
+                <Shield :size="14" />
+                敏感项
+              </div>
+              <p class="mt-2 font-h2 text-h2 text-on-surface dark:text-zinc-100">{{ runtimeConfig?.sensitive_total ?? 0 }}</p>
+            </div>
+          </div>
+
+          <div class="mt-5 flex items-center gap-3 rounded-lg border border-outline-variant bg-surface-container px-3 py-2 dark:border-zinc-800 dark:bg-zinc-950/40">
+            <Search :size="16" class="shrink-0 text-on-surface-variant dark:text-zinc-500" />
+            <input
+              v-model="runtimeConfigQuery"
+              type="search"
+              class="min-w-0 flex-1 bg-transparent font-body-sm text-body-sm text-on-surface outline-none placeholder:text-on-surface-variant/70 dark:text-zinc-100 dark:placeholder:text-zinc-500"
+              placeholder="搜索配置 key、分组、类型或值..."
+            />
+          </div>
+
+          <div v-if="runtimeConfigFilteredItems.length" class="mt-5 grid grid-cols-1 gap-3 xl:grid-cols-2">
+            <button
+              v-for="item in runtimeConfigFilteredItems"
+              :key="item.key"
+              type="button"
+              class="group rounded-lg border border-outline-variant bg-surface-container-lowest p-4 text-left shadow-[0_10px_28px_rgba(15,23,42,0.04)] transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-[0_18px_42px_rgba(15,23,42,0.08)] dark:border-zinc-800 dark:bg-zinc-950/60 dark:hover:border-primary-dark/30 dark:hover:shadow-[0_18px_42px_rgba(0,0,0,0.25)]"
+              :title="`复制 ${item.key}`"
+              @click="copyRuntimeConfigValue(item)"
+            >
+              <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <span class="rounded-md bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary dark:bg-primary-dark/15 dark:text-primary-dark">
+                      {{ item.group }}
+                    </span>
+                    <span
+                      v-if="item.sensitive"
+                      class="rounded-md bg-warning/10 px-2 py-0.5 text-[11px] font-medium text-warning dark:bg-amber-500/10 dark:text-amber-400"
+                    >
+                      敏感
+                    </span>
+                    <span class="rounded-md bg-surface-container px-2 py-0.5 text-[11px] text-on-surface-variant dark:bg-zinc-900 dark:text-zinc-400">
+                      {{ item.value_type }}
+                    </span>
+                  </div>
+                  <p class="mt-2 truncate font-code-inline text-code-inline font-semibold text-on-surface dark:text-zinc-100" :title="item.key">
+                    {{ item.key }}
+                  </p>
+                </div>
+                <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-outline-variant text-on-surface-variant transition-colors group-hover:border-primary/40 group-hover:text-primary dark:border-zinc-800 dark:text-zinc-500 dark:group-hover:border-primary-dark/40 dark:group-hover:text-primary-dark">
+                  <Check v-if="copiedRuntimeConfigKey === item.key" :size="16" />
+                  <Copy v-else :size="16" />
+                </span>
+              </div>
+
+              <div class="mt-3 max-h-28 overflow-y-auto rounded-lg bg-surface-container px-3 py-2 dark:bg-zinc-900">
+                <p class="whitespace-pre-wrap break-all font-code-block text-code-block text-on-surface-variant dark:text-zinc-300">
+                  {{ item.empty ? '(空值)' : item.value }}
+                </p>
+              </div>
+            </button>
+          </div>
+
+          <div v-else class="mt-5 rounded-lg border border-dashed border-outline-variant px-4 py-10 text-center font-body-sm text-body-sm text-on-surface-variant dark:border-zinc-800 dark:text-zinc-500">
+            没有匹配的运行配置
+          </div>
+
+          <div v-if="message" class="mt-5 rounded-lg border px-4 py-3 font-body-sm text-body-sm" :class="messageClass">
+            {{ message }}
+          </div>
+        </div>
       </section>
     </div>
 
@@ -153,14 +251,15 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { fetchSettings, patchSettings, rotateToken } from '@/api/settings'
+import { fetchRuntimeConfig, fetchSettings, patchSettings, rotateToken } from '@/api/settings'
 import { useAuthStore } from '@/composables/useAuth'
-import type { SettingsPatchPayload, SettingsResponse } from '@/types/api'
-import { AlertTriangle, RefreshCw, RotateCcw, Save, Shield } from 'lucide-vue-next'
+import type { RuntimeConfigItem, RuntimeConfigResponse, SettingsPatchPayload, SettingsResponse } from '@/types/api'
+import { AlertTriangle, Check, Copy, Cpu, FileText, KeyRound, RefreshCw, RotateCcw, Save, Search, Shield } from 'lucide-vue-next'
 import AppSelect from '@/components/AppSelect.vue'
 import StatusChip from '@/components/StatusChip.vue'
 
 type GroupKey = 'base' | 'ai' | 'models' | 'cache' | 'cos' | 'security'
+type TabKey = GroupKey | 'runtime'
 type FieldType = 'text' | 'password' | 'number' | 'textarea' | 'select'
 
 interface FieldConfig {
@@ -174,18 +273,21 @@ interface FieldConfig {
 }
 
 interface TabConfig {
-  key: GroupKey
+  key: TabKey
   label: string
   description: string
-  fields: FieldConfig[]
+  fields?: FieldConfig[]
 }
 
 const router = useRouter()
 const auth = useAuthStore()
-const activeTab = ref<GroupKey>('base')
+const activeTab = ref<TabKey>('base')
 const loading = ref(true)
 const saving = ref(false)
 const settings = ref<SettingsResponse | null>(null)
+const runtimeConfig = ref<RuntimeConfigResponse | null>(null)
+const runtimeConfigQuery = ref('')
+const copiedRuntimeConfigKey = ref('')
 const modifiedFields = ref(new Set<string>())
 const message = ref('')
 const messageType = ref<'success' | 'error' | 'warning'>('success')
@@ -258,11 +360,27 @@ const tabs: TabConfig[] = [
       { group: 'security', key: 'encrypt_salt', label: 'Encrypt Salt', type: 'password', hint: '用于本地加密场景，修改后需要重启。' },
     ],
   },
+  {
+    key: 'runtime',
+    label: '运行配置',
+    description: '来自 driver.config 的完整运行配置快照',
+  },
 ]
 
 const numberFields = new Set(['base.teacher_max_classes', 'models.llm_timeout', 'cache.cache_port'])
 const currentTab = computed(() => tabs.find((tab) => tab.key === activeTab.value))
 const hasChanges = computed(() => modifiedFields.value.size > 0)
+const runtimeConfigFilteredItems = computed(() => {
+  const items = runtimeConfig.value?.items || []
+  const query = runtimeConfigQuery.value.trim().toLowerCase()
+  if (!query) return items
+  return items.filter((item) =>
+    [item.key, item.value, item.group, item.value_type]
+      .join(' ')
+      .toLowerCase()
+      .includes(query),
+  )
+})
 const messageClass = computed(() => {
   if (messageType.value === 'error') return 'border-error/30 bg-error/10 text-error dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-400'
   if (messageType.value === 'warning') return 'border-warning/30 bg-warning/10 text-warning dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400'
@@ -275,7 +393,9 @@ async function loadSettings() {
   loading.value = true
   message.value = ''
   try {
-    settings.value = await fetchSettings()
+    const [settingsPayload, runtimeConfigPayload] = await Promise.all([fetchSettings(), fetchRuntimeConfig()])
+    settings.value = settingsPayload
+    runtimeConfig.value = runtimeConfigPayload
     applySettings(settings.value)
     modifiedFields.value.clear()
   } catch (error) {
@@ -378,6 +498,37 @@ async function handleRotateToken() {
   } catch (error) {
     showMessage(readError(error, 'Token 轮换失败'), 'error')
   }
+}
+
+async function copyRuntimeConfigValue(item: RuntimeConfigItem) {
+  try {
+    await writeClipboardText(item.value)
+    copiedRuntimeConfigKey.value = item.key
+    showMessage(`${item.key} 已复制`, 'success')
+    window.setTimeout(() => {
+      if (copiedRuntimeConfigKey.value === item.key) copiedRuntimeConfigKey.value = ''
+    }, 1400)
+  } catch (error) {
+    showMessage(readError(error, '复制失败'), 'error')
+  }
+}
+
+async function writeClipboardText(text: string) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text)
+    return
+  }
+
+  const textarea = document.createElement('textarea')
+  textarea.value = text
+  textarea.setAttribute('readonly', 'true')
+  textarea.style.position = 'fixed'
+  textarea.style.left = '-9999px'
+  document.body.appendChild(textarea)
+  textarea.select()
+  const copied = document.execCommand('copy')
+  document.body.removeChild(textarea)
+  if (!copied) throw new Error('Clipboard copy failed')
 }
 
 function showMessage(text: string, type: 'success' | 'error' | 'warning') {

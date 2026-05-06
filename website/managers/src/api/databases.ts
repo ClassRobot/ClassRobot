@@ -13,13 +13,21 @@ export async function fetchDatabases(): Promise<DatabaseConnectionResponse> {
   return data
 }
 
-export async function fetchDatabaseSchema(databaseId: string, schema?: string): Promise<DatabaseSchemaResponse> {
-  const { data } = await client.get(`/databases/${databaseId}/schema`, { params: { schema } })
+export async function fetchDatabaseSchema(
+  databaseId: string,
+  schema?: string,
+  refresh = false,
+): Promise<DatabaseSchemaResponse> {
+  const { data } = await client.get(`/databases/${databaseId}/schema`, { params: { schema, refresh } })
   return data
 }
 
-export async function fetchDatabaseTables(databaseId: string, schema?: string): Promise<DatabaseTableListResponse> {
-  const { data } = await client.get(`/databases/${databaseId}/tables`, { params: { schema } })
+export async function fetchDatabaseTables(
+  databaseId: string,
+  schema?: string,
+  refresh = false,
+): Promise<DatabaseTableListResponse> {
+  const { data } = await client.get(`/databases/${databaseId}/tables`, { params: { schema, refresh } })
   return data
 }
 

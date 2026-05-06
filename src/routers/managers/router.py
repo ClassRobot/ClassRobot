@@ -139,6 +139,12 @@ async def get_settings(_=Depends(manager_auth)):
     return settings_store.get_settings()
 
 
+@router.get("/settings/runtime-config")
+async def get_settings_runtime_config(_=Depends(manager_auth)):
+    """读取 ``driver.config`` 的完整运行配置快照。"""
+    return settings_store.get_runtime_config_snapshot()
+
+
 @router.patch("/settings")
 async def update_settings(payload: SettingsPatchRequest, session=Depends(manager_auth)):
     """更新本地后台可编辑配置。
@@ -909,11 +915,12 @@ async def list_database_connections(_=Depends(manager_auth)):
 async def get_database_schema(
     database_id: str,
     schema: str | None = None,
+    refresh: bool = Query(False),
     _=Depends(manager_auth),
 ):
     """读取数据库表结构和外键关系。"""
     try:
-        return await databases.get_schema(database_id, schema=schema)
+        return await databases.get_schema(database_id, schema=schema, force_refresh=refresh)
     except databases.DatabaseNotFoundError as error:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Database connection not found") from error
 
@@ -922,11 +929,12 @@ async def get_database_schema(
 async def list_database_tables(
     database_id: str,
     schema: str | None = None,
+    refresh: bool = Query(False),
     _=Depends(manager_auth),
 ):
     """列出数据库表摘要。"""
     try:
-        return await databases.list_tables(database_id, schema=schema)
+        return await databases.list_tables(database_id, schema=schema, force_refresh=refresh)
     except databases.DatabaseNotFoundError as error:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Database connection not found") from error
 

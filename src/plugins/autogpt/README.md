@@ -389,17 +389,37 @@ AutoGPT 的“可理解性”主要来自这些显式对象：
 4. `LocalContextQueryNode`
 5. `IntentRouteNode`
 6. `DirectVisionReplyNode`
-7. `ExtractContextNode`
-8. `PlannerNode`
-9. `ExecutionPolicyNode`
-10. `RetrieveKnowledgeNode`
-11. `PlanTasksNode`
-12. `ValidateAutoTasksNode`
-13. `PersistAssistantReplyNode`
+7. `RetrieveLocalKnowledgeNode`
+8. `ExtractContextNode`
+9. `PlannerNode`
+10. `ExecutionPolicyNode`
+11. `RetrieveKnowledgeNode`
+12. `PlanTasksNode`
+13. `ValidateAutoTasksNode`
+14. `PersistAssistantReplyNode`
 
 `LocalContextQueryNode` 会先处理不需要模型猜测的本地状态问题，例如“我是不是管理员”“我现在在哪个班级”“我有创建班级吗”“我明天有什么课”。这些请求会直接路由到 `我的信息`、`查询班级` 或 `查询课表`，让系统先拿真实数据，再把结果写回上下文。
-10. `ValidateAutoTasksNode`
-11. `PersistAssistantReplyNode`
+
+`RetrieveLocalKnowledgeNode` 会在用户询问聊天记录、刚才说过什么、文件、文档或资料时，把用户聊天记录、已绑定系统群近期消息和当前文件空间中的匹配文件片段检索出来，作为“本地上下文检索结果”交给 Planner 和 AutoTaskAgent。
+
+当前这一步已经接入 `utils.storage.local_rag.LocalRagService`：
+
+- 聊天记录和文件内容会先刷新到当前用户或群组空间的 `chat/local_rag.db`。
+- `rag_chunks` 保存文本 chunk、轻量摘要、关键词和来源元数据。
+- `rag_terms` 保存倒排词项，中文会补 2-3 字 ngram，用于比简单关键词扫描更稳的召回。
+- 检索结果会渲染成“召回摘要 + 来源 + 片段”，让 Planner 不只看到零散片段，也能看到命中内容的浓缩概览。
+
+它和外部 RAG 不冲突：聊天记录和文件空间属于本地上下文，校规制度、文档知识库仍由 `RetrieveKnowledgeNode` 按需调用 RAG。后续如果引入 embedding 或向量数据库，应优先替换 `LocalRagService` 内部实现，保持 AutoGPT 节点接口稳定。
+
+```mermaid
+flowchart TD
+    UserQuery["用户问题"] --> NeedLocal["是否询问聊天记录或文件"]
+    NeedLocal --> Refresh["刷新当前空间 local_rag.db"]
+    Refresh --> Recall["rag_terms 倒排召回"]
+    Recall --> Rank["关键词 / 摘要 / ngram 混合重排"]
+    Rank --> Render["渲染召回摘要和来源片段"]
+    Render --> Planner["Planner / AutoTaskAgent"]
+```
 
 ### 7.1 节点职责图
 
@@ -407,14 +427,17 @@ AutoGPT 的“可理解性”主要来自这些显式对象：
 flowchart LR
     A["SummaryHistoryNode\n压缩历史"] --> B["NormalizeUserInputNode\n统一消息结构"]
     B --> C["AppendUserMessageNode\n写入会话"]
-    C --> D["IntentRouteNode\n先分流"]
-    D --> E["ExtractContextNode\n抽取上下文"]
-    E --> F["PlannerNode\n生成显式计划"]
-    F --> G["ExecutionPolicyNode\n代码规则拦截"]
-    G --> H["RetrieveKnowledgeNode\n按需检索知识"]
-    H --> I["PlanTasksNode\n生成自动任务"]
-    I --> J["ValidateAutoTasksNode\n校验命令范围"]
-    J --> K["PersistAssistantReplyNode\n回写结果"]
+    C --> D["LocalContextQueryNode\n确定性本地命令"]
+    D --> E["IntentRouteNode\n先分流"]
+    E --> F["RetrieveLocalKnowledgeNode\n本地 RAG 上下文"]
+    F --> G["DirectVisionReplyNode\n简单视觉快路径"]
+    G --> H["ExtractContextNode\n抽取上下文"]
+    H --> I["PlannerNode\n生成显式计划"]
+    I --> J["ExecutionPolicyNode\n代码规则拦截"]
+    J --> K["RetrieveKnowledgeNode\n按需检索外部知识"]
+    K --> L["PlanTasksNode\n生成自动任务"]
+    L --> M["ValidateAutoTasksNode\n校验命令范围"]
+    M --> N["PersistAssistantReplyNode\n回写结果"]
 ```
 
 ### 7.2 其中最关键的三个节点

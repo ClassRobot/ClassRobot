@@ -749,6 +749,26 @@ export interface SettingsSaveResult {
   changed_keys: string[]
 }
 
+export interface RuntimeConfigItem {
+  key: string
+  value: string
+  masked_value: string
+  sensitive: boolean
+  group: string
+  value_type: string
+  empty: boolean
+}
+
+export interface RuntimeConfigResponse {
+  driver: string
+  config_model: string
+  env_path: string
+  env_exists: boolean
+  total: number
+  sensitive_total: number
+  items: RuntimeConfigItem[]
+}
+
 // ─── Skills ─────────────────────────────────────────────────
 export interface SkillSummary {
   name: string

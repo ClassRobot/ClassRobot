@@ -21,6 +21,7 @@ from src.commands.registry import command_registry
 
 from .schema import Param, AutoTask, AutoTaskList, CommandObservation
 from .util import ChatSessionDepends, markdown_to_message
+from .knowledge import AgentRuntimeContext
 from .workflow import WorkflowExecutor, collect_unsent_observation_outputs
 
 auto_gpt = on_message(priority=priority * 10, block=True, rule=to_me())
@@ -280,6 +281,14 @@ async def _(
         turn_result = await chat_session.send_message(
             message,
             progress_reporter=lambda text: send_progress(matcher, text),
+            runtime_context=AgentRuntimeContext(
+                user_id=chat_session.user_id,
+                platform=platform.platform,
+                platform_name=platform.platform_name,
+                channel_id=platform.channel_id,
+                guild_id=platform.guild_id,
+                message_id=str(getattr(event, "message_id", "") or ""),
+            ),
         )
     except Exception as e:
         logger.exception(f'AutoGPT trace "{chat_session.last_trace_id}" failed: {e}')

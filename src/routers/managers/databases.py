@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import math
 from datetime import date, datetime, time
 from decimal import Decimal, InvalidOperation
@@ -30,6 +31,9 @@ from nonebot_plugin_orm import get_session
 
 PRIMARY_DATABASE_ID = "primary"
 SENSITIVE_COLUMN_HINTS = ("password", "token", "secret", "credential", "authorization")
+DatabaseCacheKey = tuple[str, str | None]
+_SCHEMA_CACHE: dict[DatabaseCacheKey, dict[str, Any]] = {}
+_TABLE_LIST_CACHE: dict[DatabaseCacheKey, dict[str, Any]] = {}
 
 
 class DatabaseNotFoundError(KeyError):
@@ -100,6 +104,57 @@ class RowUpdateError(ValueError):
             {key: value for key, value in self.extra.items() if value is not None}
         )
         return payload
+
+
+def _database_cache_key(database_id: str, schema: str | None) -> DatabaseCacheKey:
+    """生成数据库结构缓存键。
+
+    Args:
+        database_id: 数据库标识。
+        schema: 可选 schema 名称。
+
+    Returns:
+        DatabaseCacheKey: 用于缓存索引的键。
+    """
+    return (database_id, schema)
+
+
+def _clone_cache_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    """返回缓存 payload 的深拷贝。
+
+    Args:
+        payload: 缓存中的原始字典。
+
+    Returns:
+        dict[str, Any]: 可安全返回给调用方的独立副本。
+    """
+    return copy.deepcopy(payload)
+
+
+def clear_database_metadata_cache(database_id: str | None = None, schema: str | None = None) -> None:
+    """清理数据库结构与表列表缓存。
+
+    Args:
+        database_id: 可选数据库标识；为空时清空全部缓存。
+        schema: 可选 schema 名称；为空且指定数据库时清空该数据库下全部 schema。
+    """
+    if database_id is None:
+        _SCHEMA_CACHE.clear()
+        _TABLE_LIST_CACHE.clear()
+        return
+
+    if schema is None:
+        schema_keys = [key for key in _SCHEMA_CACHE if key[0] == database_id]
+        table_keys = [key for key in _TABLE_LIST_CACHE if key[0] == database_id]
+        for key in schema_keys:
+            _SCHEMA_CACHE.pop(key, None)
+        for key in table_keys:
+            _TABLE_LIST_CACHE.pop(key, None)
+        return
+
+    cache_key = _database_cache_key(database_id, schema)
+    _SCHEMA_CACHE.pop(cache_key, None)
+    _TABLE_LIST_CACHE.pop(cache_key, None)
 
 
 def _mask_url(url: Any) -> str | None:
@@ -314,12 +369,18 @@ async def list_connections() -> dict[str, Any]:
     }
 
 
-async def get_schema(database_id: str, *, schema: str | None = None) -> dict[str, Any]:
+async def get_schema(
+    database_id: str,
+    *,
+    schema: str | None = None,
+    force_refresh: bool = False,
+) -> dict[str, Any]:
     """读取指定数据库的表结构与外键关系。
 
     Args:
         database_id: 数据库标识。
         schema: 可选的 schema 名称。
+        force_refresh: 是否跳过缓存并强制重新反射数据库结构。
 
     Returns:
         dict[str, Any]: 表、列、主键和外键关系描述。
@@ -328,6 +389,12 @@ async def get_schema(database_id: str, *, schema: str | None = None) -> dict[str
         DatabaseNotFoundError: 当数据库标识不存在时抛出。
     """
     _assert_database_id(database_id)
+    cache_key = _database_cache_key(database_id, schema)
+    if force_refresh:
+        clear_database_metadata_cache(database_id, schema=schema)
+    elif cache_key in _SCHEMA_CACHE:
+        return _clone_cache_payload(_SCHEMA_CACHE[cache_key])
+
     async with get_session() as session:
         connection = await session.connection()
 
@@ -370,25 +437,45 @@ async def get_schema(database_id: str, *, schema: str | None = None) -> dict[str
                 "relationships": relationships,
             }
 
-        return await connection.run_sync(inspect_schema)
+        payload = await connection.run_sync(inspect_schema)
+
+    _SCHEMA_CACHE[cache_key] = payload
+    return _clone_cache_payload(payload)
 
 
-async def list_tables(database_id: str, *, schema: str | None = None) -> dict[str, Any]:
+async def list_tables(
+    database_id: str,
+    *,
+    schema: str | None = None,
+    force_refresh: bool = False,
+) -> dict[str, Any]:
     """列出指定数据库中可见数据表的摘要。
 
     Args:
         database_id: 数据库标识。
         schema: 可选的 schema 名称。
+        force_refresh: 是否跳过缓存并强制重新读取表目录。
 
     Returns:
         dict[str, Any]: 数据表摘要列表。
     """
+    cache_key = _database_cache_key(database_id, schema)
+    if force_refresh:
+        clear_database_metadata_cache(database_id, schema=schema)
+    elif cache_key in _TABLE_LIST_CACHE:
+        return _clone_cache_payload(_TABLE_LIST_CACHE[cache_key])
+
     schema_payload = await get_schema(database_id, schema=schema)
     table_payloads = []
     async with get_session() as session:
         connection = await session.connection()
         for table_info in schema_payload["tables"]:
-            table = await _reflect_table(connection, table_info["name"], schema=schema)
+            table = await _reflect_table(
+                connection,
+                table_info["name"],
+                schema=schema,
+                validate_exists=False,
+            )
             row_count = None
             try:
                 row_count = await session.scalar(select(func.count()).select_from(table))
@@ -405,21 +492,30 @@ async def list_tables(database_id: str, *, schema: str | None = None) -> dict[st
                     "editable": bool(table_info["primary_key"]),
                 }
             )
-    return {
+    payload = {
         "database_id": database_id,
         "schema": schema,
         "items": table_payloads,
         "total": len(table_payloads),
     }
+    _TABLE_LIST_CACHE[cache_key] = payload
+    return _clone_cache_payload(payload)
 
 
-async def _reflect_table(connection, table_name: str, *, schema: str | None = None) -> Table:
+async def _reflect_table(
+    connection,
+    table_name: str,
+    *,
+    schema: str | None = None,
+    validate_exists: bool = True,
+) -> Table:
     """反射读取单个数据表定义。
 
     Args:
         connection: 当前数据库连接。
         table_name: 表名。
         schema: 可选的 schema 名称。
+        validate_exists: 是否在反射前校验目标表仍然存在。
 
     Returns:
         Table: SQLAlchemy 反射得到的数据表对象。
@@ -428,9 +524,10 @@ async def _reflect_table(connection, table_name: str, *, schema: str | None = No
         TableNotFoundError: 当目标表不存在时抛出。
     """
     def reflect(sync_connection):
-        inspector = inspect(sync_connection)
-        if table_name not in inspector.get_table_names(schema=schema):
-            raise TableNotFoundError(table_name)
+        if validate_exists:
+            inspector = inspect(sync_connection)
+            if table_name not in inspector.get_table_names(schema=schema):
+                raise TableNotFoundError(table_name)
         metadata = MetaData()
         return Table(table_name, metadata, schema=schema, autoload_with=sync_connection)
 

@@ -35,6 +35,12 @@
 命令调用只指本机器人系统中的命令，不是 Windows/Linux shell 命令。
 如果用户要执行的能力不在命令列表中，仍可进入 complex_task 或 chat，但不要编造命令。
 
+## Skill 边界
+
+Skill 是项目内可复用能力说明，例如文档转图片、OCR、二维码、Markdown 转图片、图片生成等。
+当用户请求图片理解、文档处理、二维码、长 Markdown 渲染、图片生成等能力时，应结合 Skill 目录判断是否进入 vision_file、command 或 complex_task。
+Skill 本身不是业务写命令；如果有对应命令，应通过命令执行；如果只是理解或生成回复，可以由 Agent 直接组织。
+
 ## 本地上下文查询规则
 
 - 用户询问自己的账号身份、角色、权限、是否为管理员、是否为教师、是否为学生时，应进入 command，requires_command=true，requires_rag=false。
@@ -58,6 +64,10 @@
 {{ helper.ai_overview() }}
 {% endfor %}
 {% endif %}
+
+## 当前可用 Skill
+
+{{ skill_catalog }}
 
 ## 最近会话
 

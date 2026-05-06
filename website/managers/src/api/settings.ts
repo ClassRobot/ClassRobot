@@ -1,5 +1,6 @@
 import client from './client'
 import type {
+  RuntimeConfigResponse,
   SettingsResponse,
   SettingsPatchPayload,
   SettingsSaveResult,
@@ -7,6 +8,10 @@ import type {
 
 export function fetchSettings(): Promise<SettingsResponse> {
   return client.get('/settings').then((r) => r.data)
+}
+
+export function fetchRuntimeConfig(): Promise<RuntimeConfigResponse> {
+  return client.get('/settings/runtime-config').then((r) => r.data)
 }
 
 export function patchSettings(payload: SettingsPatchPayload): Promise<SettingsSaveResult> {

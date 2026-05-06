@@ -46,6 +46,8 @@ class AgentPlan(BaseModel):
     """当前是否可以直接执行命令。"""
     candidate_commands: list[str] = []
     """可能要调用的项目命令名称。"""
+    candidate_skills: list[str] = []
+    """可能要使用的项目内 Skill 名称。"""
     steps: list[str] = []
     """面向系统的执行步骤。"""
     confirmation_question: str | None = None

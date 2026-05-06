@@ -6,7 +6,7 @@ from uuid import uuid4
 from nonebot.adapters import Bot, Event
 from nonebot_plugin_alconna import SerializeFailed, SupportAdapter, SupportScope, get_target
 
-from utils.models import GroupBind, User, UserBind
+from utils.models import Group, GroupBind, User, UserBind
 from utils.session import BaseSession
 
 ALCONNA_TARGET_FALLBACK_ERRORS = (SerializeFailed, NotImplementedError, ValueError)
@@ -25,17 +25,34 @@ async def resolve_bound_group_id(platform: BaseSession) -> int | None:
     if not platform.is_group or platform.channel_id is None:
         return None
 
-    condition = (GroupBind.platform_id == platform.platform) & (GroupBind.channel_id == platform.channel_id)
-    if platform.guild_id:
-        condition &= GroupBind.guild_id == platform.guild_id
-
-    if group_bind := await GroupBind.filter(condition).first():
-        return group_bind.group_id
+    if group := await GroupBind.get_group(platform.platform, platform.channel_id, platform.guild_id):
+        return group.id
     return None
+
+
+async def resolve_or_create_bound_group(platform: BaseSession, event: Event) -> Group | None:
+    """把平台群会话解析成系统群组；若不存在则自动创建绑定。"""
+
+    if not platform.is_group or platform.channel_id is None:
+        return None
+
+    if group := await GroupBind.get_group(platform.platform, platform.channel_id, platform.guild_id):
+        return group
+
+    creator = await _resolve_or_create_bound_user(platform, event)
+    group = await Group.create_group(_resolve_group_name(platform, event), creator)
+    await GroupBind.bind_group(platform.platform_name, platform.platform, platform.channel_id, platform.guild_id, group)
+    return group
 
 
 async def resolve_or_create_private_user(platform: BaseSession, event: Event) -> User:
     """把私聊会话解析成系统内 `User`，必要时自动创建。"""
+
+    return await _resolve_or_create_bound_user(platform, event)
+
+
+async def _resolve_or_create_bound_user(platform: BaseSession, event: Event) -> User:
+    """把平台用户解析成系统用户；若不存在则自动创建并绑定。"""
 
     if user := await UserBind.get_user(platform.platform, platform.user_id):
         return user
@@ -106,6 +123,27 @@ def _resolve_sender_name(event: Event) -> str:
         if value:
             return _normalize_text(value)
     return event.get_user_id()
+
+
+def _resolve_group_name(platform: BaseSession, event: Event) -> str:
+    """推断自动创建系统群组时使用的展示名称。"""
+
+    for field in ("group_name", "channel_name", "guild_name", "name", "title"):
+        value = getattr(event, field, None)
+        if value:
+            return _normalize_text(value)
+
+    platform_name = _normalize_text(platform.platform_name)
+    if platform_name and platform.channel_id:
+        if platform.guild_id:
+            return f"{platform_name} {platform.guild_id}/{platform.channel_id}"
+        return f"{platform_name} {platform.channel_id}"
+
+    if platform.guild_id and platform.channel_id:
+        return f"group_{platform.guild_id}_{platform.channel_id}"
+    if platform.channel_id:
+        return f"group_{platform.channel_id}"
+    return "group"
 
 
 def _normalize_text(value: object) -> str:

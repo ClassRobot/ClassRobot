@@ -47,13 +47,23 @@
 
 ### 群消息
 
-群消息不是直接按平台 `group_id` 归档，而是先解析为系统内 `Group.id`。只有当平台群或频道已经绑定到系统 `Group` 后，才会进行群消息归档。
+群消息不是直接按平台 `group_id` 归档，而是先解析为系统内 `Group.id`。当前实现已经改为“自动建档”模式：
+
+- 如果平台群已经绑定到系统 `Group`，则直接使用现有 `Group.id` 归档。
+- 如果平台群首次出现且尚未绑定，消息采集层会自动创建最小 `Group` 与 `GroupBind`，随后再写入聊天记录。
+- 如果后续该平台群被正式创建为班级群，班级创建流程会复用原先自动创建的系统 `Group`，而不是新建第二个系统群。
 
 这条规则的意义是：
 
 - 平台 ID 只是接入层事实。
 - `Group.id` 才是项目内部稳定主键。
 - 后续班级、组织、权限、Agent 工具都应该围绕系统主键工作。
+
+因此要特别注意：
+
+- `storage/groups/{...}` 里的目录名应理解为系统 `Group.id`。
+- 不要把平台群号、频道号直接当作群消息事实层或 Agent 工具层的业务主键。
+- 管理端、检索命令、后续索引层都应基于系统 `Group.id` 读取同一份群空间数据。
 
 ### 私聊消息
 
@@ -132,10 +142,11 @@ flowchart TD
     D -->|"明确不兼容"| F["event_fallback"]
     E --> G{"会话类型"}
     F --> G
-    G -->|"群聊/频道"| H["resolve_bound_group_id()"]
+    G -->|"群聊/频道"| H["resolve_or_create_bound_group()"]
     G -->|"私聊"| I["resolve_or_create_private_user()"]
     H -->|"命中系统 Group"| J["collect + inbound"]
-    H -->|"未绑定系统 Group"| K["跳过归档"]
+    H -->|"未绑定系统 Group"| K["自动创建 Group / GroupBind"]
+    K --> J
     I --> L["chat + inbound"]
     J --> M["storage/groups/{system_group_id}/chat/messages.db"]
     L --> N["storage/users/{user_id}/chat/messages.db"]
@@ -155,6 +166,12 @@ flowchart TD
 `检索群聊记录` 只检索当前系统群空间中的 `collect` 消息，用于回顾群环境中用户说过什么。命令自身也会被采集，但命令处理器会排除当前消息 ID，避免“检索命令本身”混入结果。
 
 Agent 如果需要回顾系统群上下文，应优先调用 `检索群聊记录`。如果需要读取完整聊天流，可以读取对应空间的 `messages.db`，并明确过滤 `record_kind`、`direction` 和 `actor_role`。
+
+如果你在排查“为什么数据库里明明有群消息，但 `bot_group` / `bot_group_bind` 为空”，当前正确预期应为：
+
+- 首条被采集的群消息就会触发系统群自动建档。
+- 之后同一平台群的消息、命令输入、机器人回复都会落到同一个系统 `Group.id` 空间。
+- 正式建班时会复用这条系统群记录，不会额外再分裂出第二套群聊天空间。
 
 ## 代码入口
 

@@ -30,44 +30,76 @@
       </div>
 
       <!-- Nav groups -->
-      <nav class="flex-1 overflow-y-auto px-2 py-3" :class="collapsed ? 'space-y-3' : 'space-y-1.5'">
-        <div v-for="(group, groupIndex) in navGroups" :key="group.label">
-          <p
+      <nav class="flex-1 overflow-y-auto px-2 py-3" :class="collapsed ? 'space-y-3' : 'space-y-2'">
+        <div
+          v-for="(group, groupIndex) in navGroups"
+          :key="group.label"
+          class="relative"
+          :class="hasActiveGroupItem(group) ? 'z-10' : 'z-0'"
+        >
+          <button
             v-if="!collapsed"
-            class="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant/60 dark:text-zinc-500"
+            type="button"
+            class="relative z-0 flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left transition-colors"
+            :class="groupToggleClass(group)"
+            :aria-expanded="isGroupExpanded(group.label)"
+            :title="`${isGroupExpanded(group.label) ? '折叠' : '展开'} ${group.label}`"
+            @click="toggleGroup(group.label)"
           >
-            {{ group.label }}
-          </p>
+            <span class="truncate text-[11px] font-bold uppercase tracking-[0.18em]">
+              {{ group.label }}
+            </span>
+            <span class="ml-auto flex items-center gap-2">
+              <span
+                v-if="hasActiveGroupItem(group)"
+                class="h-1.5 w-1.5 rounded-full bg-primary/70 dark:bg-primary-dark/80"
+              />
+              <ChevronDown
+                :size="14"
+                class="shrink-0 transition-transform duration-200"
+                :class="isGroupExpanded(group.label) ? 'rotate-0' : '-rotate-90'"
+              />
+            </span>
+          </button>
           <div
             v-else-if="groupIndex > 0"
             class="mx-3 mb-1 h-px bg-outline-variant/70 dark:bg-zinc-800"
           />
-          <router-link
-            v-for="item in group.items"
-            :key="item.to"
-            :to="item.to"
-            class="group relative flex items-center overflow-hidden rounded-xl text-[13px] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 dark:focus-visible:ring-primary-dark/25"
-            :class="navItemClass(item.to)"
-            :aria-label="collapsed ? item.label : undefined"
-            :title="collapsed ? item.label : undefined"
+          <div
+            class="transition-[max-height,opacity,margin] duration-200 ease-out"
+            :class="collapsed || isGroupExpanded(group.label)
+              ? 'max-h-[320px] overflow-visible opacity-100'
+              : 'max-h-0 overflow-hidden opacity-0'"
           >
-            <span
-              class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors"
-              :class="navIconClass(item.to)"
-            >
-              <component :is="item.icon" :size="18" />
-            </span>
-            <span
-              class="overflow-hidden whitespace-nowrap transition-[max-width,opacity,transform,margin] duration-200 ease-out"
-              :class="collapsed ? 'max-w-0 opacity-0 -translate-x-1' : 'ml-3 max-w-[144px] opacity-100 translate-x-0'"
-            >
-              {{ item.label }}
-            </span>
-            <span
-              v-if="isActive(item.to) && !collapsed"
-              class="ml-auto mr-1 h-2 w-2 rounded-full bg-primary/70 dark:bg-primary-dark/80"
-            />
-          </router-link>
+            <div :class="collapsed ? 'space-y-1 py-1' : 'space-y-1.5 px-0 py-1 pb-4'">
+              <router-link
+                v-for="item in group.items"
+                :key="item.to"
+                :to="item.to"
+                class="group relative flex items-center overflow-hidden rounded-xl text-[13px] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 dark:focus-visible:ring-primary-dark/25"
+                :class="navItemClass(item.to)"
+                :aria-label="collapsed ? item.label : undefined"
+                :title="collapsed ? item.label : undefined"
+              >
+                <span
+                  class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors"
+                  :class="navIconClass(item.to)"
+                >
+                  <component :is="item.icon" :size="18" />
+                </span>
+                <span
+                  class="overflow-hidden whitespace-nowrap transition-[max-width,opacity,transform,margin] duration-200 ease-out"
+                  :class="collapsed ? 'max-w-0 opacity-0 -translate-x-1' : 'ml-3 max-w-[144px] opacity-100 translate-x-0'"
+                >
+                  {{ item.label }}
+                </span>
+                <span
+                  v-if="isActive(item.to) && !collapsed"
+                  class="ml-auto mr-1 h-2 w-2 rounded-full bg-primary/70 dark:bg-primary-dark/80"
+                />
+              </router-link>
+            </div>
+          </div>
         </div>
       </nav>
 
@@ -90,7 +122,7 @@
       :style="mainStyle"
     >
       <!-- Top bar -->
-      <header class="flex h-topbar shrink-0 items-center gap-4 border-b border-outline-variant/80 bg-white/72 px-6 backdrop-blur-xl dark:border-zinc-800 dark:bg-zinc-900">
+      <header class="relative z-20 flex h-topbar shrink-0 items-center gap-4 overflow-visible border-b border-outline-variant/80 bg-white/72 px-6 backdrop-blur-xl dark:border-zinc-800 dark:bg-zinc-900">
         <div class="flex min-w-0 flex-1 items-center gap-4">
           <div class="flex shrink-0 items-center gap-3">
             <button
@@ -108,7 +140,7 @@
             </span>
           </div>
 
-          <div class="relative hidden min-w-0 max-w-[360px] flex-1 md:block">
+          <div class="relative z-30 hidden min-w-0 max-w-[340px] flex-1 md:block xl:max-w-[360px]">
             <Search :size="15" class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant/80 dark:text-zinc-500" />
             <input
               v-model="globalSearch"
@@ -123,32 +155,39 @@
 
             <div
               v-if="searchPanelVisible"
-              class="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-40 overflow-hidden rounded-xl border border-outline-variant/80 bg-white/96 shadow-[0_20px_50px_rgba(15,23,42,0.12)] backdrop-blur-xl dark:border-zinc-800 dark:bg-zinc-900/96 dark:shadow-[0_20px_50px_rgba(0,0,0,0.45)]"
+              class="absolute left-0 right-0 top-[calc(100%+0.625rem)] z-40 overflow-hidden rounded-2xl border border-[#d8d1c6] bg-[#fcfbf7] shadow-[0_20px_44px_rgba(15,23,42,0.12)] dark:border-zinc-800 dark:bg-[#121316] dark:shadow-[0_20px_50px_rgba(0,0,0,0.45)]"
             >
-              <div class="border-b border-outline-variant/70 px-3 py-2 text-[11px] text-on-surface-variant dark:border-zinc-800 dark:text-zinc-500">
-                {{ normalizedSearchQuery ? `搜索结果 ${Math.min(filteredSearchItems.length, 8)} 项` : '快捷入口' }}
+              <div class="flex items-center justify-between border-b border-outline-variant/70 px-3 py-2 text-[11px] text-on-surface-variant dark:border-zinc-800 dark:text-zinc-500">
+                <span>搜索结果 {{ Math.min(filteredSearchItems.length, 5) }} 项</span>
+                <span>回车打开首项</span>
               </div>
 
-              <div v-if="filteredSearchItems.length" class="max-h-[360px] overflow-y-auto p-2">
+              <div v-if="searchResultItems.length" class="max-h-[280px] overflow-y-auto p-2">
                 <button
-                  v-for="item in filteredSearchItems.slice(0, 8)"
+                  v-for="item in searchResultItems"
                   :key="item.to"
                   type="button"
-                  class="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors hover:bg-surface-container dark:hover:bg-zinc-800/80"
+                  class="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-[#f1ede4] dark:hover:bg-zinc-800/80"
                   @mousedown.prevent="navigateToSearchItem(item)"
                 >
-                  <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary dark:bg-primary-dark/15 dark:text-primary-dark">
+                  <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary dark:bg-primary-dark/15 dark:text-primary-dark">
                     <component :is="item.icon" :size="16" />
                   </span>
                   <span class="min-w-0 flex-1">
                     <span class="block truncate text-body-sm font-medium text-on-surface dark:text-zinc-100">{{ item.label }}</span>
                     <span class="block truncate text-[11px] text-on-surface-variant dark:text-zinc-500">{{ item.group }} · {{ item.to }}</span>
                   </span>
+                  <span
+                    v-if="route.path === item.to"
+                    class="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary dark:bg-primary-dark/15 dark:text-primary-dark"
+                  >
+                    当前页
+                  </span>
                 </button>
               </div>
 
               <div v-else class="px-3 py-4 text-body-sm text-on-surface-variant dark:text-zinc-500">
-                没有匹配的功能入口
+                没有匹配的页面或功能入口
               </div>
             </div>
           </div>
@@ -194,7 +233,7 @@ import { useTheme } from '@/composables/useTheme'
 import {
   LayoutDashboard, Users, Activity, Settings, Puzzle,
   FileText, Cpu, Bot, Plug, Terminal, Database, FileCode2, FolderKanban,
-  MessageSquare, History, RefreshCw, LogOut, PanelLeftClose, PanelLeftOpen, Search,
+  MessageSquare, History, RefreshCw, LogOut, PanelLeftClose, PanelLeftOpen, Search, ChevronDown,
 } from 'lucide-vue-next'
 import ThemeModeSwitch from '@/components/ThemeModeSwitch.vue'
 
@@ -203,9 +242,11 @@ const router = useRouter()
 const auth = useAuthStore()
 const { isDark } = useTheme()
 const SIDEBAR_COLLAPSE_KEY = 'classrobot-manager-sidebar-collapsed'
+const NAV_GROUP_STATE_KEY = 'classrobot-manager-nav-groups'
 const expandedSidebarWidth = '240px'
 const collapsedSidebarWidth = '84px'
 const collapsed = ref(false)
+const groupOpenState = ref<Record<string, boolean>>({})
 const globalSearch = ref('')
 const searchPanelOpen = ref(false)
 
@@ -230,6 +271,7 @@ function navItemClass(to: string) {
       : 'text-on-surface-variant hover:bg-surface-container/90 hover:text-on-surface')
   return [
     collapsedLayout ? 'mx-auto h-11 w-11 justify-center px-0' : 'px-2.5 py-1.5',
+    active ? 'z-10' : 'z-0',
     themeClass,
   ]
 }
@@ -241,6 +283,27 @@ function navIconClass(to: string) {
       : 'bg-[radial-gradient(circle_at_top,rgba(40,100,90,0.2),rgba(40,100,90,0.08))] text-primary shadow-[inset_0_0_0_1px_rgba(40,100,90,0.1)]'
   }
   return isDark.value ? 'text-zinc-400 group-hover:text-zinc-100' : 'text-current'
+}
+
+function hasActiveGroupItem(group: NavGroup) {
+  return group.items.some((item) => isActive(item.to))
+}
+
+function isGroupExpanded(label: string) {
+  return groupOpenState.value[label] !== false
+}
+
+function toggleGroup(label: string) {
+  groupOpenState.value = {
+    ...groupOpenState.value,
+    [label]: !isGroupExpanded(label),
+  }
+}
+
+function groupToggleClass(group: NavGroup) {
+  return hasActiveGroupItem(group)
+    ? 'bg-primary/6 text-on-surface dark:bg-primary-dark/10 dark:text-zinc-100'
+    : 'text-on-surface-variant/70 hover:bg-surface-container/85 hover:text-on-surface dark:text-zinc-500 dark:hover:bg-zinc-800/70 dark:hover:text-zinc-200'
 }
 
 function toggleSidebar() {
@@ -334,7 +397,8 @@ const filteredSearchItems = computed(() => {
   return searchItems.value.filter((item) => item.searchText.includes(query))
 })
 
-const searchPanelVisible = computed(() => searchPanelOpen.value)
+const searchResultItems = computed(() => filteredSearchItems.value.slice(0, 5))
+const searchPanelVisible = computed(() => searchPanelOpen.value && normalizedSearchQuery.value.length > 0)
 
 function openSearchPanel() {
   searchPanelOpen.value = true
@@ -366,11 +430,31 @@ async function openFirstSearchResult() {
 
 onMounted(() => {
   collapsed.value = localStorage.getItem(SIDEBAR_COLLAPSE_KEY) === 'true'
+  try {
+    const storedGroups = localStorage.getItem(NAV_GROUP_STATE_KEY)
+    if (!storedGroups) return
+    const parsed = JSON.parse(storedGroups)
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return
+    groupOpenState.value = Object.fromEntries(
+      Object.entries(parsed).filter((entry): entry is [string, boolean] => typeof entry[1] === 'boolean'),
+    )
+  }
+  catch {
+    groupOpenState.value = {}
+  }
 })
 
 watch(collapsed, (value) => {
   localStorage.setItem(SIDEBAR_COLLAPSE_KEY, String(value))
 })
+
+watch(
+  groupOpenState,
+  (value) => {
+    localStorage.setItem(NAV_GROUP_STATE_KEY, JSON.stringify(value))
+  },
+  { deep: true },
+)
 
 watch(
   () => route.fullPath,

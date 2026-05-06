@@ -18,8 +18,21 @@ from utils.encrypt.config import EncryptConfig
 from .service import mask_secret
 
 
+driver = get_driver()
 ENV_PATH = project_root / ".env"
 VALID_COS_SCHEMES = {"http", "https"}
+SENSITIVE_ENV_KEYWORDS = (
+    "TOKEN",
+    "SECRET",
+    "PASSWORD",
+    "PASSWD",
+    "PWD",
+    "KEY",
+    "SALT",
+    "AUTH",
+    "CREDENTIAL",
+    "PRIVATE",
+)
 
 # 前端设置请求按分组字段提交；这里负责映射到真实的 .env 键名。
 FIELD_TO_ENV = {
@@ -60,7 +73,7 @@ def _encrypt_config() -> EncryptConfig:
     Returns:
         EncryptConfig: 解析后的加密配置。
     """
-    return EncryptConfig.parse_obj(get_driver().config.dict())
+    return EncryptConfig.parse_obj(driver.config.dict())
 
 
 def _model_configs_payload(mask: bool = True) -> list[dict[str, Any]]:
@@ -87,7 +100,7 @@ def get_settings() -> dict[str, Any]:
     Returns:
         dict[str, Any]: 按页面分组组织的设置数据。
     """
-    driver_config = get_driver().config
+    driver_config = driver.config
     encrypt_config = _encrypt_config()
     return {
         "base": {
@@ -118,6 +131,185 @@ def get_settings() -> dict[str, Any]:
             "llm_timeout": llm_config.llm_timeout,
             "llm_configs": _model_configs_payload(),
         },
+    }
+
+
+def _config_group_label(key: str) -> str:
+    """根据配置项名称生成管理端展示分组。
+
+    Args:
+        key: 配置项名称。
+
+    Returns:
+        str: 用于前端分组展示的中文标签。
+    """
+    upper_key = key.upper()
+    if upper_key in {
+        "HOST",
+        "PORT",
+        "DRIVER",
+        "ENV",
+        "DEBUG",
+        "LOG_LEVEL",
+        "API_TIMEOUT",
+        "SUPERUSERS",
+        "NICKNAME",
+        "COMMAND_START",
+        "COMMAND_SEP",
+        "SESSION_EXPIRE_TIMEOUT",
+        "ACCESS_TOKEN",
+        "SECRET",
+    }:
+        return "NoneBot 核心"
+    if upper_key.startswith(("COS_", "BUCKET", "REGION", "SCHEME")):
+        return "对象存储"
+    if upper_key.startswith(("RAGFLOW", "GOOGLE", "LLM", "MODEL")) or "OPENAI" in upper_key:
+        return "AI 服务"
+    if upper_key.startswith(("CACHE", "REDIS")):
+        return "缓存"
+    if upper_key.startswith(("DB", "DATABASE", "SQLALCHEMY")):
+        return "数据库"
+    if any(keyword in upper_key for keyword in ("TOKEN", "SECRET", "PASSWORD", "SALT", "AUTH")):
+        return "安全"
+    if upper_key.startswith(("HOST", "PORT", "ENV", "LOG", "GLOBAL", "WSL", "TEACHER")):
+        return "运行"
+    if upper_key.startswith(("PLUGIN", "ADAPTER", "BOT")):
+        return "插件与适配器"
+    return "其他"
+
+
+def _is_sensitive_config_key(key: str) -> bool:
+    """判断配置项名称是否可能包含敏感信息。
+
+    Args:
+        key: 配置项名称。
+
+    Returns:
+        bool: 命中敏感关键词时返回 ``True``。
+    """
+    upper_key = key.upper()
+    return any(keyword in upper_key for keyword in SENSITIVE_ENV_KEYWORDS)
+
+
+def _dump_driver_config() -> dict[str, Any]:
+    """导出当前 NoneBot driver 的完整配置字典。
+
+    Returns:
+        dict[str, Any]: ``driver.config`` 的字典表示。
+    """
+    config = driver.config
+    if hasattr(config, "model_dump"):
+        return config.model_dump()  # type: ignore[return-value]
+    if hasattr(config, "dict"):
+        return config.dict()  # type: ignore[return-value]
+    return dict(config)
+
+
+def _normalize_config_value(value: Any) -> Any:
+    """把运行配置值转换成可序列化的数据结构。
+
+    Args:
+        value: 原始配置值。
+
+    Returns:
+        Any: 适合写入 JSON 响应的标准化值。
+    """
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    if isinstance(value, Path):
+        return str(value)
+    if isinstance(value, bytes):
+        return value.decode("utf-8", errors="replace")
+    if isinstance(value, dict):
+        return {str(key): _normalize_config_value(item) for key, item in value.items()}
+    if isinstance(value, set):
+        return [_normalize_config_value(item) for item in sorted(value, key=str)]
+    if isinstance(value, (list, tuple)):
+        return [_normalize_config_value(item) for item in value]
+    if hasattr(value, "model_dump"):
+        return _normalize_config_value(value.model_dump())
+    if hasattr(value, "dict"):
+        return _normalize_config_value(value.dict())
+    return str(value)
+
+
+def _stringify_snapshot_value(value: Any) -> str:
+    """把标准化后的配置值渲染成前端展示与复制文本。
+
+    Returns:
+        str: 文本形式的配置值。
+    """
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (dict, list)):
+        return json.dumps(value, ensure_ascii=False, indent=2)
+    return str(value)
+
+
+def _config_value_type(value: Any) -> str:
+    """返回配置值的人类可读类型标签。
+
+    Args:
+        value: 原始配置值。
+
+    Returns:
+        str: 前端展示用的值类型名称。
+    """
+    if value is None:
+        return "null"
+    if isinstance(value, bool):
+        return "bool"
+    if isinstance(value, int) and not isinstance(value, bool):
+        return "int"
+    if isinstance(value, float):
+        return "float"
+    if isinstance(value, Path):
+        return "path"
+    if isinstance(value, bytes):
+        return "bytes"
+    if isinstance(value, str):
+        return "string"
+    if isinstance(value, dict):
+        return "object"
+    if isinstance(value, (list, tuple, set)):
+        return "list"
+    return type(value).__name__
+
+
+def get_runtime_config_snapshot() -> dict[str, Any]:
+    """读取当前 ``driver.config`` 的完整运行配置快照。
+
+    Returns:
+        dict[str, Any]: 包含 driver 元信息与配置项列表的只读快照。
+    """
+    config_data = _dump_driver_config()
+    items: list[dict[str, Any]] = []
+    for key, raw_value in config_data.items():
+        normalized_value = _normalize_config_value(raw_value)
+        value_text = _stringify_snapshot_value(normalized_value)
+        sensitive = _is_sensitive_config_key(key)
+        items.append(
+            {
+                "key": key,
+                "value": value_text,
+                "masked_value": mask_secret(value_text) if sensitive else value_text,
+                "sensitive": sensitive,
+                "group": _config_group_label(key),
+                "value_type": _config_value_type(raw_value),
+                "empty": value_text == "",
+            }
+        )
+
+    return {
+        "driver": driver.__class__.__name__,
+        "config_model": driver.config.__class__.__name__,
+        "env_path": str(ENV_PATH),
+        "env_exists": ENV_PATH.exists(),
+        "total": len(items),
+        "sensitive_total": sum(1 for item in items if item["sensitive"]),
+        "items": items,
     }
 
 

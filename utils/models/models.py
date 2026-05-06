@@ -6,7 +6,7 @@ from typing import List, Literal, Optional
 from utils.tools import get_file_suffix
 from utils.config import data_dir, task_dir
 from nonebot_plugin_orm import Model, get_session
-from sqlalchemy.orm import Mapped, relationship, mapped_column
+from sqlalchemy.orm import Mapped, relationship, mapped_column, selectinload
 from sqlalchemy import (
     JSON,
     Text,
@@ -501,6 +501,34 @@ class GroupBind(FilterModel, Model):
     """群组信息,一个平台绑定一个群组"""
 
     @classmethod
+    async def get_bind(
+        cls,
+        platform_id: str,
+        channel_id: str,
+        guild_id: str | None = None,
+    ) -> Optional["GroupBind"]:
+        """获取平台群组绑定信息。"""
+
+        condition = (GroupBind.platform_id == platform_id) & (GroupBind.channel_id == channel_id)
+        if guild_id:
+            condition &= GroupBind.guild_id == guild_id
+        return await cls.filter(condition).first()
+
+    @classmethod
+    async def get_group(
+        cls,
+        platform_id: str,
+        channel_id: str,
+        guild_id: str | None = None,
+    ) -> Optional[Group]:
+        """获取平台群绑定的系统群组，并顺手清理失效绑定。"""
+
+        if bind := await cls.get_bind(platform_id, channel_id, guild_id):
+            if group := await Group.filter(id=bind.group_id).first():
+                return group
+            await bind.delete()
+
+    @classmethod
     async def bind_group(
         cls, platform_name: str, platform_id: str, channel_id: str, guild_id: Optional[str], group: Group
     ) -> "GroupBind":
@@ -515,14 +543,63 @@ class GroupBind(FilterModel, Model):
         返回:
             GroupBind: 绑定信息
         """
-        group_bind = await cls(
-            platform_id=platform_id,
-            channel_id=channel_id,
-            name=platform_name,
-            guild_id=guild_id,
-            group_id=group.id,
-        ).create()
-        return group_bind
+        async with get_session() as session:
+            condition = (GroupBind.platform_id == platform_id) & (GroupBind.channel_id == channel_id)
+            if guild_id:
+                condition &= GroupBind.guild_id == guild_id
+
+            if bind := await session.scalar(select(GroupBind).where(condition)):
+                old_group_id = bind.group_id
+                values = {
+                    "name": platform_name or bind.name,
+                    "guild_id": guild_id,
+                }
+
+                if old_group_id != group.id:
+                    old_group = await session.scalar(
+                        select(Group)
+                        .where(Group.id == old_group_id)
+                        .options(
+                            selectinload(Group.classes),
+                            selectinload(Group.settings),
+                        )
+                    )
+                    if old_group is not None and getattr(old_group, "classes", None) is not None:
+                        raise ValueError("当前平台群已绑定其他班级群组，不能重复绑定。")
+                    values["group_id"] = group.id
+
+                await session.execute(update(GroupBind).where(GroupBind.id == bind.id).values(**values))
+                await session.commit()
+                await session.refresh(bind)
+
+                if old_group_id != group.id:
+                    old_group = await session.scalar(
+                        select(Group)
+                        .where(Group.id == old_group_id)
+                        .options(
+                            selectinload(Group.classes),
+                            selectinload(Group.settings),
+                        )
+                    )
+                    remaining_bind = await session.scalar(select(GroupBind).where(GroupBind.group_id == old_group_id))
+                    if old_group is not None and getattr(old_group, "classes", None) is None and remaining_bind is None:
+                        await session.delete(old_group)
+                        if old_group.settings is not None:
+                            await session.delete(old_group.settings)
+                        await session.commit()
+                return bind
+
+            bind = cls(
+                platform_id=platform_id,
+                channel_id=channel_id,
+                name=platform_name or None,
+                guild_id=guild_id,
+                group_id=group.id,
+            )
+            session.add(bind)
+            await session.commit()
+            await session.refresh(bind)
+            return bind
 
 
 class Files(FilterModel, Model):
@@ -914,7 +991,7 @@ class Classes(FilterModel, Model):
         if guild_id:
             condition &= GroupBind.guild_id == guild_id
         if group_bind := await GroupBind.filter(condition).first():
-            return group_bind.group.classes
+            return getattr(group_bind.group, "classes", None)
 
     @classmethod
     async def create_classes(
@@ -944,7 +1021,11 @@ class Classes(FilterModel, Model):
         返回:
             Classes: 班级信息
         """
-        group = await Group.create_group(name, user)  # 创建群组
+        group = await GroupBind.get_group(platform_id, channel_id, guild_id)
+        if group is None:
+            group = await Group.create_group(name, user)  # 创建群组
+        else:
+            group = await group.update(name=name, creator_id=user.id)
         await GroupBind.bind_group(platform_name, platform_id, channel_id, guild_id, group)  # 绑定群组
         return await cls(
             name=name,

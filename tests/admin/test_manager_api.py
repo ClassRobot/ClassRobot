@@ -73,6 +73,15 @@ def isolate_manager_command_state(monkeypatch, tmp_path):
     command_state._STATE_LOADED = False  # noqa: SLF001
 
 
+@pytest.fixture(autouse=True)
+def isolate_manager_database_cache():
+    from src.routers.managers import databases
+
+    databases.clear_database_metadata_cache()
+    yield
+    databases.clear_database_metadata_cache()
+
+
 @pytest.fixture
 def manager_storage(monkeypatch, tmp_path):
     from src.routers.managers import chat_history as manager_chat_history
@@ -269,6 +278,43 @@ async def test_manager_settings_update_writes_temp_env(manager_client, manager_a
     assert saved_env["CACHE_HOST"] == "127.0.0.1"
     assert saved_env["CACHE_PORT"] == "6380"
     assert env_path.with_suffix(".env.manager-backup").exists()
+
+
+async def test_manager_runtime_config_snapshot_reads_driver_config(manager_client, manager_auth_headers, monkeypatch):
+    from src.routers.managers import settings_store
+
+    class DummyConfig:
+        def dict(self):
+            return {
+                "global_proxy": "http://127.0.0.1:7890",
+                "cos_secret_key": "secret-value-for-copy",
+                "empty_value": "",
+                "llm_configs": [{"name": "primary", "model": "gpt-test"}],
+            }
+
+    class DummyDriver:
+        config = DummyConfig()
+
+    monkeypatch.setattr(settings_store, "driver", DummyDriver())
+
+    response = await manager_client.get("/api/v1/manager/settings/runtime-config", headers=manager_auth_headers)
+    assert response.status_code == 200, response.text
+
+    payload = response.json()
+    assert payload["driver"] == "DummyDriver"
+    assert payload["config_model"] == "DummyConfig"
+    assert payload["total"] == 4
+    assert payload["sensitive_total"] == 1
+
+    items = {item["key"]: item for item in payload["items"]}
+    assert items["global_proxy"]["value"] == "http://127.0.0.1:7890"
+    assert items["global_proxy"]["value_type"] == "string"
+    assert items["cos_secret_key"]["value"] == "secret-value-for-copy"
+    assert items["cos_secret_key"]["masked_value"] != "secret-value-for-copy"
+    assert items["cos_secret_key"]["sensitive"] is True
+    assert items["empty_value"]["empty"] is True
+    assert '"primary"' in items["llm_configs"]["value"]
+    assert items["llm_configs"]["value_type"] == "list"
 
 
 async def test_manager_models_validate_payload(manager_client, manager_auth_headers, monkeypatch, tmp_path):
@@ -690,6 +736,66 @@ async def test_manager_database_update_errors_are_structured(
     )
     assert missing_row.status_code == 400
     assert missing_row.json()["detail"]["code"] == "row_not_found"
+
+
+async def test_manager_database_catalog_refresh_bypasses_cached_table_list(
+    manager_client,
+    manager_auth_headers,
+    manager_database_tables,
+):
+    from nonebot_plugin_orm import get_session
+
+    suffix = uuid4().hex[:8]
+    table_name = f"manager_db_refresh_{suffix}"
+    metadata = MetaData()
+    late_table = Table(
+        table_name,
+        metadata,
+        Column("id", Integer, primary_key=True),
+        Column("name", String(64), nullable=False),
+    )
+
+    initial_tables = await manager_client.get("/api/v1/manager/databases/primary/tables", headers=manager_auth_headers)
+    assert initial_tables.status_code == 200, initial_tables.text
+    initial_names = {item["name"] for item in initial_tables.json()["items"]}
+    assert table_name not in initial_names
+
+    async with get_session() as session:
+        bind = session.bind
+        assert bind is not None
+
+    try:
+        async with bind.begin() as connection:
+            await connection.run_sync(metadata.create_all)
+            await connection.execute(late_table.insert(), {"id": 1, "name": "late-table"})
+
+        cached_schema = await manager_client.get("/api/v1/manager/databases/primary/schema", headers=manager_auth_headers)
+        assert cached_schema.status_code == 200, cached_schema.text
+        cached_names = {item["name"] for item in cached_schema.json()["tables"]}
+        assert table_name not in cached_names
+
+        cached_tables = await manager_client.get("/api/v1/manager/databases/primary/tables", headers=manager_auth_headers)
+        assert cached_tables.status_code == 200, cached_tables.text
+        cached_table_names = {item["name"] for item in cached_tables.json()["items"]}
+        assert table_name not in cached_table_names
+
+        refreshed_schema = await manager_client.get(
+            "/api/v1/manager/databases/primary/schema",
+            headers=manager_auth_headers,
+            params={"refresh": True},
+        )
+        assert refreshed_schema.status_code == 200, refreshed_schema.text
+        refreshed_names = {item["name"] for item in refreshed_schema.json()["tables"]}
+        assert table_name in refreshed_names
+
+        refreshed_tables = await manager_client.get("/api/v1/manager/databases/primary/tables", headers=manager_auth_headers)
+        assert refreshed_tables.status_code == 200, refreshed_tables.text
+        refreshed_table = next(item for item in refreshed_tables.json()["items"] if item["name"] == table_name)
+        assert refreshed_table["row_count"] == 1
+        assert refreshed_table["primary_key"] == ["id"]
+    finally:
+        async with bind.begin() as connection:
+            await connection.run_sync(metadata.drop_all)
 
 
 async def test_manager_user_delete_removes_user_and_binds(manager_client, manager_auth_headers, manager_user_orm):

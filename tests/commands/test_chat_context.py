@@ -441,9 +441,12 @@ async def test_group_assistant_messages_are_recorded_under_group_chat_space(
     assert record.plain_text == "群聊里的机器人回复"
 
 
-async def test_unbound_platform_group_message_is_not_persisted(app, onebot, monkeypatch, tmp_path, loaded_plugins):
+async def test_unbound_platform_group_message_creates_system_group_and_is_persisted(
+    app, onebot, monkeypatch, tmp_path, loaded_plugins
+):
     import src.plugins.chat_context as chat_context_module
     import src.plugins.chat_context.collector as collector_module
+    from utils.models import GroupBind, UserBind
     from utils.storage import ChatHistoryStore, StorageManager
 
     manager = StorageManager(tmp_path / "storage")
@@ -457,5 +460,51 @@ async def test_unbound_platform_group_message_is_not_persisted(app, onebot, monk
         )
         ctx.receive_event(bot, event)
 
-    group_dirs = [item for item in manager.root.joinpath("groups").iterdir() if item.is_dir()]
-    assert group_dirs == []
+    group_bind = await GroupBind.get_bind("onebot11.qq_client", "99999", None)
+    assert group_bind is not None
+    assert await UserBind.get_user("onebot11.qq_client", "15001") is not None
+
+    records = await store.search_group_messages(group_bind.group_id, "未绑定群", limit=10, search_window=50)
+    assert len(records) == 1
+    assert records[0].plain_text == "这是一个未绑定群的消息"
+    assert manager.group_space(group_bind.group_id).chat_dir.joinpath("messages.db").is_file()
+    assert not manager.root.joinpath("groups", "99999").exists()
+
+
+async def test_create_classes_reuses_auto_created_platform_group(app, onebot, monkeypatch, tmp_path, loaded_plugins):
+    import src.plugins.chat_context as chat_context_module
+    import src.plugins.chat_context.collector as collector_module
+    from utils.models import Classes, Group, GroupBind, User
+    from utils.storage import ChatHistoryStore, StorageManager
+
+    manager = StorageManager(tmp_path / "storage")
+    store = ChatHistoryStore(manager)
+    monkeypatch.setattr(collector_module, "chat_history_store", store)
+
+    async with app.test_matcher(chat_context_module.message_history_collector) as ctx:
+        bot = onebot.create_bot(ctx)
+        event = onebot.group_event("先创建一个系统群", user_id=15011, group_id=99111, nickname="张三", message_id=11)
+        ctx.receive_event(bot, event)
+
+    original_bind = await GroupBind.get_bind("onebot11.qq_client", "99111", None)
+    assert original_bind is not None
+    original_group_id = original_bind.group_id
+
+    owner = await User.create_user(nickname="建班教师", username="chat_context_group_owner")
+    classes = await Classes.create_classes(
+        "复用系统群班级",
+        platform_name="QQ",
+        platform_id="onebot11.qq_client",
+        channel_id="99111",
+        guild_id=None,
+        user=owner,
+    )
+
+    binds = await GroupBind.filter(platform_id="onebot11.qq_client", channel_id="99111").all()
+    assert len(binds) == 1
+    assert binds[0].group_id == classes.group_id == original_group_id
+
+    group = await Group.filter(id=original_group_id).first()
+    assert group is not None
+    assert group.name == "复用系统群班级"
+    assert group.creator_id == owner.id

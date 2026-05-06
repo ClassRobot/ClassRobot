@@ -5,6 +5,7 @@
 ## 当前能力
 
 - 采集系统群环境中的用户消息。
+- 群聊首次出现时，自动创建系统 `Group` / `GroupBind` 绑定。
 - 采集私聊中的用户消息。
 - 采集用户直接调用命令时发出的命令消息。
 - 记录机器人通过 `Bot.send` 发出的回复，包括普通命令回复和 AutoGPT 阶段性回复。
@@ -71,10 +72,11 @@ flowchart TD
     D -->|"明确不兼容"| F["event_fallback"]
     E --> G{"会话类型"}
     F --> G
-    G -->|"群聊/频道"| H["resolve_bound_group_id()"]
+    G -->|"群聊/频道"| H["resolve_or_create_bound_group()"]
     G -->|"私聊"| P["resolve_or_create_private_user()"]
     H -->|"已绑定系统 Group"| J["collect + inbound"]
-    H -->|"未绑定"| K["跳过归档"]
+    H -->|"未绑定"| K["自动创建 Group / GroupBind"]
+    K --> J
     P --> L["chat + inbound"]
     B --> R["install_outbound_message_recorder(bot)"]
     R --> M["Bot.send 回复"]

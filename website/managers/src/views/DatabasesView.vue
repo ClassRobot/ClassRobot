@@ -10,7 +10,7 @@
       <button
         type="button"
         class="flex h-9 items-center gap-2 rounded-lg border border-outline-variant bg-surface-container-lowest px-3 font-body-sm text-body-sm text-on-surface transition-colors hover:bg-surface-container dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
-        @click="reload"
+        @click="reload()"
       >
         <RefreshCw :size="15" :class="{ 'animate-spin': loading }" />
         刷新
@@ -61,13 +61,25 @@
     <div class="grid min-h-0 flex-1 grid-cols-1 gap-4 xl:grid-cols-[320px_minmax(0,1fr)]">
       <aside class="flex min-h-0 flex-col overflow-hidden rounded-xl border border-outline-variant bg-surface-container-lowest dark:border-zinc-800 dark:bg-zinc-900">
         <div class="border-b border-outline-variant bg-surface-bright p-3 dark:border-zinc-800 dark:bg-zinc-900/50">
-          <div class="relative">
-            <Search :size="15" class="absolute left-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant dark:text-zinc-500" />
-            <input
-              v-model="tableSearch"
-              class="h-9 w-full rounded-lg border border-outline-variant bg-surface-container pl-8 pr-3 text-body-sm text-on-surface outline-none transition-colors focus:border-primary dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:focus:border-primary-dark"
-              placeholder="搜索表名..."
-            />
+          <div class="flex items-center gap-2">
+            <div class="relative min-w-0 flex-1">
+              <Search :size="15" class="absolute left-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant dark:text-zinc-500" />
+              <input
+                v-model="tableSearch"
+                class="h-9 w-full rounded-lg border border-outline-variant bg-surface-container pl-8 pr-3 text-body-sm text-on-surface outline-none transition-colors focus:border-primary dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:focus:border-primary-dark"
+                placeholder="搜索表名..."
+              />
+            </div>
+            <button
+              type="button"
+              class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-outline-variant bg-surface-container text-on-surface-variant transition-colors hover:border-primary/35 hover:text-primary disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:border-primary-dark/35 dark:hover:text-primary-dark"
+              :disabled="loading || catalogRefreshing"
+              title="刷新表目录"
+              aria-label="刷新表目录"
+              @click="refreshTableCatalog"
+            >
+              <RefreshCw :size="15" :class="{ 'animate-spin': catalogRefreshing }" />
+            </button>
           </div>
         </div>
         <div class="flex-1 overflow-y-auto p-2">
@@ -393,6 +405,7 @@ const editErrorDetail = ref<DatabaseMutationErrorDetail | null>(null)
 const tableSearch = ref('')
 const activeTab = ref<'data' | 'schema'>('data')
 const loading = ref(false)
+const catalogRefreshing = ref(false)
 const saving = ref(false)
 const page = ref(1)
 const pageSize = 20
@@ -414,16 +427,19 @@ const messageClass = computed(() => messageTone.value === 'success'
   ? 'border-primary/20 bg-primary/10 text-primary dark:border-primary-dark/20 dark:bg-primary-dark/10 dark:text-primary-dark'
   : 'border-error/20 bg-error-container/60 text-error dark:border-red-800/50 dark:bg-red-900/30 dark:text-red-300')
 
-onMounted(() => reload())
+onMounted(() => reload(false))
 
-async function reload() {
+async function reload(forceRefresh = true) {
   loading.value = true
   message.value = ''
   try {
+    const currentDatabaseId = selectedDatabaseId.value
     const databasePayload = await fetchDatabases()
     connections.value = databasePayload.items
-    selectedDatabaseId.value = connections.value[0]?.id || 'primary'
-    await loadDatabase()
+    selectedDatabaseId.value = connections.value.some((item) => item.id === currentDatabaseId)
+      ? currentDatabaseId
+      : connections.value[0]?.id || 'primary'
+    await loadDatabase(forceRefresh)
   } catch (error) {
     showMessage(errorMessage(error, '数据库信息加载失败'), 'error')
   } finally {
@@ -431,18 +447,34 @@ async function reload() {
   }
 }
 
-async function loadDatabase() {
-  const [schemaResult, tableResult] = await Promise.all([
-    fetchDatabaseSchema(selectedDatabaseId.value),
-    fetchDatabaseTables(selectedDatabaseId.value),
-  ])
+async function loadDatabase(forceRefresh = false) {
+  const schemaResult = await fetchDatabaseSchema(selectedDatabaseId.value, undefined, forceRefresh)
+  const tableResult = await fetchDatabaseTables(selectedDatabaseId.value)
   schemaPayload.value = schemaResult
   tables.value = tableResult.items
   if (!selectedTableName.value || !tables.value.some((table) => table.name === selectedTableName.value)) {
     selectedTableName.value = tables.value[0]?.name || ''
+    selectedRow.value = null
+    resetEditErrors()
   }
   if (selectedTableName.value) {
     await loadRows()
+    return
+  }
+  rows.value = null
+}
+
+async function refreshTableCatalog() {
+  if (!selectedDatabaseId.value || catalogRefreshing.value) return
+  catalogRefreshing.value = true
+  message.value = ''
+  try {
+    await loadDatabase(true)
+    showMessage('表目录已刷新', 'success')
+  } catch (error) {
+    showMessage(errorMessage(error, '表目录刷新失败'), 'error')
+  } finally {
+    catalogRefreshing.value = false
   }
 }
 
