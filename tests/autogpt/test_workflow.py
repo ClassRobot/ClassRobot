@@ -2,10 +2,11 @@ import pytest
 
 
 def test_build_turn_result_promotes_tasks_to_explicit_workflow(loaded_plugins):
-    from utils.helper import Helper, Helpers
-    from src.plugins.autogpt.schema import AgentPlan, AutoTask, AutoTaskList, IntentRoute, Param
-    from src.plugins.autogpt.command_tools import CommandToolCatalog
     from src.plugins.autogpt.workflow import build_turn_result
+    from src.plugins.autogpt.command_tools import CommandToolCatalog
+    from src.plugins.autogpt.schema import Param, AutoTask, AgentPlan, IntentRoute, AutoTaskList
+
+    from utils.helper import Helper, Helpers
 
     helpers = Helpers()
     helpers.append(Helper(command="添加班级", description="添加一个班级"))
@@ -45,10 +46,11 @@ def test_build_turn_result_promotes_tasks_to_explicit_workflow(loaded_plugins):
 
 
 def test_build_turn_result_marks_high_risk_workflow_for_approval(loaded_plugins):
-    from utils.helper import Helper, Helpers
-    from src.plugins.autogpt.schema import AgentPlan, AutoTask, AutoTaskList, IntentRoute, Param
-    from src.plugins.autogpt.command_tools import CommandToolCatalog
     from src.plugins.autogpt.workflow import build_turn_result
+    from src.plugins.autogpt.command_tools import CommandToolCatalog
+    from src.plugins.autogpt.schema import Param, AutoTask, AgentPlan, IntentRoute, AutoTaskList
+
+    from utils.helper import Helper, Helpers
 
     helpers = Helpers()
     helpers.append(Helper(command="创建通知", description="创建班级通知"))
@@ -84,10 +86,11 @@ def test_build_turn_result_marks_high_risk_workflow_for_approval(loaded_plugins)
 
 
 def test_build_turn_result_marks_missing_info_approval(loaded_plugins):
-    from utils.helper import Helpers
-    from src.plugins.autogpt.schema import AgentPlan, AutoTaskList, IntentRoute
-    from src.plugins.autogpt.command_tools import CommandToolCatalog
     from src.plugins.autogpt.workflow import build_turn_result
+    from src.plugins.autogpt.command_tools import CommandToolCatalog
+    from src.plugins.autogpt.schema import AgentPlan, IntentRoute, AutoTaskList
+
+    from utils.helper import Helpers
 
     result = build_turn_result(
         trace_id="autogpt-missing-info",
@@ -114,8 +117,8 @@ def test_build_turn_result_marks_missing_info_approval(loaded_plugins):
 
 @pytest.mark.asyncio
 async def test_workflow_executor_runs_steps_in_order(loaded_plugins):
-    from src.plugins.autogpt.schema import AgentWorkflow, CommandObservation, Param, WorkflowStep
     from src.plugins.autogpt.workflow import WorkflowExecutor
+    from src.plugins.autogpt.schema import Param, WorkflowStep, AgentWorkflow, CommandObservation
 
     calls: list[str] = []
 
@@ -169,8 +172,8 @@ async def test_workflow_executor_runs_steps_in_order(loaded_plugins):
 
 @pytest.mark.asyncio
 async def test_workflow_executor_surfaces_unsent_service_outputs(loaded_plugins):
-    from src.plugins.autogpt.schema import AgentWorkflow, CommandObservation, WorkflowStep
     from src.plugins.autogpt.workflow import WorkflowExecutor
+    from src.plugins.autogpt.schema import WorkflowStep, AgentWorkflow, CommandObservation
 
     async def dispatch(task):
         return [
@@ -198,10 +201,45 @@ async def test_workflow_executor_surfaces_unsent_service_outputs(loaded_plugins)
     assert execution.user_message == "用户信息：你是教师用户。"
 
 
+def test_format_execution_status_counts_completed_commands(loaded_plugins):
+    from src.plugins.autogpt.workflow import format_execution_status
+    from src.plugins.autogpt.schema import WorkflowStep, AgentWorkflow, WorkflowExecutionResult
+
+    workflow = AgentWorkflow(
+        trace_id="autogpt-status",
+        kind="command_sequence",
+        steps=[
+            WorkflowStep(step_id="step-1", title="执行命令：我的信息", command="我的信息", status="completed"),
+            WorkflowStep(step_id="step-2", title="执行命令：查询班级", command="查询班级", status="completed"),
+        ],
+    )
+
+    assert format_execution_status(WorkflowExecutionResult(workflow=workflow)) == "已运行 2 条命令。"
+
+
+def test_format_execution_status_marks_failed_command(loaded_plugins):
+    from src.plugins.autogpt.workflow import format_execution_status
+    from src.plugins.autogpt.schema import WorkflowStep, AgentWorkflow, WorkflowExecutionResult
+
+    workflow = AgentWorkflow(
+        trace_id="autogpt-status-failed",
+        kind="command_sequence",
+        steps=[
+            WorkflowStep(step_id="step-1", title="执行命令：我的信息", command="我的信息", status="completed"),
+            WorkflowStep(step_id="step-2", title="执行命令：查询班级", command="查询班级", status="failed"),
+        ],
+    )
+
+    assert (
+        format_execution_status(WorkflowExecutionResult(workflow=workflow))
+        == "已运行 2 条命令，其中 `查询班级` 没有完成。"
+    )
+
+
 @pytest.mark.asyncio
 async def test_workflow_executor_stops_on_failed_step(loaded_plugins):
-    from src.plugins.autogpt.schema import AgentWorkflow, CommandObservation, Param, WorkflowStep
     from src.plugins.autogpt.workflow import WorkflowExecutor
+    from src.plugins.autogpt.schema import Param, WorkflowStep, AgentWorkflow, CommandObservation
 
     calls: list[str] = []
 

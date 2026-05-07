@@ -5,11 +5,12 @@ from enum import StrEnum
 from dataclasses import dataclass
 from pathlib import Path
 
-from nonebot.adapters import Bot as BaseBot
+from nonebot.adapters import Bot as BaseBot, Event
 from nonebot.adapters.onebot.v11 import Bot as V11Bot
 from nonebot_plugin_alconna import File, Image, Other
 
 from src.commands import CommandExecutionContext, CommandResult, command_executor
+from src.plugins.chat_context.resolvers import resolve_bound_group_id, resolve_or_create_bound_group
 from utils.config import global_config
 from utils.models import User
 from utils.session import BaseSession
@@ -35,12 +36,61 @@ class UploadPayload:
     path: Path | None = None
 
 
-def get_event_file_space(platform: BaseSession, user: User) -> FileSpace:
+async def resolve_platform_group_space_id(platform: BaseSession, event: Event | None = None) -> int:
+    """把平台群聊上下文解析为系统群组主键。
+
+    Args:
+        platform: 当前消息会话信息。
+        event: 可选的原始事件；当群组尚未绑定时用于自动创建系统群组。
+
+    Returns:
+        int: 系统内 `Group.id`。
+
+    Raises:
+        FileSpaceError: 当前会话不是有效群聊，或无法解析系统群组。
+    """
+
+    if not platform.is_group or platform.channel_id is None:
+        raise FileSpaceError("当前上下文不是可用的群组会话。")
+
+    if group_id := await resolve_bound_group_id(platform):
+        return group_id
+
+    if event is None:
+        raise FileSpaceError("当前群聊尚未绑定系统群组，无法定位群文件空间。")
+
+    group = await resolve_or_create_bound_group(platform, event)
+    if group is None:
+        raise FileSpaceError("当前群聊尚未绑定系统群组，无法定位群文件空间。")
+    return group.id
+
+
+def resolve_context_group_space_id(context: CommandExecutionContext) -> str | None:
+    """从统一命令上下文中读取已知的系统群组主键。
+
+    Args:
+        context: 统一命令执行上下文。
+
+    Returns:
+        str | None: 已携带的系统群组主键；缺失时返回 ``None``。
+    """
+
+    for key in ("group_id", "system_group_id"):
+        value = context.extra.get(key)
+        if value not in (None, ""):
+            return str(value)
+    if context.channel_id and not context.platform:
+        return str(context.channel_id)
+    return None
+
+
+async def get_event_file_space(platform: BaseSession, user: User, event: Event | None = None) -> FileSpace:
     """根据当前事件解析文件空间。
 
     Args:
         platform: 当前消息会话信息。
         user: 当前系统用户。
+        event: 可选的原始事件；群聊首次入库时用于自动创建系统群组。
 
     Returns:
         FileSpace: 私聊返回个人空间，群聊返回群空间。
@@ -50,13 +100,15 @@ def get_event_file_space(platform: BaseSession, user: User) -> FileSpace:
     """
 
     if platform.is_group:
-        if platform.channel_id is None:
-            raise FileSpaceError("当前群组缺少可用的群 ID。")
-        return storage_manager.group_space(platform.channel_id)
+        group_id = await resolve_platform_group_space_id(platform, event)
+        return storage_manager.group_space(group_id)
     return storage_manager.user_space(user.id)
 
 
-def get_context_file_space(context: CommandExecutionContext, manager: StorageManager | None = None) -> FileSpace:
+async def get_context_file_space(
+    context: CommandExecutionContext,
+    manager: StorageManager | None = None,
+) -> FileSpace:
     """根据统一命令上下文解析文件空间。
 
     Args:
@@ -71,8 +123,23 @@ def get_context_file_space(context: CommandExecutionContext, manager: StorageMan
     """
 
     manager = manager or storage_manager
+    if group_id := resolve_context_group_space_id(context):
+        return manager.group_space(group_id)
     if context.channel_id:
-        return manager.group_space(context.channel_id)
+        if not context.platform:
+            raise FileSpaceError("当前群聊缺少平台标识，无法定位系统群组。")
+        group_id = await resolve_bound_group_id(
+            BaseSession(
+                user_id=str(context.user_id or ""),
+                platform=context.platform,
+                platform_name=str(context.extra.get("platform_name") or ""),
+                channel_id=context.channel_id,
+                guild_id=context.guild_id,
+            )
+        )
+        if group_id is None:
+            raise FileSpaceError("当前群聊尚未绑定系统群组，无法定位群文件空间。")
+        return manager.group_space(group_id)
     if context.user_id is None:
         raise FileSpaceError("缺少用户 ID，无法定位个人文件空间。")
     return manager.user_space(context.user_id)
@@ -247,7 +314,7 @@ async def execute_pwd(params: dict, context: CommandExecutionContext) -> Command
     """执行 service 风格的 ``pwd`` 命令。"""
 
     try:
-        space = get_context_file_space(context)
+        space = await get_context_file_space(context)
         return _ok(space.pwd(), path=space.pwd())
     except FileSpaceError as error:
         return CommandResult.fail(handle_space_error(error))
@@ -258,7 +325,7 @@ async def execute_ls(params: dict, context: CommandExecutionContext) -> CommandR
     """执行 service 风格的 ``ls`` 命令。"""
 
     try:
-        space = get_context_file_space(context)
+        space = await get_context_file_space(context)
         display, entries = space.list_entries(_param(params, "path", "路径"))
         output = format_entries(f"文件列表 | {display}", entries)
         return _ok(output, path=display, entries=[entry.__dict__ for entry in entries])
@@ -271,7 +338,7 @@ async def execute_cd(params: dict, context: CommandExecutionContext) -> CommandR
     """执行 service 风格的 ``cd`` 命令。"""
 
     try:
-        space = get_context_file_space(context)
+        space = await get_context_file_space(context)
         path = space.cd(_param(params, "path", "路径"))
         return _ok(f"当前路径：{path}", path=path)
     except FileSpaceError as error:
@@ -283,7 +350,7 @@ async def execute_mkdir(params: dict, context: CommandExecutionContext) -> Comma
     """执行 service 风格的 ``mkdir`` 命令。"""
 
     try:
-        space = get_context_file_space(context)
+        space = await get_context_file_space(context)
         path = space.mkdir(_param(params, "path", "路径", default=""))
         return _ok(f"目录创建成功：{path}", path=path)
     except FileSpaceError as error:
@@ -295,7 +362,7 @@ async def execute_touch(params: dict, context: CommandExecutionContext) -> Comma
     """执行 service 风格的 ``touch`` 命令。"""
 
     try:
-        space = get_context_file_space(context)
+        space = await get_context_file_space(context)
         path = space.touch(_param(params, "path", "路径", default=""))
         return _ok(f"文件创建成功：{path}", path=path)
     except FileSpaceError as error:
@@ -313,7 +380,7 @@ async def execute_rm(params: dict, context: CommandExecutionContext) -> CommandR
         paths, recursive, force = parse_rm_args(values)
         if not paths:
             return CommandResult.fail("请提供要删除的路径。")
-        space = get_context_file_space(context)
+        space = await get_context_file_space(context)
         deleted = [result for path in paths if (result := space.remove(path, recursive=recursive, force=force))]
         return _ok("删除完成：" + ("、".join(deleted) if deleted else "没有匹配文件"), paths=deleted)
     except FileSpaceError as error:
@@ -325,7 +392,7 @@ async def execute_cat(params: dict, context: CommandExecutionContext) -> Command
     """执行 service 风格的 ``cat`` 命令。"""
 
     try:
-        space = get_context_file_space(context)
+        space = await get_context_file_space(context)
         path, text, truncated = space.read_text(_param(params, "path", "路径", default=""))
         suffix = "\n...内容较长，已截断" if truncated else ""
         return _ok(f"{path}\n{text}{suffix}", path=path, truncated=truncated)

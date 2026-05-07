@@ -1,4 +1,4 @@
-from nonebot.adapters import Bot
+from nonebot.adapters import Bot, Event
 from nonebot_plugin_alconna import AlconnaMatcher
 
 from utils import Emoji
@@ -16,19 +16,28 @@ from .services import (
 
 
 @pwd_cmd.handle()
-async def _(matcher: AlconnaMatcher, platform: EventSession, user: UserOrCreatedDepends):
+async def _(event: Event, matcher: AlconnaMatcher, platform: EventSession, user: UserOrCreatedDepends):
     """查看当前文件空间路径。"""
 
-    space = get_event_file_space(platform, user)
+    try:
+        space = await get_event_file_space(platform, user, event)
+    except Exception as error:
+        await matcher.finish(Emoji.error + handle_space_error(error))
     await matcher.finish(space.pwd())
 
 
 @ls_cmd.handle()
-async def _(matcher: AlconnaMatcher, platform: EventSession, user: UserOrCreatedDepends, path: str | None = None):
+async def _(
+    event: Event,
+    matcher: AlconnaMatcher,
+    platform: EventSession,
+    user: UserOrCreatedDepends,
+    path: str | None = None,
+):
     """列出当前文件空间中的文件和目录。"""
 
-    space = get_event_file_space(platform, user)
     try:
+        space = await get_event_file_space(platform, user, event)
         display, entries = space.list_entries(path)
     except Exception as error:
         await matcher.finish(Emoji.error + handle_space_error(error))
@@ -36,11 +45,17 @@ async def _(matcher: AlconnaMatcher, platform: EventSession, user: UserOrCreated
 
 
 @cd_cmd.handle()
-async def _(matcher: AlconnaMatcher, platform: EventSession, user: UserOrCreatedDepends, path: str | None = None):
+async def _(
+    event: Event,
+    matcher: AlconnaMatcher,
+    platform: EventSession,
+    user: UserOrCreatedDepends,
+    path: str | None = None,
+):
     """切换当前文件空间目录。"""
 
-    space = get_event_file_space(platform, user)
     try:
+        space = await get_event_file_space(platform, user, event)
         current_path = space.cd(path)
     except Exception as error:
         await matcher.finish(Emoji.error + handle_space_error(error))
@@ -48,11 +63,11 @@ async def _(matcher: AlconnaMatcher, platform: EventSession, user: UserOrCreated
 
 
 @mkdir_cmd.handle()
-async def _(matcher: AlconnaMatcher, platform: EventSession, user: UserOrCreatedDepends, path: str):
+async def _(event: Event, matcher: AlconnaMatcher, platform: EventSession, user: UserOrCreatedDepends, path: str):
     """创建目录。"""
 
-    space = get_event_file_space(platform, user)
     try:
+        space = await get_event_file_space(platform, user, event)
         created_path = space.mkdir(path)
     except Exception as error:
         await matcher.finish(Emoji.error + handle_space_error(error))
@@ -60,11 +75,11 @@ async def _(matcher: AlconnaMatcher, platform: EventSession, user: UserOrCreated
 
 
 @touch_cmd.handle()
-async def _(matcher: AlconnaMatcher, platform: EventSession, user: UserOrCreatedDepends, path: str):
+async def _(event: Event, matcher: AlconnaMatcher, platform: EventSession, user: UserOrCreatedDepends, path: str):
     """创建空文件。"""
 
-    space = get_event_file_space(platform, user)
     try:
+        space = await get_event_file_space(platform, user, event)
         created_path = space.touch(path)
     except Exception as error:
         await matcher.finish(Emoji.error + handle_space_error(error))
@@ -72,15 +87,21 @@ async def _(matcher: AlconnaMatcher, platform: EventSession, user: UserOrCreated
 
 
 @rm_cmd.handle()
-async def _(matcher: AlconnaMatcher, platform: EventSession, user: UserOrCreatedDepends, rm_args: tuple[str, ...]):
+async def _(
+    event: Event,
+    matcher: AlconnaMatcher,
+    platform: EventSession,
+    user: UserOrCreatedDepends,
+    rm_args: tuple[str, ...],
+):
     """删除文件或目录。"""
 
     paths, recursive, force = parse_rm_args(rm_args)
     if not paths:
         await matcher.finish(Emoji.error + "请提供要删除的路径。")
 
-    space = get_event_file_space(platform, user)
     try:
+        space = await get_event_file_space(platform, user, event)
         deleted = [result for path in paths if (result := space.remove(path, recursive=recursive, force=force))]
     except Exception as error:
         await matcher.finish(Emoji.error + handle_space_error(error))
@@ -91,11 +112,11 @@ async def _(matcher: AlconnaMatcher, platform: EventSession, user: UserOrCreated
 
 
 @cat_cmd.handle()
-async def _(matcher: AlconnaMatcher, platform: EventSession, user: UserOrCreatedDepends, path: str):
+async def _(event: Event, matcher: AlconnaMatcher, platform: EventSession, user: UserOrCreatedDepends, path: str):
     """查看文本文件内容。"""
 
-    space = get_event_file_space(platform, user)
     try:
+        space = await get_event_file_space(platform, user, event)
         display, text, truncated = space.read_text(path)
     except Exception as error:
         await matcher.finish(Emoji.error + handle_space_error(error))
@@ -106,6 +127,7 @@ async def _(matcher: AlconnaMatcher, platform: EventSession, user: UserOrCreated
 @upload_file_cmd.handle()
 async def _(
     bot: Bot,
+    event: Event,
     matcher: AlconnaMatcher,
     platform: EventSession,
     user: UserOrCreatedDepends,
@@ -113,13 +135,13 @@ async def _(
 ):
     """保存消息附件到当前文件空间。"""
 
-    space = get_event_file_space(platform, user)
     target_dir, payloads = await collect_upload_payloads(bot, upload_items)
     if not payloads:
         await matcher.finish(Emoji.error + "没有识别到可保存的文件附件。")
 
-    saved_paths: list[str] = []
     try:
+        space = await get_event_file_space(platform, user, event)
+        saved_paths: list[str] = []
         for payload in payloads:
             if payload.path is not None:
                 saved_paths.append(space.save_path(payload.name, payload.path, target_dir))

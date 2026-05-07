@@ -439,6 +439,21 @@ class StorageManager:
         for dirname in ("public", "groups", "users"):
             (self.root / dirname).mkdir(parents=True, exist_ok=True)
 
+    def space_root(self, kind: FileSpaceKind, owner_id: str | int) -> Path:
+        """返回指定文件空间的根目录路径。
+
+        Args:
+            kind: 文件空间类型，``user`` 或 ``group``。
+            owner_id: 用户或群组唯一 ID。
+
+        Returns:
+            Path: 对应文件空间的根目录。
+        """
+
+        sanitized_owner_id = sanitize_owner_id(owner_id)
+        dirname = "users" if kind == "user" else "groups"
+        return self.root / dirname / sanitized_owner_id
+
     def user_space(self, user_id: str | int) -> FileSpace:
         """返回个人文件空间。"""
 
@@ -448,6 +463,47 @@ class StorageManager:
         """返回群组文件空间。"""
 
         return FileSpace("group", group_id, self.root)
+
+    def delete_space(self, kind: FileSpaceKind, owner_id: str | int) -> bool:
+        """删除整个文件空间。
+
+        该操作会直接清理 ``space_root`` 下的全部内容，包括 ``chat``、
+        ``home`` 以及后续扩展出来的任意子目录。方法本身是幂等的：
+        目标不存在时返回 ``False``，不会抛错。
+
+        Args:
+            kind: 文件空间类型，``user`` 或 ``group``。
+            owner_id: 用户或群组唯一 ID。
+
+        Returns:
+            bool: 实际删除了目录时返回 ``True``，目录原本不存在时返回 ``False``。
+
+        Raises:
+            FileSpaceError: 计算出的删除目标不在 storage 根目录下。
+            OSError: 文件系统删除失败时抛出原始异常。
+        """
+
+        space_root = self.space_root(kind, owner_id)
+        if not space_root.exists():
+            return False
+
+        root_path = self.root.resolve(strict=False)
+        target_path = space_root.resolve(strict=False)
+        if not target_path.is_relative_to(root_path):
+            raise FileSpaceError("文件空间删除目标超出了 storage 根目录。")
+
+        shutil.rmtree(target_path)
+        return True
+
+    def delete_user_space(self, user_id: str | int) -> bool:
+        """删除指定用户的整个文件空间。"""
+
+        return self.delete_space("user", user_id)
+
+    def delete_group_space(self, group_id: str | int) -> bool:
+        """删除指定群组的整个文件空间。"""
+
+        return self.delete_space("group", group_id)
 
 
 def sanitize_owner_id(value: str | int) -> str:

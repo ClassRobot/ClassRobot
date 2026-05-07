@@ -28,7 +28,9 @@
 ## 路径规则
 
 - 私聊默认进入 `users/{系统用户ID}/home`。
-- 群聊默认进入 `groups/{群ID}/home`。
+- 群聊默认进入 `groups/{系统群组ID}/home`。
+- 这里的 `系统群组ID` 指项目数据库中的 `Group.id`，不是平台原始群号、频道号，也不是 `GroupBind.id`。
+- 平台 `channel_id` / `group_id` 只用于先解析或创建系统群组绑定，不能直接作为群文件空间目录名。
 - 命令中展示的 `~` 就是当前文件空间的 `home` 目录。
 - `chat` 用于存放会话记录和当前工作目录状态，普通文件命令不能访问它。
 - 所有路径都会经过安全解析，`../`、绝对路径、Windows 盘符等都不能越过当前 `home`。
@@ -56,8 +58,9 @@
 flowchart TD
     A["用户命令 / Agent 调用"] --> B["file_manager commands"]
     B --> C["file_manager services"]
-    C --> D["utils.storage FileSpace"]
-    D --> E["{data_dir}/storage/users/{user_id}/home"]
-    D --> F["{data_dir}/storage/groups/{group_id}/home"]
-    D --> G["chat/cwd.json"]
+    C --> D["解析系统用户 / 系统群组主键"]
+    D --> E["utils.storage FileSpace"]
+    E --> F["{data_dir}/storage/users/{user_id}/home"]
+    E --> G["{data_dir}/storage/groups/{system_group_id}/home"]
+    E --> H["chat/cwd.json"]
 ```

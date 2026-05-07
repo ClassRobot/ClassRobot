@@ -353,15 +353,7 @@ async def _(
         if not await is_yes.wait(timeout=60):
             await matcher.finish("❌️已取消操作！！")
 
-    # 先删除班级主体，再清理其挂载的群组与设置，
-    # 避免直接删除 Group 时 SQLAlchemy 先把 classes.group_id 置空，
-    # 从而触发 `bot_classes.group_id` 的非空约束错误。
-    group = classes.group
-    settings = group.settings
-    await classes.filter(id=classes.id).delete()
-    await group.filter(id=group.id).delete()
-    if settings is not None:
-        await settings.filter(id=settings.id).delete()
+    await classes.delete_related_group()
     await matcher.finish("✅️删除班级成功！！")
 
 

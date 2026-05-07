@@ -17,6 +17,7 @@ from utils.llm.util import uni_message_to_contents
 
 from .checkpoints import WorkflowCheckpointStore
 from .exception import SessionLockError
+from .harness import AutoGPTHarness
 from .knowledge import AgentRuntimeContext
 from .pipeline import MessageProcessingPipeline
 from .runs import WorkflowRunStore
@@ -165,11 +166,11 @@ class ChatSession:
                 logger.info(f'AutoGPT trace "{self.last_trace_id}" resumed pending workflow for user {self.user_id}')
                 return pending_result
             pipeline = MessageProcessingPipeline(
-                helpers=self.helpers,
-                messages=self.messages,
-                trace_id=self.last_trace_id,
-                progress_reporter=progress_reporter,
-                runtime_context=runtime_context,
+                harness=self.build_harness(
+                    trace_id=self.last_trace_id,
+                    progress_reporter=progress_reporter,
+                    runtime_context=runtime_context,
+                )
             )
             turn_result = await pipeline.process(message)
             self.messages = pipeline.messages
@@ -182,6 +183,23 @@ class ChatSession:
             raise
         finally:
             self.lock = False
+
+    def build_harness(
+        self,
+        *,
+        trace_id: str = "",
+        progress_reporter: ProgressReporter | None = None,
+        runtime_context: AgentRuntimeContext | None = None,
+    ) -> AutoGPTHarness:
+        """构建当前会话轮次使用的 Harness 分层依赖。"""
+
+        return AutoGPTHarness.build(
+            helpers=self.helpers,
+            messages=self.messages,
+            trace_id=trace_id or self.last_trace_id,
+            progress_reporter=progress_reporter,
+            runtime_context=runtime_context,
+        )
 
     def record_observations(self, observations: list[CommandObservation], trace_id: str = "") -> None:
         """把命令执行观察写回会话，供下一轮规划参考。

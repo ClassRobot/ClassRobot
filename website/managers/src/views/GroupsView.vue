@@ -36,6 +36,16 @@
       </button>
     </div>
 
+    <div
+      v-if="pageNotice"
+      class="shrink-0 rounded-lg border px-3 py-2 text-body-sm"
+      :class="pageNoticeTone === 'success'
+        ? 'border-primary/20 bg-primary/10 text-primary dark:border-primary-dark/20 dark:bg-primary-dark/10 dark:text-primary-dark'
+        : 'border-error/20 bg-error-container/60 text-error dark:border-red-800/50 dark:bg-red-900/30 dark:text-red-300'"
+    >
+      {{ pageNotice }}
+    </div>
+
     <div class="flex min-h-0 w-full flex-1 gap-0 overflow-hidden">
       <div class="flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-outline-variant bg-surface-container-lowest dark:border-zinc-800 dark:bg-zinc-900">
         <div class="min-h-0 flex-1 overflow-auto">
@@ -160,14 +170,24 @@
               </div>
             </div>
           </div>
-          <button
-            type="button"
-            class="rounded-lg p-1.5 text-on-surface-variant transition-colors hover:bg-surface-container dark:text-zinc-400 dark:hover:bg-zinc-800"
-            title="关闭详情"
-            @click="selectedGroup = null; groupDetail = null; detailError = ''"
-          >
-            <X :size="18" />
-          </button>
+          <div class="flex items-center gap-1">
+            <button
+              type="button"
+              class="rounded-lg p-1.5 text-on-surface-variant transition-colors hover:bg-error-container/45 hover:text-error dark:text-zinc-400 dark:hover:bg-red-950/30 dark:hover:text-red-300"
+              title="删除群组"
+              @click="openDeleteGroupConfirm"
+            >
+              <Trash2 :size="16" />
+            </button>
+            <button
+              type="button"
+              class="rounded-lg p-1.5 text-on-surface-variant transition-colors hover:bg-surface-container dark:text-zinc-400 dark:hover:bg-zinc-800"
+              title="关闭详情"
+              @click="selectedGroup = null; groupDetail = null; detailError = ''"
+            >
+              <X :size="18" />
+            </button>
+          </div>
         </div>
 
         <div v-if="groupDetail" class="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-4">
@@ -185,6 +205,61 @@
               <div class="rounded-lg border border-outline-variant bg-surface-container p-3 dark:border-zinc-800 dark:bg-zinc-800/65">
                 <div class="text-[11px] text-on-surface-variant dark:text-zinc-500">申请</div>
                 <div class="mt-1 font-h2 text-h2 text-on-surface dark:text-zinc-100">{{ groupDetail.pending_join_count }}</div>
+              </div>
+            </div>
+          </section>
+
+          <section>
+            <h3 class="mb-2 border-b border-outline-variant pb-1 font-label-caps text-label-caps uppercase text-on-surface-variant dark:border-zinc-800 dark:text-zinc-500">管理跳转</h3>
+            <div class="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                class="rounded-xl border border-outline-variant bg-surface-container p-3 text-left transition-colors hover:border-primary/30 hover:bg-surface-container-high dark:border-zinc-800 dark:bg-zinc-800/65 dark:hover:border-primary-dark/30 dark:hover:bg-zinc-800"
+                @click="openGroupChatHistory"
+              >
+                <div class="flex items-center gap-2">
+                  <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/12 text-primary dark:bg-primary-dark/15 dark:text-primary-dark">
+                    <History :size="16" />
+                  </span>
+                  <div class="min-w-0">
+                    <div class="font-medium text-on-surface dark:text-zinc-100">聊天记录</div>
+                    <div class="mt-1 text-[11px] text-on-surface-variant dark:text-zinc-500">查看该群的历史消息与回复轨迹</div>
+                  </div>
+                </div>
+              </button>
+
+              <button
+                v-if="groupDetail.binds.length === 1"
+                type="button"
+                class="rounded-xl border border-outline-variant bg-surface-container p-3 text-left transition-colors hover:border-primary/30 hover:bg-surface-container-high dark:border-zinc-800 dark:bg-zinc-800/65 dark:hover:border-primary-dark/30 dark:hover:bg-zinc-800"
+                @click="openGroupFileSpace(groupDetail.binds[0].channel_id)"
+              >
+                <div class="flex items-center gap-2">
+                  <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/12 text-primary dark:bg-primary-dark/15 dark:text-primary-dark">
+                    <FolderKanban :size="16" />
+                  </span>
+                  <div class="min-w-0">
+                    <div class="font-medium text-on-surface dark:text-zinc-100">文件空间</div>
+                    <div class="mt-1 text-[11px] text-on-surface-variant dark:text-zinc-500">打开当前绑定对应的群组文件空间</div>
+                  </div>
+                </div>
+              </button>
+
+              <div
+                v-else
+                class="rounded-xl border border-outline-variant bg-surface-container p-3 dark:border-zinc-800 dark:bg-zinc-800/65"
+              >
+                <div class="flex items-center gap-2">
+                  <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-surface-container-low text-on-surface-variant dark:bg-zinc-900 dark:text-zinc-400">
+                    <FolderKanban :size="16" />
+                  </span>
+                  <div class="min-w-0">
+                    <div class="font-medium text-on-surface dark:text-zinc-100">文件空间</div>
+                    <div class="mt-1 text-[11px] text-on-surface-variant dark:text-zinc-500">
+                      {{ groupDetail.binds.length ? '文件空间与平台绑定一一对应，请在下方绑定卡片中打开。' : '当前还没有平台绑定，暂时无法定位群文件空间。' }}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </section>
@@ -224,6 +299,16 @@
                 <div class="mt-3 grid grid-cols-2 gap-3 text-body-sm">
                   <InfoItem label="频道 / 群" :value="bind.channel_id" mono />
                   <InfoItem label="Guild" :value="bind.guild_id || '-'" mono />
+                </div>
+                <div class="mt-3 flex items-center justify-end">
+                  <button
+                    type="button"
+                    class="inline-flex h-8 items-center gap-1.5 rounded-lg border border-outline-variant bg-surface-container-lowest px-3 text-[12px] font-medium text-on-surface transition-colors hover:bg-surface-container dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                    @click="openGroupFileSpace(bind.channel_id)"
+                  >
+                    <FolderKanban :size="13" />
+                    文件空间
+                  </button>
                 </div>
               </article>
             </div>
@@ -293,14 +378,36 @@
       </aside>
     </div>
   </div>
+
+  <DangerConfirmDialog
+    :open="Boolean(confirmDialog)"
+    :busy="confirmBusy"
+    :error-message="confirmError"
+    title="确认删除群组"
+    message="将删除当前群组、挂载班级、平台绑定以及关联的群组空间数据。该操作不可恢复，请确认后再继续。"
+    :target-label="confirmDialog?.targetLabel || ''"
+    :target-hint="confirmDialog?.targetHint || ''"
+    confirm-label="确认删除"
+    width="min(520px, calc(100vw - 32px))"
+    @close="closeConfirmDialog"
+    @confirm="confirmDeleteGroup"
+  />
 </template>
 
 <script setup lang="ts">
 import { computed, defineComponent, h, onMounted, ref } from 'vue'
-import { ChevronRight, MessageSquare, RefreshCw, School, Search, X } from 'lucide-vue-next'
+import { useRouter } from 'vue-router'
+import { ChevronRight, FolderKanban, History, MessageSquare, RefreshCw, School, Search, Trash2, X } from 'lucide-vue-next'
+import DangerConfirmDialog from '@/components/DangerConfirmDialog.vue'
 import AppSelect from '@/components/AppSelect.vue'
-import { fetchGroupDetail, fetchGroups } from '@/api/groups'
+import { deleteGroup, fetchGroupDetail, fetchGroups } from '@/api/groups'
 import type { GroupDetail, GroupSummary, ManagerUserBrief } from '@/types/api'
+
+interface GroupConfirmDialogState {
+  groupId: number
+  targetLabel: string
+  targetHint: string
+}
 
 const pageSize = 20
 const groups = ref<GroupSummary[]>([])
@@ -314,8 +421,14 @@ const groupDetail = ref<GroupDetail | null>(null)
 const loading = ref(false)
 const listError = ref('')
 const detailError = ref('')
+const pageNotice = ref('')
+const pageNoticeTone = ref<'success' | 'error'>('success')
 const memberTab = ref<'teachers' | 'students' | 'requests'>('teachers')
+const confirmDialog = ref<GroupConfirmDialogState | null>(null)
+const confirmBusy = ref(false)
+const confirmError = ref('')
 let searchTimer: ReturnType<typeof setTimeout> | undefined
+const router = useRouter()
 
 const joinMethodOptions = [
   { label: '入群方式：不限', value: '' },
@@ -382,6 +495,57 @@ async function fetchData() {
   }
 }
 
+function openDeleteGroupConfirm() {
+  if (!selectedGroup.value) return
+  confirmError.value = ''
+  confirmDialog.value = {
+    groupId: selectedGroup.value.id,
+    targetLabel: selectedGroup.value.class_info?.name || selectedGroup.value.name,
+    targetHint: `Group ID: ${selectedGroup.value.id} · 平台绑定: ${selectedGroup.value.bind_count}`,
+  }
+}
+
+function closeConfirmDialog() {
+  if (confirmBusy.value) return
+  confirmDialog.value = null
+  confirmError.value = ''
+}
+
+async function confirmDeleteGroup() {
+  const dialog = confirmDialog.value
+  if (!dialog) return
+
+  confirmBusy.value = true
+  confirmError.value = ''
+  try {
+    const result = await deleteGroup(dialog.groupId)
+    const nextTotal = Math.max(0, total.value - 1)
+    const nextPage = Math.max(1, Math.ceil(nextTotal / pageSize))
+    if (page.value > nextPage) {
+      page.value = nextPage
+    }
+
+    groups.value = groups.value.filter((item) => item.id !== dialog.groupId)
+    total.value = nextTotal
+    if (selectedGroup.value?.id === dialog.groupId) {
+      selectedGroup.value = null
+      groupDetail.value = null
+      detailError.value = ''
+    }
+
+    pageNoticeTone.value = 'success'
+    pageNotice.value = `群组 ${result.group_name} 已删除`
+    confirmDialog.value = null
+    await fetchData()
+  } catch (error: unknown) {
+    confirmError.value = getErrorMessage(error, '删除群组失败，请稍后重试')
+    pageNoticeTone.value = 'error'
+    pageNotice.value = ''
+  } finally {
+    confirmBusy.value = false
+  }
+}
+
 async function selectGroup(groupId: number) {
   const group = groups.value.find((item) => item.id === groupId)
   if (!group) return
@@ -394,6 +558,29 @@ async function selectGroup(groupId: number) {
   } catch (e: unknown) {
     detailError.value = getErrorMessage(e, '无法加载群组详情，请稍后重试')
   }
+}
+
+function openGroupChatHistory() {
+  const groupId = groupDetail.value?.group.id ?? selectedGroup.value?.id
+  if (!groupId) return
+  void router.push({
+    name: 'ChatHistory',
+    query: {
+      kind: 'group',
+      ownerId: String(groupId),
+    },
+  })
+}
+
+function openGroupFileSpace(channelId: string) {
+  if (!channelId) return
+  void router.push({
+    name: 'Files',
+    query: {
+      kind: 'group',
+      ownerId: channelId,
+    },
+  })
 }
 
 function joinMethodLabel(value: string | null | undefined) {

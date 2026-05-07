@@ -86,12 +86,7 @@ async def delete_classes_groups(classes_list: list[Classes]) -> None:
     """
 
     for classes in classes_list:
-        group = classes.group
-        settings = group.settings
-        await classes.filter(id=classes.id).delete()
-        await group.filter(id=group.id).delete()
-        if settings is not None:
-            await settings.filter(id=settings.id).delete()
+        await classes.delete_related_group()
 
 
 async def get_school_or_finish(matcher: AlconnaMatcher, school_name: str) -> School:

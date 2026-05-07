@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+import asyncio
+import gc
 import sqlite3
+import shutil
+from datetime import date as date_value, datetime, time, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -489,12 +493,35 @@ def _validate_direction(direction: str | None) -> str | None:
     return direction
 
 
+def _validate_message_date(message_date: str | None) -> str | None:
+    """校验指定日期过滤参数。
+
+    Args:
+        message_date: 前端提交的日期字符串，格式应为 ``YYYY-MM-DD``。
+
+    Returns:
+        str | None: 规范化后的日期字符串或 ``None``。
+
+    Raises:
+        ValueError: 当日期格式不合法时抛出。
+    """
+
+    if message_date in {None, ""}:
+        return None
+    normalized_date = str(message_date).strip()
+    try:
+        return date_value.fromisoformat(normalized_date).isoformat()
+    except ValueError as error:
+        raise ValueError("Unsupported chat history message date, expected YYYY-MM-DD") from error
+
+
 def _message_query_parts(
     *,
     q: str | None,
     record_kind: str | None,
     actor_role: str | None,
     direction: str | None,
+    message_date: str | None,
 ) -> tuple[str, list[Any]]:
     """构造消息查询公用的 WHERE 条件。
 
@@ -503,6 +530,7 @@ def _message_query_parts(
         record_kind: 记录类型过滤。
         actor_role: 消息角色过滤。
         direction: 消息方向过滤。
+        message_date: 指定日期过滤，仅保留当天消息。
 
     Returns:
         tuple[str, list[Any]]: SQL WHERE 子句和绑定参数列表。
@@ -523,6 +551,15 @@ def _message_query_parts(
         conditions.append("direction = ?")
         params.append(direction)
 
+    if message_date:
+        selected_date = date_value.fromisoformat(message_date)
+        start_at = datetime.combine(selected_date, time.min)
+        end_at = start_at + timedelta(days=1)
+        conditions.append("created_ts >= ?")
+        params.append(int(start_at.timestamp()))
+        conditions.append("created_ts < ?")
+        params.append(int(end_at.timestamp()))
+
     keyword = str(q or "").strip().lower()
     if keyword:
         for term in [item for item in keyword.split(" ") if item]:
@@ -542,6 +579,57 @@ def _message_query_parts(
 
     where_sql = f"WHERE {' AND '.join(conditions)}" if conditions else ""
     return where_sql, params
+
+
+def _available_message_dates(
+    connection: sqlite3.Connection,
+    *,
+    q: str | None,
+    record_kind: str | None,
+    actor_role: str | None,
+    direction: str | None,
+) -> list[str]:
+    """读取当前过滤条件下存在消息的日期列表。
+
+    Args:
+        connection: 当前聊天记录数据库连接。
+        q: 可选的关键词过滤。
+        record_kind: 可选的消息类型过滤。
+        actor_role: 可选的消息角色过滤。
+        direction: 可选的消息方向过滤。
+
+    Returns:
+        list[str]: 按日期倒序排列的 ``YYYY-MM-DD`` 列表。
+    """
+
+    where_sql, params = _message_query_parts(
+        q=q,
+        record_kind=record_kind,
+        actor_role=actor_role,
+        direction=direction,
+        message_date=None,
+    )
+    rows = connection.execute(
+        f"""
+        SELECT substr(created_at, 1, 10) AS message_date
+        FROM {MESSAGE_TABLE_NAME}
+        {where_sql}
+        GROUP BY substr(created_at, 1, 10)
+        ORDER BY message_date DESC
+        """,
+        tuple(params),
+    ).fetchall()
+
+    available_dates: list[str] = []
+    for row in rows:
+        raw_date = str(row["message_date"] or "").strip()
+        if not raw_date:
+            continue
+        try:
+            available_dates.append(date_value.fromisoformat(raw_date).isoformat())
+        except ValueError:
+            continue
+    return available_dates
 
 
 def _message_payload(row: sqlite3.Row) -> dict[str, Any]:
@@ -663,10 +751,11 @@ async def list_chat_messages(
     record_kind: str | None = None,
     actor_role: str | None = None,
     direction: str | None = None,
+    message_date: str | None = None,
     page: int = 1,
     page_size: int = 50,
 ) -> dict[str, Any]:
-    """分页读取指定聊天空间中的消息记录。
+    """按日期读取指定聊天空间中的消息记录。
 
     Args:
         kind: 聊天记录空间类型。
@@ -675,24 +764,19 @@ async def list_chat_messages(
         record_kind: 可选的消息记录类型过滤。
         actor_role: 可选的消息主体角色过滤。
         direction: 可选的消息方向过滤。
-        page: 页码，从 1 开始。
-        page_size: 每页条目数。
+        message_date: 可选的消息日期；未提供时默认返回最新一天。
+        page: 兼容保留参数，当前固定返回第 1 页。
+        page_size: 兼容保留参数，当前按日期返回当天全部消息。
 
     Returns:
-        dict[str, Any]: 分页消息记录列表。
+        dict[str, Any]: 指定日期对应的消息列表。
     """
 
     db_path = _existing_chat_db(kind, owner_id)
     normalized_record_kind = _validate_record_kind(record_kind)
     normalized_actor_role = _validate_actor_role(actor_role)
     normalized_direction = _validate_direction(direction)
-    where_sql, params = _message_query_parts(
-        q=q,
-        record_kind=normalized_record_kind,
-        actor_role=normalized_actor_role,
-        direction=normalized_direction,
-    )
-    offset = max(page - 1, 0) * page_size
+    normalized_message_date = _validate_message_date(message_date)
 
     with _connect(db_path, kind, owner_id) as connection:
         if not _message_table_exists(connection):
@@ -703,25 +787,61 @@ async def list_chat_messages(
                 "record_kind": normalized_record_kind,
                 "actor_role": normalized_actor_role,
                 "direction": normalized_direction,
+                "message_date": normalized_message_date,
+                "available_dates": [],
                 "items": [],
                 "page": page,
                 "page_size": page_size,
                 "total": 0,
             }
 
+        available_dates = _available_message_dates(
+            connection,
+            q=q,
+            record_kind=normalized_record_kind,
+            actor_role=normalized_actor_role,
+            direction=normalized_direction,
+        )
+        effective_message_date = normalized_message_date if normalized_message_date in available_dates else None
+        if not effective_message_date and available_dates:
+            effective_message_date = available_dates[0]
+
+        if not effective_message_date:
+            return {
+                "kind": kind,
+                "owner_id": sanitize_owner_id(owner_id),
+                "q": str(q or "").strip(),
+                "record_kind": normalized_record_kind,
+                "actor_role": normalized_actor_role,
+                "direction": normalized_direction,
+                "message_date": None,
+                "available_dates": available_dates,
+                "items": [],
+                "page": 1,
+                "page_size": 0,
+                "total": 0,
+            }
+
+        where_sql, params = _message_query_parts(
+            q=q,
+            record_kind=normalized_record_kind,
+            actor_role=normalized_actor_role,
+            direction=normalized_direction,
+            message_date=effective_message_date,
+        )
         total_row = connection.execute(
             f"SELECT COUNT(*) AS total FROM {MESSAGE_TABLE_NAME} {where_sql}",
             tuple(params),
         ).fetchone()
+        total = int(total_row["total"]) if total_row is not None else 0
         rows = connection.execute(
             f"""
             SELECT *
             FROM {MESSAGE_TABLE_NAME}
             {where_sql}
             ORDER BY created_ts DESC, id DESC
-            LIMIT ? OFFSET ?
             """,
-            tuple(params + [page_size, offset]),
+            tuple(params),
         ).fetchall()
 
     return {
@@ -731,8 +851,50 @@ async def list_chat_messages(
         "record_kind": normalized_record_kind,
         "actor_role": normalized_actor_role,
         "direction": normalized_direction,
+        "message_date": effective_message_date,
+        "available_dates": available_dates,
         "items": [_message_payload(row) for row in rows],
-        "page": page,
-        "page_size": page_size,
-        "total": int(total_row["total"]) if total_row is not None else 0,
+        "page": 1,
+        "page_size": total,
+        "total": total,
+    }
+
+
+async def delete_chat_space(kind: str, owner_id: str) -> dict[str, Any]:
+    """删除指定聊天空间的整套聊天目录与消息数据库。
+
+    Args:
+        kind: 聊天记录空间类型。
+        owner_id: 空间拥有者 ID。
+
+    Returns:
+        dict[str, Any]: 删除结果与被清理的目录信息。
+
+    Raises:
+        FileNotFoundError: 当聊天记录数据库不存在时抛出。
+        ValueError: 当聊天记录空间类型不支持时抛出。
+    """
+
+    normalized_owner_id = sanitize_owner_id(owner_id)
+    db_path = _existing_chat_db(kind, normalized_owner_id)
+    chat_path = db_path.parent.resolve(strict=False)
+    root_path = storage_manager.root.resolve(strict=False)
+    if not chat_path.is_relative_to(root_path):
+        raise ValueError("Chat history path is outside the configured storage root")
+
+    for attempt in range(3):
+        try:
+            shutil.rmtree(chat_path)
+            break
+        except PermissionError:
+            gc.collect()
+            if attempt == 2:
+                raise
+            await asyncio.sleep(0.05)
+    return {
+        "deleted": True,
+        "kind": kind,
+        "owner_id": normalized_owner_id,
+        "chat_path": str(chat_path),
+        "db_path": str(db_path),
     }

@@ -19,6 +19,7 @@
   - 说明工作流模板如何命中、待确认工作流如何恢复，以及为什么继续复用 NoneBot2 命令体系
 - [Agent 工程化研发手册](./agent-engineering-playbook.md)
   - 说明后续开发 Agent、Tool、Skill、MCP、RAG、Workflow 和 Prompt 时的能力边界、设计规则与测试要求
+  - 以 Harness Engineering 为默认研发心智，并衔接架构专题中的 Harness 分层设计
 
 ## 适合放在这里的文档
 
@@ -36,4 +37,5 @@
 - 要开发或调整智能能力，先读 [AutoGPT 智能能力改进方案](./agent-module.md)
 - 要理解工作流模板和确认恢复机制，接着读 [Agent Playbook 与确认执行](./agent-playbooks.md)
 - 要设计新一轮 Agent、Tool、Skill、MCP、RAG 或 Prompt 能力，先对照 [Agent 工程化研发手册](./agent-engineering-playbook.md)
+- 要先建立 Agent 的整体工程边界，再进入 [Harness Engineering 架构蓝图](../architecture/harness-engineering-architecture.md)
 - 要进一步看架构层面的边界与演进路线，再进入 [架构专题](../architecture/README.md)

@@ -2,6 +2,12 @@
 
 `utils.storage` 提供和 NoneBot 解耦的文件空间能力，用于把个人用户、群组、公共系统文件隔离到 `{data_dir}/storage` 下。
 
+其中：
+
+- `users/{user_id}` 永远使用系统内 `User.id`。
+- `groups/{group_id}` 永远使用系统内 `Group.id`。
+- 平台账号、平台群号、频道号以及 `UserBind` / `GroupBind` 自身主键只负责“绑定解析”，不能直接作为用户或群组文件空间目录名。
+
 ## 基础结构
 
 ```text
@@ -70,6 +76,19 @@ space.cd("documents/project")
 space.touch("readme.txt")
 display, entries = space.list_entries()
 ```
+
+如果业务上需要删除整个用户或群组空间，而不只是删除 `home` 内的单个文件，可以直接使用：
+
+```python
+from utils.storage import storage_manager
+
+storage_manager.delete_user_space(user.id)
+storage_manager.delete_group_space(group.id)
+```
+
+这两个方法会一次性清理对应空间下的 `chat`、`home` 以及未来新增的其它子目录，适合账号注销、班级解散、群组删除等场景。
+
+如果业务入口拿到的是平台群号，而不是系统 `Group.id`，应先通过绑定关系解析出系统群组，再调用 `group_space()`；不要直接写成 `group_space(channel_id)`。
 
 ## 安全规则
 

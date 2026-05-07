@@ -190,6 +190,42 @@
           </section>
 
           <section>
+            <h3 class="mb-2 border-b border-outline-variant pb-1 font-label-caps text-label-caps uppercase text-on-surface-variant dark:border-zinc-800 dark:text-zinc-500">工作区</h3>
+            <div class="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                class="group rounded-xl border border-outline-variant bg-surface-container p-3 text-left transition-colors hover:border-primary/30 hover:bg-surface-container-high dark:border-zinc-800 dark:bg-zinc-800/70 dark:hover:border-primary-dark/30 dark:hover:bg-zinc-800"
+                @click="openUserFileSpace"
+              >
+                <div class="flex items-center gap-2">
+                  <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/12 text-primary dark:bg-primary-dark/15 dark:text-primary-dark">
+                    <FolderKanban :size="16" />
+                  </span>
+                  <div class="min-w-0">
+                    <div class="font-medium text-on-surface dark:text-zinc-100">文件空间</div>
+                    <div class="mt-1 text-[11px] text-on-surface-variant dark:text-zinc-500">查看用户隔离存储与文本目录</div>
+                  </div>
+                </div>
+              </button>
+              <button
+                type="button"
+                class="group rounded-xl border border-outline-variant bg-surface-container p-3 text-left transition-colors hover:border-primary/30 hover:bg-surface-container-high dark:border-zinc-800 dark:bg-zinc-800/70 dark:hover:border-primary-dark/30 dark:hover:bg-zinc-800"
+                @click="openUserChatHistory"
+              >
+                <div class="flex items-center gap-2">
+                  <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/12 text-primary dark:bg-primary-dark/15 dark:text-primary-dark">
+                    <History :size="16" />
+                  </span>
+                  <div class="min-w-0">
+                    <div class="font-medium text-on-surface dark:text-zinc-100">聊天记录</div>
+                    <div class="mt-1 text-[11px] text-on-surface-variant dark:text-zinc-500">查看私聊上下文与机器人回复</div>
+                  </div>
+                </div>
+              </button>
+            </div>
+          </section>
+
+          <section>
             <h3 class="mb-2 border-b border-outline-variant pb-1 font-label-caps text-label-caps uppercase text-on-surface-variant dark:border-zinc-800 dark:text-zinc-500">平台绑定</h3>
             <div
               v-if="bindNotice"
@@ -417,6 +453,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { deleteUser, deleteUserBind, fetchUserDetail, fetchUsers, patchUserAdmin } from '@/api/users'
 import type {
   UserBindInfo,
@@ -427,6 +464,8 @@ import type {
 import {
   AlertTriangle,
   ChevronRight,
+  FolderKanban,
+  History,
   Loader2,
   RefreshCw,
   Search,
@@ -491,6 +530,7 @@ const confirmDialogWidth = computed(() =>
     : 'min(460px, calc(100vw - 32px))',
 )
 const selectedUserProfile = computed<UserAvatarLike | null>(() => userDetail.value ?? selectedUser.value)
+const router = useRouter()
 
 let searchTimer: ReturnType<typeof setTimeout> | undefined
 
@@ -553,6 +593,28 @@ function toggleBindExpanded(bindId: number) {
   expandedBindIds.value = isBindExpanded(bindId)
     ? expandedBindIds.value.filter((id) => id !== bindId)
     : [...expandedBindIds.value, bindId]
+}
+
+function openUserFileSpace() {
+  if (!selectedUser.value) return
+  void router.push({
+    name: 'Files',
+    query: {
+      kind: 'user',
+      ownerId: String(selectedUser.value.id),
+    },
+  })
+}
+
+function openUserChatHistory() {
+  if (!selectedUser.value) return
+  void router.push({
+    name: 'ChatHistory',
+    query: {
+      kind: 'user',
+      ownerId: String(selectedUser.value.id),
+    },
+  })
 }
 
 function getUserDisplayName(user: UserAvatarLike | null | undefined) {

@@ -214,13 +214,21 @@ async def test_student_can_query_and_update_profile(app, onebot, send_recorder, 
     assert student.extra.dormitory == "1-101"
 
 
-async def test_teacher_can_delete_empty_class(app, onebot, send_recorder, models):
+async def test_teacher_can_delete_empty_class(app, onebot, send_recorder, models, monkeypatch, tmp_path):
     from src.managers.classes.commands import delete_classes_cmd
     from utils.models import Classes
+    from utils.storage import StorageManager
+    import utils.models.models as model_definitions
+
+    storage = StorageManager(tmp_path / "storage")
+    monkeypatch.setattr(model_definitions, "storage_manager", storage)
 
     user = await models.create_user(account_id=10010, nickname="老师丙")
     teacher = await models.create_teacher(user, name="老师丙")
     classes = await models.create_classes(name="待删除班级", owner=user, group_id=20005, teacher=teacher)
+    group_space = storage.group_space(classes.group_id)
+    group_space.touch("documents/classes-note.txt")
+    group_space.chat_dir.joinpath("messages.db").write_text("classes chat", encoding="utf-8")
 
     async with app.test_matcher(delete_classes_cmd) as ctx:
         recorder = send_recorder(ctx)
@@ -230,6 +238,7 @@ async def test_teacher_can_delete_empty_class(app, onebot, send_recorder, models
 
     recorder.assert_any("删除班级成功")
     assert await Classes.filter(id=classes.id).first() is None
+    assert not group_space.space_root.exists()
 
 
 async def test_import_classes_can_create_teacher_class_and_student(app, onebot, send_recorder, monkeypatch, models):
@@ -278,11 +287,19 @@ async def test_import_classes_can_create_teacher_class_and_student(app, onebot, 
     assert student.classes_id == classes.id
 
 
-async def test_my_info_bind_user_and_logout_flow(app, onebot, send_recorder, models, fake_cache):
+async def test_my_info_bind_user_and_logout_flow(app, onebot, send_recorder, models, fake_cache, monkeypatch, tmp_path):
     from src.managers.user.commands import bind_user_cmd, logout_cmd, self_info_cmd
     from utils.models import User
+    from utils.storage import StorageManager
+    import utils.models.models as model_definitions
+
+    storage = StorageManager(tmp_path / "storage")
+    monkeypatch.setattr(model_definitions, "storage_manager", storage)
 
     user = await models.create_user(account_id=10012, nickname="信息用户")
+    user_space = storage.user_space(user.id)
+    user_space.touch("documents/profile.txt")
+    user_space.chat_dir.joinpath("messages.db").write_text("logout chat", encoding="utf-8")
 
     async with app.test_matcher(self_info_cmd) as ctx:
         recorder = send_recorder(ctx)
@@ -313,6 +330,7 @@ async def test_my_info_bind_user_and_logout_flow(app, onebot, send_recorder, mod
     recorder.assert_any("您确定要注销", "用户")
     recorder.assert_any("注销成功")
     assert await User.filter(id=user.id).first() is None
+    assert not user_space.space_root.exists()
 
 
 async def test_help_menu_filters_commands_by_current_role(app, onebot, send_recorder, monkeypatch, models):

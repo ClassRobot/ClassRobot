@@ -1,5 +1,4 @@
 from openai import NOT_GIVEN, NotGiven
-from pprint import pprint
 
 from .gateway import LLMRequest, LLMResult, LLMTaskType, llm_gateway
 from .message import Messages
@@ -23,7 +22,6 @@ async def client_create(
     task_type: LLMTaskType = LLMTaskType.chat,
 ) -> ChatCompletion:
     """兼容旧调用入口，并转发给统一的 LLM Gateway。"""
-    pprint(messages)
     request = LLMRequest(
         messages=messages,
         tools=functools if functools is not None else NOT_GIVEN,

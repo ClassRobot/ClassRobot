@@ -1,15 +1,16 @@
 import client from './client'
 import type {
   FileSpaceDetail,
+  FileSpaceDeleteSpaceResult,
   FileSpaceDirectoryCreateRequest,
   FileSpaceDirectoryCreateResult,
+  FileSpaceDeleteResult,
   FileSpaceEntriesResponse,
   FileSpaceKind,
   FileSpaceListResponse,
   FileSpaceTextPreview,
   FileSpaceWriteRequest,
   FileSpaceWriteResult,
-  FileSpaceDeleteResult,
 } from '@/types/api'
 
 export function fetchFileSpaces(params: { kind?: FileSpaceKind; q?: string } = {}): Promise<FileSpaceListResponse> {
@@ -58,4 +59,8 @@ export function deleteFileSpaceEntry(
   params: { path: string; recursive?: boolean; force?: boolean },
 ): Promise<FileSpaceDeleteResult> {
   return client.delete(`/files/spaces/${kind}/${encodeURIComponent(ownerId)}/entry`, { params }).then((r) => r.data)
+}
+
+export function deleteFileSpace(kind: FileSpaceKind, ownerId: string): Promise<FileSpaceDeleteSpaceResult> {
+  return client.delete(`/files/spaces/${kind}/${encodeURIComponent(ownerId)}`).then((r) => r.data)
 }

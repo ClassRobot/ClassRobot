@@ -89,6 +89,33 @@ async def test_local_knowledge_retriever_reads_user_file_space(loaded_plugins, t
     assert "班会材料" in context
 
 
+@pytest.mark.asyncio
+async def test_local_knowledge_retriever_reads_group_file_space_by_system_group_id(loaded_plugins, tmp_path):
+    from src.plugins.autogpt.knowledge import AgentRuntimeContext, AgentLocalKnowledgeRetriever
+    from utils.storage import StorageManager, ChatHistoryStore
+
+    manager = StorageManager(tmp_path / "storage")
+    report = manager.group_space("system-group-92001").home_dir / "documents" / "group-report.md"
+    report.write_text("群文件材料：周三晚自习前提交班会记录。", encoding="utf-8")
+
+    retriever = AgentLocalKnowledgeRetriever(manager=manager, chat_store=ChatHistoryStore(manager))
+    context = await retriever.retrieve(
+        "查一下文件 report",
+        AgentRuntimeContext(
+            user_id=90004,
+            group_id="system-group-92001",
+            platform="onebot11.qq_client",
+            channel_id="92001",
+        ),
+    )
+
+    assert context is not None
+    assert "群文件空间检索" in context
+    assert "~/documents/group-report.md" in context
+    assert "群文件材料" in context
+    assert not (manager.group_space("92001").home_dir / "documents" / "group-report.md").exists()
+
+
 def test_extract_search_query_removes_intent_words(loaded_plugins):
     from src.plugins.autogpt.knowledge import extract_search_query
 

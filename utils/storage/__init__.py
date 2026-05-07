@@ -23,6 +23,7 @@ from .chat_history import (
     MESSAGE_TABLE_NAME,
     NON_TEXT_PLACEHOLDER,
     ChatHistoryStore,
+    ChatHistorySummary,
     MessageActorRole,
     MessageDirection,
     MessageOwnerKind,
@@ -38,6 +39,7 @@ from .chat_history import (
 __all__ = [
     "ChatHistoryRecord",
     "ChatHistoryStore",
+    "ChatHistorySummary",
     "DEFAULT_HOME_DIRS",
     "FileEntry",
     "FileSpace",

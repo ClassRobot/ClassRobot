@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from contextlib import closing
 import json
 import re
 import sqlite3
@@ -87,6 +88,25 @@ class ChatHistoryRecord(BaseModel):
 
     class Config:
         """描述消息记录模型的配置项。"""
+
+        extra = Extra.forbid
+        allow_mutation = False
+
+
+class ChatHistorySummary(BaseModel):
+    """描述某个消息空间在给定时间窗口内的统计摘要。"""
+
+    owner_kind: MessageOwnerKind
+    owner_id: str
+    total: int = 0
+    inbound: int = 0
+    outbound: int = 0
+    distinct_user_count: int = 0
+    start_at: datetime | None = None
+    end_at: datetime | None = None
+
+    class Config:
+        """定义统计摘要模型的运行约束。"""
 
         extra = Extra.forbid
         allow_mutation = False
@@ -345,6 +365,44 @@ class ChatHistoryStore:
             title += f" | 查询: {normalize_message_text(query)}"
         return title + "\n" + "\n".join(lines)
 
+    async def summarize_user_chat_messages(
+        self,
+        user_id: str | int,
+        *,
+        exclude_message_id: str | int | None = None,
+        start_at: datetime | None = None,
+        end_at: datetime | None = None,
+    ) -> ChatHistorySummary:
+        """统计某个用户空间中的人机聊天消息。"""
+
+        return await self._summarize_messages(
+            owner_kind=MessageOwnerKind.user,
+            owner_id=user_id,
+            exclude_message_id=exclude_message_id,
+            start_at=start_at,
+            end_at=end_at,
+            record_kinds=(MessageRecordKind.chat,),
+        )
+
+    async def summarize_group_messages(
+        self,
+        group_id: str | int,
+        *,
+        exclude_message_id: str | int | None = None,
+        start_at: datetime | None = None,
+        end_at: datetime | None = None,
+    ) -> ChatHistorySummary:
+        """统计某个系统群组空间中的群聊采集消息。"""
+
+        return await self._summarize_messages(
+            owner_kind=MessageOwnerKind.group,
+            owner_id=group_id,
+            exclude_message_id=exclude_message_id,
+            start_at=start_at,
+            end_at=end_at,
+            record_kinds=(MessageRecordKind.collect,),
+        )
+
     async def _record_message(
         self,
         *,
@@ -415,6 +473,28 @@ class ChatHistoryStore:
             record_kinds,
         )
 
+    async def _summarize_messages(
+        self,
+        *,
+        owner_kind: MessageOwnerKind,
+        owner_id: str | int,
+        exclude_message_id: str | int | None,
+        start_at: datetime | None,
+        end_at: datetime | None,
+        record_kinds: tuple[MessageRecordKind, ...],
+    ) -> ChatHistorySummary:
+        """异步统计指定空间中的消息摘要。"""
+
+        return await asyncio.to_thread(
+            self._summarize_messages_sync,
+            owner_kind,
+            owner_id,
+            exclude_message_id,
+            start_at,
+            end_at,
+            record_kinds,
+        )
+
     def _record_message_sync(
         self,
         owner_kind: MessageOwnerKind,
@@ -460,7 +540,7 @@ class ChatHistoryStore:
             plain_text=plain_text,
         )
 
-        with self._connect(owner_kind, owner_id) as connection:
+        with closing(self._connect(owner_kind, owner_id)) as connection:
             connection.execute(
                 f"""
                 INSERT OR IGNORE INTO {MESSAGE_TABLE_NAME} (
@@ -505,7 +585,7 @@ class ChatHistoryStore:
                     normalize_message_text(channel_id),
                     normalize_message_text(guild_id),
                     normalize_message_text(bot_id),
-                    normalize_message_text(platform_user_id),
+                    normalize_message_text(str(platform_user_id) if platform_user_id is not None else None),
                     metadata_text,
                 ),
             )
@@ -592,6 +672,47 @@ class ChatHistoryStore:
             (MessageRecordKind.collect,),
         )
 
+    def _summarize_messages_sync(
+        self,
+        owner_kind: MessageOwnerKind,
+        owner_id: str | int,
+        exclude_message_id: str | int | None,
+        start_at: datetime | None,
+        end_at: datetime | None,
+        record_kinds: tuple[MessageRecordKind, ...],
+    ) -> ChatHistorySummary:
+        """同步统计指定空间中的消息摘要。"""
+
+        rows = self._load_summary_rows(owner_kind, owner_id, start_at, end_at, record_kinds)
+        if exclude_message_id is not None:
+            excluded = str(exclude_message_id)
+            rows = [row for row in rows if str(row["message_id"] or "") != excluded]
+
+        inbound = 0
+        outbound = 0
+        distinct_user_ids: set[str] = set()
+        for row in rows:
+            direction = str(row["direction"] or "")
+            if direction == MessageDirection.inbound.value:
+                inbound += 1
+            elif direction == MessageDirection.outbound.value:
+                outbound += 1
+
+            user_id = str(row["user_id"] or "").strip()
+            if user_id:
+                distinct_user_ids.add(user_id)
+
+        return ChatHistorySummary(
+            owner_kind=owner_kind,
+            owner_id=str(owner_id),
+            total=len(rows),
+            inbound=inbound,
+            outbound=outbound,
+            distinct_user_count=len(distinct_user_ids),
+            start_at=start_at,
+            end_at=end_at,
+        )
+
     def _load_recent_rows(
         self,
         owner_kind: MessageOwnerKind,
@@ -602,7 +723,7 @@ class ChatHistoryStore:
         """读取最近消息并按时间正序返回。"""
 
         placeholders = ", ".join("?" for _ in record_kinds)
-        with self._connect(owner_kind, owner_id) as connection:
+        with closing(self._connect(owner_kind, owner_id)) as connection:
             rows = connection.execute(
                 f"""
                 SELECT *
@@ -615,6 +736,38 @@ class ChatHistoryStore:
             ).fetchall()
         rows.reverse()
         return rows
+
+    def _load_summary_rows(
+        self,
+        owner_kind: MessageOwnerKind,
+        owner_id: str | int,
+        start_at: datetime | None,
+        end_at: datetime | None,
+        record_kinds: tuple[MessageRecordKind, ...],
+    ) -> list[sqlite3.Row]:
+        """读取指定时间窗口内用于统计的消息行。"""
+
+        placeholders = ", ".join("?" for _ in record_kinds)
+        where_clauses = [f"record_kind IN ({placeholders})"]
+        parameters: list[str | int] = [record_kind.value for record_kind in record_kinds]
+
+        if start_at is not None:
+            where_clauses.append("created_ts >= ?")
+            parameters.append(int(start_at.timestamp()))
+        if end_at is not None:
+            where_clauses.append("created_ts < ?")
+            parameters.append(int(end_at.timestamp()))
+
+        with closing(self._connect(owner_kind, owner_id)) as connection:
+            return connection.execute(
+                f"""
+                SELECT user_id, direction, message_id
+                FROM {MESSAGE_TABLE_NAME}
+                WHERE {' AND '.join(where_clauses)}
+                ORDER BY created_ts ASC, id ASC
+                """,
+                tuple(parameters),
+            ).fetchall()
 
     def _connect(self, owner_kind: MessageOwnerKind, owner_id: str | int) -> sqlite3.Connection:
         """打开并初始化指定空间的消息数据库。"""
@@ -691,6 +844,7 @@ class ChatHistoryStore:
             """
         )
         cls._ensure_columns(connection)
+        cls._backfill_created_timestamps(connection)
         connection.execute(
             f"CREATE INDEX IF NOT EXISTS idx_messages_record_kind_created_ts ON {MESSAGE_TABLE_NAME} (record_kind, created_ts DESC)"
         )
@@ -712,6 +866,7 @@ class ChatHistoryStore:
             "owner_kind": "TEXT NOT NULL DEFAULT ''",
             "owner_id": "TEXT NOT NULL DEFAULT ''",
             "direction": "TEXT NOT NULL DEFAULT 'inbound'",
+            "created_ts": "INTEGER NOT NULL DEFAULT 0",
             "platform": "TEXT NOT NULL DEFAULT ''",
             "platform_name": "TEXT NOT NULL DEFAULT ''",
             "channel_id": "TEXT",
@@ -723,6 +878,37 @@ class ChatHistoryStore:
         for column_name, column_type in required_columns.items():
             if column_name not in existing_columns:
                 connection.execute(f"ALTER TABLE {MESSAGE_TABLE_NAME} ADD COLUMN {column_name} {column_type}")
+
+    @staticmethod
+    def _backfill_created_timestamps(connection: sqlite3.Connection) -> None:
+        """为旧记录补齐 ``created_ts`` 秒级时间戳。"""
+
+        rows = connection.execute(
+            f"""
+            SELECT id, created_at
+            FROM {MESSAGE_TABLE_NAME}
+            WHERE created_ts IS NULL OR created_ts <= 0
+            """
+        ).fetchall()
+        if not rows:
+            return
+
+        updates: list[tuple[int, int]] = []
+        for row in rows:
+            created_at_text = str(row["created_at"] or "").strip()
+            if not created_at_text:
+                continue
+            try:
+                created_ts = int(datetime.fromisoformat(created_at_text).timestamp())
+            except ValueError:
+                continue
+            updates.append((created_ts, int(row["id"])))
+
+        if updates:
+            connection.executemany(
+                f"UPDATE {MESSAGE_TABLE_NAME} SET created_ts = ? WHERE id = ?",
+                updates,
+            )
 
     @staticmethod
     def _migrate_legacy_group_table(

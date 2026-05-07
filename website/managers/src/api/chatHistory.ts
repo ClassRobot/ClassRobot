@@ -1,6 +1,7 @@
 import client from './client'
 import type {
   ChatHistoryActorRole,
+  ChatHistoryDeleteSpaceResult,
   ChatHistoryDirection,
   ChatHistoryMessageListResponse,
   ChatHistoryRecordKind,
@@ -30,9 +31,17 @@ export function fetchChatHistoryMessages(
     record_kind?: ChatHistoryRecordKind | 'all'
     actor_role?: ChatHistoryActorRole | 'all'
     direction?: ChatHistoryDirection | 'all'
+    message_date?: string
     page?: number
     page_size?: number
   } = {},
 ): Promise<ChatHistoryMessageListResponse> {
   return client.get(`/chat-history/spaces/${kind}/${encodeURIComponent(ownerId)}/messages`, { params }).then((r) => r.data)
+}
+
+export function deleteChatHistorySpace(
+  kind: ChatHistorySpaceKind,
+  ownerId: string,
+): Promise<ChatHistoryDeleteSpaceResult> {
+  return client.delete(`/chat-history/spaces/${kind}/${encodeURIComponent(ownerId)}`).then((r) => r.data)
 }

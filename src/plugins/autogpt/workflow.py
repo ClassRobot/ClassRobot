@@ -1,22 +1,22 @@
 from datetime import datetime
-from typing import Awaitable, Callable
+from typing import Callable, Awaitable
 
 from nonebot import logger
 
+from .command_tools import CommandToolCatalog
+from .playbooks import WorkflowPlaybook, WorkflowPlaybookStep, playbook_catalog
 from .schema import (
     AutoTask,
     AgentPlan,
-    AutoTaskList,
-    WorkflowApproval,
-    AgentTurnResult,
-    AgentWorkflow,
-    CommandObservation,
     IntentRoute,
-    WorkflowExecutionResult,
+    AutoTaskList,
     WorkflowStep,
+    AgentWorkflow,
+    AgentTurnResult,
+    WorkflowApproval,
+    CommandObservation,
+    WorkflowExecutionResult,
 )
-from .command_tools import CommandToolCatalog
-from .playbooks import WorkflowPlaybook, WorkflowPlaybookStep, playbook_catalog
 
 WorkflowDispatcher = Callable[[AutoTask], Awaitable[list[CommandObservation]]]
 
@@ -407,3 +407,23 @@ def collect_unsent_observation_outputs(observations: list[CommandObservation]) -
             outputs.append(text)
             seen.add(text)
     return outputs
+
+
+def format_execution_status(execution: WorkflowExecutionResult) -> str:
+    """生成面向用户的简洁命令执行状态。"""
+
+    steps = execution.workflow.steps
+    if not steps:
+        return ""
+
+    completed = sum(1 for step in steps if step.status == "completed")
+    failed = sum(1 for step in steps if step.status == "failed")
+    attempted = completed + failed
+    if attempted <= 0:
+        return ""
+
+    if failed:
+        failed_step = next((step for step in steps if step.status == "failed"), None)
+        failed_title = failed_step.command if failed_step else "某个命令"
+        return f"已运行 {attempted} 条命令，其中 `{failed_title}` 没有完成。"
+    return f"已运行 {attempted} 条命令。"

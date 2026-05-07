@@ -3,9 +3,9 @@ from __future__ import annotations
 import re
 import asyncio
 from pathlib import Path
+from dataclasses import dataclass
 
 from nonebot import logger
-from pydantic import BaseModel
 from src.agents.skills import skill_registry
 from src.plugins.chat_context.resolvers import resolve_bound_group_id
 
@@ -98,10 +98,12 @@ QUERY_STOP_PHRASES = (
 )
 
 
-class AgentRuntimeContext(BaseModel):
+@dataclass(slots=True)
+class AgentRuntimeContext:
     """描述 AutoGPT 本轮可用于检索本地上下文的运行时信息。"""
 
     user_id: int | None = None
+    group_id: str | None = None
     platform: str = ""
     platform_name: str = ""
     channel_id: str | None = None
@@ -249,8 +251,11 @@ class AgentLocalKnowledgeRetriever:
     async def retrieve_files(self, query: str, context: AgentRuntimeContext) -> str | None:
         """检索当前用户或群组隔离文件空间。"""
 
-        if context.is_group and context.channel_id:
-            space = self.manager.group_space(context.channel_id)
+        if context.is_group:
+            group_id = await self.resolve_system_group_id(context)
+            if group_id is None:
+                return None
+            space = self.manager.group_space(group_id)
             title = "群文件空间检索"
         elif context.user_id is not None:
             space = self.manager.user_space(context.user_id)
@@ -290,6 +295,10 @@ class AgentLocalKnowledgeRetriever:
     async def resolve_system_group_id(context: AgentRuntimeContext) -> str | None:
         """把平台群聊上下文解析为系统内 Group ID。"""
 
+        if context.group_id:
+            return str(context.group_id)
+        if context.channel_id and not context.platform:
+            return str(context.channel_id)
         if not context.platform or not context.channel_id:
             return None
         try:

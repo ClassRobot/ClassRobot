@@ -8,12 +8,35 @@
 
 > 以后我们继续把机器人做得更智能时，每种能力应该放在哪里、怎么设计、怎么测试、怎么避免 LLM 乱猜。
 
+## 先采用 Harness Engineering 心智
+
+后续开发 Agent 时，默认采用 Harness Engineering，而不是“功能想到哪里加到哪里”。
+
+对 ClassRobot 来说，Harness 指的是：
+
+- 仓库里的文档、Prompt、Skill、命令元数据、测试和评测样例
+- 运行时的上下文组装、规划、执行、审批、观测和恢复
+- 人类对 Agent 的约束面，而不是模型自己推断出来的隐形规则
+
+优先级顺序应该是：
+
+1. 定义规则和边界
+2. 定义结构化运行对象
+3. 定义执行与恢复机制
+4. 再优化模型、Prompt 和工具选择
+
+配套架构文档见：
+
+- [Harness Engineering 架构蓝图](../architecture/harness-engineering-architecture.md)
+
 ## 外部实践摘要
 
 这轮设计参考了当前主流 agent 系统的公开资料，但不会把它们的名字、目录或产品概念硬塞进项目。ClassRobot 学的是工程方法，不是复制产品形态。
 
 | 来源 | 值得借鉴的点 | 在 ClassRobot 中的落点 |
 | --- | --- | --- |
+| OpenAI Harness Engineering | repository knowledge 是 system of record；补 guardrails、skills、docs、tests，而不是人工补锅 | 让 `docs/`、`resources/prompts/`、`.codex/skills/`、`tests/autogpt/` 一起成为 Agent 契约面 |
+| OpenAI Symphony | policy/config/coordination/execution/integration/observability 分层；运行对象显式化 | 用 Harness 分层重新整理 `autogpt`、workflow、command bridge 和观测层 |
 | Claude Code | 能读项目上下文、制定计划、调用工具、验证结果；通过 memory、subagent、hooks、MCP 扩展工作流 | 让 AutoGPT 成为“上下文 + 计划 + 工具 + 观察 + 验证”的闭环，而不是一次性命令生成器 |
 | MCP | Host / Client / Server 分层，工具、资源、提示词三类 primitive，能力发现和权限边界清晰 | 后续外部系统接入优先走 MCP 网关，内部业务命令仍留在统一 Command 体系 |
 | OpenClaw | workspace、skills、长期记忆、后台运行、可持续任务、工具使用和消息入口结合 | 学习“持久上下文 + 技能说明 + 心跳任务”的组织方式，但不引入无关部署和第三方实现细节 |
@@ -21,6 +44,9 @@
 
 参考资料：
 
+- [OpenAI Harness engineering](https://openai.com/index/harness-engineering/)
+- [OpenAI Symphony](https://openai.com/index/open-source-codex-orchestration-symphony/)
+- [OpenAI Symphony SPEC](https://github.com/openai/symphony/blob/main/SPEC.md)
 - [Claude Code overview](https://docs.anthropic.com/en/docs/claude-code/overview)
 - [Claude Code memory](https://docs.anthropic.com/en/docs/claude-code/memory)
 - [Claude Code subagents](https://docs.anthropic.com/en/docs/claude-code/sub-agents)
@@ -33,9 +59,34 @@
 - [OpenClaw agent loop](https://docs.openclaw.ai/concepts/agent-loop)
 - [OpenClaw memory](https://docs.openclaw.ai/concepts/memory)
 - [OpenClaw skills](https://docs.openclaw.ai/skills)
+- [OpenClaw context engine](https://docs.openclaw.ai/concepts/context-engine)
+- [OpenClaw delegate architecture](https://docs.openclaw.ai/concepts/delegate-architecture)
 - [LangGraph overview](https://docs.langchain.com/oss/python/langgraph)
 - [LangGraph durable execution](https://docs.langchain.com/oss/python/langgraph/durable-execution)
 - [LangGraph interrupts](https://docs.langchain.com/oss/python/langgraph/interrupts)
+
+## 仓库即系统事实来源
+
+按照 Harness Engineering 的方式，后续不要把关键规则只放在“维护者知道”或者“某次对话里提过”。
+
+下面这些内容必须长期落在仓库里：
+
+- `docs/architecture/`
+  - 解释系统边界和分层
+- `docs/guides/`
+  - 解释具体开发规则和接入流程
+- `resources/prompts/`
+  - 定义路由、提取、规划、任务生成等 Prompt 契约
+- `.codex/skills/`
+  - 为本地开发 Agent 提供项目专属守则
+- `src/agents/skills/`
+  - 为运行时 Agent 提供可复用能力说明和封装
+- `tests/autogpt/` 与 `tests/storage/`
+  - 固化行为边界、隐私边界和回归场景
+
+经验规则：
+
+> 一次线上问题如果值得修，就值得在仓库里留下规则、测试或 skill，而不是只留在聊天里。
 
 ## ClassRobot 的 Agent 定位
 

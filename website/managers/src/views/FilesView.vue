@@ -179,6 +179,15 @@
                 <FilePlus2 :size="14" />
                 新建文本
               </button>
+              <button
+                type="button"
+                class="inline-flex h-9 items-center gap-2 rounded-lg border border-error/20 bg-error-container/35 px-3 text-body-sm text-error transition-colors hover:bg-error-container/55 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-900/45 dark:bg-red-950/30 dark:text-red-300 dark:hover:bg-red-950/45"
+                :disabled="!selectedSpace"
+                @click="openDeleteSpaceDialog"
+              >
+                <Trash2 :size="14" />
+                删除空间
+              </button>
             </div>
           </div>
         </div>
@@ -404,6 +413,38 @@
     </div>
   </div>
 
+  <DangerConfirmDialog
+    :open="Boolean(deleteSpaceDialog)"
+    :busy="actionBusy"
+    :error-message="deleteSpaceError"
+    title="确认删除文件空间"
+    message="将清理当前空间下的 home、chat 以及相关运行目录，包含内部文件、会话状态和聊天数据库。该操作不可恢复。"
+    :target-label="deleteSpaceDialog?.title || ''"
+    :target-hint="deleteSpaceDialog?.hint || ''"
+    confirm-label="确认删除"
+    width="min(560px, calc(100vw - 32px))"
+    @close="closeDeleteSpaceDialog"
+    @confirm="confirmDeleteSpace"
+  >
+    <template #details>
+      <div
+        v-if="deleteSpaceDialog"
+        class="rounded-xl border border-outline-variant bg-surface-container-low px-4 py-3 dark:border-zinc-800 dark:bg-zinc-800/55"
+      >
+        <div class="grid grid-cols-2 gap-3 text-body-sm">
+          <div>
+            <div class="text-[11px] text-on-surface-variant dark:text-zinc-500">空间类型</div>
+            <div class="mt-1 text-on-surface dark:text-zinc-100">{{ kindLabel(deleteSpaceDialog.kind) }}</div>
+          </div>
+          <div>
+            <div class="text-[11px] text-on-surface-variant dark:text-zinc-500">空间标识</div>
+            <div class="mt-1 font-code-inline text-code-inline text-on-surface dark:text-zinc-100">{{ deleteSpaceDialog.ownerId }}</div>
+          </div>
+        </div>
+      </div>
+    </template>
+  </DangerConfirmDialog>
+
   <Teleport to="body">
     <div
       v-if="deleteDialog"
@@ -456,7 +497,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import {
   AlertTriangle,
   ArrowUp,
@@ -479,8 +521,10 @@ import {
   User,
   Users,
 } from 'lucide-vue-next'
+import DangerConfirmDialog from '@/components/DangerConfirmDialog.vue'
 import {
   createFileSpaceDirectory,
+  deleteFileSpace,
   deleteFileSpaceEntry,
   fetchFileSpaceDetail,
   fetchFileSpaceEntries,
@@ -516,8 +560,12 @@ const newDirectoryName = ref('')
 const message = ref('')
 const messageTone = ref<'success' | 'error'>('success')
 const deleteDialog = ref<{ path: string; recursive: boolean } | null>(null)
+const deleteSpaceDialog = ref<{ key: string; kind: FileSpaceKind; ownerId: string; title: string; hint: string } | null>(null)
+const deleteSpaceError = ref('')
 
 let searchTimer: ReturnType<typeof setTimeout> | undefined
+const route = useRoute()
+const router = useRouter()
 
 const spaceKinds: FileSpaceKind[] = ['user', 'group']
 
@@ -550,6 +598,22 @@ const okChipClass = 'bg-primary/10 text-primary dark:bg-primary-dark/15 dark:tex
 const warnChipClass = 'bg-amber-500/10 text-amber-700 dark:bg-amber-400/10 dark:text-amber-300'
 
 onMounted(() => {
+  const requestedKind = normalizeRouteKind(route.query.kind)
+  if (requestedKind) {
+    activeKind.value = requestedKind
+  }
+  void reloadAll()
+})
+
+watch(() => [route.query.kind, route.query.ownerId], () => {
+  const requestedKind = normalizeRouteKind(route.query.kind)
+  const requestedOwnerId = getRouteOwnerId()
+  if (requestedKind === activeKind.value && requestedOwnerId === (selectedSpace.value?.owner_id || '')) {
+    return
+  }
+  if (requestedKind) {
+    activeKind.value = requestedKind
+  }
   void reloadAll()
 })
 
@@ -565,15 +629,23 @@ async function reloadAll() {
 }
 
 async function loadSpaces() {
-  const payload: FileSpaceListResponse = await fetchFileSpaces({
+  let payload: FileSpaceListResponse = await fetchFileSpaces({
     kind: activeKind.value,
     q: search.value.trim() || undefined,
   })
+  const requestedOwnerId = getRequestedOwnerId(activeKind.value)
+  if (requestedOwnerId && search.value.trim() && !payload.items.some((item) => item.owner_id === requestedOwnerId)) {
+    search.value = ''
+    payload = await fetchFileSpaces({ kind: activeKind.value })
+  }
   storageRoot.value = payload.root
   spaces.value = payload.items
 
   const currentKey = selectedSpace.value?.key
-  const nextSpace = payload.items.find((item) => item.key === currentKey) || payload.items[0] || null
+  const nextSpace = payload.items.find((item) => item.owner_id === requestedOwnerId)
+    || payload.items.find((item) => item.key === currentKey)
+    || payload.items[0]
+    || null
   selectedSpace.value = nextSpace
   if (nextSpace) {
     await loadSpaceDetail(nextSpace.kind, nextSpace.owner_id)
@@ -581,6 +653,7 @@ async function loadSpaces() {
     spaceDetail.value = null
     resetInspector()
   }
+  syncSelectionQuery(nextSpace)
 }
 
 async function switchKind(kind: FileSpaceKind) {
@@ -608,6 +681,7 @@ async function selectSpace(space: FileSpaceSummary) {
   selectedSpace.value = space
   try {
     await loadSpaceDetail(space.kind, space.owner_id)
+    syncSelectionQuery(selectedSpace.value)
   } catch (error) {
     showMessage(extractErrorMessage(error, '文件空间详情加载失败'), 'error')
   }
@@ -727,6 +801,47 @@ function closeDeleteDialog() {
   deleteDialog.value = null
 }
 
+function openDeleteSpaceDialog() {
+  if (!selectedSpace.value) return
+  deleteSpaceError.value = ''
+  deleteSpaceDialog.value = {
+    key: selectedSpace.value.key,
+    kind: selectedSpace.value.kind,
+    ownerId: selectedSpace.value.owner_id,
+    title: selectedSpace.value.title,
+    hint: selectedSpace.value.space_root,
+  }
+}
+
+function closeDeleteSpaceDialog() {
+  if (actionBusy.value) return
+  deleteSpaceDialog.value = null
+  deleteSpaceError.value = ''
+}
+
+async function confirmDeleteSpace() {
+  const dialog = deleteSpaceDialog.value
+  if (!dialog) return
+
+  actionBusy.value = true
+  deleteSpaceError.value = ''
+  try {
+    await deleteFileSpace(dialog.kind, dialog.ownerId)
+    if (selectedSpace.value?.key === dialog.key) {
+      selectedSpace.value = null
+      spaceDetail.value = null
+      resetInspector()
+    }
+    deleteSpaceDialog.value = null
+    showMessage('文件空间已删除', 'success')
+    await loadSpaces()
+  } catch (error) {
+    deleteSpaceError.value = extractErrorMessage(error, '文件空间删除失败，请稍后重试')
+  } finally {
+    actionBusy.value = false
+  }
+}
+
 async function confirmDelete() {
   if (!selectedSpace.value || !deleteDialog.value) return
   actionBusy.value = true
@@ -759,6 +874,35 @@ function resetInspector() {
 function showMessage(text: string, tone: 'success' | 'error') {
   message.value = text
   messageTone.value = tone
+}
+
+function normalizeRouteKind(value: unknown): FileSpaceKind | null {
+  return value === 'user' || value === 'group' ? value : null
+}
+
+function getRouteOwnerId() {
+  return typeof route.query.ownerId === 'string' ? route.query.ownerId.trim() : ''
+}
+
+function getRequestedOwnerId(kind: FileSpaceKind) {
+  return normalizeRouteKind(route.query.kind) === kind ? getRouteOwnerId() : ''
+}
+
+function syncSelectionQuery(space: FileSpaceSummary | null) {
+  const nextKind = space?.kind || activeKind.value
+  const nextOwnerId = space?.owner_id || ''
+  if (normalizeRouteKind(route.query.kind) === nextKind && getRouteOwnerId() === nextOwnerId) {
+    return
+  }
+
+  void router.replace({
+    name: 'Files',
+    query: {
+      ...route.query,
+      kind: nextKind,
+      ownerId: nextOwnerId || undefined,
+    },
+  })
 }
 
 function kindLabel(kind: FileSpaceKind) {

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -132,7 +133,7 @@ def _space_owner_payload(
     kind: str,
     owner_id: str,
     user_index: dict[str, User],
-    group_index: dict[str, GroupBind],
+    group_index: dict[str, tuple[Group, list[GroupBind]]],
 ) -> dict[str, Any]:
     """根据文件空间所属实体构造展示信息。
 
@@ -168,8 +169,8 @@ def _space_owner_payload(
             },
         }
 
-    group_bind = group_index.get(owner_id)
-    if group_bind is None:
+    group_context = group_index.get(owner_id)
+    if group_context is None:
         return {
             "title": f"群空间 {owner_id}",
             "subtitle": "未在数据库中找到关联群组",
@@ -177,10 +178,18 @@ def _space_owner_payload(
             "owner": None,
         }
 
-    group = group_bind.group
+    group, binds = group_context
     classes = getattr(group, "classes", None)
     title = classes.name if isinstance(classes, Classes) else group.name
-    subtitle = f"{group_bind.platform_id} · {group_bind.channel_id}"
+    platform_ids = sorted({bind.platform_id for bind in binds if bind.platform_id})
+    channel_ids = sorted({bind.channel_id for bind in binds if bind.channel_id})
+    subtitle_parts = []
+    if platform_ids:
+        subtitle_parts.append("/".join(platform_ids))
+    if channel_ids:
+        subtitle_parts.append("、".join(channel_ids))
+    subtitle = " · ".join(subtitle_parts) if subtitle_parts else f"系统群组 {group.id}"
+    primary_bind = binds[0] if binds else None
     return {
         "title": title,
         "subtitle": subtitle,
@@ -191,13 +200,18 @@ def _space_owner_payload(
             "group_name": group.name,
             "class_id": classes.id if isinstance(classes, Classes) else None,
             "class_name": classes.name if isinstance(classes, Classes) else None,
-            "platform_id": group_bind.platform_id,
-            "channel_id": group_bind.channel_id,
+            "platform_id": primary_bind.platform_id if primary_bind else None,
+            "channel_id": primary_bind.channel_id if primary_bind else None,
+            "platform_ids": platform_ids,
+            "channel_ids": channel_ids,
         },
     }
 
 
-async def _space_indexes(kind: str, owner_ids: list[str]) -> tuple[dict[str, User], dict[str, GroupBind]]:
+async def _space_indexes(
+    kind: str,
+    owner_ids: list[str],
+) -> tuple[dict[str, User], dict[str, tuple[Group, list[GroupBind]]]]:
     """按需批量加载文件空间关联的用户或群组索引。
 
     Args:
@@ -205,11 +219,11 @@ async def _space_indexes(kind: str, owner_ids: list[str]) -> tuple[dict[str, Use
         owner_ids: 需要映射的拥有者标识列表。
 
     Returns:
-        tuple[dict[str, User], dict[str, GroupBind]]: 用户索引和群绑定索引。
+        tuple[dict[str, User], dict[str, tuple[Group, list[GroupBind]]]]: 用户索引和群组索引。
     """
 
     user_index: dict[str, User] = {}
-    group_index: dict[str, GroupBind] = {}
+    group_index: dict[str, tuple[Group, list[GroupBind]]] = {}
     if not owner_ids:
         return user_index, group_index
 
@@ -222,15 +236,32 @@ async def _space_indexes(kind: str, owner_ids: list[str]) -> tuple[dict[str, Use
             user_index = {str(user.id): user for user in users}
             return user_index, group_index
 
+        group_ids = [int(owner_id) for owner_id in owner_ids if owner_id.isdigit()]
+        if not group_ids:
+            return user_index, group_index
+
+        groups = list(
+            await session.scalars(
+                select(Group)
+                .where(Group.id.in_(group_ids))
+                .options(
+                    selectinload(Group.classes),
+                    selectinload(Group.creator),
+                )
+            )
+        )
         binds = await session.scalars(
             select(GroupBind)
-            .where(GroupBind.channel_id.in_(owner_ids))
+            .where(GroupBind.group_id.in_(group_ids))
             .options(
                 selectinload(GroupBind.group).selectinload(Group.classes),
                 selectinload(GroupBind.group).selectinload(Group.creator),
             )
         )
-        group_index = {bind.channel_id: bind for bind in binds}
+        binds_by_group: dict[int, list[GroupBind]] = defaultdict(list)
+        for bind in binds:
+            binds_by_group[bind.group_id].append(bind)
+        group_index = {str(group.id): (group, binds_by_group.get(group.id, [])) for group in groups}
     return user_index, group_index
 
 
@@ -518,3 +549,29 @@ async def delete_file_space_entry(
     space = _existing_space(kind, owner_id)
     deleted_path = space.remove(path, recursive=recursive, force=force)
     return {"deleted": True, "path": deleted_path}
+
+
+async def delete_file_space(kind: str, owner_id: str) -> dict[str, Any]:
+    """删除整个文件空间根目录。
+
+    Args:
+        kind: 文件空间类型。
+        owner_id: 拥有者标识。
+
+    Returns:
+        dict[str, Any]: 删除结果与被删除的空间路径。
+
+    Raises:
+        FileNotFoundError: 当目标文件空间不存在时抛出。
+        ValueError: 当文件空间类型不支持时抛出。
+        FileSpaceError: 当删除目标超出 storage 根目录时抛出。
+    """
+
+    space = _existing_space(kind, owner_id)
+    deleted = storage_manager.delete_space(kind, owner_id)
+    return {
+        "deleted": deleted,
+        "kind": kind,
+        "owner_id": sanitize_owner_id(owner_id),
+        "path": str(space.space_root),
+    }

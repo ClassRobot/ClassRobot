@@ -1,3 +1,4 @@
+from dataclasses import dataclass, field
 from typing import Literal
 from datetime import datetime
 
@@ -256,16 +257,17 @@ class WorkflowExecutionResult(BaseModel):
     """需要回给用户的补充说明。"""
 
 
-class ChatMessage(BaseModel):
+@dataclass(slots=True)
+class ChatMessage:
     "用户的聊天消息"
 
     role: Literal["user", "help"] = "user"
     "消息角色, user: 用户, help: 帮助文档"
     user_id: int | None = None
     "用户ID"
-    message: list[Content] = []
+    message: list[Content] = field(default_factory=list)
     "消息内容"
-    create_at: datetime = Field(default_factory=datetime.now)
+    create_at: datetime = field(default_factory=datetime.now)
     "消息创建时间"
 
     def extend(self, message: UniMessage | str):

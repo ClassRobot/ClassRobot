@@ -1,10 +1,12 @@
 from hashlib import md5
 from pathlib import Path
 from datetime import datetime
-from typing import List, Literal, Optional
+from typing import Any, Callable, List, Literal, Optional
 
+from nonebot import logger
 from utils.tools import get_file_suffix
 from utils.config import data_dir, task_dir
+from utils.storage.files import StorageManager, storage_manager
 from nonebot_plugin_orm import Model, get_session
 from sqlalchemy.orm import Mapped, relationship, mapped_column, selectinload
 from sqlalchemy import (
@@ -17,6 +19,8 @@ from sqlalchemy import (
     ForeignKey,
     CheckConstraint,
     UniqueConstraint,
+    and_,
+    delete as sql_delete,
     select,
     update,
 )
@@ -24,6 +28,70 @@ from utils.roles import UserRole, JoinMethod, LeaveStatus, StudentRole, TeacherR
 
 from .filters import FilterModel
 from .columns import CreateAt, UpdateAt
+
+
+async def _delete_fk_descendants(
+    session,
+    target_table,
+    pk_values: dict[str, Any],
+    seen: set[tuple[str, tuple[tuple[str, Any], ...]]],
+) -> None:
+    """递归删除依赖指定主键的子表记录。
+
+    Args:
+        session: 当前数据库会话。
+        target_table: 需要清理子记录的主表。
+        pk_values: 主表主键值映射。
+        seen: 已访问过的 ``table + pk`` 集合，用于避免递归环。
+    """
+
+    identity = (target_table.fullname, tuple(sorted(pk_values.items())))
+    if identity in seen:
+        return
+    seen.add(identity)
+
+    for child_table in target_table.metadata.tables.values():
+        for constraint in child_table.foreign_key_constraints:
+            elements = list(constraint.elements)
+            if not elements or any(element.column.table is not target_table for element in elements):
+                continue
+
+            target_columns = [element.column.name for element in elements]
+            if any(column_name not in pk_values for column_name in target_columns):
+                continue
+
+            where_clause = and_(*(element.parent == pk_values[element.column.name] for element in elements))
+            pk_columns = list(child_table.primary_key.columns)
+            child_rows: list[dict[str, Any]] = []
+
+            if pk_columns:
+                result = await session.execute(select(*pk_columns).where(where_clause))
+                child_rows = [
+                    {column.name: value for column, value in zip(pk_columns, row)}
+                    for row in result.fetchall()
+                ]
+
+            for child_pk in child_rows:
+                await _delete_fk_descendants(session, child_table, child_pk, seen)
+
+            await session.execute(sql_delete(child_table).where(where_clause))
+
+
+def _cleanup_storage_safely(action: Callable[[], bool], *, description: str) -> None:
+    """尽力清理文件空间，失败时只记录日志。
+
+    数据库删除已经成功提交后，文件系统属于附属清理步骤，不应因为磁盘、
+    占用或权限等异常把业务删除结果重新判定为失败。
+
+    Args:
+        action: 具体的文件空间清理动作。
+        description: 用于日志输出的清理对象描述。
+    """
+
+    try:
+        action()
+    except Exception:
+        logger.exception("%s 清理失败。", description)
 
 
 class User(FilterModel, Model):
@@ -187,6 +255,40 @@ class User(FilterModel, Model):
         """获取需要审批人审批的信息"""
         return await StudentLeaveApproval.filter(approver_id=self.id).all()
 
+    async def delete_account(self, manager: StorageManager | None = None) -> None:
+        """删除用户账号，并同步清理业务数据与个人文件空间。
+
+        说明:
+            1. 先在数据库中递归删除所有依赖当前用户的业务记录。
+            2. 再额外清理没有外键约束的 Agent 工作流状态表。
+            3. 最后尽力删除该用户的 ``storage/users/{user_id}`` 整个空间。
+
+        Args:
+            manager: 可选的存储管理器，未提供时使用全局 ``storage_manager``。
+        """
+
+        cleanup_manager = manager or storage_manager
+
+        async with get_session() as session:
+            exists = await session.scalar(select(User.id).where(User.id == self.id))
+            if exists is None:
+                _cleanup_storage_safely(
+                    lambda: cleanup_manager.delete_user_space(self.id),
+                    description=f"用户[{self.id}]文件空间",
+                )
+                return
+
+            await _delete_fk_descendants(session, User.__table__, {"id": self.id}, set())
+            await session.execute(sql_delete(AgentWorkflowCheckpoint.__table__).where(AgentWorkflowCheckpoint.user_id == self.id))
+            await session.execute(sql_delete(AgentWorkflowRun.__table__).where(AgentWorkflowRun.user_id == self.id))
+            await session.execute(sql_delete(User.__table__).where(User.id == self.id))
+            await session.commit()
+
+        _cleanup_storage_safely(
+            lambda: cleanup_manager.delete_user_space(self.id),
+            description=f"用户[{self.id}]文件空间",
+        )
+
 
 class UserBind(FilterModel, Model):
     """用户与平台绑定表
@@ -264,6 +366,7 @@ class UserBind(FilterModel, Model):
         返回:
             UserBind: 绑定信息
         """
+        orphan_user_id: int | None = None
         async with get_session() as session:
             where_and = (UserBind.platform_id == platform_id) & (UserBind.account_id == account_id)
             if bind := await session.scalar(select(UserBind).where(where_and)):
@@ -275,15 +378,19 @@ class UserBind(FilterModel, Model):
                 await session.execute(update(UserBind).where(where_and).values(user=user))
                 await session.commit()
                 # 查看之前用户是否有其他绑定，如果没有则删除该用户
-                if len(old_user.binds) == 0:
-                    await session.delete(old_user)
+                remaining_bind = await session.scalar(select(UserBind.id).where(UserBind.user_id == old_user.id))
+                if remaining_bind is None:
+                    orphan_user_id = old_user.id
             else:
                 bind = cls(platform_id=platform_id, account_id=account_id, user=user)
                 session.add(bind)
             await session.commit()
             await session.refresh(user)
             await session.refresh(bind)
-            return bind
+
+        if orphan_user_id is not None and (orphan_user := await User.get_user(orphan_user_id)) is not None:
+            await orphan_user.delete_account()
+        return bind
 
 
 class AgentWorkflowCheckpoint(FilterModel, Model):
@@ -477,6 +584,39 @@ class Group(FilterModel, Model):
     async def get_binds(self) -> List["GroupBind"]:
         """获取群组绑定信息"""
         return await GroupBind.filter(group_id=self.id).all()
+
+    async def delete_group(self, manager: StorageManager | None = None) -> None:
+        """删除系统群组，并清理班级挂载、群设置与群文件空间。
+
+        当前项目中系统群组与班级是一对一挂载关系，所以删除群组时如果仍有
+        班级主体，会优先走班级侧的删除流程，避免触发
+        ``bot_classes.group_id`` 的非空约束问题。
+
+        Args:
+            manager: 可选的存储管理器，未提供时使用全局 ``storage_manager``。
+        """
+
+        classes = getattr(self, "classes", None)
+        if classes is None:
+            classes = await Classes.filter(group_id=self.id).first()
+        if classes is not None:
+            await classes.delete_related_group(manager=manager)
+            return
+
+        cleanup_manager = manager or storage_manager
+        settings_id = self.settings_id
+
+        async with get_session() as session:
+            await session.execute(sql_delete(GroupBind.__table__).where(GroupBind.group_id == self.id))
+            await session.execute(sql_delete(Group.__table__).where(Group.id == self.id))
+            if settings_id is not None:
+                await session.execute(sql_delete(GroupSettings.__table__).where(GroupSettings.id == settings_id))
+            await session.commit()
+
+        _cleanup_storage_safely(
+            lambda: cleanup_manager.delete_group_space(self.id),
+            description=f"群组[{self.id}]文件空间",
+        )
 
 
 class GroupBind(FilterModel, Model):
@@ -936,6 +1076,41 @@ class Classes(FilterModel, Model):
     async def student_count(self) -> int:
         """获取班级学生数量"""
         return await Student.filter(classes_id=self.id).count()
+
+    async def delete_related_group(self, manager: StorageManager | None = None) -> None:
+        """删除班级，并清理其挂载群组、群设置与聊天/文件空间。
+
+        删除顺序必须保持为“班级 -> 群组 -> 群设置”，否则某些 ORM 删除路径
+        会先尝试把 ``bot_classes.group_id`` 置空，进而触发数据库非空约束错误。
+
+        Args:
+            manager: 可选的存储管理器，未提供时使用全局 ``storage_manager``。
+        """
+
+        cleanup_manager = manager or storage_manager
+        group_id = self.group_id
+        settings_id = None
+
+        group = getattr(self, "group", None)
+        if group is None and group_id is not None:
+            group = await Group.filter(id=group_id).first()
+        if group is not None:
+            settings_id = group.settings_id
+
+        async with get_session() as session:
+            await session.execute(sql_delete(Classes.__table__).where(Classes.id == self.id))
+            if group_id is not None:
+                await session.execute(sql_delete(GroupBind.__table__).where(GroupBind.group_id == group_id))
+                await session.execute(sql_delete(Group.__table__).where(Group.id == group_id))
+            if settings_id is not None:
+                await session.execute(sql_delete(GroupSettings.__table__).where(GroupSettings.id == settings_id))
+            await session.commit()
+
+        if group_id is not None:
+            _cleanup_storage_safely(
+                lambda: cleanup_manager.delete_group_space(group_id),
+                description=f"群组[{group_id}]文件空间",
+            )
 
     async def user_join_classes(self, user: User):
         """用户加入班级
@@ -1628,7 +1803,7 @@ class LeaveWorkflow(FilterModel, Model):
         """对用户进行排序。"""
         users = []
         for uid in self.order:
-            if user := User.filter(id=uid).first():
+            if user := await User.filter(id=uid).first():
                 users.append(user)
             else:
                 raise ValueError("用户不存在")

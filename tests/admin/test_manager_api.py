@@ -1,5 +1,6 @@
 import os
 import sys
+from datetime import datetime
 from pathlib import Path
 from uuid import uuid4
 
@@ -86,11 +87,15 @@ def isolate_manager_database_cache():
 def manager_storage(monkeypatch, tmp_path):
     from src.routers.managers import chat_history as manager_chat_history
     from src.routers.managers import files as manager_files
+    from src.routers.managers import groups as manager_groups
+    import utils.models.models as model_definitions
     from utils.storage import StorageManager
 
     isolated_storage = StorageManager(root=tmp_path / "storage")
     monkeypatch.setattr(manager_files, "storage_manager", isolated_storage)
     monkeypatch.setattr(manager_chat_history, "storage_manager", isolated_storage)
+    monkeypatch.setattr(manager_groups, "storage_manager", isolated_storage)
+    monkeypatch.setattr(model_definitions, "storage_manager", isolated_storage)
     return isolated_storage
 
 
@@ -798,18 +803,27 @@ async def test_manager_database_catalog_refresh_bypasses_cached_table_list(
             await connection.run_sync(metadata.drop_all)
 
 
-async def test_manager_user_delete_removes_user_and_binds(manager_client, manager_auth_headers, manager_user_orm):
+async def test_manager_user_delete_removes_user_and_binds(
+    manager_client,
+    manager_auth_headers,
+    manager_user_orm,
+    manager_storage,
+):
     from utils.models import User, UserBind
 
     suffix = uuid4().hex[:8]
     user = await User.create_user(nickname="待删用户", username=f"manager_delete_user_{suffix}")
     await UserBind.bind_user("qq.qq_api", f"manager-delete-{suffix}", user)
+    user_space = manager_storage.user_space(user.id)
+    user_space.touch("documents/account.txt")
+    user_space.chat_dir.joinpath("messages.db").write_text("manager delete user chat", encoding="utf-8")
 
     response = await manager_client.delete(f"/api/v1/manager/users/{user.id}", headers=manager_auth_headers)
     assert response.status_code == 200, response.text
     assert response.json() == {"deleted": True, "user_id": user.id}
     assert await User.filter(id=user.id).first() is None
     assert await UserBind.filter(user_id=user.id).count() == 0
+    assert not user_space.space_root.exists()
 
 
 async def test_manager_users_include_avatar_in_summary_and_detail(
@@ -883,6 +897,49 @@ async def test_manager_groups_list_and_detail(
     assert payload["class_detail"]["id"] == classes.id
     assert payload["binds"][0]["channel_id"] == f"manager-group-{suffix}"
     assert payload["teachers"][0]["user"]["id"] == teacher_user.id
+
+
+async def test_manager_group_delete_cleans_related_storage_and_records(
+    manager_client,
+    manager_auth_headers,
+    manager_user_orm,
+    manager_storage,
+):
+    from utils.models import Classes, Group, GroupBind, User
+
+    suffix = uuid4().hex[:8]
+    creator = await User.create_user(nickname="群删除创建者", username=f"manager_group_delete_creator_{suffix}")
+    channel_owner_id = f"manager-group-delete-{suffix}"
+    classes = await Classes.create_classes(
+        name=f"删除群组班级_{suffix}",
+        platform_name="QQ",
+        platform_id="qq.qq_api",
+        channel_id=channel_owner_id,
+        guild_id=None,
+        user=creator,
+    )
+
+    group_space = manager_storage.group_space(classes.group_id)
+    group_space.touch("documents/readme.txt")
+    group_space.resolve("documents/readme.txt", reject_escape=True).path.write_text("group delete", "utf-8")
+    bound_group_space = manager_storage.group_space(channel_owner_id)
+    bound_group_space.touch("documents/channel.txt")
+    bound_group_space.resolve("documents/channel.txt", reject_escape=True).path.write_text("channel delete", "utf-8")
+
+    response = await manager_client.delete(
+        f"/api/v1/manager/groups/{classes.group_id}",
+        headers=manager_auth_headers,
+    )
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["deleted"] is True
+    assert payload["group_id"] == classes.group_id
+
+    assert await Group.filter(id=classes.group_id).first() is None
+    assert await Classes.filter(id=classes.id).first() is None
+    assert await GroupBind.filter(group_id=classes.group_id).count() == 0
+    assert not group_space.space_root.exists()
+    assert not bound_group_space.space_root.exists()
 
 
 async def test_manager_user_delete_returns_structured_blockers(
@@ -993,7 +1050,7 @@ async def test_manager_file_space_management_api(
     user = await User.create_user(nickname="文件用户", username=f"manager_file_user_{suffix}")
     creator = await User.create_user(nickname="文件群创建者", username=f"manager_file_group_{suffix}")
     group_channel_id = f"manager-files-{suffix}"
-    await Classes.create_classes(
+    classes = await Classes.create_classes(
         name=f"文件测试班级_{suffix}",
         platform_name="QQ",
         platform_id="qq.qq_api",
@@ -1003,7 +1060,7 @@ async def test_manager_file_space_management_api(
     )
 
     user_space = manager_storage.user_space(user.id)
-    group_space = manager_storage.group_space(group_channel_id)
+    group_space = manager_storage.group_space(classes.group_id)
 
     user_space.touch("documents/readme.txt")
     user_space.resolve("documents/readme.txt", reject_escape=True).path.write_text("hello user space", "utf-8")
@@ -1014,9 +1071,12 @@ async def test_manager_file_space_management_api(
     assert spaces.status_code == 200, spaces.text
     space_items = spaces.json()["items"]
     user_item = next(item for item in space_items if item["kind"] == "user" and item["owner_id"] == str(user.id))
-    group_item = next(item for item in space_items if item["kind"] == "group" and item["owner_id"] == group_channel_id)
+    group_item = next(item for item in space_items if item["kind"] == "group" and item["owner_id"] == str(classes.group_id))
     assert user_item["linked"] is True
     assert group_item["title"] == f"文件测试班级_{suffix}"
+    assert group_item["owner"]["group_id"] == classes.group_id
+    assert group_item["owner"]["channel_ids"] == [group_channel_id]
+    assert not manager_storage.space_root("group", group_channel_id).exists()
 
     detail = await manager_client.get(
         f"/api/v1/manager/files/spaces/user/{user.id}",
@@ -1089,6 +1149,32 @@ async def test_manager_file_space_management_api(
     assert traversal.status_code == 400
 
 
+async def test_manager_file_space_delete_entire_space(
+    manager_client,
+    manager_auth_headers,
+    manager_user_orm,
+    manager_storage,
+):
+    from utils.models import User
+
+    suffix = uuid4().hex[:8]
+    user = await User.create_user(nickname="文件删除用户", username=f"manager_file_delete_{suffix}")
+    user_space = manager_storage.user_space(user.id)
+    user_space.touch("documents/readme.txt")
+    user_space.resolve("documents/readme.txt", reject_escape=True).path.write_text("delete all", "utf-8")
+
+    response = await manager_client.delete(
+        f"/api/v1/manager/files/spaces/user/{user.id}",
+        headers=manager_auth_headers,
+    )
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["deleted"] is True
+    assert payload["kind"] == "user"
+    assert payload["owner_id"] == str(user.id)
+    assert not user_space.space_root.exists()
+
+
 async def test_manager_chat_history_management_api(
     manager_client,
     manager_auth_headers,
@@ -1123,6 +1209,7 @@ async def test_manager_chat_history_management_api(
         bot_id="114514",
         platform_user_id="manager-user-platform",
         metadata={"source": "manager_api_test", "scene": "private_inbound"},
+        created_at=datetime(2026, 5, 1, 9, 15, 0),
     )
     await store.record_user_chat_message(
         user_id=private_user.id,
@@ -1138,6 +1225,7 @@ async def test_manager_chat_history_management_api(
         bot_id="114514",
         platform_user_id="114514",
         metadata={"source": "manager_api_test", "scene": "private_outbound"},
+        created_at=datetime(2026, 5, 2, 10, 45, 0),
     )
     await store.record_group_collect_message(
         group_id=classes.group_id,
@@ -1152,6 +1240,7 @@ async def test_manager_chat_history_management_api(
         bot_id="114514",
         platform_user_id="u1",
         metadata={"source": "manager_api_test", "scene": "group_collect"},
+        created_at=datetime(2026, 5, 3, 8, 30, 0),
     )
     await store.record_group_collect_message(
         group_id=classes.group_id,
@@ -1166,6 +1255,7 @@ async def test_manager_chat_history_management_api(
         bot_id="114514",
         platform_user_id="u2",
         metadata={"source": "manager_api_test", "scene": "group_collect"},
+        created_at=datetime(2026, 5, 3, 9, 5, 0),
     )
 
     spaces = await manager_client.get("/api/v1/manager/chat-history/spaces", headers=manager_auth_headers)
@@ -1193,6 +1283,17 @@ async def test_manager_chat_history_management_api(
     assert detail_payload["message_count"] == 2
     assert detail_payload["latest_message_preview"] == "奖学金申请还在审核中"
 
+    default_messages = await manager_client.get(
+        f"/api/v1/manager/chat-history/spaces/user/{private_user.id}/messages",
+        headers=manager_auth_headers,
+    )
+    assert default_messages.status_code == 200, default_messages.text
+    default_payload = default_messages.json()
+    assert default_payload["message_date"] == "2026-05-02"
+    assert default_payload["available_dates"] == ["2026-05-02", "2026-05-01"]
+    assert default_payload["total"] == 1
+    assert default_payload["items"][0]["message_id"] == "pm-assistant-1"
+
     assistant_messages = await manager_client.get(
         f"/api/v1/manager/chat-history/spaces/user/{private_user.id}/messages",
         headers=manager_auth_headers,
@@ -1201,6 +1302,8 @@ async def test_manager_chat_history_management_api(
     assert assistant_messages.status_code == 200, assistant_messages.text
     assistant_payload = assistant_messages.json()
     assert assistant_payload["total"] == 1
+    assert assistant_payload["message_date"] == "2026-05-02"
+    assert assistant_payload["available_dates"] == ["2026-05-02"]
     assert assistant_payload["items"][0]["user_name"] == "ClassRobot"
     assert assistant_payload["items"][0]["record_kind"] == "chat"
     assert assistant_payload["items"][0]["direction"] == "outbound"
@@ -1217,10 +1320,37 @@ async def test_manager_chat_history_management_api(
     )
     assert group_messages.status_code == 200, group_messages.text
     group_payload = group_messages.json()
+    assert group_payload["message_date"] == "2026-05-03"
+    assert group_payload["available_dates"] == ["2026-05-03"]
     assert group_payload["total"] == 2
     assert group_payload["items"][0]["user_name"] in {"张三", "李四"}
     assert group_payload["items"][0]["channel_id"] == f"manager-chat-{suffix}"
     assert group_payload["items"][0]["direction"] == "inbound"
+
+    dated_messages = await manager_client.get(
+        f"/api/v1/manager/chat-history/spaces/user/{private_user.id}/messages",
+        headers=manager_auth_headers,
+        params={"message_date": "2026-05-01"},
+    )
+    assert dated_messages.status_code == 200, dated_messages.text
+    dated_payload = dated_messages.json()
+    assert dated_payload["message_date"] == "2026-05-01"
+    assert dated_payload["available_dates"] == ["2026-05-02", "2026-05-01"]
+    assert dated_payload["total"] == 1
+    assert dated_payload["items"][0]["message_id"] == "pm-user-1"
+    assert dated_payload["items"][0]["direction"] == "inbound"
+
+    fallback_messages = await manager_client.get(
+        f"/api/v1/manager/chat-history/spaces/user/{private_user.id}/messages",
+        headers=manager_auth_headers,
+        params={"message_date": "2026-05-06"},
+    )
+    assert fallback_messages.status_code == 200, fallback_messages.text
+    fallback_payload = fallback_messages.json()
+    assert fallback_payload["message_date"] == "2026-05-02"
+    assert fallback_payload["available_dates"] == ["2026-05-02", "2026-05-01"]
+    assert fallback_payload["total"] == 1
+    assert fallback_payload["items"][0]["message_id"] == "pm-assistant-1"
 
     invalid_filter = await manager_client.get(
         f"/api/v1/manager/chat-history/spaces/group/{classes.group_id}/messages",
@@ -1236,6 +1366,54 @@ async def test_manager_chat_history_management_api(
     )
     assert invalid_direction.status_code == 400
 
+    invalid_date = await manager_client.get(
+        f"/api/v1/manager/chat-history/spaces/group/{classes.group_id}/messages",
+        headers=manager_auth_headers,
+        params={"message_date": "2026/05/03"},
+    )
+    assert invalid_date.status_code == 400
+
+
+async def test_manager_chat_history_delete_space(
+    manager_client,
+    manager_auth_headers,
+    manager_user_orm,
+    manager_storage,
+):
+    from utils.models import User
+    from utils.storage import ChatHistoryStore, MessageActorRole
+
+    suffix = uuid4().hex[:8]
+    private_user = await User.create_user(nickname="聊天删除用户", username=f"manager_chat_delete_{suffix}")
+
+    store = ChatHistoryStore(manager_storage)
+    await store.record_user_chat_message(
+        user_id=private_user.id,
+        user_name=private_user.nickname,
+        plain_text="删除前消息",
+        raw_text="删除前消息",
+        actor_role=MessageActorRole.user,
+        message_id="pm-delete-1",
+        platform="onebot11.qq_client",
+        platform_name="QQ",
+        bot_id="114514",
+        platform_user_id="delete-user-platform",
+        metadata={"source": "manager_api_test", "scene": "private_delete"},
+    )
+
+    chat_db_path = manager_storage.user_space(private_user.id).chat_dir / "messages.db"
+    assert chat_db_path.exists()
+
+    response = await manager_client.delete(
+        f"/api/v1/manager/chat-history/spaces/user/{private_user.id}",
+        headers=manager_auth_headers,
+    )
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["deleted"] is True
+    assert payload["kind"] == "user"
+    assert payload["owner_id"] == str(private_user.id)
+    assert not chat_db_path.parent.exists()
 
 async def test_manager_checkpoint_delete_returns_404_when_missing(
     manager_client,

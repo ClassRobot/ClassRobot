@@ -34,6 +34,7 @@
 - [AutoGPT 智能能力改进方案](./guides/agent-module.md)
 - [Agent Playbook 与确认执行](./guides/agent-playbooks.md)
 - [Agent 工程化研发手册](./guides/agent-engineering-playbook.md)
+- [Harness Engineering 架构蓝图](./architecture/harness-engineering-architecture.md)
 
 ### 参考资料
 
@@ -81,6 +82,7 @@
   - 再看 [命令与 Agent 一体化架构设计](./architecture/command-agent-unified-architecture.md)
 - 想推进 Agent、Tool、Skill、MCP、RAG 或 Prompt 工程化：
   - 先看 [Agent 工程化研发手册](./guides/agent-engineering-playbook.md)，再按需回到 [AutoGPT 智能能力改进方案](./guides/agent-module.md)
+  - 如果要先统一“仓库契约 + 运行时分层 + 观测恢复边界”，再看 [Harness Engineering 架构蓝图](./architecture/harness-engineering-architecture.md)
 - 想做 Skill、文件处理或图片处理能力：
   - 先看 [Skill 系统说明](./guides/skill-system.md)
 - 想推进本地管理后台：

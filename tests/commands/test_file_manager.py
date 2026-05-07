@@ -68,6 +68,8 @@ async def test_private_file_commands_keep_user_space_isolated(
 async def test_group_and_private_file_spaces_are_separated(app, onebot, send_recorder, monkeypatch, tmp_path, models):
     import src.plugins.file_manager.services as file_services
     from src.plugins.file_manager.commands import ls_cmd, mkdir_cmd
+    from tests.commands.conftest import PLATFORM_ID
+    from utils.models import GroupBind
     from utils.storage import StorageManager
 
     monkeypatch.setattr(file_services, "storage_manager", StorageManager(tmp_path / "storage"))
@@ -94,6 +96,11 @@ async def test_group_and_private_file_spaces_are_separated(app, onebot, send_rec
         ctx.receive_event(bot, event)
     recorder.assert_any("目录为空", absent=("shared/",))
 
+    group_bind = await GroupBind.get_bind(PLATFORM_ID, "21001", None)
+    assert group_bind is not None
+    assert (file_services.storage_manager.group_space(group_bind.group_id).home_dir / "documents" / "shared").is_dir()
+    assert not file_services.storage_manager.space_root("group", "21001").exists()
+
 
 async def test_file_service_handlers_can_be_called_by_agent_context(loaded_plugins, tmp_path):
     import src.plugins.file_manager.services as file_services
@@ -116,3 +123,36 @@ async def test_file_service_handlers_can_be_called_by_agent_context(loaded_plugi
     pwd_result = await command_executor.execute("pwd", {}, context)
     assert pwd_result.success
     assert pwd_result.data["path"] == "~/documents/agent"
+
+
+async def test_file_service_group_context_uses_system_group_id(loaded_plugins, tmp_path):
+    import src.plugins.file_manager.services as file_services
+    from src.commands import CommandExecutionContext, command_executor
+    from utils.models import Classes, User
+    from utils.storage import StorageManager
+
+    manager = StorageManager(tmp_path / "storage")
+    file_services.storage_manager = manager
+
+    owner = await User.create_user(nickname="群文件创建者", username="file_group_owner_23001")
+    classes = await Classes.create_classes(
+        name="群文件测试班级",
+        platform_name="",
+        platform_id="onebot11.qq_client",
+        channel_id="23001",
+        guild_id=None,
+        user=owner,
+    )
+
+    context = CommandExecutionContext(
+        user_id=owner.id,
+        roles={"user"},
+        platform="onebot11.qq_client",
+        channel_id="23001",
+        invoker="agent_workflow",
+    )
+
+    mkdir_result = await command_executor.execute("mkdir", {"路径": "documents/group-agent"}, context)
+    assert mkdir_result.success
+    assert (manager.group_space(classes.group_id).home_dir / "documents" / "group-agent").is_dir()
+    assert not manager.space_root("group", "23001").exists()

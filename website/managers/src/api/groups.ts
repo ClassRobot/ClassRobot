@@ -1,5 +1,6 @@
 import client from './client'
 import type {
+  GroupDeleteResult,
   GroupDetail,
   GroupSummary,
   PaginatedResponse,
@@ -19,4 +20,8 @@ export function fetchGroups(params: GroupListParams = {}): Promise<PaginatedResp
 
 export function fetchGroupDetail(groupId: number): Promise<GroupDetail> {
   return client.get(`/groups/${groupId}`).then((r) => r.data)
+}
+
+export function deleteGroup(groupId: number): Promise<GroupDeleteResult> {
+  return client.delete(`/groups/${groupId}`).then((r) => r.data)
 }

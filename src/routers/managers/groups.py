@@ -7,6 +7,7 @@ from nonebot_plugin_orm import get_session
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
+from utils.storage import storage_manager
 from utils.models import (
     Classes,
     ClassesJoinRequest,
@@ -387,3 +388,43 @@ async def get_group_detail(group_id: int) -> dict[str, Any]:
         }
     )
     return summary
+
+
+async def delete_group(group_id: int) -> dict[str, Any]:
+    """删除群组及其挂载班级、绑定与群文件空间。
+
+    Args:
+        group_id: 群组 ID。
+
+    Returns:
+        dict[str, Any]: 删除结果摘要。
+
+    Raises:
+        KeyError: 当群组不存在时抛出。
+    """
+
+    async with get_session() as session:
+        group = await session.scalar(
+            select(Group)
+            .where(Group.id == group_id)
+            .options(*_group_load_options())
+        )
+        if group is None:
+            raise KeyError(str(group_id))
+        binds = list(
+            await session.scalars(
+                select(GroupBind).where(GroupBind.group_id == group.id).order_by(GroupBind.id)
+            )
+        )
+
+    group_name = group.name
+    channel_owner_ids = sorted({bind.channel_id for bind in binds if bind.channel_id})
+    await group.delete_group(manager=storage_manager)
+    storage_manager.delete_group_space(group_id)
+    for channel_owner_id in channel_owner_ids:
+        storage_manager.delete_group_space(channel_owner_id)
+    return {
+        "deleted": True,
+        "group_id": group_id,
+        "group_name": group_name,
+    }

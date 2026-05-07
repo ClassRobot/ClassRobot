@@ -389,6 +389,13 @@ export interface FileSpaceDeleteResult {
   path: string | null
 }
 
+export interface FileSpaceDeleteSpaceResult {
+  deleted: boolean
+  kind: FileSpaceKind
+  owner_id: string
+  path: string
+}
+
 // ─── Chat History ──────────────────────────────────────────
 export type ChatHistorySpaceKind = 'user' | 'group'
 export type ChatHistoryRecordKind = 'collect' | 'chat'
@@ -459,6 +466,14 @@ export interface ChatHistorySpaceListResponse {
 
 export interface ChatHistorySpaceDetail extends ChatHistorySpaceSummary {}
 
+export interface ChatHistoryDeleteSpaceResult {
+  deleted: boolean
+  kind: ChatHistorySpaceKind
+  owner_id: string
+  chat_path: string
+  db_path: string
+}
+
 export interface ChatHistoryMessage {
   event_key: string
   owner_kind: ChatHistorySpaceKind
@@ -489,6 +504,8 @@ export interface ChatHistoryMessageListResponse {
   record_kind: ChatHistoryRecordKind | null
   actor_role: ChatHistoryActorRole | null
   direction: ChatHistoryDirection | null
+  message_date: string | null
+  available_dates: string[]
   items: ChatHistoryMessage[]
   page: number
   page_size: number
@@ -677,6 +694,12 @@ export interface GroupDetail extends GroupSummary {
   teachers: GroupMemberTeacher[]
   students: GroupMemberStudent[]
   join_requests: GroupJoinRequest[]
+}
+
+export interface GroupDeleteResult {
+  deleted: boolean
+  group_id: number
+  group_name: string
 }
 
 // ─── Settings ───────────────────────────────────────────────

@@ -1,28 +1,29 @@
 from inspect import isawaitable
 from typing import Any, Callable, Iterable
 
-from utils import Emoji
 from nonebot.rule import to_me
-from utils.helper import Helper, HelperScope
-from utils.roles import UserRole
-from utils.config import priority
-from utils.session import EventSession
-from src.agents.skills import markdown_to_image_skill
 from nonebot.matcher import Matcher
 from nonebot.message import handle_event
 from nonebot.adapters import Bot, Event, Message
 from nonebot import logger, on_command, on_message
+from src.commands.registry import command_registry
+from src.agents.skills import markdown_to_image_skill
+from src.commands.adapters import AgentCommandAdapter
 from nonebot.adapters.qq.exception import ActionFailed
+from src.commands.context import CommandExecutionContext
 from nonebot.adapters.onebot.v12.exception import NetworkError
 from nonebot_plugin_alconna import Target, UniMsg, MsgTarget, UniMessage
-from src.commands.adapters import AgentCommandAdapter
-from src.commands.context import CommandExecutionContext
-from src.commands.registry import command_registry
 
-from .schema import Param, AutoTask, AutoTaskList, CommandObservation
-from .util import ChatSessionDepends, markdown_to_message
+from utils import Emoji
+from utils.roles import UserRole
+from utils.config import priority
+from utils.session import EventSession
+from utils.helper import Helper, HelperScope
+
 from .knowledge import AgentRuntimeContext
-from .workflow import WorkflowExecutor, collect_unsent_observation_outputs
+from .util import ChatSessionDepends, markdown_to_message
+from .schema import Param, AutoTask, AutoTaskList, CommandObservation
+from .workflow import WorkflowExecutor, format_execution_status, collect_unsent_observation_outputs
 
 auto_gpt = on_message(priority=priority * 10, block=True, rule=to_me())
 clear_chat = on_command("清空聊天", aliases={"重置聊天", "聊天清空", "聊天重置"}, priority=priority, block=True)
@@ -343,6 +344,9 @@ async def _(
             if execution.observations:
                 chat_session.record_observations(execution.observations, trace_id=chat_session.last_trace_id)
             await chat_session.record_workflow(execution.workflow, trace_id=chat_session.last_trace_id)
+            execution_status = format_execution_status(execution)
+            if execution_status:
+                await matcher.send(await markdown_to_message(execution_status).export(adapter=target.adapter, bot=bot))
             if execution.user_message:
                 user_message = (
                     Emoji.error + execution.user_message
@@ -383,6 +387,14 @@ async def _(
                     await matcher.send(Emoji.error + f"无法调用`{task.command}`命令，因为该命令不存在！")
             if observations:
                 chat_session.record_observations(observations, trace_id=chat_session.last_trace_id)
+                executed_count = sum(1 for observation in observations if observation.dispatch_type == "command")
+                if executed_count:
+                    await matcher.send(
+                        await markdown_to_message(f"已运行 {executed_count} 条命令。").export(
+                            adapter=target.adapter,
+                            bot=bot,
+                        )
+                    )
                 unsent_outputs = collect_unsent_observation_outputs(observations)
                 if unsent_outputs:
                     await matcher.send(

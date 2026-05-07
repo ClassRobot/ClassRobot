@@ -137,7 +137,7 @@ async def _(matcher: AlconnaMatcher, user: UserDepends, confirm: str = ArgPlainT
         await user.student.filter(id=user.student.id).delete()
         await user.update(role=next_role)
     elif role == UserRoleLang.user:
-        await user.filter(id=user.id).delete()
+        await user.delete_account()
     else:
         await matcher.finish(Emoji.error + "目标账号不存在或已被注销，请刷新后重试。")
 

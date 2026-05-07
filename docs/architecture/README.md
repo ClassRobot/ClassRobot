@@ -19,6 +19,8 @@
 
 ### 主读文档
 
+- [Harness Engineering 架构蓝图](./harness-engineering-architecture.md)
+  - 适合先理解“为什么项目要从做功能，升级到做 harness”，以及 Harness 分层如何映射到当前仓库
 - [架构视图总览](./architecture-views.md)
   - 适合先快速建立“系统边界、分层和运行流程”的整体图景
 - [统一 AI 平台架构总纲](./unified-ai-platform-handbook.md)
@@ -76,15 +78,24 @@
 - [Model Context Protocol: Build with agent skills](https://modelcontextprotocol.io/docs/develop/build-with-agent-skills)
 - [OpenAI API Docs: Tools](https://platform.openai.com/docs/guides/tools)
 - [OpenAI API Docs: Models](https://developers.openai.com/api/docs/models)
+- [OpenAI: Harness engineering](https://openai.com/index/harness-engineering/)
+- [OpenAI: Symphony](https://openai.com/index/open-source-codex-orchestration-symphony/)
+- [OpenAI Symphony SPEC](https://github.com/openai/symphony/blob/main/SPEC.md)
 - [LangGraph Overview](https://docs.langchain.com/oss/python/langgraph/overview)
 - [LangGraph Durable Execution](https://docs.langchain.com/oss/python/langgraph/durable-execution)
 - [RAGFlow Official Site](https://ragflow.io/)
 - [RAGFlow Official GitHub](https://github.com/infiniflow/ragflow)
+- [OpenClaw Gateway architecture](https://docs.openclaw.ai/concepts/architecture)
+- [OpenClaw Agent runtime](https://docs.openclaw.ai/concepts/agent)
+- [OpenClaw Context Engine](https://docs.openclaw.ai/concepts/context-engine)
+- [OpenClaw Memory Overview](https://docs.openclaw.ai/concepts/memory)
+- [OpenClaw Delegate Architecture](https://docs.openclaw.ai/concepts/delegate-architecture)
 
 ## 阅读建议
 
 - 如果你想先通过图理解“系统边界、分层、领域关系和运行时流程”，先读“架构视图总览”
 - 如果你想理解当前 Agent 为什么要走“显式工作流 + NoneBot2 命令复用”的路线，先读“Agent 工作流编排架构”
+- 如果你想理解为什么后续要把 Agent、Prompt、Skill、RAG 和测试一起收敛成 Harness，先读“Harness Engineering 架构蓝图”
 - 如果你想理解命令系统为什么要和 Agent 工具目录、统一执行器收敛到同一套元数据，先读“命令与 Agent 一体化架构设计”
 - 如果你现在概念很多、思路很乱，先读“统一 AI 平台架构总纲”
 - 如果你要安排真实开发顺序，接着读“迁移路线图”

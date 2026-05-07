@@ -87,6 +87,27 @@ def test_file_space_list_entries_skips_size_calculation_by_default(loaded_plugin
     assert entries_with_size[1].size == 0
 
 
+def test_storage_manager_can_delete_whole_user_and_group_space(loaded_plugins, tmp_path):
+    from utils.storage import StorageManager
+
+    manager = StorageManager(tmp_path / "storage")
+    user_space = manager.user_space(40001)
+    group_space = manager.group_space("group-40001")
+
+    user_space.touch("documents/profile.txt")
+    user_space.chat_dir.joinpath("messages.db").write_text("user chat", encoding="utf-8")
+    group_space.touch("images/banner.txt")
+    group_space.chat_dir.joinpath("messages.db").write_text("group chat", encoding="utf-8")
+
+    assert manager.delete_user_space(40001) is True
+    assert manager.delete_user_space(40001) is False
+    assert not user_space.space_root.exists()
+
+    assert manager.delete_group_space("group-40001") is True
+    assert manager.delete_group_space("group-40001") is False
+    assert not group_space.space_root.exists()
+
+
 @pytest.mark.asyncio
 async def test_collect_upload_payloads_downloads_file_url(loaded_plugins, monkeypatch):
     from nonebot_plugin_alconna import File

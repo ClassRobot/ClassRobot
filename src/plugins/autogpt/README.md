@@ -43,13 +43,61 @@
 - 高风险或信息不足的任务必须进入确认流程。
 - 用户只看到有价值的反馈，不暴露内部推理细节。
 
+## 2.1 Harness 代码入口
+
+从 2026-05 这一轮整理开始，`src/plugins/autogpt/` 不再只是“若干文件协作”，而是开始通过 `harness/` 目录把运行时依赖显式分层：
+
+- `harness/policy.py`
+  - 收敛当前用户可见命令、`CommandToolCatalog` 和 Skill 摘要
+- `harness/context.py`
+  - 收敛会话消息、本地检索器、聊天存储和运行时上下文
+- `harness/observability.py`
+  - 收敛阶段反馈和轻量可观测性逻辑
+- `harness/runtime.py`
+  - 把以上几层组装成 `AutoGPTHarness`，作为 `ChatSession -> Pipeline` 的统一依赖入口
+
+这一步的目标不是重新发明框架，而是把 Harness Engineering 先落成“代码可见的边界”。
+
+## 2.2 模型分层约定
+
+从这一轮开始，`autogpt` 内部遵循下面这条简单规则：
+
+- `pydantic`
+  - 用于边界契约、结构化输出和需要序列化/校验的对象
+  - 例如 `IntentRoute`、`AgentPlan`、`AgentWorkflow`、`CommandObservation`
+- `dataclass`
+  - 用于内部运行态、依赖容器和纯内存中转对象
+  - 例如 `AutoGPTHarness`、`AgentRuntimeContext`、`PipelineState`、`LocalChatStatisticsQuery`、`ChatMessage`
+
+这样划分的原因是：
+
+- 前者需要承接 LLM 输出、工作流快照、审计记录和结构化序列化
+- 后者只服务于当前 Python 进程里的装配、传递和执行，不需要额外的模型校验开销
+
+经验规则：
+
+> 只要对象的主要职责是“让系统对外说清楚自己是什么”，优先用 `pydantic`；只要对象的主要职责是“让内部运行时更清楚地组织依赖和状态”，优先用 `dataclass`。
+
 ## 3. 总体架构
 
 ```mermaid
 flowchart TD
     User["用户消息"] --> Entry["AutoGPT 入口\nsrc/plugins/autogpt/__init__.py"]
     Entry --> Session["ChatSession\nutil.py"]
-    Session --> Pipeline["MessageProcessingPipeline\npipeline.py"]
+    Session --> Harness["AutoGPTHarness\nharness/runtime.py"]
+
+    subgraph HarnessLayers["Harness 分层入口"]
+        PolicyHarness["Policy Harness\nharness/policy.py"]
+        ContextHarness["Context Harness\nharness/context.py"]
+        ObserveHarness["Observability Harness\nharness/observability.py"]
+    end
+
+    Harness --> PolicyHarness
+    Harness --> ContextHarness
+    Harness --> ObserveHarness
+    PolicyHarness --> Pipeline["MessageProcessingPipeline\npipeline.py"]
+    ContextHarness --> Pipeline
+    ObserveHarness --> Pipeline
 
     subgraph Planning["规划层"]
         Router["IntentRouteNode\n意图路由"]
@@ -313,8 +361,9 @@ flowchart TD
 | 文件 | 主要职责 |
 | --- | --- |
 | `__init__.py` | NoneBot 入口、用户回复发送、命令重投递、执行器接线 |
-| `util.py` | `ChatSession`、会话锁、待确认恢复、工作流记录 |
+| `util.py` | `ChatSession`、会话锁、待确认恢复、工作流记录、`AutoGPTHarness` 组装入口 |
 | `pipeline.py` | 消息处理流水线和节点编排 |
+| `harness/` | Policy / Context / Observability 依赖分层与运行时组装入口 |
 | `schema.py` | 路由、计划、工作流、步骤、审批、观察等结构化模型 |
 | `workflow.py` | `WorkflowBuilder`、`WorkflowExecutor`、工作流状态变换 |
 | `command_tools.py` | 把 Helper 命令包装成可规划的命令工具目录 |

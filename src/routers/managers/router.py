@@ -341,6 +341,30 @@ async def get_group_item(group_id: int, _=Depends(manager_auth)):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Group not found") from error
 
 
+@router.delete("/groups/{group_id}")
+async def delete_group_item(group_id: int, session=Depends(manager_auth)):
+    """删除群组、班级挂载和相关群文件空间。"""
+    try:
+        result = await groups.delete_group(group_id)
+        audit.log_event(
+            "groups",
+            "delete_group",
+            "completed",
+            detail={"group_id": group_id},
+            session=session,
+        )
+        return result
+    except KeyError as error:
+        audit.log_event(
+            "groups",
+            "delete_group",
+            "failed",
+            detail={"group_id": group_id, "error": "Group not found"},
+            session=session,
+        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Group not found") from error
+
+
 @router.get("/skills")
 async def list_skill_items(_=Depends(manager_auth)):
     """列出 Skill 清单。"""
@@ -847,6 +871,52 @@ async def delete_manager_file_space_entry(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
 
 
+@router.delete("/files/spaces/{space_kind}/{owner_id}")
+async def delete_manager_file_space(
+    space_kind: str,
+    owner_id: str,
+    session=Depends(manager_auth),
+):
+    """删除整个文件空间。"""
+    try:
+        result = await files.delete_file_space(space_kind, owner_id)
+        audit.log_event(
+            "files",
+            "delete_file_space",
+            "completed",
+            detail={"kind": space_kind, "owner_id": owner_id},
+            session=session,
+        )
+        return result
+    except ValueError as error:
+        audit.log_event(
+            "files",
+            "delete_file_space",
+            "failed",
+            detail={"kind": space_kind, "owner_id": owner_id, "error": str(error)},
+            session=session,
+        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
+    except FileNotFoundError as error:
+        audit.log_event(
+            "files",
+            "delete_file_space",
+            "failed",
+            detail={"kind": space_kind, "owner_id": owner_id, "error": str(error)},
+            session=session,
+        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
+    except (files.FileSpaceError, files.PathEscapeError) as error:
+        audit.log_event(
+            "files",
+            "delete_file_space",
+            "failed",
+            detail={"kind": space_kind, "owner_id": owner_id, "error": str(error)},
+            session=session,
+        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
+
+
 @router.get("/chat-history/spaces")
 async def list_manager_chat_spaces(
     kind: str | None = None,
@@ -883,6 +953,7 @@ async def list_manager_chat_messages(
     record_kind: str | None = None,
     actor_role: str | None = None,
     direction: str | None = None,
+    message_date: str | None = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
     _=Depends(manager_auth),
@@ -896,12 +967,50 @@ async def list_manager_chat_messages(
             record_kind=record_kind,
             actor_role=actor_role,
             direction=direction,
+            message_date=message_date,
             page=page,
             page_size=page_size,
         )
     except ValueError as error:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
     except FileNotFoundError as error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
+
+
+@router.delete("/chat-history/spaces/{space_kind}/{owner_id}")
+async def delete_manager_chat_space(
+    space_kind: str,
+    owner_id: str,
+    session=Depends(manager_auth),
+):
+    """删除整个聊天记录空间目录。"""
+    try:
+        result = await chat_history.delete_chat_space(space_kind, owner_id)
+        audit.log_event(
+            "chat_history",
+            "delete_chat_space",
+            "completed",
+            detail={"kind": space_kind, "owner_id": owner_id},
+            session=session,
+        )
+        return result
+    except ValueError as error:
+        audit.log_event(
+            "chat_history",
+            "delete_chat_space",
+            "failed",
+            detail={"kind": space_kind, "owner_id": owner_id, "error": str(error)},
+            session=session,
+        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
+    except FileNotFoundError as error:
+        audit.log_event(
+            "chat_history",
+            "delete_chat_space",
+            "failed",
+            detail={"kind": space_kind, "owner_id": owner_id, "error": str(error)},
+            session=session,
+        )
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
 
 
