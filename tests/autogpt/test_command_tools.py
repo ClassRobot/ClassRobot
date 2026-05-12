@@ -119,3 +119,23 @@ def test_command_tool_catalog_follows_current_user_visible_helpers(loaded_plugin
     assert teacher_catalog.get("查询教师信息") is not None
     assert teacher_catalog.get("查询请假") is not None
     assert teacher_catalog.get("查询学生信息") is None
+
+
+def test_query_classes_tool_uses_service_command_spec(loaded_plugins):
+    from utils.helper import Helpers
+    from src.commands.registry import command_registry
+    from src.plugins.autogpt.command_tools import CommandToolCatalog
+    from tests.commands.test_helper_metadata import collect_helpers
+
+    helper_menu = Helpers()
+    helper_menu.extend(collect_helpers())
+    catalog = CommandToolCatalog.from_helpers(helper_menu)
+    spec = command_registry.get("查询班级")
+    tool = catalog.get("我的班级")
+
+    assert spec is not None
+    assert spec.execution_mode == "service"
+    assert spec.plugin_module == "src.managers.classes"
+    assert tool is not None
+    assert tool.command == "查询班级"
+    assert [param.name for param in tool.params] == ["班级ID"]

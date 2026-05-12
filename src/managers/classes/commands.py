@@ -1,9 +1,10 @@
 from typing import Optional
 
 from utils import ValidateName, FileOrOtherFile, tip
+from src.commands import CommandBinding, command_alconna
 from utils.helper import Param, Helper, HelperScope, UserRole, ParamMode
 from utils.config import priority, comp_config, alcoona_kwargs
-from nonebot_plugin_alconna import Args, Field, Alconna, on_alconna
+from nonebot_plugin_alconna import Args, Field, Alconna, CommandMeta, on_alconna
 
 import_classes_cmd = on_alconna(
     Alconna(
@@ -44,9 +45,20 @@ delete_classes_cmd = on_alconna(
     block=True,
 )
 
-query_classes_cmd = on_alconna(
-    Alconna("查询班级", Args["classes_id?", Optional[int]]),
+query_classes_cmd = command_alconna(
+    Alconna(
+        "查询班级",
+        Args["classes_id?", Optional[int]],
+        meta=CommandMeta(description="查询自己管理的班级；可选携带班级 ID 查看单个班级详情。"),
+    ),
     aliases={"班级列表", "我的班级"},
+    binding=CommandBinding(
+        roles={UserRole.teacher},
+        scopes={HelperScope.teacher},
+        tags={"classes", "query"},
+        execution_mode="service",
+        param_labels={"classes_id": "班级ID"},
+    ),
     priority=priority,
     block=True,
 )

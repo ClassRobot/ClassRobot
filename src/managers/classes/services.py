@@ -1,9 +1,91 @@
 from __future__ import annotations
 
+from typing import Any
+
 from utils import Emoji
 from utils.session import EventSession
-from utils.models import School, Classes, College, Major, Teacher
+from src.commands import CommandExecutionContext, CommandResult, command_executor
+from utils.models import User, School, Classes, College, Major, Teacher
 from nonebot_plugin_alconna import AlconnaMatcher
+
+from .presenters import render_classes_card
+
+
+@command_executor.handler("查询班级")
+async def execute_query_classes(params: dict[str, Any], context: CommandExecutionContext) -> CommandResult:
+    """执行统一的“查询班级”命令。
+
+    Args:
+        params: 统一命令参数，支持 ``班级ID`` 或 ``classes_id``。
+        context: 命令执行上下文。
+
+    Returns:
+        CommandResult: 标准化班级查询结果。
+    """
+
+    if context.user_id is None:
+        return CommandResult.fail("缺少用户 ID，无法查询班级信息。")
+
+    user = await User.get_user(context.user_id)
+    if user is None or user.teacher is None:
+        return CommandResult.fail("当前账号还不是教师，无法查询管理的班级。")
+
+    teacher = user.teacher
+    if not teacher.classes:
+        return CommandResult.fail("您还未创建班级！！")
+
+    try:
+        classes_id = parse_optional_classes_id(params)
+    except ValueError:
+        return CommandResult.fail("班级ID必须为数字。")
+    if classes_id is not None:
+        classes = await teacher.get_classes(classes_id)
+        if classes is None:
+            return CommandResult.fail(f"班级[{classes_id}]不存在，或不属于您管理。")
+        classes_list = [classes]
+        title = "班级详情"
+    else:
+        classes_list = list(teacher.classes)
+        title = "您所管理的班级如下"
+
+    card = await render_classes_card(title, classes_list)
+    return CommandResult.ok(
+        "已查询班级信息。",
+        visible_outputs=[card],
+        context_outputs=[card],
+        data={
+            "classes": [
+                {
+                    "id": classes.id,
+                    "name": classes.name,
+                    "school_id": classes.school_id,
+                    "college_id": classes.college_id,
+                    "major_id": classes.major_id,
+                    "group_id": classes.group_id,
+                }
+                for classes in classes_list
+            ],
+        },
+    )
+
+
+def parse_optional_classes_id(params: dict[str, Any]) -> int | None:
+    """从统一命令参数中解析可选班级 ID。
+
+    Args:
+        params: 统一命令参数字典。
+
+    Returns:
+        int | None: 解析后的班级 ID；未提供时返回 ``None``。
+
+    Raises:
+        ValueError: 当班级 ID 无法转换为整数时抛出。
+    """
+
+    value = params.get("班级ID", params.get("classes_id"))
+    if value is None or value == "":
+        return None
+    return int(value)
 
 
 async def resolve_teacher_request_scope(

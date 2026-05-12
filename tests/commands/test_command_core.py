@@ -172,6 +172,45 @@ async def test_command_executor_can_query_teacher_profile(loaded_plugins, models
 
 
 @pytest.mark.asyncio
+async def test_command_executor_can_query_teacher_classes(loaded_plugins, models):
+    from src.commands import CommandExecutionContext, command_executor
+    from utils.roles import UserRole
+
+    user = await models.create_user(account_id=12005, nickname="班级执行器教师")
+    school = await models.create_school("班级命令学校")
+    college = await models.create_college(school, "班级命令学院")
+    major = await models.create_major(school, college, "智能科学")
+    teacher = await models.create_teacher(user, name="班级命令教师", school=school, college=college)
+    classes = await models.create_classes(
+        name="执行器一班",
+        owner=user,
+        group_id=22005,
+        teacher=teacher,
+        school=school,
+        college=college,
+        major=major,
+    )
+    context = CommandExecutionContext(
+        user_id=user.id,
+        roles={UserRole.user, UserRole.teacher},
+        invoker="agent_workflow",
+    )
+
+    list_result = await command_executor.execute("查询班级", {}, context)
+    detail_result = await command_executor.execute("我的班级", {"班级ID": str(classes.id)}, context)
+
+    assert list_result.success is True
+    assert list_result.data["classes"][0]["id"] == classes.id
+    assert "您所管理的班级如下" in list_result.visible_outputs[0]
+    assert "执行器一班" in list_result.visible_outputs[0]
+
+    assert detail_result.success is True
+    assert detail_result.data["classes"][0]["id"] == classes.id
+    assert "班级详情" in detail_result.visible_outputs[0]
+    assert "智能科学" in detail_result.visible_outputs[0]
+
+
+@pytest.mark.asyncio
 async def test_command_executor_can_query_student_profile(loaded_plugins, models):
     from src.commands import CommandExecutionContext, command_executor
     from utils.roles import UserRole

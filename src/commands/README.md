@@ -20,7 +20,7 @@
 - `src.plugins.autogpt.command_tools.CommandToolCatalog` 会优先从 `CommandSpec` 生成 Agent 工具。
 - `src.plugins.autogpt.dispatch_auto_task()` 会先尝试 `AgentCommandAdapter -> CommandExecutor`，没有 service handler 时回退旧的 NoneBot 事件重放。
 - `src.routers.managers.nonebot_runtime` 已合并 `CommandRegistry` 元数据，管理端命令清单可以看到风险等级、执行模式、Agent 可见性和软关闭状态。
-- `src.managers.user.commands` 与 `src.plugins.curriculum.commands` 已作为第一批样例迁移到 `command_alconna()`。
+- `src.managers.user.commands`、`src.plugins.curriculum.commands` 与 `src.managers.classes.commands` 中的高频“查询班级”已作为样例迁移到 `command_alconna()`。
 
 ## 当前模块
 
