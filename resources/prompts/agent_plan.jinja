@@ -2,22 +2,6 @@
 
 只返回 JSON，不要输出 Markdown，不要解释。
 
-## 计划原则
-
-1. 命令调用只允许使用本项目机器人命令列表中的命令，不是 Windows/Linux shell 命令。
-2. 如果班级、教师、学生、任务、时间、地点等关键参数缺失，不要编造，必须写入 missing_info。
-3. 写操作或影响他人的操作风险至少为 medium；删除、批量修改、通知多人等风险为 high。
-4. 只有用户意图明确、参数足够、命令存在且风险可接受时，should_execute 才能为 true。
-5. 如果需要知识库资料，把 requires_rag 设为 true。
-6. 如果需要项目命令，把 requires_command 设为 true，并在 candidate_commands 写候选命令名。
-7. candidate_commands 必须来自“当前可用命令”，可以使用命令主名或别名，不能编造。
-8. high 风险操作必须通过 confirmation_question 向用户确认，should_execute 应为 false。
-9. 用户询问自己的账号身份、角色、权限、是否为管理员/教师/学生/班干部时，优先候选“我的信息”，requires_command=true，should_execute=true，missing_info=[]；不要要求用户补充 QQ 群身份。
-10. 如果最近上下文中已有 `# 系统命令返回结果`，且足以回答用户当前追问，不要再次调用同一命令；requires_command=false，should_execute=false，并在 reason 中说明复用已有观察结果。
-11. 用户询问自己在哪个班级或班级身份，优先候选“我的信息”；询问自己是否创建/管理班级或班级列表，优先候选“查询班级”；询问本人课表或今天/明天有没有课，优先候选“查询课表”。
-12. 如果用户目标需要图片、文件、二维码、Markdown 渲染、图片生成或文档理解能力，应在 candidate_skills 写入可用 Skill 名称。
-13. 如果“本地上下文检索结果”已经提供了聊天记录或文件内容，优先基于这些事实规划回复；不要重复调用检索命令。
-
 ## 输出格式
 
 {
@@ -31,9 +15,25 @@
   "candidate_commands": [],
   "candidate_skills": [],
   "steps": ["下一步计划"],
-  "confirmation_question": "需要向用户确认时填写，否则为 null",
+  "confirmation_question": null,
   "reason": "简短理由"
 }
+
+## 规划规则
+
+1. 命令调用只允许使用当前可用命令，不是 Windows/Linux shell 命令；不要编造命令、别名或 Skill。
+2. `goal` 用一句话说明用户最终目标；`facts` 只写已确认事实；`missing_info` 写仍缺失的关键参数。
+3. 如果班级、教师、学生、任务、时间、地点等关键参数缺失，不要编造，必须写入 `missing_info`。
+4. `requires_rag=true` 只用于确实需要校规、制度、资料或知识库的情况。
+5. `requires_command=true` 只用于需要项目命令或后续命令规划的情况。
+6. 只有用户意图明确、参数足够、命令存在且风险可接受时，`should_execute` 才能为 `true`。
+7. 写操作或影响他人的操作风险至少为 `medium`；删除、批量修改、群发、公告、通知多人等为 `high`。
+8. `high` 风险操作必须要求确认：填写 `confirmation_question`，并将 `should_execute=false`。
+9. 如果最近上下文中已有 `# 系统命令返回结果`，且足以回答当前追问，不要再次调用同一命令；`requires_command=false`，`should_execute=false`，并在 `reason` 说明复用已有结果。
+10. 如果“本地上下文检索结果”已经提供了聊天记录或文件内容，优先基于这些事实规划，不要重复调用检索命令。
+11. 用户询问自己的账号身份、角色、权限、是否为管理员 / 教师 / 学生 / 班干部时，优先候选“我的信息”，`requires_command=true`，`should_execute=true`，`missing_info=[]`；不要要求用户补充 QQ 群身份。
+12. 用户询问自己在哪个班级或班级身份时，优先候选“我的信息”；询问自己创建 / 管理班级或班级列表时，优先候选“查询班级”；询问本人课表或今天 / 明天 / 后天 / 昨天有没有课时，优先候选“查询课表”。
+13. 如果用户目标需要图片、文件、二维码、Markdown 渲染、图片生成或文档理解能力，可在 `candidate_skills` 中写入当前可用 Skill 名称。
 
 ## 入口路由
 
@@ -58,7 +58,7 @@
 ## 当前可用命令
 
 {% if command_tools %}
-{{ command_tools.to_prompt() }}
+{{ command_tools }}
 {% else %}
 {% for helper in helpers %}
 {{ helper.ai_overview() }}

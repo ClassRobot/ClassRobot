@@ -5,6 +5,8 @@ from pydantic import Field, BaseModel
 from utils.helper import Helper, Helpers, ParamMode
 from utils.helper import Param as HelperParam
 
+from .prompt_selection import score_prompt_relevance
+
 
 RiskLevel = Literal["low", "medium", "high"]
 
@@ -24,17 +26,13 @@ class CommandToolParam(BaseModel):
     """OpenAI tool schema 中使用的 JSON 基础类型。"""
 
     def to_prompt(self) -> str:
-        """转换成适合提示词阅读的参数说明。"""
+        """转换成适合提示词阅读的紧凑参数说明。"""
 
-        flags = []
-        if self.required:
-            flags.append("必填")
-        else:
-            flags.append("可选")
+        flags = ["必填" if self.required else "可选"]
         if self.multiple:
-            flags.append("可多值")
+            flags.append("多值")
         description = f"：{self.description}" if self.description else ""
-        return f"- {self.name} ({'，'.join(flags)}){description}"
+        return f"{self.name}[{'/'.join(flags)}]{description}"
 
 
 class CommandTool(BaseModel):
@@ -99,21 +97,23 @@ class CommandTool(BaseModel):
         return {self.command, *self.aliases}
 
     def to_prompt(self) -> str:
-        """转换成面向 Planner/AutoTask 的稳定命令工具说明。"""
+        """转换成面向 Planner 和 AutoTask 的紧凑命令摘要。"""
 
-        aliases = "、".join(self.aliases) if self.aliases else "无"
-        params = "\n".join(param.to_prompt() for param in self.params) or "- 无"
-        prompt = (
-            f"工具名 | {self.name}\n"
-            f"真实命令 | {self.command}\n"
-            f"别名 | {aliases}\n"
-            f"风险 | {self.risk_level}\n"
-            f"描述 | {self.description}\n"
-            f"参数 |\n{params}\n"
-        )
+        aliases = "、".join(self.aliases)
+        params = "；".join(param.to_prompt() for param in self.params) if self.params else "无"
+        sections = [f"- {self.command}: {self.description}"]
+        if self.aliases:
+            sections.append(f"别名={aliases}")
+        sections.append(f"风险={self.risk_level}")
+        sections.append(f"参数={params}")
         if self.ai_description:
-            prompt += f"重点提示 | {self.ai_description}\n"
-        return prompt
+            sections.append(f"提示={self.ai_description}")
+        return " | ".join(sections)
+
+    def __str__(self) -> str:
+        """返回适合直接注入提示词的命令摘要。"""
+
+        return self.to_prompt()
 
     def to_openai_tool(self) -> dict:
         """转换成后续 function calling 可使用的工具描述。
@@ -199,16 +199,98 @@ class CommandToolCatalog(BaseModel):
                 commands.add(tool.command)
         return commands
 
-    def to_prompt(self) -> str:
-        """渲染完整工具目录，供 Planner 和任务生成使用。"""
+    def select_tools(
+        self,
+        *,
+        query: str | None = None,
+        limit: int | None = None,
+        candidate_commands: Iterable[str] | None = None,
+    ) -> list[CommandTool]:
+        """按候选命令或自然语言查询挑选最相关的命令子集。"""
 
-        return "\n".join(tool.to_prompt() for tool in self.tools)
+        if candidate_commands:
+            selected = self._select_candidate_tools(candidate_commands)
+            if selected:
+                return selected[:limit] if limit is not None else selected
+
+        selected = list(self.tools)
+        if query:
+            selected = self._select_relevant_tools(query, limit=limit)
+
+        if limit is not None:
+            selected = selected[:limit]
+        return selected
+
+    def to_prompt(
+        self,
+        *,
+        query: str | None = None,
+        limit: int | None = None,
+        candidate_commands: Iterable[str] | None = None,
+    ) -> str:
+        """渲染完整或裁剪后的命令目录，供 Planner 和任务生成使用。"""
+
+        selected = self.select_tools(query=query, limit=limit, candidate_commands=candidate_commands)
+        if not selected:
+            return "暂无可用命令。"
+        return "\n".join(tool.to_prompt() for tool in selected)
+
+    def __str__(self) -> str:
+        """返回适合直接注入提示词的命令目录摘要。"""
+
+        return self.to_prompt()
 
     def __iter__(self) -> Iterator[CommandTool]:
         yield from self.tools
 
     def __bool__(self) -> bool:
         return bool(self.tools)
+
+    def _select_candidate_tools(self, candidate_commands: Iterable[str]) -> list[CommandTool]:
+        """按显式候选命令解析命令目录子集。"""
+
+        selected: list[CommandTool] = []
+        seen: set[str] = set()
+        for command_name in candidate_commands:
+            tool = self.get(command_name)
+            if tool is None or tool.command in seen:
+                continue
+            selected.append(tool)
+            seen.add(tool.command)
+        return selected
+
+    def _select_relevant_tools(self, query: str, *, limit: int | None = None) -> list[CommandTool]:
+        """按自然语言问题挑选最相关的命令子集。"""
+
+        scored: list[tuple[int, int, CommandTool]] = []
+        for index, tool in enumerate(self.tools):
+            score = score_prompt_relevance(
+                query,
+                names=tool.command_names,
+                texts=(
+                    tool.description,
+                    tool.ai_description,
+                    *(param.name for param in tool.params),
+                    *(param.description for param in tool.params if param.description),
+                ),
+            )
+            if score > 0:
+                scored.append((score, index, tool))
+
+        scored.sort(key=lambda item: (-item[0], item[1]))
+        selected = [tool for _, _, tool in scored]
+        if limit is None or len(selected) >= limit:
+            return selected
+
+        seen = {tool.command for tool in selected}
+        for tool in self.tools:
+            if tool.command in seen:
+                continue
+            selected.append(tool)
+            seen.add(tool.command)
+            if len(selected) >= limit:
+                break
+        return selected
 
 
 def _safe_tool_name(command: str) -> str:

@@ -121,18 +121,19 @@ class IntentRouteNode(WorkflowNode):
     async def run(self, pipeline: "MessageProcessingPipeline", state: PipelineState) -> None:
         if state.auto_tasks is not None:
             return
+        route_tools = pipeline.select_route_command_tools(state.user_content)
+        route_skills = pipeline.select_route_skill_summaries(state.user_content)
+        route_prompt = await Prompt("intent_route").render(
+            {
+                "helpers": pipeline.helpers,
+                "command_tools": pipeline.render_command_tools_prompt_from_tools(route_tools),
+                "skill_catalog": pipeline.render_skill_catalog_prompt_from_summaries(route_skills),
+                "history": pipeline.serialize_recent_history(),
+            }
+        )
         route_messages = Messages()
         route_messages.extend(pipeline.messages.get(LLMRole.system))
-        route_messages.system_message(
-            await Prompt("intent_route").render(
-                {
-                    "helpers": pipeline.helpers,
-                    "command_tools": pipeline.command_tools,
-                    "skill_catalog": pipeline.skill_catalog_prompt,
-                    "history": pipeline.serialize_recent_history(),
-                }
-            )
-        )
+        route_messages.system_message(route_prompt)
         # 当本轮消息包含图片时，额外把当前用户消息作为真正的多模态输入交给路由器，
         # 避免模型只能看到一个图片 URL 文本，从而错过视觉理解入口。
         route_messages.user_message(state.user_content)
@@ -160,6 +161,12 @@ class IntentRouteNode(WorkflowNode):
                 state.intent_route.requires_command,
                 state.intent_route.requires_rag,
             )
+        )
+        pipeline.record_prompt_stage(
+            "route",
+            prompt_char_length=route_messages.char_length(),
+            recalled_commands=[tool.command for tool in route_tools],
+            recalled_skills=[item["name"] for item in route_skills],
         )
         progress_message = ""
         if not pipeline.should_direct_reply_from_vision(state.intent_route, state.user_content):
@@ -235,7 +242,15 @@ class ExtractContextNode(WorkflowNode):
         if state.auto_tasks is not None:
             return
         await pipeline.report_progress("我正在提取这轮对话里的目标、约束和关键信息。", stage="extract")
-        state.extracted_context = await ExtractAgent().execute(pipeline.messages)
+        extract_agent = ExtractAgent()
+        extract_prompt = await Prompt("extract").render({"history": extract_agent.message_to_string(pipeline.messages)})
+        extract_messages = Messages()
+        extract_messages.system_message(extract_prompt)
+        latest_user_context = extract_agent.latest_user_context(pipeline.messages)
+        if latest_user_context is not None:
+            extract_messages.user_message(latest_user_context.content)
+        pipeline.record_prompt_stage("extract", prompt_char_length=extract_messages.char_length())
+        state.extracted_context = await extract_agent.execute(pipeline.messages)
 
 
 class PlannerNode(WorkflowNode):
@@ -245,22 +260,23 @@ class PlannerNode(WorkflowNode):
         if state.auto_tasks is not None or state.extracted_context is None:
             return
         await pipeline.report_progress("我正在把目标拆成可执行步骤，并确认需要哪些命令或技能。", stage="plan")
+        plan_tools = pipeline.select_plan_command_tools(state.extracted_context)
+        plan_skills = pipeline.select_plan_skill_summaries(state.extracted_context)
+        plan_prompt = await Prompt("agent_plan").render(
+            {
+                "helpers": pipeline.helpers,
+                "command_tools": pipeline.render_command_tools_prompt_from_tools(plan_tools),
+                "skill_catalog": pipeline.render_skill_catalog_prompt_from_summaries(plan_skills),
+                "route": state.intent_route.json(ensure_ascii=False) if state.intent_route else "{}",
+                "context": state.extracted_context.single_modal(),
+                "local_knowledge": state.local_knowledge,
+                "history": pipeline.serialize_recent_history(),
+            }
+        )
 
         plan_messages = Messages()
         plan_messages.extend(pipeline.messages.get(LLMRole.system))
-        plan_messages.system_message(
-            await Prompt("agent_plan").render(
-                {
-                    "helpers": pipeline.helpers,
-                    "command_tools": pipeline.command_tools,
-                    "skill_catalog": pipeline.skill_catalog_prompt,
-                    "route": state.intent_route.json(ensure_ascii=False) if state.intent_route else "{}",
-                    "context": state.extracted_context.single_modal(),
-                    "local_knowledge": state.local_knowledge,
-                    "history": pipeline.serialize_recent_history(),
-                }
-            )
-        )
+        plan_messages.system_message(plan_prompt)
         response = await client_create(
             plan_messages,
             multi_modal=False,
@@ -287,6 +303,14 @@ class PlannerNode(WorkflowNode):
                 state.agent_plan.candidate_commands,
             )
         )
+        pipeline.record_prompt_stage(
+            "plan",
+            prompt_char_length=plan_messages.char_length(),
+            recalled_commands=[tool.command for tool in plan_tools],
+            recalled_skills=[item["name"] for item in plan_skills],
+            selected_commands=state.agent_plan.candidate_commands,
+        )
+        pipeline.record_planner_candidate_commands(state.agent_plan.candidate_commands)
 
         if state.agent_plan.confirmation_question or state.agent_plan.missing_info:
             state.auto_tasks = AutoTaskList(
@@ -347,15 +371,39 @@ class PlanTasksNode(WorkflowNode):
             return
         if state.extracted_context is None:
             return
+        combined_knowledge = pipeline.combine_knowledge(state.local_knowledge, state.retrieved_knowledge)
+        task_tools = pipeline.select_task_command_tools(state.extracted_context, plan=state.agent_plan)
+        task_skills = pipeline.select_task_skill_summaries(state.extracted_context, plan=state.agent_plan)
+        task_prompt = await Prompt("auto_task").render(
+            {
+                "helpers": pipeline.helpers,
+                "context": state.extracted_context.single_modal(),
+                "knowledge": combined_knowledge,
+                "plan": state.agent_plan.json(ensure_ascii=False) if state.agent_plan else None,
+                "command_tools": pipeline.render_command_tools_prompt_from_tools(task_tools),
+                "skill_catalog": pipeline.render_skill_catalog_prompt_from_summaries(task_skills),
+            }
+        )
+        task_messages = Messages()
+        task_messages.extend(pipeline.messages.get(LLMRole.system))
+        task_messages.system_message(task_prompt)
+        task_messages.user_message(state.extracted_context.content)
         state.auto_tasks = await AutoTaskAgent(
             helpers=pipeline.helpers,
             messages=pipeline.messages,
-            command_tools_prompt=pipeline.command_tools.to_prompt(),
-            skill_catalog_prompt=pipeline.skill_catalog_prompt,
+            command_tools_prompt=pipeline.render_command_tools_prompt_from_tools(task_tools),
+            skill_catalog_prompt=pipeline.render_skill_catalog_prompt_from_summaries(task_skills),
         ).execute(
             state.extracted_context,
-            pipeline.combine_knowledge(state.local_knowledge, state.retrieved_knowledge),
+            combined_knowledge,
             plan=state.agent_plan.json(ensure_ascii=False) if state.agent_plan else None,
+        )
+        pipeline.record_prompt_stage(
+            "task",
+            prompt_char_length=task_messages.char_length(),
+            recalled_commands=[tool.command for tool in task_tools],
+            recalled_skills=[item["name"] for item in task_skills],
+            selected_commands=[task.command for task in state.auto_tasks.tasks],
         )
 
 
@@ -386,6 +434,7 @@ class ValidateAutoTasksNode(WorkflowNode):
         elif invalid_commands:
             state.auto_tasks.reply = (state.auto_tasks.reply or "") + "\n部分命令因不在当前计划或权限范围内，已跳过。"
 
+        pipeline.record_final_hit_commands([task.command for task in valid_tasks])
         state.auto_tasks.reply = pipeline.normalize_auto_task_reply(
             state.intent_route,
             state.agent_plan,
@@ -445,6 +494,35 @@ class MessageProcessingPipeline:
         """向用户发送少量有价值的处理状态，失败时只记日志不中断主流程。"""
 
         await self.observability.report_progress(message, stage=stage)
+
+    def record_prompt_stage(
+        self,
+        stage: Literal["route", "extract", "plan", "task"],
+        *,
+        prompt_char_length: int,
+        recalled_commands: list[str] | tuple[str, ...] = (),
+        recalled_skills: list[str] | tuple[str, ...] = (),
+        selected_commands: list[str] | tuple[str, ...] = (),
+    ) -> None:
+        """记录某个 Prompt 阶段的输入规模、召回结果与命中命令。"""
+
+        self.observability.record_prompt_stage(
+            stage,
+            prompt_char_length=prompt_char_length,
+            recalled_commands=recalled_commands,
+            recalled_skills=recalled_skills,
+            selected_commands=selected_commands,
+        )
+
+    def record_planner_candidate_commands(self, commands: list[str] | tuple[str, ...]) -> None:
+        """记录 Planner 输出的候选命令。"""
+
+        self.observability.record_planner_candidate_commands(commands)
+
+    def record_final_hit_commands(self, commands: list[str] | tuple[str, ...]) -> None:
+        """记录最终保留、可执行的命令序列。"""
+
+        self.observability.record_final_hit_commands(commands)
 
     @staticmethod
     def format_progress_message(message: str, stage: ProgressStage = "thinking") -> str:
@@ -870,6 +948,84 @@ class MessageProcessingPipeline:
             sections.append("# 外部知识库检索结果\n" + rag_knowledge)
         return "\n\n".join(sections) if sections else None
 
+    def render_command_tools_prompt_from_tools(self, tools) -> str:
+        """把已选中的命令工具渲染为 Prompt 片段。"""
+
+        return self.policy.render_command_tools_prompt_from_tools(tools)
+
+    def render_skill_catalog_prompt_from_summaries(self, summaries) -> str:
+        """把已选中的 Skill 摘要渲染为 Prompt 片段。"""
+
+        return self.policy.render_skill_catalog_prompt_from_summaries(summaries)
+
+    def select_route_command_tools(self, contents: list[Content]):
+        """选择入口路由阶段需要暴露给模型的命令子集。"""
+
+        return self.policy.select_command_tools(query=self.text_query_from_contents(contents), limit=8)
+
+    def select_route_skill_summaries(self, contents: list[Content]):
+        """选择入口路由阶段需要暴露给模型的 Skill 子集。"""
+
+        return self.policy.select_skill_summaries(query=self.text_query_from_contents(contents), limit=4)
+
+    def select_plan_command_tools(self, context: Context):
+        """选择规划阶段需要暴露给模型的命令子集。"""
+
+        return self.policy.select_command_tools(query=context.single_modal(), limit=14)
+
+    def select_plan_skill_summaries(self, context: Context):
+        """选择规划阶段需要暴露给模型的 Skill 子集。"""
+
+        return self.policy.select_skill_summaries(query=context.single_modal(), limit=5)
+
+    def select_task_command_tools(self, context: Context, *, plan: AgentPlan | None = None):
+        """选择任务生成阶段需要暴露给模型的命令子集。"""
+
+        return self.policy.select_command_tools(
+            query=context.single_modal(),
+            limit=12,
+            candidate_commands=plan.candidate_commands if plan is not None else None,
+        )
+
+    def select_task_skill_summaries(self, context: Context, *, plan: AgentPlan | None = None):
+        """选择任务生成阶段需要暴露给模型的 Skill 子集。"""
+
+        return self.policy.select_skill_summaries(
+            query=context.single_modal(),
+            limit=5,
+            skill_names=plan.candidate_skills if plan is not None else None,
+        )
+
+    def render_route_command_tools_prompt(self, contents: list[Content]) -> str:
+        """为入口路由阶段生成较小的命令目录子集。"""
+
+        return self.render_command_tools_prompt_from_tools(self.select_route_command_tools(contents))
+
+    def render_route_skill_catalog_prompt(self, contents: list[Content]) -> str:
+        """为入口路由阶段生成较小的 Skill 目录子集。"""
+
+        return self.render_skill_catalog_prompt_from_summaries(self.select_route_skill_summaries(contents))
+
+    def render_plan_command_tools_prompt(self, context: Context) -> str:
+        """为规划阶段生成较完整但仍受控的命令目录子集。"""
+
+        return self.render_command_tools_prompt_from_tools(self.select_plan_command_tools(context))
+
+    def render_plan_skill_catalog_prompt(self, context: Context) -> str:
+        """为规划阶段生成较完整但仍受控的 Skill 目录子集。"""
+
+        return self.render_skill_catalog_prompt_from_summaries(self.select_plan_skill_summaries(context))
+
+    def render_task_command_tools_prompt(self, context: Context, *, plan: AgentPlan | None = None) -> str:
+        """为任务生成阶段输出最相关的命令目录。"""
+
+        return self.render_command_tools_prompt_from_tools(self.select_task_command_tools(context, plan=plan))
+
+    def render_task_skill_catalog_prompt(self, context: Context, *, plan: AgentPlan | None = None) -> str:
+        """为任务生成阶段输出最相关的 Skill 目录。"""
+
+        return self.render_skill_catalog_prompt_from_summaries(self.select_task_skill_summaries(context, plan=plan))
+
     def resolve_candidate_commands(self, plan: AgentPlan | None) -> set[str]:
         """将 Planner 候选命令解析成当前 Helper 中真实存在的命令名。"""
 
@@ -920,4 +1076,5 @@ class MessageProcessingPipeline:
             plan=state.agent_plan,
             auto_tasks=state.auto_tasks,
             command_tools=self.command_tools,
+            observability=self.observability.build_metrics(),
         )

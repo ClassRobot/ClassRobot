@@ -1,3 +1,4 @@
+from collections import Counter
 from datetime import datetime
 from typing import Callable, Awaitable
 
@@ -8,6 +9,7 @@ from .playbooks import WorkflowPlaybook, WorkflowPlaybookStep, playbook_catalog
 from .schema import (
     AutoTask,
     AgentPlan,
+    AgentObservabilityMetrics,
     IntentRoute,
     AutoTaskList,
     WorkflowStep,
@@ -32,6 +34,7 @@ class WorkflowBuilder:
         plan: AgentPlan | None,
         auto_tasks: AutoTaskList | None,
         command_tools: CommandToolCatalog,
+        observability: AgentObservabilityMetrics | None = None,
     ) -> AgentWorkflow | None:
         """根据路由、计划和自动任务结果构建工作流。"""
 
@@ -61,6 +64,7 @@ class WorkflowBuilder:
             approval=approval,
             missing_info=list(plan.missing_info) if plan else [],
             steps=steps,
+            observability=cls._build_observability(trace_id, observability),
         )
         workflow.add_event("workflow_created", "本轮消息已提升为显式工作流。", status=workflow.status)
         if approval.required:
@@ -70,6 +74,19 @@ class WorkflowBuilder:
                 status=approval.status,
             )
         return workflow
+
+    @staticmethod
+    def _build_observability(
+        trace_id: str,
+        observability: AgentObservabilityMetrics | None,
+    ) -> AgentObservabilityMetrics:
+        """为工作流准备一份独立的可观测指标快照。"""
+
+        if observability is None:
+            return AgentObservabilityMetrics(trace_id=trace_id)
+        snapshot = observability.copy(deep=True)
+        snapshot.trace_id = trace_id
+        return snapshot
 
     @staticmethod
     def _infer_kind(route: IntentRoute | None, auto_tasks: AutoTaskList | None) -> str:
@@ -255,19 +272,20 @@ class WorkflowExecutor:
         if workflow.need_confirm or workflow.status == "needs_confirm":
             workflow.add_event("approval_requested", "工作流仍在等待用户确认，暂不执行。", status="pending")
             logger.info(f'AutoGPT trace "{workflow.trace_id}" workflow requires confirmation before execution')
-            return WorkflowExecutionResult(workflow=workflow)
+            return WorkflowExecutionResult(workflow=workflow, observability=workflow.observability)
 
         if not workflow.steps:
             workflow.status = "completed"
             workflow.finished_at = datetime.now()
             workflow.add_event("workflow_started", "工作流没有可执行步骤，直接结束。", status="completed")
             workflow.add_event("workflow_completed", "工作流已完成。", status="completed")
-            return WorkflowExecutionResult(workflow=workflow)
+            _update_execution_metrics(workflow, [])
+            return WorkflowExecutionResult(workflow=workflow, observability=workflow.observability)
 
         workflow.status = "running"
         workflow.started_at = datetime.now()
         workflow.add_event("workflow_started", "工作流开始执行。", status="running")
-        result = WorkflowExecutionResult(workflow=workflow)
+        result = WorkflowExecutionResult(workflow=workflow, observability=workflow.observability)
 
         for step in workflow.steps:
             step.status = "running"
@@ -311,6 +329,8 @@ class WorkflowExecutor:
                     if unsent_outputs
                     else "我执行到一半出现了问题，有些步骤可能没有完成，请稍后重试或分步执行。"
                 )
+                _update_execution_metrics(workflow, result.observations)
+                result.observability = workflow.observability
                 return result
 
             step.status = "completed"
@@ -330,6 +350,8 @@ class WorkflowExecutor:
         unsent_outputs = collect_unsent_observation_outputs(result.observations)
         if unsent_outputs:
             result.user_message = "\n\n".join(unsent_outputs)
+        _update_execution_metrics(workflow, result.observations)
+        result.observability = workflow.observability
         return result
 
 
@@ -339,6 +361,7 @@ def build_turn_result(
     plan: AgentPlan | None,
     auto_tasks: AutoTaskList | None,
     command_tools: CommandToolCatalog,
+    observability: AgentObservabilityMetrics | None = None,
 ) -> AgentTurnResult:
     """组装本轮处理结果，供入口层和会话层统一消费。"""
 
@@ -348,8 +371,16 @@ def build_turn_result(
         plan=plan,
         auto_tasks=auto_tasks,
         command_tools=command_tools,
+        observability=observability,
     )
-    return AgentTurnResult(route=route, plan=plan, auto_tasks=auto_tasks, workflow=workflow)
+    metrics = workflow.observability if workflow is not None else AgentObservabilityMetrics(trace_id=trace_id)
+    return AgentTurnResult(
+        route=route,
+        plan=plan,
+        auto_tasks=auto_tasks,
+        workflow=workflow,
+        observability=metrics,
+    )
 
 
 def workflow_to_auto_tasks(workflow: AgentWorkflow, reply: str | None = None) -> AutoTaskList:
@@ -407,6 +438,21 @@ def collect_unsent_observation_outputs(observations: list[CommandObservation]) -
             outputs.append(text)
             seen.add(text)
     return outputs
+
+
+def _update_execution_metrics(workflow: AgentWorkflow, observations: list[CommandObservation]) -> None:
+    """根据命令执行观察结果回填重复调用等执行指标。"""
+
+    executed_commands = [observation.command for observation in observations if observation.dispatch_type == "command"]
+    repeated_commands = [
+        command
+        for command, count in Counter(executed_commands).items()
+        if count > 1
+    ]
+    workflow.observability.trace_id = workflow.trace_id
+    workflow.observability.execution.executed_commands = executed_commands
+    workflow.observability.execution.repeated_invocation = bool(repeated_commands)
+    workflow.observability.execution.repeated_commands = repeated_commands
 
 
 def format_execution_status(execution: WorkflowExecutionResult) -> str:

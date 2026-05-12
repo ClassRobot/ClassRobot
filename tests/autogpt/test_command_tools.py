@@ -33,6 +33,74 @@ def test_command_tool_catalog_builds_safe_tool_schema(loaded_plugins):
     assert "备注" in function["parameters"]["properties"]
 
 
+def test_command_tool_catalog_prompt_is_compact(loaded_plugins):
+    from utils.helper import Helper, Helpers
+    from src.plugins.autogpt.command_tools import CommandToolCatalog
+
+    helpers = Helpers()
+    helpers.append(
+        Helper(
+            command="添加班级",
+            description="添加一个班级",
+            aliases={"新增班级"},
+            params=[],
+        )
+    )
+
+    catalog = CommandToolCatalog.from_helpers(helpers)
+    prompt = catalog.to_prompt()
+
+    assert prompt.startswith("- 添加班级: 添加一个班级")
+    assert "工具名" not in prompt
+    assert "真实命令" not in prompt
+    assert "参数=" in prompt
+    assert str(catalog) == prompt
+
+
+def test_command_tool_catalog_can_render_relevant_subset_by_query(loaded_plugins):
+    from utils.helper import Helper, Helpers
+    from src.plugins.autogpt.command_tools import CommandToolCatalog
+
+    helpers = Helpers()
+    helpers.extend(
+        [
+            Helper(command="创建通知", description="给班级创建一条通知"),
+            Helper(command="查询课表", description="查看当前课表"),
+            Helper(command="我的信息", description="查看当前用户身份"),
+        ]
+    )
+
+    catalog = CommandToolCatalog.from_helpers(helpers)
+    prompt = catalog.to_prompt(query="帮我发一个班级通知", limit=1)
+
+    assert "创建通知" in prompt
+    assert "查询课表" not in prompt
+    assert "我的信息" not in prompt
+
+
+def test_command_tool_catalog_candidate_commands_override_query_subset(loaded_plugins):
+    from utils.helper import Helper, Helpers
+    from src.plugins.autogpt.command_tools import CommandToolCatalog
+
+    helpers = Helpers()
+    helpers.extend(
+        [
+            Helper(command="创建通知", description="给班级创建一条通知"),
+            Helper(command="查询课表", description="查看当前课表"),
+        ]
+    )
+
+    catalog = CommandToolCatalog.from_helpers(helpers)
+    prompt = catalog.to_prompt(
+        query="帮我发一个班级通知",
+        limit=1,
+        candidate_commands=["查询课表"],
+    )
+
+    assert "查询课表" in prompt
+    assert "创建通知" not in prompt
+
+
 def test_command_tool_catalog_infers_high_risk_commands(loaded_plugins):
     from utils.helper import Helper, Helpers
     from src.plugins.autogpt.command_tools import CommandToolCatalog

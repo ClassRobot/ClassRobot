@@ -4,6 +4,7 @@ import re
 import asyncio
 from pathlib import Path
 from dataclasses import dataclass
+from collections.abc import Iterable
 
 from nonebot import logger
 from src.agents.skills import skill_registry
@@ -20,6 +21,7 @@ from utils.storage import (
     storage_manager,
     chat_history_store,
 )
+from .prompt_selection import score_prompt_relevance
 
 TEXT_FILE_SUFFIXES = {
     ".cfg",
@@ -120,13 +122,110 @@ class AgentRuntimeContext:
 class AgentSkillCatalog:
     """把项目内 Skill 注册表转换为 Agent 可读能力目录。"""
 
-    def to_prompt(self) -> str:
-        """渲染 skill 摘要，供路由器和 Planner 选择能力。"""
+    KEYWORD_HINTS = {
+        "document-to-image": ("文档", "文件", "pdf", "ppt", "word", "预览", "转图片", "转成图片"),
+        "image-generation": ("生成图片", "画图", "海报", "插画", "配图", "风格图", "图片生成"),
+        "markdown-to-image": ("markdown", "md", "渲染", "长文", "长回复", "截图", "转图片"),
+        "ocr": ("文字", "识别", "提取文字", "图片文字", "验证码", "截图文字", "读图"),
+        "qr-code": ("二维码", "扫码", "扫码识别", "生成二维码", "解码二维码"),
+    }
 
-        summaries = sorted(skill_registry.summaries(), key=lambda item: item["name"])
+    def summaries(self) -> list[dict[str, str]]:
+        """返回排序后的 Skill 摘要列表。"""
+
+        return sorted(skill_registry.summaries(), key=lambda item: item["name"])
+
+    def select_summaries(
+        self,
+        *,
+        query: str | None = None,
+        limit: int | None = None,
+        skill_names: Iterable[str] | None = None,
+    ) -> list[dict[str, str]]:
+        """按显式技能名或自然语言查询挑选最相关的 Skill 子集。"""
+
+        summaries = self.summaries()
+        if skill_names:
+            selected = self._select_named_summaries(summaries, skill_names)
+            if selected:
+                return selected[:limit] if limit is not None else selected
+
+        selected = summaries
+        if query:
+            selected = self._select_relevant_summaries(summaries, query, limit=limit)
+
+        if limit is not None:
+            selected = selected[:limit]
+        return selected
+
+    def to_prompt(
+        self,
+        *,
+        query: str | None = None,
+        limit: int | None = None,
+        skill_names: Iterable[str] | None = None,
+    ) -> str:
+        """渲染完整或裁剪后的 Skill 摘要，供路由器和 Planner 选择能力。"""
+
+        summaries = self.select_summaries(query=query, limit=limit, skill_names=skill_names)
         if not summaries:
             return "暂无可用 Skill。"
         return "\n".join(f"- {item['name']}: {item['description']}" for item in summaries)
+
+    @staticmethod
+    def _select_named_summaries(
+        summaries: list[dict[str, str]],
+        skill_names: Iterable[str],
+    ) -> list[dict[str, str]]:
+        """按显式技能名称挑选 Skill 摘要。"""
+
+        summary_index = {summary["name"]: summary for summary in summaries}
+        selected: list[dict[str, str]] = []
+        seen: set[str] = set()
+        for skill_name in skill_names:
+            summary = summary_index.get(skill_name)
+            if summary is None or skill_name in seen:
+                continue
+            selected.append(summary)
+            seen.add(skill_name)
+        return selected
+
+    @staticmethod
+    def _select_relevant_summaries(
+        summaries: list[dict[str, str]],
+        query: str,
+        *,
+        limit: int | None = None,
+    ) -> list[dict[str, str]]:
+        """按自然语言问题挑选最相关的 Skill 摘要。"""
+
+        scored: list[tuple[int, int, dict[str, str]]] = []
+        for index, summary in enumerate(summaries):
+            score = score_prompt_relevance(
+                query,
+                names=(summary["name"],),
+                texts=(
+                    summary["description"],
+                    *AgentSkillCatalog.KEYWORD_HINTS.get(summary["name"], ()),
+                ),
+            )
+            if score > 0:
+                scored.append((score, index, summary))
+
+        scored.sort(key=lambda item: (-item[0], item[1]))
+        selected = [summary for _, _, summary in scored]
+        if limit is None or len(selected) >= limit:
+            return selected
+
+        seen = {summary["name"] for summary in selected}
+        for summary in summaries:
+            if summary["name"] in seen:
+                continue
+            selected.append(summary)
+            seen.add(summary["name"])
+            if len(selected) >= limit:
+                break
+        return selected
 
 
 class AgentLocalKnowledgeRetriever:

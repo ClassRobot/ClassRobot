@@ -728,6 +728,78 @@ flowchart LR
 6. 看业务命令自身日志
    - 如果投递成功但结果不对，问题一般已进入业务层
 
+## 14.1 现在有哪些可观测指标
+
+从 2026-05 这一轮开始，AutoGPT 会把关键阶段指标显式写进：
+
+- `AgentTurnResult.observability`
+- `AgentWorkflow.observability`
+- `WorkflowExecutionResult.observability`
+
+当前已经落地的指标包括：
+
+- `prompt_stages`
+  - 覆盖 `route / extract / plan / task`
+  - 每个阶段记录：
+    - `prompt_char_length`
+    - `recalled_commands`
+    - `recalled_command_count`
+    - `recalled_skills`
+    - `recalled_skill_count`
+    - `selected_commands`
+- `planner_candidate_commands`
+  - Planner 生成的候选命令
+- `final_hit_commands`
+  - AutoTask 经校验后最终保留下来的命令
+- `execution.executed_commands`
+  - 工作流实际执行的命令序列
+- `execution.repeated_invocation`
+  - 是否出现重复调用
+- `execution.repeated_commands`
+  - 重复调用的是哪些命令
+
+这样做的目的不是“多打一份日志”，而是把后续排障、后台展示、评测回归都收敛到同一套结构化对象上。
+
+## 14.2 指标在哪个阶段写入
+
+```mermaid
+flowchart LR
+    Route["IntentRouteNode"] --> RouteMetric["route 指标\nprompt 长度 + 命令/Skill 召回"]
+    Extract["ExtractContextNode"] --> ExtractMetric["extract 指标\nprompt 长度"]
+    Plan["PlannerNode"] --> PlanMetric["plan 指标\nprompt 长度 + 召回 + candidate_commands"]
+    Task["PlanTasksNode"] --> TaskMetric["task 指标\nprompt 长度 + 召回 + selected_commands"]
+    Validate["ValidateAutoTasksNode"] --> HitMetric["final_hit_commands"]
+    Execute["WorkflowExecutor"] --> ExecMetric["executed_commands + repeated_invocation"]
+```
+
+如果后续要接管理后台、trace 面板或回归报表，优先读这套字段，不要重新从非结构化日志里二次猜。
+
+## 14.3 回归门禁怎么跑
+
+本轮新增了专门的 AutoGPT 评测门禁，目标不是跑不稳定的在线模型评测，而是先把最容易回归、最应该稳定的三类指标固化住：
+
+- `route`
+  - 自然语言是否仍能稳定路由到正确命令
+- `tool`
+  - Prompt 裁剪后，相关命令是否仍能被正确召回
+- `arg`
+  - 常见受控参数是否仍能稳定提取
+
+测试入口：
+
+```powershell
+D:\Software\anaconda3\envs\classbot\python.exe -m pytest tests\autogpt\test_eval_gate.py -q
+```
+
+如果改了下面这些内容，合并前都应该先看这组门禁：
+
+- `resources/prompts/*.jinja`
+- `src/plugins/autogpt/pipeline.py`
+- `src/plugins/autogpt/command_tools.py`
+- `src/plugins/autogpt/knowledge.py`
+- `src/plugins/autogpt/prompt_selection.py`
+- 任何上下文裁剪、命令目录裁剪、Planner 候选命令逻辑
+
 ## 15. 扩展建议
 
 如果后续继续增强这套 AutoGPT，推荐优先沿这些方向扩展：

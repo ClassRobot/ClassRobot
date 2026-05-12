@@ -57,6 +57,7 @@ class AgentPlan(BaseModel):
     """简短说明计划理由。"""
 
 
+ObservabilityStage = Literal["route", "extract", "plan", "task"]
 WorkflowKind = Literal["chat", "knowledge", "command", "command_sequence", "clarification", "violation"]
 WorkflowStatus = Literal["planned", "running", "completed", "failed", "needs_confirm", "cancelled"]
 WorkflowStepStatus = Literal["pending", "running", "completed", "failed"]
@@ -77,6 +78,51 @@ WorkflowEventType = Literal[
     "workflow_failed",
     "workflow_cancelled",
 ]
+
+
+class PromptStageMetric(BaseModel):
+    """记录单个 Prompt 阶段的输入规模与能力召回情况。"""
+
+    stage: ObservabilityStage
+    """阶段名称，例如 route、extract、plan 或 task。"""
+    prompt_char_length: int = 0
+    """送入模型前的 Prompt 总长度。"""
+    recalled_commands: list[str] = Field(default_factory=list)
+    """当前阶段召回给模型看的命令列表。"""
+    recalled_command_count: int = 0
+    """当前阶段召回的命令数量。"""
+    recalled_skills: list[str] = Field(default_factory=list)
+    """当前阶段召回给模型看的 Skill 列表。"""
+    recalled_skill_count: int = 0
+    """当前阶段召回的 Skill 数量。"""
+    selected_commands: list[str] = Field(default_factory=list)
+    """当前阶段最终命中的命令。"""
+
+
+class WorkflowExecutionMetric(BaseModel):
+    """记录工作流执行阶段的命令运行情况。"""
+
+    executed_commands: list[str] = Field(default_factory=list)
+    """按实际执行顺序记录的命令序列。"""
+    repeated_invocation: bool = False
+    """是否出现重复调用同一条命令。"""
+    repeated_commands: list[str] = Field(default_factory=list)
+    """出现重复调用的命令名称列表。"""
+
+
+class AgentObservabilityMetrics(BaseModel):
+    """汇总一轮 AutoGPT 处理的关键可观测指标。"""
+
+    trace_id: str = ""
+    """本轮处理链路对应的 trace_id。"""
+    prompt_stages: list[PromptStageMetric] = Field(default_factory=list)
+    """各 Prompt 阶段的输入规模与召回情况。"""
+    planner_candidate_commands: list[str] = Field(default_factory=list)
+    """Planner 产出的候选命令列表。"""
+    final_hit_commands: list[str] = Field(default_factory=list)
+    """经过校验后真正保留下来的命令列表。"""
+    execution: WorkflowExecutionMetric = Field(default_factory=WorkflowExecutionMetric)
+    """工作流执行阶段的命令调用指标。"""
 
 
 class WorkflowApproval(BaseModel):
@@ -204,6 +250,8 @@ class AgentWorkflow(BaseModel):
     """工作流当前缺失的信息。"""
     steps: list[WorkflowStep] = Field(default_factory=list)
     """按顺序执行的工作流步骤。"""
+    observability: AgentObservabilityMetrics = Field(default_factory=AgentObservabilityMetrics)
+    """当前工作流携带的结构化可观测指标。"""
     created_at: datetime = Field(default_factory=datetime.now)
     """工作流创建时间。"""
     started_at: datetime | None = None
@@ -244,6 +292,8 @@ class AgentTurnResult(BaseModel):
     """兼容现有命令调用链路的自动任务结果。"""
     workflow: AgentWorkflow | None = None
     """面向执行层的显式工作流。"""
+    observability: AgentObservabilityMetrics = Field(default_factory=AgentObservabilityMetrics)
+    """本轮处理的结构化可观测指标。"""
 
 
 class WorkflowExecutionResult(BaseModel):
@@ -255,6 +305,8 @@ class WorkflowExecutionResult(BaseModel):
     """顺序执行过程中产生的观察记录。"""
     user_message: str | None = None
     """需要回给用户的补充说明。"""
+    observability: AgentObservabilityMetrics | None = None
+    """工作流执行后的可观测指标快照。"""
 
 
 @dataclass(slots=True)

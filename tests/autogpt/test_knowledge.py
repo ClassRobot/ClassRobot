@@ -15,6 +15,24 @@ def test_agent_skill_catalog_renders_builtin_skill_summaries(loaded_plugins):
     assert "image-generation" in prompt
 
 
+def test_agent_skill_catalog_can_render_named_subset(loaded_plugins):
+    from src.plugins.autogpt.knowledge import AgentSkillCatalog
+
+    prompt = AgentSkillCatalog().to_prompt(skill_names=["ocr"], limit=1)
+
+    assert "ocr" in prompt
+    assert "markdown-to-image" not in prompt
+    assert "image-generation" not in prompt
+
+
+def test_agent_skill_catalog_can_render_relevant_subset_by_query(loaded_plugins):
+    from src.plugins.autogpt.knowledge import AgentSkillCatalog
+
+    prompt = AgentSkillCatalog().to_prompt(query="识别图片里的文字", limit=1)
+
+    assert "ocr" in prompt
+
+
 @pytest.mark.asyncio
 async def test_local_knowledge_retriever_reads_user_chat_history(loaded_plugins, tmp_path):
     from src.plugins.autogpt.knowledge import AgentRuntimeContext, AgentLocalKnowledgeRetriever
