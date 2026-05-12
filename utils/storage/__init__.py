@@ -6,6 +6,7 @@ from .files import (
     FileSpaceError,
     StorageManager,
     PathEscapeError,
+    normalize_file_space_kind,
     storage_manager,
 )
 from .local_rag import (
@@ -66,6 +67,7 @@ __all__ = [
     "local_rag_service",
     "normalize_message_text",
     "normalize_raw_message",
+    "normalize_file_space_kind",
     "parse_metadata",
     "storage_manager",
 ]

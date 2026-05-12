@@ -1,11 +1,14 @@
 # 隔离文件空间
 
-`utils.storage` 提供和 NoneBot 解耦的文件空间能力，用于把个人用户、群组、公共系统文件隔离到 `{data_dir}/storage` 下。
+`utils.storage` 提供和 NoneBot 解耦的文件空间能力，用于把个人用户、群组、班级、学院、学校、公共系统文件隔离到 `{data_dir}/storage` 下。
 
 其中：
 
 - `users/{user_id}` 永远使用系统内 `User.id`。
 - `groups/{group_id}` 永远使用系统内 `Group.id`。
+- `classes/{classes_id}` 永远使用系统内 `Classes.id`。
+- `colleges/{college_id}` 永远使用系统内 `College.id`。
+- `schools/{school_id}` 永远使用系统内 `School.id`。
 - 平台账号、平台群号、频道号以及 `UserBind` / `GroupBind` 自身主键只负责“绑定解析”，不能直接作为用户或群组文件空间目录名。
 
 ## 基础结构
@@ -14,6 +17,27 @@
 {data_dir}/storage/
 ├── public/
 ├── groups/{group_id}/
+│   ├── chat/
+│   └── home/
+│       ├── documents/
+│       ├── videos/
+│       ├── images/
+│       └── audio/
+├── classes/{classes_id}/
+│   ├── chat/
+│   └── home/
+│       ├── documents/
+│       ├── videos/
+│       ├── images/
+│       └── audio/
+├── colleges/{college_id}/
+│   ├── chat/
+│   └── home/
+│       ├── documents/
+│       ├── videos/
+│       ├── images/
+│       └── audio/
+├── schools/{school_id}/
 │   ├── chat/
 │   └── home/
 │       ├── documents/
@@ -75,6 +99,10 @@ space.mkdir("documents/project")
 space.cd("documents/project")
 space.touch("readme.txt")
 display, entries = space.list_entries()
+
+class_space = storage_manager.class_space(classes.id)
+college_space = storage_manager.college_space(college.id)
+school_space = storage_manager.school_space(school.id)
 ```
 
 如果业务上需要删除整个用户或群组空间，而不只是删除 `home` 内的单个文件，可以直接使用：
@@ -84,9 +112,12 @@ from utils.storage import storage_manager
 
 storage_manager.delete_user_space(user.id)
 storage_manager.delete_group_space(group.id)
+storage_manager.delete_class_space(classes.id)
+storage_manager.delete_college_space(college.id)
+storage_manager.delete_school_space(school.id)
 ```
 
-这两个方法会一次性清理对应空间下的 `chat`、`home` 以及未来新增的其它子目录，适合账号注销、班级解散、群组删除等场景。
+这些方法会一次性清理对应空间下的 `chat`、`home` 以及未来新增的其它子目录，适合账号注销、班级解散、群组删除、学院或学校归档等场景。
 
 如果业务入口拿到的是平台群号，而不是系统 `Group.id`，应先通过绑定关系解析出系统群组，再调用 `group_space()`；不要直接写成 `group_space(channel_id)`。
 
@@ -98,6 +129,29 @@ storage_manager.delete_group_space(group.id)
 - `ls ../../other/home`、`rm ../../other/home` 等越界查询或删除会抛出 `PathEscapeError`。
 - `cd ..` 在 `~` 下不会越界，只会停留在 `~`。
 - `documents`、`videos`、`images`、`audio` 是默认分类目录，不能直接删除，但可以管理其内部文件。
+
+## 虚拟挂载层
+
+底层 `FileSpace` 只负责单一物理空间的隔离和路径安全；文件管理命令中的“个人 + 群组 + 班级 + 学院 + 学校”视图由 `src.plugins.file_manager.virtual.VirtualFileWorkspace` 提供。
+
+职责划分：
+
+- `FileSpace`: 只知道自己的 `home` 和 `chat`，不处理用户身份。
+- `StorageManager`: 只负责根据实体 ID 创建或删除物理空间。
+- `VirtualFileWorkspace`: 根据用户身份与业务关系，把多个 `FileSpace` 挂载成一个虚拟 `~`。
+
+这样做可以保证后台管理、Agent、NoneBot 命令都复用同一套底层安全能力，同时又不会让 `utils.storage` 反向依赖业务模型或 NoneBot。
+
+```mermaid
+flowchart LR
+    User["系统用户"] --> Workspace["VirtualFileWorkspace"]
+    Workspace --> Personal["users/{user_id}/home 可读写"]
+    Workspace --> Group["群组挂载 groups/{group_id}/home"]
+    Workspace --> Class["班级挂载 classes/{classes_id}/home"]
+    Workspace --> College["学院挂载 colleges/{college_id}/home"]
+    Workspace --> School["学校挂载 schools/{school_id}/home"]
+    Workspace --> Guard["统一路径越界与写权限校验"]
+```
 
 ## 扩展建议
 

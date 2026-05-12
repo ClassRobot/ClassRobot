@@ -9,16 +9,16 @@ from nonebot_plugin_orm import get_session
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from utils.models import Classes, Group, GroupBind, User
+from utils.models import Classes, College, Group, GroupBind, School, User
 from utils.storage import DEFAULT_HOME_DIRS, FileSpace, FileSpaceError, PathEscapeError, StorageManager, storage_manager
-from utils.storage.files import sanitize_owner_id
+from utils.storage.files import SPACE_ROOT_DIRS, normalize_file_space_kind, sanitize_owner_id
 
 
 def _space_root(kind: str, manager: StorageManager | None = None) -> Path:
     """返回指定文件空间类型对应的根目录。
 
     Args:
-        kind: 文件空间类型，支持 ``user`` 与 ``group``。
+        kind: 文件空间类型，支持 ``user``、``group``、``class``、``college``、``school``。
         manager: 可选的存储管理器实例。
 
     Returns:
@@ -29,11 +29,7 @@ def _space_root(kind: str, manager: StorageManager | None = None) -> Path:
     """
 
     manager = manager or storage_manager
-    if kind == "user":
-        return manager.root / "users"
-    if kind == "group":
-        return manager.root / "groups"
-    raise ValueError("Unsupported file space kind")
+    return manager.root / SPACE_ROOT_DIRS[normalize_file_space_kind(kind)]
 
 
 def _existing_space(kind: str, owner_id: str, manager: StorageManager | None = None) -> FileSpace:
@@ -134,6 +130,9 @@ def _space_owner_payload(
     owner_id: str,
     user_index: dict[str, User],
     group_index: dict[str, tuple[Group, list[GroupBind]]],
+    class_index: dict[str, Classes],
+    college_index: dict[str, College],
+    school_index: dict[str, School],
 ) -> dict[str, Any]:
     """根据文件空间所属实体构造展示信息。
 
@@ -142,6 +141,9 @@ def _space_owner_payload(
         owner_id: 拥有者标识。
         user_index: 用户索引。
         group_index: 群组绑定索引。
+        class_index: 班级索引。
+        college_index: 学院索引。
+        school_index: 学校索引。
 
     Returns:
         dict[str, Any]: 标题、副标题、关联实体和是否成功映射的结果。
@@ -166,6 +168,72 @@ def _space_owner_payload(
                 "nickname": user.nickname,
                 "username": user.username,
                 "avatar": user.avatar,
+            },
+        }
+
+    if kind == "class":
+        classes = class_index.get(owner_id)
+        if classes is None:
+            return {
+                "title": f"班级空间 {owner_id}",
+                "subtitle": "未在数据库中找到关联班级",
+                "linked": False,
+                "owner": None,
+            }
+        return {
+            "title": classes.name,
+            "subtitle": f"班级 {classes.id}",
+            "linked": True,
+            "owner": {
+                "type": "class",
+                "id": classes.id,
+                "name": classes.name,
+                "group_id": classes.group_id,
+                "school_id": classes.school_id,
+                "college_id": classes.college_id,
+                "major_id": classes.major_id,
+            },
+        }
+
+    if kind == "college":
+        college = college_index.get(owner_id)
+        if college is None:
+            return {
+                "title": f"学院空间 {owner_id}",
+                "subtitle": "未在数据库中找到关联学院",
+                "linked": False,
+                "owner": None,
+            }
+        return {
+            "title": college.name,
+            "subtitle": f"学校 {college.school_id}",
+            "linked": True,
+            "owner": {
+                "type": "college",
+                "id": college.id,
+                "name": college.name,
+                "school_id": college.school_id,
+            },
+        }
+
+    if kind == "school":
+        school = school_index.get(owner_id)
+        if school is None:
+            return {
+                "title": f"学校空间 {owner_id}",
+                "subtitle": "未在数据库中找到关联学校",
+                "linked": False,
+                "owner": None,
+            }
+        return {
+            "title": school.name,
+            "subtitle": school.address or f"学校 {school.id}",
+            "linked": True,
+            "owner": {
+                "type": "school",
+                "id": school.id,
+                "name": school.name,
+                "address": school.address,
             },
         }
 
@@ -211,7 +279,13 @@ def _space_owner_payload(
 async def _space_indexes(
     kind: str,
     owner_ids: list[str],
-) -> tuple[dict[str, User], dict[str, tuple[Group, list[GroupBind]]]]:
+) -> tuple[
+    dict[str, User],
+    dict[str, tuple[Group, list[GroupBind]]],
+    dict[str, Classes],
+    dict[str, College],
+    dict[str, School],
+]:
     """按需批量加载文件空间关联的用户或群组索引。
 
     Args:
@@ -219,31 +293,49 @@ async def _space_indexes(
         owner_ids: 需要映射的拥有者标识列表。
 
     Returns:
-        tuple[dict[str, User], dict[str, tuple[Group, list[GroupBind]]]]: 用户索引和群组索引。
+        tuple: 用户、群组、班级、学院、学校索引。
     """
 
     user_index: dict[str, User] = {}
     group_index: dict[str, tuple[Group, list[GroupBind]]] = {}
+    class_index: dict[str, Classes] = {}
+    college_index: dict[str, College] = {}
+    school_index: dict[str, School] = {}
     if not owner_ids:
-        return user_index, group_index
+        return user_index, group_index, class_index, college_index, school_index
 
     async with get_session() as session:
         if kind == "user":
             user_ids = [int(owner_id) for owner_id in owner_ids if owner_id.isdigit()]
             if not user_ids:
-                return user_index, group_index
+                return user_index, group_index, class_index, college_index, school_index
             users = await session.scalars(select(User).where(User.id.in_(user_ids)))
             user_index = {str(user.id): user for user in users}
-            return user_index, group_index
+            return user_index, group_index, class_index, college_index, school_index
 
-        group_ids = [int(owner_id) for owner_id in owner_ids if owner_id.isdigit()]
-        if not group_ids:
-            return user_index, group_index
+        entity_ids = [int(owner_id) for owner_id in owner_ids if owner_id.isdigit()]
+        if not entity_ids:
+            return user_index, group_index, class_index, college_index, school_index
+
+        if kind == "class":
+            classes = await session.scalars(select(Classes).where(Classes.id.in_(entity_ids)))
+            class_index = {str(classes_item.id): classes_item for classes_item in classes}
+            return user_index, group_index, class_index, college_index, school_index
+
+        if kind == "college":
+            colleges = await session.scalars(select(College).where(College.id.in_(entity_ids)))
+            college_index = {str(college.id): college for college in colleges}
+            return user_index, group_index, class_index, college_index, school_index
+
+        if kind == "school":
+            schools = await session.scalars(select(School).where(School.id.in_(entity_ids)))
+            school_index = {str(school.id): school for school in schools}
+            return user_index, group_index, class_index, college_index, school_index
 
         groups = list(
             await session.scalars(
                 select(Group)
-                .where(Group.id.in_(group_ids))
+                .where(Group.id.in_(entity_ids))
                 .options(
                     selectinload(Group.classes),
                     selectinload(Group.creator),
@@ -252,7 +344,7 @@ async def _space_indexes(
         )
         binds = await session.scalars(
             select(GroupBind)
-            .where(GroupBind.group_id.in_(group_ids))
+            .where(GroupBind.group_id.in_(entity_ids))
             .options(
                 selectinload(GroupBind.group).selectinload(Group.classes),
                 selectinload(GroupBind.group).selectinload(Group.creator),
@@ -262,7 +354,7 @@ async def _space_indexes(
         for bind in binds:
             binds_by_group[bind.group_id].append(bind)
         group_index = {str(group.id): (group, binds_by_group.get(group.id, [])) for group in groups}
-    return user_index, group_index
+    return user_index, group_index, class_index, college_index, school_index
 
 
 def _space_summary(
@@ -384,16 +476,26 @@ async def list_file_spaces(*, kind: str | None = None, q: str | None = None) -> 
         dict[str, Any]: 文件空间列表与统计信息。
     """
 
-    kinds = [kind] if kind else ["user", "group"]
+    kinds = [kind] if kind else ["user", "group", "class", "college", "school"]
     items: list[dict[str, Any]] = []
     keyword = (q or "").strip().lower()
 
     for current_kind in kinds:
         owner_ids = _scan_owner_ids(current_kind)
-        user_index, group_index = await _space_indexes(current_kind, owner_ids)
+        user_index, group_index, class_index, college_index, school_index = await _space_indexes(
+            current_kind, owner_ids
+        )
         for owner_id in owner_ids:
             space = _existing_space(current_kind, owner_id)
-            owner_payload = _space_owner_payload(current_kind, owner_id, user_index, group_index)
+            owner_payload = _space_owner_payload(
+                current_kind,
+                owner_id,
+                user_index,
+                group_index,
+                class_index,
+                college_index,
+                school_index,
+            )
             item = _space_summary(current_kind, owner_id, space, owner_payload)
             if keyword:
                 haystacks = [
@@ -403,6 +505,7 @@ async def list_file_spaces(*, kind: str | None = None, q: str | None = None) -> 
                     item["owner"].get("username") if isinstance(item.get("owner"), dict) else "",
                     item["owner"].get("group_name") if isinstance(item.get("owner"), dict) else "",
                     item["owner"].get("class_name") if isinstance(item.get("owner"), dict) else "",
+                    item["owner"].get("name") if isinstance(item.get("owner"), dict) else "",
                 ]
                 if not any(keyword in str(value or "").lower() for value in haystacks):
                     continue
@@ -428,8 +531,16 @@ async def get_file_space_detail(kind: str, owner_id: str) -> dict[str, Any]:
     """
 
     space = _existing_space(kind, owner_id)
-    user_index, group_index = await _space_indexes(kind, [owner_id])
-    owner_payload = _space_owner_payload(kind, owner_id, user_index, group_index)
+    user_index, group_index, class_index, college_index, school_index = await _space_indexes(kind, [owner_id])
+    owner_payload = _space_owner_payload(
+        kind,
+        owner_id,
+        user_index,
+        group_index,
+        class_index,
+        college_index,
+        school_index,
+    )
     summary = _space_summary(kind, owner_id, space, owner_payload)
     summary.update(_list_entries(space))
     return summary

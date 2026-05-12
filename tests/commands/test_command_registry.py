@@ -84,6 +84,9 @@ EXPECTED_COMMAND_OBJECTS = {
         "touch_cmd": "touch",
         "rm_cmd": "rm",
         "cat_cmd": "cat",
+        "find_cmd": "find",
+        "grep_cmd": "grep",
+        "tree_cmd": "tree",
         "upload_file_cmd": "上传文件",
     },
     "src.plugins.chat_context.commands": {

@@ -67,8 +67,7 @@ async def _delete_fk_descendants(
             if pk_columns:
                 result = await session.execute(select(*pk_columns).where(where_clause))
                 child_rows = [
-                    {column.name: value for column, value in zip(pk_columns, row)}
-                    for row in result.fetchall()
+                    {column.name: value for column, value in zip(pk_columns, row)} for row in result.fetchall()
                 ]
 
             for child_pk in child_rows:
@@ -279,7 +278,9 @@ class User(FilterModel, Model):
                 return
 
             await _delete_fk_descendants(session, User.__table__, {"id": self.id}, set())
-            await session.execute(sql_delete(AgentWorkflowCheckpoint.__table__).where(AgentWorkflowCheckpoint.user_id == self.id))
+            await session.execute(
+                sql_delete(AgentWorkflowCheckpoint.__table__).where(AgentWorkflowCheckpoint.user_id == self.id)
+            )
             await session.execute(sql_delete(AgentWorkflowRun.__table__).where(AgentWorkflowRun.user_id == self.id))
             await session.execute(sql_delete(User.__table__).where(User.id == self.id))
             await session.commit()
@@ -1111,6 +1112,10 @@ class Classes(FilterModel, Model):
                 lambda: cleanup_manager.delete_group_space(group_id),
                 description=f"群组[{group_id}]文件空间",
             )
+        _cleanup_storage_safely(
+            lambda: cleanup_manager.delete_class_space(self.id),
+            description=f"班级[{self.id}]文件空间",
+        )
 
     async def user_join_classes(self, user: User):
         """用户加入班级

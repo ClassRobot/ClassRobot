@@ -227,8 +227,10 @@ async def test_teacher_can_delete_empty_class(app, onebot, send_recorder, models
     teacher = await models.create_teacher(user, name="老师丙")
     classes = await models.create_classes(name="待删除班级", owner=user, group_id=20005, teacher=teacher)
     group_space = storage.group_space(classes.group_id)
+    class_space = storage.class_space(classes.id)
     group_space.touch("documents/classes-note.txt")
     group_space.chat_dir.joinpath("messages.db").write_text("classes chat", encoding="utf-8")
+    class_space.touch("documents/class-space-note.txt")
 
     async with app.test_matcher(delete_classes_cmd) as ctx:
         recorder = send_recorder(ctx)
@@ -239,6 +241,7 @@ async def test_teacher_can_delete_empty_class(app, onebot, send_recorder, models
     recorder.assert_any("删除班级成功")
     assert await Classes.filter(id=classes.id).first() is None
     assert not group_space.space_root.exists()
+    assert not class_space.space_root.exists()
 
 
 async def test_import_classes_can_create_teacher_class_and_student(app, onebot, send_recorder, monkeypatch, models):

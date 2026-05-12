@@ -4,15 +4,36 @@ import re
 import json
 import shutil
 from dataclasses import dataclass
+from enum import StrEnum
 from pathlib import Path
-from typing import Literal
+
+from pydantic import BaseModel
 
 from utils.config import storage_dir
 
-FileSpaceKind = Literal["user", "group"]
 DEFAULT_HOME_DIRS = ("documents", "videos", "images", "audio")
 STATE_FILE_NAME = "cwd.json"
 WINDOWS_INVALID_CHARS = set('<>:"|?*')
+
+
+class FileSpaceKind(StrEnum):
+    """定义系统支持的文件空间归属类型。"""
+
+    user = "user"
+    group = "group"
+    class_ = "class"
+    college = "college"
+    school = "school"
+
+
+SPACE_ROOT_DIRS: dict[FileSpaceKind, str] = {
+    FileSpaceKind.user: "users",
+    FileSpaceKind.group: "groups",
+    FileSpaceKind.class_: "classes",
+    FileSpaceKind.college: "colleges",
+    FileSpaceKind.school: "schools",
+}
+"""文件空间类型与 storage 一级目录的映射关系。"""
 
 
 class FileSpaceError(ValueError):
@@ -40,14 +61,17 @@ class ResolvedPath:
         return "~/" + "/".join(self.relative_parts)
 
 
-@dataclass(frozen=True)
-class FileEntry:
+class FileEntry(BaseModel):
     """表示文件列表中的一个条目。"""
 
     name: str
     path: str
     is_dir: bool
     size: int | None = None
+    is_mount: bool = False
+    readonly: bool = False
+    title: str | None = None
+    kind: str | None = None
 
 
 class FileSpace:
@@ -58,19 +82,20 @@ class FileSpace:
     当前工作目录等运行时状态。
     """
 
-    def __init__(self, kind: FileSpaceKind, owner_id: str | int, root: Path = storage_dir) -> None:
+    def __init__(self, kind: FileSpaceKind | str, owner_id: str | int, root: Path = storage_dir) -> None:
         """初始化文件空间。
 
         Args:
-            kind: 文件空间类型，``user`` 表示个人空间，``group`` 表示群空间。
-            owner_id: 用户或群组的唯一 ID。
+            kind: 文件空间类型，``user`` 表示个人空间，``group`` 表示群空间，
+                ``class`` / ``college`` / ``school`` 表示教学组织层级空间。
+            owner_id: 文件空间所属实体的唯一 ID。
             root: storage 根目录，默认来自 ``utils.config.storage_dir``。
         """
 
-        self.kind = kind
+        self.kind = normalize_file_space_kind(kind)
         self.owner_id = sanitize_owner_id(owner_id)
         self.root = Path(root)
-        self.space_root = self.root / ("users" if kind == "user" else "groups") / self.owner_id
+        self.space_root = self.root / SPACE_ROOT_DIRS[self.kind] / self.owner_id
         self.chat_dir = self.space_root / "chat"
         self.home_dir = self.space_root / "home"
         self.state_file = self.chat_dir / STATE_FILE_NAME
@@ -436,35 +461,50 @@ class StorageManager:
     def ensure_root(self) -> None:
         """确保 storage 根目录和一级目录存在。"""
 
-        for dirname in ("public", "groups", "users"):
+        for dirname in ("public", *SPACE_ROOT_DIRS.values()):
             (self.root / dirname).mkdir(parents=True, exist_ok=True)
 
-    def space_root(self, kind: FileSpaceKind, owner_id: str | int) -> Path:
+    def space_root(self, kind: FileSpaceKind | str, owner_id: str | int) -> Path:
         """返回指定文件空间的根目录路径。
 
         Args:
-            kind: 文件空间类型，``user`` 或 ``group``。
-            owner_id: 用户或群组唯一 ID。
+            kind: 文件空间类型。
+            owner_id: 文件空间所属实体唯一 ID。
 
         Returns:
             Path: 对应文件空间的根目录。
         """
 
+        normalized_kind = normalize_file_space_kind(kind)
         sanitized_owner_id = sanitize_owner_id(owner_id)
-        dirname = "users" if kind == "user" else "groups"
-        return self.root / dirname / sanitized_owner_id
+        return self.root / SPACE_ROOT_DIRS[normalized_kind] / sanitized_owner_id
 
     def user_space(self, user_id: str | int) -> FileSpace:
         """返回个人文件空间。"""
 
-        return FileSpace("user", user_id, self.root)
+        return FileSpace(FileSpaceKind.user, user_id, self.root)
 
     def group_space(self, group_id: str | int) -> FileSpace:
         """返回群组文件空间。"""
 
-        return FileSpace("group", group_id, self.root)
+        return FileSpace(FileSpaceKind.group, group_id, self.root)
 
-    def delete_space(self, kind: FileSpaceKind, owner_id: str | int) -> bool:
+    def class_space(self, classes_id: str | int) -> FileSpace:
+        """返回班级文件空间。"""
+
+        return FileSpace(FileSpaceKind.class_, classes_id, self.root)
+
+    def college_space(self, college_id: str | int) -> FileSpace:
+        """返回学院文件空间。"""
+
+        return FileSpace(FileSpaceKind.college, college_id, self.root)
+
+    def school_space(self, school_id: str | int) -> FileSpace:
+        """返回学校文件空间。"""
+
+        return FileSpace(FileSpaceKind.school, school_id, self.root)
+
+    def delete_space(self, kind: FileSpaceKind | str, owner_id: str | int) -> bool:
         """删除整个文件空间。
 
         该操作会直接清理 ``space_root`` 下的全部内容，包括 ``chat``、
@@ -472,8 +512,8 @@ class StorageManager:
         目标不存在时返回 ``False``，不会抛错。
 
         Args:
-            kind: 文件空间类型，``user`` 或 ``group``。
-            owner_id: 用户或群组唯一 ID。
+            kind: 文件空间类型。
+            owner_id: 文件空间所属实体唯一 ID。
 
         Returns:
             bool: 实际删除了目录时返回 ``True``，目录原本不存在时返回 ``False``。
@@ -498,12 +538,46 @@ class StorageManager:
     def delete_user_space(self, user_id: str | int) -> bool:
         """删除指定用户的整个文件空间。"""
 
-        return self.delete_space("user", user_id)
+        return self.delete_space(FileSpaceKind.user, user_id)
 
     def delete_group_space(self, group_id: str | int) -> bool:
         """删除指定群组的整个文件空间。"""
 
-        return self.delete_space("group", group_id)
+        return self.delete_space(FileSpaceKind.group, group_id)
+
+    def delete_class_space(self, classes_id: str | int) -> bool:
+        """删除指定班级的整个文件空间。"""
+
+        return self.delete_space(FileSpaceKind.class_, classes_id)
+
+    def delete_college_space(self, college_id: str | int) -> bool:
+        """删除指定学院的整个文件空间。"""
+
+        return self.delete_space(FileSpaceKind.college, college_id)
+
+    def delete_school_space(self, school_id: str | int) -> bool:
+        """删除指定学校的整个文件空间。"""
+
+        return self.delete_space(FileSpaceKind.school, school_id)
+
+
+def normalize_file_space_kind(kind: FileSpaceKind | str) -> FileSpaceKind:
+    """把字符串或枚举统一转换为 ``FileSpaceKind``。
+
+    Args:
+        kind: 文件空间类型枚举或字符串。
+
+    Returns:
+        FileSpaceKind: 标准化后的文件空间类型。
+
+    Raises:
+        FileSpaceError: 传入了系统不支持的文件空间类型。
+    """
+
+    try:
+        return kind if isinstance(kind, FileSpaceKind) else FileSpaceKind(str(kind))
+    except ValueError as error:
+        raise FileSpaceError(f"不支持的文件空间类型：{kind}") from error
 
 
 def sanitize_owner_id(value: str | int) -> str:
