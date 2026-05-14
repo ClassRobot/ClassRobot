@@ -6,6 +6,8 @@
 
 - [项目能力总览](./capability-overview.md)
   - 说明当前系统已经具备哪些能力，哪些仍属于实验性或预留状态
+- [命令开发进度表](./command-development-progress.md)
+  - 汇总当前显式命令的能力分组、完成状态、源码入口和能力文档跳转
 - [命令使用文档](./command-reference.md)
   - 说明学校、教师、学生、班级、组织及入班审批相关命令的格式、权限和示例
 - [角色与组织关系说明](./role-reference.md)
@@ -21,5 +23,6 @@
 ## 使用建议
 
 - 想确认“系统现在能做什么”，先读 [项目能力总览](./capability-overview.md)
+- 想确认“哪些命令已经做完、还缺什么、源码在哪”，先读 [命令开发进度表](./command-development-progress.md)
 - 想确认“命令怎么写、谁能用”，先读 [命令使用文档](./command-reference.md)
 - 想确认“角色和组织模型怎么理解”，先读 [角色与组织关系说明](./role-reference.md)

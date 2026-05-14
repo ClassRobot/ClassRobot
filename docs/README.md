@@ -40,6 +40,7 @@
 
 - [参考资料总览](./reference/README.md)
 - [项目能力总览](./reference/capability-overview.md)
+- [命令开发进度表](./reference/command-development-progress.md)
 - [命令使用文档](./reference/command-reference.md)
 - [角色与组织关系说明](./reference/role-reference.md)
 
@@ -78,6 +79,7 @@
 - 想接入消息采集、群历史检索或用户聊天落盘：
   - 先看 [消息历史存储与归属说明](./guides/message-history-storage.md)
 - 想做命令、权限或 Agent 相关开发：
+  - 先看 [命令开发进度表](./reference/command-development-progress.md)，确认当前能力分布、完成状态与源码入口
   - 先看 [命令鉴权与 Help/AutoGPT 统一机制](./guides/command-auth-and-help.md)
   - 再看 [命令与 Agent 一体化架构设计](./architecture/command-agent-unified-architecture.md)
 - 想推进 Agent、Tool、Skill、MCP、RAG 或 Prompt 工程化：
