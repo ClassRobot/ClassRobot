@@ -15,6 +15,7 @@ jobs:
       BUCKET: test-bucket
       RAGFLOW_URL: https://example.com
       RAGFLOW_KEY: test-ragflow-key
+      PYTHON_KEYRING_BACKEND: keyring.backends.null.Keyring
 
     steps:
       - name: Checkout code
@@ -29,6 +30,12 @@ jobs:
 
       - name: Install Poetry
         run: python -m pip install --upgrade pip poetry
+
+      - name: Disable Tencent mirror for CI
+        run: |
+          # Replace tencent mirror with primary official pypi to prevent CI timeouts
+          sed -i 's/name = "tencent"/name = "tencent"\nignore = true/g' pyproject.toml || true
+          sed -i 's/priority = "primary"/priority = "supplemental"/g' pyproject.toml || true
 
       - name: Install dependencies
         run: poetry install --with dev,test --no-interaction
