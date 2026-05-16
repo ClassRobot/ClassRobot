@@ -11,7 +11,7 @@ from nonebot.adapters.onebot.v11 import Bot as V11Bot
 from nonebot_plugin_alconna import File, Image, Other
 from pydantic import BaseModel
 
-from src.commands import CommandExecutionContext, CommandResult, command_executor
+from utils.commands import CommandExecutionContext, CommandResult, command_executor
 from utils.config import global_config
 from utils.models import User
 from utils.session import BaseSession

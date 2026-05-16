@@ -17,7 +17,7 @@ def test_record_observations_writes_traceable_context(loaded_plugins):
                 command="查询课表",
                 params=[Param(type="text", value="今天")],
                 success=True,
-                message="命令已投递给 NoneBot 事件系统。",
+                message="命令已通过统一执行器完成。",
                 outputs=["今天上午第一节是高等数学。"],
             )
         ]
@@ -91,3 +91,43 @@ async def test_record_workflow_writes_traceable_context(loaded_plugins):
     payload = json.loads(content.split("\n", 2)[2])
     assert payload["trace_id"] == "autogpt-workflow"
     assert payload["steps"][0]["command"] == "查询课表"
+
+
+@pytest.mark.asyncio
+async def test_execute_task_workflow_generates_final_reply_from_observations(monkeypatch, loaded_plugins):
+    from utils.helper import Helpers
+    from src.plugins.autogpt.util import ChatSession
+    from src.plugins.autogpt.schema import AgentWorkflow, WorkflowStep, CommandObservation
+
+    session = ChatSession(user_id=1, helpers=Helpers())
+    session.last_trace_id = "autogpt-final-reply"
+    workflow = AgentWorkflow(
+        trace_id="autogpt-final-reply",
+        kind="command",
+        goal="查询我的信息",
+        steps=[WorkflowStep(step_id="step-1", title="执行命令：我的信息", command="我的信息")],
+    )
+
+    async def dispatch(task):
+        return [
+            CommandObservation(
+                trace_id="autogpt-final-reply",
+                command=task.command,
+                success=True,
+                message="命令已通过统一执行器完成。",
+                outputs=["用户信息：你是教师用户。"],
+                context_outputs=["当前用户已绑定教师身份。"],
+                outputs_sent_to_user=False,
+            )
+        ]
+
+    async def fake_final_reply(execution):
+        return "你当前已经绑定教师身份。"
+
+    monkeypatch.setattr(session, "build_execution_final_reply", fake_final_reply)
+
+    execution = await session.execute_task_workflow(workflow, dispatch)
+
+    assert execution.raw_outputs == ["用户信息：你是教师用户。"]
+    assert execution.final_reply == "你当前已经绑定教师身份。"
+    assert any("# 系统命令返回结果" in message.single_modal() for message in session.messages.messages)

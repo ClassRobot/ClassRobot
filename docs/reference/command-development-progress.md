@@ -72,7 +72,7 @@ flowchart LR
 
 - [命令鉴权与 Help/AutoGPT 统一机制](../guides/command-auth-and-help.md)
 - [命令与 Agent 一体化架构设计](../architecture/command-agent-unified-architecture.md)
-- [命令体系说明](../../src/commands/README.md)
+- [命令体系说明](../../utils/commands/README.md)
 - [AutoGPT 模块说明](../../src/plugins/autogpt/README.md)
 
 | 命令 | 状态 | 源码入口 | 说明 |

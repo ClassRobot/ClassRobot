@@ -3,7 +3,7 @@ from typing import Literal
 from datetime import datetime
 
 from pydantic import Field, BaseModel
-from utils.llm.util import json_loads
+from core.llm.util import json_loads
 
 
 class Param(BaseModel):

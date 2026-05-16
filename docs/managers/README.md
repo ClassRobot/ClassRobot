@@ -12,7 +12,8 @@
 4. [前端界面布局](./frontend-layout.md)
 5. [数据来源与权限策略](./data-and-permissions.md)
 6. [后端实现方案](./backend-implementation.md)
-7. [实施路线与验收清单](./implementation-roadmap.md)
+7. [Agent 可编排与可配置改进文档](./agent-orchestration-config-roadmap.md)
+8. [实施路线与验收清单](./implementation-roadmap.md)
 
 ## 后台定位
 
@@ -23,6 +24,24 @@
 - 查看和调试 Agent 工作流，包括运行记录、检查点、失败原因和待确认状态。
 - 管理 AI 资产，包括 Skill、Prompt、Model、MCP 接入占位和后续工具注册状态。
 - 提供本地自动化入口，包括运行检查、生成 SQL、测试模型连通性、重载 Skill、校验 Prompt 等操作。
+
+## 配置落盘约定
+
+管理后台涉及配置读写时，统一遵守下面的边界：
+
+- 启动基线配置写在仓库根目录 `.env` 体系中
+- 运行期可热更新、可持久化的本地状态写到 `config` 目录
+- Agent Runtime 工作流编排资源写到 `resources/agent`
+- `config` 目录的真实路径统一从 `utils.config.config_dir` 获取，不在业务模块手写绝对路径或拼接零散目录
+- Agent 编排资源路径统一从 `utils.config.agent_resources_dir` 获取
+
+常见理解方式：
+
+- `.env`：环境变量、密钥、模型基础接入参数、数据库和平台接入等“启动前配置”
+- `config_dir`：运行时草稿、本地后台动态配置快照等“运行期热更新数据”
+- `resources/agent`：Agent Runtime 默认编排和热更新后的工作流图等“项目化维护的 Agent 资源配置”
+
+这样可以避免把“需要版本化维护的配置”和“本地运行时状态”混在一起，也方便后续统一迁移、备份和排错。
 
 ## 不纳入本期
 
@@ -35,7 +54,9 @@
 ## 当前代码落点
 
 - FastAPI 入口：`src/routers/path.py`
-- 管理后台后端预留目录：`src/routers/managers/`
+- 管理后台后端目录：`src/routers/managers/`
+- 后端路由层：`src/routers/managers/api/`
+- 后端领域实现：`src/routers/managers/agent/`、`catalog/`、`database/`、`identity/`、`runtime/`、`storage/`
 - 管理后台前端预留目录：`website/managers/`
 - 用户与绑定数据：`utils/models/models.py`
 - Agent 运行数据：`src/plugins/autogpt/runs.py`、`src/plugins/autogpt/checkpoints.py`

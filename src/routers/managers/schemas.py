@@ -4,6 +4,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from .agent.models import AgentDesignerDraft
+
 
 class LoginRequest(BaseModel):
     """本地管理后台登录页提交的启动令牌。"""
@@ -118,3 +120,16 @@ class AutomationScriptUpdateRequest(BaseModel):
     risk: str | None = None
     timeout: int | None = Field(default=None, ge=1, le=600)
     enabled: bool | None = None
+
+
+class AgentDesignerUpdateRequest(AgentDesignerDraft):
+    """保存 Agent 编排设计器草稿的请求体。
+
+    Attributes:
+        nodes: 画布中的 Agent 节点列表，后端会校验节点 ID 和模块 ID。
+        edges: 节点之间的连线列表，后端会校验连线两端都存在。
+        note: 管理员为本次编排草稿添加的备注。
+        apply_to_runtime: 为 ``True`` 时同步写入 AutoGPT Runtime 编排配置并热更新。
+    """
+
+    apply_to_runtime: bool = False

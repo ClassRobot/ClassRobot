@@ -5,9 +5,9 @@ from typing import List, Iterable
 from nonebot import logger
 from utils.config import leave_dir
 from utils.roles import StudentRole
-from utils.llm.message import Content
-from utils.llm.util import json_loads
-from utils.llm import Messages, client_create
+from core.llm.message import Content
+from core.llm.util import json_loads
+from core.llm import Messages, client_create
 from nonebot_plugin_alconna import Image, UniMessage
 from utils.tools import download_file, get_url_suffix
 from utils.models import User, Files, Classes, Student, StudentLeave

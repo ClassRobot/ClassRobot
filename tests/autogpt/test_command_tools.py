@@ -1,30 +1,103 @@
-def test_command_tool_catalog_builds_safe_tool_schema(loaded_plugins):
-    from utils.helper import Helper, Helpers, Param, ParamMode
+from types import SimpleNamespace
+
+import pytest
+
+
+def register_test_service_spec(spec):
+    from utils.commands import CommandResult, command_executor, command_registry
+    from utils.commands.renderers.helper import command_spec_to_helper
+
+    command_registry.register(spec)
+
+    @command_executor.handler(spec.name)
+    async def _handler(params, context):
+        return CommandResult.ok("测试命令已执行。")
+
+    return command_spec_to_helper(spec)
+
+
+def test_command_tool_catalog_hides_matcher_and_unregistered_service_commands(loaded_plugins):
+    from utils.helper import Helpers
+    from utils.commands import CommandSpec, command_registry
+    from utils.commands.renderers.helper import command_spec_to_helper
     from src.plugins.autogpt.command_tools import CommandToolCatalog
 
+    matcher_spec = CommandSpec(
+        name="测试仅用户命令",
+        description="只能由用户直接触发",
+        execution_mode="matcher",
+    )
+    service_without_handler_spec = CommandSpec(
+        name="测试缺少Handler服务命令",
+        description="声明为 service 但没有注册 handler",
+        execution_mode="service",
+    )
+    command_registry.register(matcher_spec)
+    command_registry.register(service_without_handler_spec)
     helpers = Helpers()
-    helpers.append(
-        Helper(
-            command="添加班级",
-            description="添加一个班级",
-            aliases={"新增班级"},
-            params=[
-                Param(name="班级名", description="要添加的班级名称"),
-                Param(name="备注", description="可选备注", mode=ParamMode.OPTIONAL),
-            ],
+    helpers.extend([command_spec_to_helper(matcher_spec), command_spec_to_helper(service_without_handler_spec)])
+
+    catalog = CommandToolCatalog.from_helpers(helpers)
+
+    assert catalog.get("测试仅用户命令") is None
+    assert catalog.get("测试缺少Handler服务命令") is None
+
+
+@pytest.mark.asyncio
+async def test_dispatch_auto_task_rejects_command_without_service_handler(loaded_plugins):
+    from src.plugins import autogpt as autogpt_module
+    from src.plugins.autogpt.schema import AutoTask
+    from utils.commands import CommandSpec, command_registry
+
+    command_registry.register(
+        CommandSpec(
+            name="测试未服务化命令",
+            description="声明为 service 但未注册 handler 的命令",
+            execution_mode="service",
         )
     )
 
+    observations = await autogpt_module.dispatch_auto_task(
+        AutoTask(command="测试未服务化命令", params=[]),
+        SimpleNamespace(adapter="test", private=True, platform=[]),
+        trace_id="autogpt-no-service",
+    )
+
+    assert len(observations) == 1
+    assert observations[0].success is False
+    assert observations[0].dispatch_type == "unsupported_command"
+    assert "尚未接入统一 service 执行器" in observations[0].message
+
+
+def test_command_tool_catalog_builds_safe_tool_schema(loaded_plugins):
+    from utils.helper import Helpers, ParamMode
+    from utils.commands import CommandParam, CommandSpec
+    from src.plugins.autogpt.command_tools import CommandToolCatalog
+
+    spec = CommandSpec(
+        name="测试添加班级工具",
+        description="添加一个班级",
+        aliases={"测试新增班级工具"},
+        params=[
+            CommandParam(name="班级名", description="要添加的班级名称"),
+            CommandParam(name="备注", description="可选备注", mode=ParamMode.OPTIONAL),
+        ],
+        risk_level="medium",
+        execution_mode="service",
+    )
+    helpers = Helpers()
+    helpers.append(register_test_service_spec(spec))
+
     catalog = CommandToolCatalog.from_helpers(helpers)
-    tool = catalog.get("添加班级")
+    tool = catalog.get("测试添加班级工具")
 
     assert tool is not None
-    assert tool.command == "添加班级"
+    assert tool.command == "测试添加班级工具"
     assert tool.name.startswith("command_")
     assert tool.risk_level == "medium"
-    assert catalog.get("新增班级") is tool
+    assert catalog.get("测试新增班级工具") is tool
     assert catalog.get(tool.name) is tool
-    assert catalog.resolve_commands(["新增班级", tool.name]) == {"添加班级"}
+    assert catalog.resolve_commands(["测试新增班级工具", tool.name]) == {"测试添加班级工具"}
 
     openai_tool = tool.to_openai_tool()
     function = openai_tool["function"]
@@ -34,23 +107,18 @@ def test_command_tool_catalog_builds_safe_tool_schema(loaded_plugins):
 
 
 def test_command_tool_catalog_prompt_is_compact(loaded_plugins):
-    from utils.helper import Helper, Helpers
+    from utils.helper import Helpers
+    from utils.commands import CommandSpec
     from src.plugins.autogpt.command_tools import CommandToolCatalog
 
+    spec = CommandSpec(name="测试提示工具", description="添加一个班级", execution_mode="service")
     helpers = Helpers()
-    helpers.append(
-        Helper(
-            command="添加班级",
-            description="添加一个班级",
-            aliases={"新增班级"},
-            params=[],
-        )
-    )
+    helpers.append(register_test_service_spec(spec))
 
     catalog = CommandToolCatalog.from_helpers(helpers)
     prompt = catalog.to_prompt()
 
-    assert prompt.startswith("- 添加班级: 添加一个班级")
+    assert prompt.startswith("- 测试提示工具: 添加一个班级")
     assert "工具名" not in prompt
     assert "真实命令" not in prompt
     assert "参数=" in prompt
@@ -58,58 +126,67 @@ def test_command_tool_catalog_prompt_is_compact(loaded_plugins):
 
 
 def test_command_tool_catalog_can_render_relevant_subset_by_query(loaded_plugins):
-    from utils.helper import Helper, Helpers
+    from utils.helper import Helpers
+    from utils.commands import CommandSpec
     from src.plugins.autogpt.command_tools import CommandToolCatalog
 
+    specs = [
+        CommandSpec(name="测试创建通知工具", description="给班级创建一条通知", execution_mode="service"),
+        CommandSpec(name="测试查询课表工具", description="查看当前课表", execution_mode="service"),
+        CommandSpec(name="测试我的信息工具", description="查看当前用户身份", execution_mode="service"),
+    ]
     helpers = Helpers()
-    helpers.extend(
-        [
-            Helper(command="创建通知", description="给班级创建一条通知"),
-            Helper(command="查询课表", description="查看当前课表"),
-            Helper(command="我的信息", description="查看当前用户身份"),
-        ]
-    )
+    for spec in specs:
+        helpers.append(register_test_service_spec(spec))
 
     catalog = CommandToolCatalog.from_helpers(helpers)
     prompt = catalog.to_prompt(query="帮我发一个班级通知", limit=1)
 
-    assert "创建通知" in prompt
-    assert "查询课表" not in prompt
-    assert "我的信息" not in prompt
+    assert "测试创建通知工具" in prompt
+    assert "测试查询课表工具" not in prompt
+    assert "测试我的信息工具" not in prompt
 
 
 def test_command_tool_catalog_candidate_commands_override_query_subset(loaded_plugins):
-    from utils.helper import Helper, Helpers
+    from utils.helper import Helpers
+    from utils.commands import CommandSpec
     from src.plugins.autogpt.command_tools import CommandToolCatalog
 
+    specs = [
+        CommandSpec(name="测试候选创建通知", description="给班级创建一条通知", execution_mode="service"),
+        CommandSpec(name="测试候选查询课表", description="查看当前课表", execution_mode="service"),
+    ]
     helpers = Helpers()
-    helpers.extend(
-        [
-            Helper(command="创建通知", description="给班级创建一条通知"),
-            Helper(command="查询课表", description="查看当前课表"),
-        ]
-    )
+    for spec in specs:
+        helpers.append(register_test_service_spec(spec))
 
     catalog = CommandToolCatalog.from_helpers(helpers)
     prompt = catalog.to_prompt(
         query="帮我发一个班级通知",
         limit=1,
-        candidate_commands=["查询课表"],
+        candidate_commands=["测试候选查询课表"],
     )
 
-    assert "查询课表" in prompt
-    assert "创建通知" not in prompt
+    assert "测试候选查询课表" in prompt
+    assert "测试候选创建通知" not in prompt
 
 
 def test_command_tool_catalog_infers_high_risk_commands(loaded_plugins):
-    from utils.helper import Helper, Helpers
+    from utils.helper import Helpers
+    from utils.commands import CommandSpec
     from src.plugins.autogpt.command_tools import CommandToolCatalog
 
+    spec = CommandSpec(
+        name="测试清空聊天工具",
+        description="清空机器人与用户的聊天内容",
+        risk_level="high",
+        execution_mode="service",
+    )
     helpers = Helpers()
-    helpers.append(Helper(command="清空聊天", description="清空机器人与用户的聊天内容"))
+    helpers.append(register_test_service_spec(spec))
 
     catalog = CommandToolCatalog.from_helpers(helpers)
-    tool = catalog.get("清空聊天")
+    tool = catalog.get("测试清空聊天工具")
 
     assert tool is not None
     assert tool.risk_level == "high"
@@ -124,11 +201,11 @@ def test_basic_commands_are_available_to_autogpt_command_tools(loaded_plugins):
     helper_menu.extend(collect_helpers())
     catalog = CommandToolCatalog.from_helpers(helper_menu)
 
-    from src.commands.registry import command_registry
+    from utils.commands.registry import command_registry
 
     for helper in collect_helpers():
         spec = command_registry.get(helper.command)
-        if spec is not None and not spec.agent_callable:
+        if spec is None or not spec.agent_callable or spec.execution_mode != "service":
             assert catalog.get(helper.command) is None
             continue
         tool = catalog.get(helper.command)
@@ -147,12 +224,12 @@ def test_write_commands_are_not_marked_low_risk(loaded_plugins):
     helper_menu.extend(collect_helpers())
     catalog = CommandToolCatalog.from_helpers(helper_menu)
 
-    from src.commands.registry import command_registry
+    from utils.commands.registry import command_registry
 
     write_prefixes = ("添加", "修改", "删除", "创建", "提交", "导入", "退出", "加入", "请假", "注销", "设置")
     for helper in collect_helpers():
         spec = command_registry.get(helper.command)
-        if spec is not None and not spec.agent_callable:
+        if spec is None or not spec.agent_callable or spec.execution_mode != "service":
             continue
         if helper.command.startswith(write_prefixes):
             tool = catalog.get(helper.command)
@@ -161,37 +238,49 @@ def test_write_commands_are_not_marked_low_risk(loaded_plugins):
 
 
 def test_command_tool_catalog_follows_current_user_visible_helpers(loaded_plugins):
-    from utils.helper import Helper, HelperScope, Helpers, UserRole
+    from utils.helper import HelperScope, Helpers, UserRole
+    from utils.commands import CommandSpec
     from src.plugins.autogpt.command_tools import CommandToolCatalog
 
-    helpers = Helpers()
-    helpers.extend(
-        [
-            Helper(
-                command="查询学生信息", description="查看学生", roles={UserRole.student}, scopes={HelperScope.student}
-            ),
-            Helper(
-                command="查询教师信息", description="查看教师", roles={UserRole.teacher}, scopes={HelperScope.teacher}
-            ),
-            Helper(command="查询请假", description="查看请假", roles={UserRole.student, UserRole.teacher}),
-        ]
+    student_spec = CommandSpec(
+        name="测试学生可见工具",
+        description="查看学生",
+        roles={UserRole.student},
+        scopes={HelperScope.student},
+        execution_mode="service",
     )
+    teacher_spec = CommandSpec(
+        name="测试教师可见工具",
+        description="查看教师",
+        roles={UserRole.teacher},
+        scopes={HelperScope.teacher},
+        execution_mode="service",
+    )
+    shared_spec = CommandSpec(
+        name="测试师生共享工具",
+        description="查看请假",
+        roles={UserRole.student, UserRole.teacher},
+        execution_mode="service",
+    )
+    helpers = Helpers()
+    for spec in (student_spec, teacher_spec, shared_spec):
+        helpers.append(register_test_service_spec(spec))
 
     student_catalog = CommandToolCatalog.from_helpers(helpers.get_roles_helpers(UserRole.user, UserRole.student))
     teacher_catalog = CommandToolCatalog.from_helpers(helpers.get_roles_helpers(UserRole.user, UserRole.teacher))
 
-    assert student_catalog.get("查询学生信息") is not None
-    assert student_catalog.get("查询请假") is not None
-    assert student_catalog.get("查询教师信息") is None
+    assert student_catalog.get("测试学生可见工具") is not None
+    assert student_catalog.get("测试师生共享工具") is not None
+    assert student_catalog.get("测试教师可见工具") is None
 
-    assert teacher_catalog.get("查询教师信息") is not None
-    assert teacher_catalog.get("查询请假") is not None
-    assert teacher_catalog.get("查询学生信息") is None
+    assert teacher_catalog.get("测试教师可见工具") is not None
+    assert teacher_catalog.get("测试师生共享工具") is not None
+    assert teacher_catalog.get("测试学生可见工具") is None
 
 
 def test_query_classes_tool_uses_service_command_spec(loaded_plugins):
     from utils.helper import Helpers
-    from src.commands.registry import command_registry
+    from utils.commands.registry import command_registry
     from src.plugins.autogpt.command_tools import CommandToolCatalog
     from tests.commands.test_helper_metadata import collect_helpers
 

@@ -328,7 +328,7 @@ const tabs: TabConfig[] = [
     description: 'LLM 超时与模型路由配置',
     fields: [
       { group: 'models', key: 'llm_timeout', label: '请求超时秒数', type: 'number', hint: '后端调用模型时的超时时间。' },
-      { group: 'models', key: 'llm_configs', label: '模型配置 JSON', type: 'textarea', hint: '数组格式，字段包含 name/key/url/model/priority/tasks/multi_modal/supports_functools。' },
+      { group: 'models', key: 'llm_configs', label: '模型配置 JSON', type: 'textarea', hint: '数组格式，字段包含 name/key/url/model/proxy/priority/tasks/multi_modal/supports_functools。proxy 为空时表示该模型不走代理。' },
     ],
   },
   {

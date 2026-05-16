@@ -197,7 +197,7 @@ async def test_group_command_input_and_response_are_recorded_without_message_col
 
 async def test_group_history_service_handler_works_in_group_context(monkeypatch, loaded_plugins, tmp_path):
     import src.plugins.chat_context.services as services_module
-    from src.commands import CommandExecutionContext, command_executor
+    from utils.commands import CommandExecutionContext, command_executor
     from utils.models import Classes, User
     from utils.storage import ChatHistoryStore, StorageManager
 

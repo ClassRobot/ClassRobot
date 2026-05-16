@@ -8,6 +8,36 @@
 - JSON / 数组类变量应该怎么写
 - 给开发环境和生产环境分别如何配置
 
+## 配置分层约定
+
+项目中的配置不要混着放，统一按下面三层处理：
+
+1. 硬编码基础配置写在仓库根目录的 `.env` 体系中
+- 例如 `.env`、`.env.dev`、`.env.prod`
+- 这类配置用于项目启动时就要确定的基础参数，例如监听地址、数据库连接、平台接入、模型基线配置、各类密钥等
+- 这部分本质上属于“启动配置”或“环境配置”，应优先通过环境变量加载
+
+2. 运行过程中可热更新、可持久化的动态配置默认写到 `config` 目录
+- 这类数据不应继续直接回写到源码目录中的业务文件
+- 例如后台保存的运行时 JSON 配置、某些本地管理状态快照等
+- `config` 目录的真实路径不要在业务代码里手写，统一从 `utils.config` 中提供的 `config_dir` 获取
+
+3. Agent 工作流编排配置写到 `resources/agent`
+- Agent Runtime 编排图属于项目工作流资源，需要随仓库结构和文档一起维护
+- 热更新后的运行时图文件为 `resources/agent/agent_orchestration_runtime.json`
+- 路径由 `utils.config.agent_resources_dir` 提供，不放入 NoneBot/localstore 的默认 `config` 目录
+
+推荐理解方式：
+
+- `.env` 负责“项目启动前就确定的配置基线”
+- `config_dir` 负责“项目运行后可能被后台、Agent 或本地工具热更新的数据”
+- `resources/agent` 负责“Agent 工作流编排这类需要项目化维护的资源配置”
+
+这样做的目的有两个：
+
+- 避免把运行期生成的数据散落到仓库各处，降低维护成本
+- 避免把应当版本化管理的基础配置，和应当本地持久化的运行时状态混在一起
+
 ## 配置文件约定
 
 当前仓库根目录下已经存在：
@@ -30,6 +60,8 @@
 - 不要把真实密钥、Token、Secret 提交到公开仓库
 - 文档中的示例值全部应该替换成你自己的真实配置
 - 涉及 JSON、数组、列表的配置项，建议直接按 JSON 字符串填写
+- 不要把普通热更新运行态数据直接写回文档、Prompt、源码目录或随意新建的 JSON 文件；这类数据统一写到 `utils.config.config_dir` 对应的本地配置目录
+- Agent Runtime 工作流编排是例外，固定写入 `resources/agent/agent_orchestration_runtime.json`
 - 当前仓库历史上同时存在大写和小写配置名写法
   - 例如 `.env` 中有 `CACHE_HOST`
   - `.env.dev` 中也有 `llm_configs`
@@ -47,6 +79,27 @@
 5. 文件、对象存储与工具配置
 6. 平台接入配置
 7. 业务补充配置
+
+## 路径来源约定
+
+项目内部和“本地持久化目录”相关的路径统一从 `utils/config.py` 提供，不建议在业务模块重复手写。
+
+当前至少包括这些公共路径：
+
+- `project_root`
+  - 仓库根目录
+- `data_dir`
+  - NoneBot 本地数据目录
+- `cache_dir`
+  - NoneBot 本地缓存目录
+- `config_dir`
+  - NoneBot 本地配置目录
+- `resources_dir`
+  - 项目内置资源目录
+- `agent_resources_dir`
+  - Agent Runtime 工作流编排资源目录，对应 `resources/agent`
+
+后续如果某个功能需要“可热更新且不适合写回 `.env`”的本地配置文件，应优先落到 `config_dir` 下，并在附近文档或 README 中明确说明文件名和用途。Agent 工作流编排这种需要随项目工程资产维护的资源化配置，应放到 `agent_resources_dir`。
 
 ---
 
@@ -167,6 +220,7 @@ SQLALCHEMY_DATABASE_URL=postgresql+asyncpg://user:password@127.0.0.1:5432/classb
 
 - 如果你暂时不用 RAG，可以先不填 `RAGFLOW_KEY` 和 `RAGFLOW_URL`
 - 如果你暂时不用生图，可以先不填 `GOOGLEAPIS_KEY`
+- 这类全局配置仍属于启动前确定的基础配置，应写在 `.env` 体系中，而不是运行后再写入 `config_dir`
 
 ### 4.2 LLM 模型路由配置
 
@@ -185,6 +239,7 @@ SQLALCHEMY_DATABASE_URL=postgresql+asyncpg://user:password@127.0.0.1:5432/classb
 | `key` | 必填 | `<your_volcengine_ark_key>` | 模型服务 API Key。 |
 | `url` | 必填 | `https://ark.cn-beijing.volces.com/api/v3` | 模型服务 Base URL。 |
 | `model` | 必填 | `ep-20250702155751-ztq4h` | 实际调用的模型名称。 |
+| `proxy` | 可选 | `http://127.0.0.1:7890` | 当前模型独立代理地址。留空或省略时不为该模型启用代理。 |
 | `priority` | 可选 | `100` | 路由优先级，值越大越优先。 |
 | `tasks` | 可选 | `["chat", "summary", "extract", "plan", "reply"]` | 偏好的任务类型标签。用于模型路由。 |
 | `multi_modal` | 可选 | `false` | 是否支持多模态。 |
@@ -200,6 +255,7 @@ llm_configs='
         "key":"<your_volcengine_ark_key>",
         "url":"https://ark.cn-beijing.volces.com/api/v3",
         "model":"ep-20250702155751-ztq4h",
+        "proxy":"http://127.0.0.1:7890",
         "priority":100,
         "tasks":["chat","summary","extract","plan","reply"],
         "multi_modal":false,
@@ -213,7 +269,9 @@ llm_timeout=60
 
 - 至少配置一个主模型
 - 如果后续要把摘要、抽取、规划、生图理解拆开，可以配置多个模型
+- 如果只有个别模型需要代理，优先为对应模型单独填写 `proxy`，不要默认影响所有模型
 - 对于 `llm_configs` 这类复杂 JSON 配置，建议像上面这样用单引号包住多行内容，避免 `.env` 解析时出现转义或引号问题
+- `llm_configs` 属于模型基线配置，原则上仍应维护在 `.env` 中；如果后续某些运行态策略需要热更新，应拆成独立运行时配置文件写入 `config_dir`
 
 ### 4.3 RAG 配置
 
@@ -406,6 +464,7 @@ llm_configs='
     "key":"<your_volcengine_ark_key>",
     "url":"https://ark.cn-beijing.volces.com/api/v3",
     "model":"ep-20250702155751-ztq4h",
+    "proxy":"",
     "priority":100,
     "tasks":["chat","summary","extract","plan","reply"],
     "multi_modal":false,

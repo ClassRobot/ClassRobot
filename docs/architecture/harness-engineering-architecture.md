@@ -40,8 +40,10 @@ ClassRobot 后续应采用一套 **消息驱动、工作流驱动、仓库驱动
 ```text
 用户消息
   -> NoneBot2 接入
+  -> RuntimeGraphConfig 运行时编排图
   -> Session / Context Harness
   -> Intent + Planning Harness
+  -> TaskWorkflow AI 任务执行流
   -> Execution Harness
   -> Observation / Approval / Recovery Harness
   -> Reply / Scheduled Resume
@@ -90,7 +92,7 @@ Harness Engineering 的思路是反过来：
 - `docs/architecture/*.md`
 - `docs/guides/*.md`
 - `.codex/skills/classrobot-agent-dev/`
-- `src/plugins/autogpt/harness/policy.py`
+- `core/agent/runtime/harness/policy.py`
 - `Helper` / `CommandToolCatalog` 中的命令、参数、风险和可见性元数据
 
 这一层应保存：
@@ -108,8 +110,8 @@ Harness Engineering 的思路是反过来：
 
 当前和目标落点：
 
-- `src/plugins/autogpt/knowledge.py`
-- `src/plugins/autogpt/harness/context.py`
+- `core/agent/runtime/knowledge.py`
+- `core/agent/runtime/harness/context.py`
 - `utils/storage/chat_history.py`
 - `utils/storage/local_rag.py`
 - `utils/storage/files.py`
@@ -130,20 +132,23 @@ Harness Engineering 的思路是反过来：
 
 当前和目标落点：
 
-- `src/plugins/autogpt/pipeline.py`
-- `src/plugins/autogpt/schema.py`
-- `src/plugins/autogpt/util.py`
-- `src/plugins/autogpt/harness/runtime.py`
-- `src/plugins/autogpt/playbooks.py`
+- `core/agent/runtime/pipeline.py`
+- `core/agent/runtime/schema.py`
+- `core/agent/runtime/util.py`
+- `core/agent/runtime/harness/runtime.py`
+- `core/agent/runtime/playbooks.py`
+- `core/agent/runtime/orchestration_config.py`
+- `core/agent/runtime/graph_executor.py`
 
 这一层的职责是：
 
 - Intent routing
+- 开发者控制的 Runtime 条件图
 - 本地确定性 shortcut
 - Planner
 - 风险与确认前置判断
 - 选择 command / tool / skill / RAG / 定时任务
-- 生成显式 workflow
+- 生成 AI 临时 `TaskWorkflow`
 
 ### 4. Execution Layer
 
@@ -151,9 +156,9 @@ Harness Engineering 的思路是反过来：
 
 当前和目标落点：
 
-- `src/plugins/autogpt/workflow.py`
+- `core/agent/runtime/workflow.py`
 - `src/plugins/autogpt/__init__.py`
-- `src/commands/`
+- `utils/commands/`
 - `src/managers/*`
 - 后续统一 tool executor / MCP bridge
 
@@ -170,8 +175,8 @@ Harness Engineering 的思路是反过来：
 当前和目标落点：
 
 - NoneBot2 平台接入
-- `utils/llm/`
-- `utils/llm/agents/`
+- `core/llm/`
+- `core/agent/`
 - `src/agents/skills/`
 - 后续 MCP host / gateway
 - 外部知识库、COS、学校业务系统
@@ -189,9 +194,10 @@ Harness Engineering 的思路是反过来：
 当前和目标落点：
 
 - `trace_id`
-- `src/plugins/autogpt/harness/observability.py`
+- `core/agent/runtime/harness/observability.py`
 - `CommandObservation`
-- `AgentWorkflow`
+- `RuntimeGraphConfig`
+- `TaskWorkflow`
 - `WorkflowCheckpointStore`
 - `WorkflowRunStore`
 - 后续评测、成本、审批面板
@@ -209,12 +215,12 @@ Harness Engineering 的思路是反过来：
 
 | Harness 层 | 当前核心模块 | 当前状态 | 后续重点 |
 | --- | --- | --- | --- |
-| Policy | `resources/prompts/`, `docs/`, `.codex/skills/`, `src/plugins/autogpt/harness/policy.py` | 已有，并开始落到显式代码入口 | 收敛为明确契约和评测标准 |
-| Context | `knowledge.py`, `src/plugins/autogpt/harness/context.py`, `utils/storage/*` | 已有聊天记录、本地 RAG、文件空间，并开始收敛上下文入口 | 抽象成可替换的 context engine |
-| Coordination | `pipeline.py`, `schema.py`, `playbooks.py`, `src/plugins/autogpt/harness/runtime.py` | 已有路由、计划、工作流雏形，并新增统一依赖装配入口 | 增强 tool loop、长期任务规划 |
-| Execution | `workflow.py`, `dispatch_auto_task()`, 命令系统 | 已能顺序执行命令 | 统一 command/tool 结果结构 |
-| Integration | `utils/llm/`, skill runtime, adapters | 已接入模型、技能和 RAG | 逐步引入 MCP host 和外部服务 adapter |
-| Observability | `trace_id`, `src/plugins/autogpt/harness/observability.py`, workflow checkpoint/run | 已有基础，并开始把阶段反馈收敛到显式层次 | 增加评测、审批和后台可视化 |
+| Policy | `resources/prompts/`, `docs/`, `.codex/skills/`, `core/agent/runtime/harness/policy.py` | 已有，并开始落到显式代码入口 | 收敛为明确契约和评测标准 |
+| Context | `core/agent/runtime/knowledge.py`, `core/agent/runtime/harness/context.py`, `utils/storage/*` | 已有聊天记录、本地 RAG、文件空间，并开始收敛上下文入口 | 抽象成可替换的 context engine |
+| Coordination | `core/agent/runtime/pipeline.py`, `schema.py`, `orchestration_config.py`, `graph_executor.py` | 已有热更新 Runtime 图、路由、计划和 AI 任务流 | 增强 tool loop、长期任务规划 |
+| Execution | `core/agent/runtime/workflow.py`, `dispatch_auto_task()`, 命令系统 | 已能顺序执行命令并回填 observation | 统一 command/tool/skill 结果结构 |
+| Integration | `core/llm/`, `core/agent/`, skill runtime, adapters | 已接入模型、Agent、技能和 RAG | 逐步引入 MCP host 和外部服务 adapter |
+| Observability | `trace_id`, `core/agent/runtime/harness/observability.py`, workflow checkpoint/run | 已有基础，并开始把阶段反馈收敛到显式层次 | 增加评测、审批和后台可视化 |
 
 ## Repository Is The System Of Record
 
@@ -327,7 +333,8 @@ ClassRobot 的对应对象应继续强化：
 
 - `AgentTurnResult`
 - `AgentPlan`
-- `AgentWorkflow`
+- `RuntimeGraphConfig`
+- `TaskWorkflow`
 - `WorkflowStep`
 - `CommandObservation`
 - `WorkflowCheckpoint`
@@ -350,14 +357,15 @@ flowchart TB
     User["用户 / 群 / 管理后台"] --> Ingress["Ingress Harness\nNoneBot2 / HTTP / Scheduled Trigger"]
 
     Ingress --> Session["Session Harness\nChatSession / Trace / Pending Workflow"]
-    Session --> Context["Context Harness\nHistory / Local RAG / File Space / Compaction"]
+    Session --> RuntimeGraph["Runtime Orchestration\nRuntimeGraphConfig / Hot Reload"]
+    RuntimeGraph --> Context["Context Harness\nHistory / Local RAG / File Space / Compaction"]
     Context --> Policy["Policy Harness\nPrompts / Skills / Command Metadata / Risk Rules"]
-    Policy --> Planner["Planning Harness\nRoute / Extract / Planner / Playbook / Approval Gate"]
+    Policy --> Planner["Planning Harness\nRoute / Extract / Planner / TaskWorkflow / Approval Gate"]
     Planner --> Execute["Execution Harness\nWorkflowExecutor / Command Bridge / Tool Bridge / Skill Runtime"]
     Execute --> Domain["Domain Boundary\nCommands / Services / Managers / ORM"]
     Domain --> Observe["Observation Harness\nCommandObservation / Workflow Events / Run History"]
     Observe --> Session
-    Observe --> Reply["Reply Harness\nFinal Reply / Confirmation / Scheduled Resume"]
+    Observe --> Reply["Reply Harness\nExecutionReplyAgent / Confirmation / Scheduled Resume"]
 
     Policy --> Repo["Repository System Of Record\nDocs / Prompts / Skills / Tests / Evals"]
     Repo --> Planner

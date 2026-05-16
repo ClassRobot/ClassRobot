@@ -295,7 +295,7 @@ async def test_teacher_can_write_class_mounted_space(app, onebot, send_recorder,
 
 async def test_file_service_handlers_can_be_called_by_agent_context(loaded_plugins, tmp_path):
     import src.plugins.file_manager.services as file_services
-    from src.commands import CommandExecutionContext, command_executor
+    from utils.commands import CommandExecutionContext, command_executor
     from utils.storage import StorageManager
 
     manager = StorageManager(tmp_path / "storage")
@@ -332,7 +332,7 @@ async def test_file_service_handlers_can_be_called_by_agent_context(loaded_plugi
 
 async def test_file_service_group_context_uses_system_group_id(loaded_plugins, tmp_path):
     import src.plugins.file_manager.services as file_services
-    from src.commands import CommandExecutionContext, command_executor
+    from utils.commands import CommandExecutionContext, command_executor
     from utils.models import Classes, User
     from utils.storage import StorageManager
 

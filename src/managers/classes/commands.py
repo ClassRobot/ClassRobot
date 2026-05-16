@@ -1,7 +1,7 @@
 from typing import Optional
 
 from utils import ValidateName, FileOrOtherFile, tip
-from src.commands import CommandBinding, command_alconna
+from utils.commands import CommandBinding, command_alconna
 from utils.helper import Param, Helper, HelperScope, UserRole, ParamMode
 from utils.config import priority, comp_config, alcoona_kwargs
 from nonebot_plugin_alconna import Args, Field, Alconna, CommandMeta, on_alconna

@@ -3,7 +3,7 @@ import pytest
 
 @pytest.mark.asyncio
 async def test_workflow_run_store_roundtrip(loaded_plugins, workflow_checkpoint_table):
-    from src.plugins.autogpt.runs import WorkflowRunStore
+    from src.plugins.autogpt.persistence import WorkflowRunStore
     from src.plugins.autogpt.schema import AgentWorkflow, WorkflowApproval, WorkflowStep
 
     store = WorkflowRunStore()
@@ -47,7 +47,7 @@ async def test_workflow_run_store_roundtrip(loaded_plugins, workflow_checkpoint_
 async def test_resumed_workflow_saves_parent_child_run_history(loaded_plugins, workflow_checkpoint_table):
     from utils.helper import Helpers
     from src.plugins.autogpt.util import ChatSession
-    from src.plugins.autogpt.runs import WorkflowRunStore
+    from src.plugins.autogpt.persistence import WorkflowRunStore
     from src.plugins.autogpt.schema import AgentWorkflow, WorkflowApproval, WorkflowStep
 
     pending_session = ChatSession(user_id=102, helpers=Helpers())
@@ -94,7 +94,7 @@ async def test_resumed_workflow_saves_parent_child_run_history(loaded_plugins, w
 async def test_cancelling_pending_workflow_updates_existing_run(loaded_plugins, workflow_checkpoint_table):
     from utils.helper import Helpers
     from src.plugins.autogpt.util import ChatSession
-    from src.plugins.autogpt.runs import WorkflowRunStore
+    from src.plugins.autogpt.persistence import WorkflowRunStore
     from src.plugins.autogpt.schema import AgentWorkflow, WorkflowApproval, WorkflowStep
 
     session = ChatSession(user_id=103, helpers=Helpers())

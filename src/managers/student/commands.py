@@ -1,7 +1,7 @@
 from utils import tip
 from utils.roles import StudentRoleLang
 from utils.config import priority, comp_config
-from src.commands import CommandBinding, command_alconna
+from utils.commands import CommandBinding, command_alconna
 from utils.params.student import get_columns_chinese
 from utils.helper import Param, Helper, HelperScope, UserRole, ParamMode
 from nonebot_plugin_alconna import Args, Field, Alconna, CommandMeta, MultiVar

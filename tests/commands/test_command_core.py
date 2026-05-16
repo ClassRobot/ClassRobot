@@ -2,10 +2,10 @@ import pytest
 
 
 def test_command_policy_and_availability_share_soft_disable_state(loaded_plugins):
-    from src.commands import CommandExecutionContext, CommandSpec
-    from src.commands.availability import command_availability
-    from src.commands.policy import CommandPolicy
-    from src.commands.renderers.helper import command_spec_to_helper
+    from utils.commands import CommandExecutionContext, CommandSpec
+    from utils.commands.availability import command_availability
+    from utils.commands.policy import CommandPolicy
+    from utils.commands.renderers.helper import command_spec_to_helper
     from utils.helper import Helpers, HelperScope
     from utils.roles import UserRole
 
@@ -34,8 +34,8 @@ def test_command_policy_and_availability_share_soft_disable_state(loaded_plugins
 
 @pytest.mark.asyncio
 async def test_command_executor_runs_service_handler_with_static_policy():
-    from src.commands import CommandExecutionContext, CommandExecutor, CommandParam, CommandRegistry, CommandResult
-    from src.commands.spec import CommandSpec
+    from utils.commands import CommandExecutionContext, CommandExecutor, CommandParam, CommandRegistry, CommandResult
+    from utils.commands.spec import CommandSpec
     from utils.roles import UserRole
 
     registry = CommandRegistry()
@@ -72,9 +72,9 @@ async def test_command_executor_runs_service_handler_with_static_policy():
 
 
 def test_command_tool_catalog_prefers_registered_spec_and_respects_agent_visibility(loaded_plugins):
-    from src.commands import CommandParam, CommandSpec, command_registry
-    from src.commands.availability import command_availability
-    from src.commands.renderers.helper import command_spec_to_helper
+    from utils.commands import CommandParam, CommandResult, CommandSpec, command_executor, command_registry
+    from utils.commands.availability import command_availability
+    from utils.commands.renderers.helper import command_spec_to_helper
     from src.plugins.autogpt.command_tools import CommandToolCatalog
     from utils.helper import Helpers, HelperScope
     from utils.roles import UserRole
@@ -87,6 +87,7 @@ def test_command_tool_catalog_prefers_registered_spec_and_respects_agent_visibil
         scopes={HelperScope.user},
         risk_level="medium",
         plugin_module="src.plugins.test_command_core",
+        execution_mode="service",
     )
     hidden_spec = CommandSpec(
         name="测试禁止Agent工具",
@@ -98,6 +99,11 @@ def test_command_tool_catalog_prefers_registered_spec_and_respects_agent_visibil
     )
     command_registry.register(visible_spec)
     command_registry.register(hidden_spec)
+
+    @command_executor.handler(visible_spec.name)
+    async def _visible_handler(params, context):
+        return CommandResult.ok("测试 Agent 工具已执行。")
+
     helpers = Helpers()
     helpers.extend([command_spec_to_helper(visible_spec), command_spec_to_helper(hidden_spec)])
 
@@ -119,7 +125,7 @@ def test_command_tool_catalog_prefers_registered_spec_and_respects_agent_visibil
 
 @pytest.mark.asyncio
 async def test_command_executor_can_query_current_user_info(loaded_plugins, models):
-    from src.commands import CommandExecutionContext, command_executor
+    from utils.commands import CommandExecutionContext, command_executor
     from utils.roles import UserRole
 
     user = await models.create_user(account_id=12001, nickname="信息测试用户")
@@ -146,7 +152,7 @@ async def test_command_executor_can_query_current_user_info(loaded_plugins, mode
 
 @pytest.mark.asyncio
 async def test_command_executor_can_query_teacher_profile(loaded_plugins, models):
-    from src.commands import CommandExecutionContext, command_executor
+    from utils.commands import CommandExecutionContext, command_executor
     from utils.roles import UserRole
 
     user = await models.create_user(account_id=12002, nickname="教师执行器用户")
@@ -173,7 +179,7 @@ async def test_command_executor_can_query_teacher_profile(loaded_plugins, models
 
 @pytest.mark.asyncio
 async def test_command_executor_can_query_teacher_classes(loaded_plugins, models):
-    from src.commands import CommandExecutionContext, command_executor
+    from utils.commands import CommandExecutionContext, command_executor
     from utils.roles import UserRole
 
     user = await models.create_user(account_id=12005, nickname="班级执行器教师")
@@ -212,7 +218,7 @@ async def test_command_executor_can_query_teacher_classes(loaded_plugins, models
 
 @pytest.mark.asyncio
 async def test_command_executor_can_query_student_profile(loaded_plugins, models):
-    from src.commands import CommandExecutionContext, command_executor
+    from utils.commands import CommandExecutionContext, command_executor
     from utils.roles import UserRole
 
     owner = await models.create_user(account_id=12003, nickname="学生班主任")

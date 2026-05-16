@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from nonebot_plugin_alconna import AlconnaMatcher
 
-from src.commands import CommandExecutionContext, CommandResult, command_executor
+from utils.commands import CommandExecutionContext, CommandResult, command_executor
 from utils import Emoji
 from utils.models import College, School, Teacher, User
 

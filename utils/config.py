@@ -62,11 +62,17 @@ data_dir: Path = get_data_dir(dirname)
 cache_dir: Path = get_cache_dir(dirname)
 config_dir: Path = get_config_dir(dirname)
 resources_dir: Path = project_root / "resources"
+core_dir: Path = project_root / "core"
+features_dir: Path = project_root / "src" / "features"
+interfaces_dir: Path = project_root / "src" / "interfaces"
 agents_dir: Path = project_root / "src" / "agents"
+agent_resources_dir: Path = resources_dir / "agent"
 skills_dir: Path = agents_dir / "skills" / "builtin"
 static_dir: Path = resources_dir
 prompts_dir = resources_dir / "prompts"
 template_dir = resources_dir / "templates"
+
+agent_resources_dir.mkdir(parents=True, exist_ok=True)
 
 temp_dir = data_dir / "temp"
 temp_dir.mkdir(parents=True, exist_ok=True)

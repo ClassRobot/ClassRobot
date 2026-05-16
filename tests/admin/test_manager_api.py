@@ -1,15 +1,15 @@
 import os
 import sys
-from datetime import datetime
-from pathlib import Path
 from uuid import uuid4
+from pathlib import Path
+from datetime import datetime
 
-import nonebot
 import httpx
 import pytest
+import nonebot
 import pytest_asyncio
 from dotenv import dotenv_values
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, MetaData, String, Table, delete
+from sqlalchemy import Table, Column, String, Boolean, Integer, MetaData, ForeignKey, delete
 
 pytestmark = pytest.mark.asyncio
 
@@ -54,7 +54,7 @@ def reset_manager_tokens():
 @pytest.fixture(autouse=True)
 def isolate_manager_audit_log(monkeypatch, tmp_path):
     from src.routers.managers import audit
-    from src.routers.managers import operations
+    from src.routers.managers.runtime import operations
 
     monkeypatch.setattr(audit, "AUDIT_LOG_PATH", tmp_path / "manager_audit.jsonl")
     monkeypatch.setattr(operations, "AUTOMATION_SCRIPT_PATH", tmp_path / "manager_automation_scripts.json")
@@ -62,8 +62,9 @@ def isolate_manager_audit_log(monkeypatch, tmp_path):
 
 @pytest.fixture(autouse=True)
 def isolate_manager_command_state(monkeypatch, tmp_path):
-    from src.commands.availability import command_availability
-    from src.routers.managers import command_state
+    from src.routers.managers.runtime import command_state
+
+    from utils.commands.availability import command_availability
 
     monkeypatch.setattr(command_state, "AVAILABILITY_STATE_PATH", tmp_path / "manager_command_availability.json")
     monkeypatch.setattr(command_state, "_STATE_LOADED", False)
@@ -76,7 +77,7 @@ def isolate_manager_command_state(monkeypatch, tmp_path):
 
 @pytest.fixture(autouse=True)
 def isolate_manager_database_cache():
-    from src.routers.managers import databases
+    from src.routers.managers.database import service as databases
 
     databases.clear_database_metadata_cache()
     yield
@@ -84,12 +85,29 @@ def isolate_manager_database_cache():
 
 
 @pytest.fixture
+def isolated_agent_designer(monkeypatch, tmp_path):
+    from src.plugins.autogpt import orchestration_config
+    from src.routers.managers.agent import service as agents
+
+    designer_path = tmp_path / "agent_designer.json"
+    runtime_path = tmp_path / "agent_orchestration_runtime.json"
+    runtime_store = orchestration_config.RuntimeOrchestrationStore(runtime_path)
+
+    monkeypatch.setattr(agents, "DESIGNER_CONFIG_PATH", designer_path)
+    monkeypatch.setattr(agents, "AGENT_ORCHESTRATION_CONFIG_PATH", runtime_path)
+    monkeypatch.setattr(orchestration_config, "AGENT_ORCHESTRATION_CONFIG_PATH", runtime_path)
+    monkeypatch.setattr(orchestration_config, "runtime_orchestration_store", runtime_store)
+    return {"designer_path": designer_path, "runtime_path": runtime_path}
+
+
+@pytest.fixture
 def manager_storage(monkeypatch, tmp_path):
-    from src.routers.managers import chat_history as manager_chat_history
-    from src.routers.managers import files as manager_files
-    from src.routers.managers import groups as manager_groups
-    import utils.models.models as model_definitions
+    from src.routers.managers.storage import files as manager_files
+    from src.routers.managers.identity import groups as manager_groups
+    from src.routers.managers.storage import chat_history as manager_chat_history
+
     from utils.storage import StorageManager
+    import utils.models.models as model_definitions
 
     isolated_storage = StorageManager(root=tmp_path / "storage")
     monkeypatch.setattr(manager_files, "storage_manager", isolated_storage)
@@ -115,7 +133,8 @@ async def manager_auth_headers(manager_client):
 @pytest_asyncio.fixture
 async def manager_workflow_tables(loaded_plugins):
     from nonebot_plugin_orm import get_session
-    from utils.models import AgentWorkflowCheckpoint, AgentWorkflowRun
+
+    from utils.models import AgentWorkflowRun, AgentWorkflowCheckpoint
 
     async with get_session() as session:
         bind = session.bind
@@ -245,7 +264,7 @@ async def test_manager_settings_masks_secrets_and_rejects_invalid_keys(manager_c
 
 
 async def test_manager_settings_update_writes_temp_env(manager_client, manager_auth_headers, monkeypatch, tmp_path):
-    from src.routers.managers import settings_store
+    from src.routers.managers.runtime import settings as settings_store
 
     env_path = tmp_path / ".env"
     env_path.write_text("GLOBAL_PROXY=http://old.example\n", "utf-8")
@@ -286,7 +305,7 @@ async def test_manager_settings_update_writes_temp_env(manager_client, manager_a
 
 
 async def test_manager_runtime_config_snapshot_reads_driver_config(manager_client, manager_auth_headers, monkeypatch):
-    from src.routers.managers import settings_store
+    from src.routers.managers.runtime import settings as settings_store
 
     class DummyConfig:
         def dict(self):
@@ -323,7 +342,7 @@ async def test_manager_runtime_config_snapshot_reads_driver_config(manager_clien
 
 
 async def test_manager_models_validate_payload(manager_client, manager_auth_headers, monkeypatch, tmp_path):
-    from src.routers.managers import settings_store
+    from src.routers.managers.runtime import settings as settings_store
 
     env_path = tmp_path / ".env"
     monkeypatch.setattr(settings_store, "ENV_PATH", env_path)
@@ -366,13 +385,63 @@ async def test_manager_models_validate_payload(manager_client, manager_auth_head
     assert missing.status_code == 404
 
 
+async def test_manager_models_save_proxy_field(manager_client, manager_auth_headers, monkeypatch, tmp_path):
+    from src.routers.managers.runtime import settings as settings_store
+
+    env_path = tmp_path / ".env"
+    monkeypatch.setattr(settings_store, "ENV_PATH", env_path)
+
+    response = await manager_client.put(
+        "/api/v1/manager/models",
+        headers=manager_auth_headers,
+        json={
+            "llm_configs": [
+                {
+                    "name": "gemini_proxy",
+                    "key": "sk-gemini",
+                    "url": "https://generativelanguage.googleapis.com/v1beta/openai/",
+                    "model": "gemini-2.5-flash",
+                    "proxy": "http://127.0.0.1:7890",
+                    "priority": 90,
+                    "tasks": ["chat", "tool", "vision"],
+                    "multi_modal": True,
+                    "supports_functools": True,
+                }
+            ]
+        },
+    )
+    assert response.status_code == 200, response.text
+
+    saved_env = dotenv_values(env_path)
+    assert "gemini_proxy" in saved_env["llm_configs"]
+    assert "http://127.0.0.1:7890" in saved_env["llm_configs"]
+
+    invalid_proxy = await manager_client.put(
+        "/api/v1/manager/models",
+        headers=manager_auth_headers,
+        json={
+            "llm_configs": [
+                {
+                    "name": "bad_proxy",
+                    "key": "sk-invalid",
+                    "url": "https://api.example.com/v1",
+                    "model": "gpt-test",
+                    "proxy": "127.0.0.1:7890",
+                }
+            ]
+        },
+    )
+    assert invalid_proxy.status_code == 400
+    assert "models.llm_configs[0].proxy" in invalid_proxy.json()["detail"]
+
+
 async def test_manager_prompts_validate_update_and_reject_invalid_name(
     manager_client,
     manager_auth_headers,
     monkeypatch,
     tmp_path,
 ):
-    from src.routers.managers import prompts
+    from src.routers.managers.catalog import prompts
 
     prompts_root = tmp_path / "prompts"
     prompts_root.mkdir()
@@ -420,14 +489,14 @@ async def test_manager_prompts_validate_update_and_reject_invalid_name(
 
 
 async def test_safe_prompt_path_rejects_cross_platform_traversal():
-    from src.routers.managers.prompts import _safe_prompt_path
+    from src.routers.managers.catalog.prompts import _safe_prompt_path
 
     with pytest.raises(ValueError):
         _safe_prompt_path("..\\secret")
 
 
 async def test_manager_logs_limit_access_to_allowed_roots(manager_client, manager_auth_headers, monkeypatch, tmp_path):
-    from src.routers.managers import logs
+    from src.routers.managers.runtime import logs
 
     allowed_root = tmp_path / "logs"
     allowed_root.mkdir()
@@ -476,7 +545,7 @@ async def test_manager_system_metrics_include_resource_usage(manager_client, man
 
 
 async def test_manager_operations_list_run_and_404_missing_action(manager_client, manager_auth_headers, monkeypatch):
-    from src.routers.managers import operations
+    from src.routers.managers.runtime import operations
 
     async def sample_action():
         return {"ok": True, "message": "sample"}
@@ -774,12 +843,16 @@ async def test_manager_database_catalog_refresh_bypasses_cached_table_list(
             await connection.run_sync(metadata.create_all)
             await connection.execute(late_table.insert(), {"id": 1, "name": "late-table"})
 
-        cached_schema = await manager_client.get("/api/v1/manager/databases/primary/schema", headers=manager_auth_headers)
+        cached_schema = await manager_client.get(
+            "/api/v1/manager/databases/primary/schema", headers=manager_auth_headers
+        )
         assert cached_schema.status_code == 200, cached_schema.text
         cached_names = {item["name"] for item in cached_schema.json()["tables"]}
         assert table_name not in cached_names
 
-        cached_tables = await manager_client.get("/api/v1/manager/databases/primary/tables", headers=manager_auth_headers)
+        cached_tables = await manager_client.get(
+            "/api/v1/manager/databases/primary/tables", headers=manager_auth_headers
+        )
         assert cached_tables.status_code == 200, cached_tables.text
         cached_table_names = {item["name"] for item in cached_tables.json()["items"]}
         assert table_name not in cached_table_names
@@ -793,7 +866,9 @@ async def test_manager_database_catalog_refresh_bypasses_cached_table_list(
         refreshed_names = {item["name"] for item in refreshed_schema.json()["tables"]}
         assert table_name in refreshed_names
 
-        refreshed_tables = await manager_client.get("/api/v1/manager/databases/primary/tables", headers=manager_auth_headers)
+        refreshed_tables = await manager_client.get(
+            "/api/v1/manager/databases/primary/tables", headers=manager_auth_headers
+        )
         assert refreshed_tables.status_code == 200, refreshed_tables.text
         refreshed_table = next(item for item in refreshed_tables.json()["items"] if item["name"] == table_name)
         assert refreshed_table["row_count"] == 1
@@ -860,7 +935,7 @@ async def test_manager_groups_list_and_detail(
     manager_auth_headers,
     manager_user_orm,
 ):
-    from utils.models import Classes, Teacher, User
+    from utils.models import User, Classes, Teacher
 
     suffix = uuid4().hex[:8]
     creator = await User.create_user(nickname="群组创建者", username=f"manager_group_creator_{suffix}")
@@ -905,7 +980,7 @@ async def test_manager_group_delete_cleans_related_storage_and_records(
     manager_user_orm,
     manager_storage,
 ):
-    from utils.models import Classes, Group, GroupBind, User
+    from utils.models import User, Group, Classes, GroupBind
 
     suffix = uuid4().hex[:8]
     creator = await User.create_user(nickname="群删除创建者", username=f"manager_group_delete_creator_{suffix}")
@@ -947,7 +1022,7 @@ async def test_manager_user_delete_returns_structured_blockers(
     manager_auth_headers,
     manager_user_orm,
 ):
-    from utils.models import Classes, Teacher, User
+    from utils.models import User, Classes, Teacher
 
     suffix = uuid4().hex[:8]
     creator = await User.create_user(nickname="班级创建者", username=f"manager_class_creator_{suffix}")
@@ -1044,7 +1119,7 @@ async def test_manager_file_space_management_api(
     manager_user_orm,
     manager_storage,
 ):
-    from utils.models import Classes, User
+    from utils.models import User, Classes
 
     suffix = uuid4().hex[:8]
     user = await User.create_user(nickname="文件用户", username=f"manager_file_user_{suffix}")
@@ -1071,7 +1146,9 @@ async def test_manager_file_space_management_api(
     assert spaces.status_code == 200, spaces.text
     space_items = spaces.json()["items"]
     user_item = next(item for item in space_items if item["kind"] == "user" and item["owner_id"] == str(user.id))
-    group_item = next(item for item in space_items if item["kind"] == "group" and item["owner_id"] == str(classes.group_id))
+    group_item = next(
+        item for item in space_items if item["kind"] == "group" and item["owner_id"] == str(classes.group_id)
+    )
     assert user_item["linked"] is True
     assert group_item["title"] == f"文件测试班级_{suffix}"
     assert group_item["owner"]["group_id"] == classes.group_id
@@ -1181,7 +1258,7 @@ async def test_manager_chat_history_management_api(
     manager_user_orm,
     manager_storage,
 ):
-    from utils.models import Classes, User
+    from utils.models import User, Classes
     from utils.storage import ChatHistoryStore, MessageActorRole
 
     suffix = uuid4().hex[:8]
@@ -1415,6 +1492,7 @@ async def test_manager_chat_history_delete_space(
     assert payload["owner_id"] == str(private_user.id)
     assert not chat_db_path.parent.exists()
 
+
 async def test_manager_checkpoint_delete_returns_404_when_missing(
     manager_client,
     manager_auth_headers,
@@ -1422,6 +1500,169 @@ async def test_manager_checkpoint_delete_returns_404_when_missing(
 ):
     response = await manager_client.delete("/api/v1/manager/agents/checkpoints/999", headers=manager_auth_headers)
     assert response.status_code == 404
+
+
+async def test_manager_agent_overview_inventory(
+    manager_client,
+    manager_auth_headers,
+    manager_workflow_tables,
+    isolated_agent_designer,
+):
+    from utils.models import AgentWorkflowRun, AgentWorkflowCheckpoint
+
+    await AgentWorkflowRun(
+        user_id=77,
+        trace_id="trace-agent-overview-77",
+        kind="command_sequence",
+        status="failed",
+        goal="测试 Agent 概览",
+        summary="测试失败运行",
+        workflow_data={"steps": [{"command": "测试命令"}]},
+    ).create()
+    await AgentWorkflowCheckpoint(
+        user_id=77,
+        trace_id="trace-agent-overview-77",
+        kind="command_sequence",
+        status="needs_confirm",
+        goal="测试 Agent 概览",
+        summary="等待确认",
+        workflow_data={"approval": {"status": "pending"}},
+    ).create()
+
+    unauthorized = await manager_client.get("/api/v1/manager/agents/overview")
+    assert unauthorized.status_code == 401
+
+    response = await manager_client.get("/api/v1/manager/agents/overview", headers=manager_auth_headers)
+    assert response.status_code == 200, response.text
+    payload = response.json()
+
+    module_ids = {item["id"] for item in payload["modules"]}
+    assert {"pipeline", "workflow", "command_tools", "skill_registry"}.issubset(module_ids)
+    assert payload["stats"]["failed_runs"] == 1
+    assert payload["stats"]["pending_checkpoints"] == 1
+    assert payload["metrics"]["runs_by_kind"]["command_sequence"] == 1
+    assert payload["orchestration"]["nodes"][0]["id"] == "summary_history"
+    assert payload["designer"]["runtime_apply_supported"] is True
+    assert payload["playbooks"]
+    assert payload["skills"]
+    assert any(item["id"] == "agent_module_toggle" and item["supported"] is False for item in payload["controls"])
+    assert any(item["id"] == "command_soft_switch" and item["supported"] is True for item in payload["controls"])
+    assert any(
+        item["id"] == "command_soft_switch" and item["route"] == "/nonebot/plugins" for item in payload["controls"]
+    )
+
+
+async def test_manager_agent_designer_draft(manager_client, manager_auth_headers, isolated_agent_designer):
+    unauthorized = await manager_client.get("/api/v1/manager/agents/designer")
+    assert unauthorized.status_code == 401
+
+    detail = await manager_client.get("/api/v1/manager/agents/designer", headers=manager_auth_headers)
+    assert detail.status_code == 200, detail.text
+    payload = detail.json()
+    assert payload["capabilities"]["draft_orchestration_supported"] is True
+    assert payload["capabilities"]["runtime_apply_supported"] is True
+    assert payload["runtime"]["enabled"] is True
+    assert payload["runtime"]["mode"] == "graph"
+    assert payload["draft"]["nodes"]
+    assert payload["draft"]["nodes"][0]["node_type"] == "summary_history"
+    assert payload["applied_to_runtime"] is True
+    assert payload["draft"]["nodes"][0]["runtime_applied"] is True
+
+    draft = payload["draft"]
+    draft["nodes"][0]["config"] = {"model": "default", "temperature": 0.2, "unknown": "ignored"}
+    saved = await manager_client.put(
+        "/api/v1/manager/agents/designer",
+        headers=manager_auth_headers,
+        json={
+            "nodes": draft["nodes"],
+            "edges": draft["edges"],
+            "note": "测试草稿",
+        },
+    )
+    assert saved.status_code == 200, saved.text
+    body = saved.json()
+    assert body["saved"] is True
+    assert body["applied_to_runtime"] is False
+    saved_draft = body["designer"]["draft"]
+    assert saved_draft["nodes"][0]["config"] == {"model": "default", "temperature": 0.2}
+    assert saved_draft["edges"][0]["source"] == "summary_history"
+    assert not isolated_agent_designer["runtime_path"].exists()
+
+    invalid = await manager_client.put(
+        "/api/v1/manager/agents/designer",
+        headers=manager_auth_headers,
+        json={
+            "nodes": [{"id": "bad-node", "node_type": "unknown-node", "module_id": "pipeline"}],
+            "edges": [],
+        },
+    )
+    assert invalid.status_code == 400
+
+
+async def test_manager_agent_designer_apply_hot_reload(manager_client, manager_auth_headers, isolated_agent_designer):
+    from src.plugins.autogpt.orchestration_config import get_runtime_orchestration_snapshot
+
+    detail = await manager_client.get("/api/v1/manager/agents/designer", headers=manager_auth_headers)
+    assert detail.status_code == 200, detail.text
+    draft = detail.json()["draft"]
+
+    applied = await manager_client.put(
+        "/api/v1/manager/agents/designer",
+        headers=manager_auth_headers,
+        json={
+            "nodes": draft["nodes"],
+            "edges": draft["edges"],
+            "note": "测试热更新",
+            "apply_to_runtime": True,
+        },
+    )
+    assert applied.status_code == 200, applied.text
+    body = applied.json()
+    assert body["saved"] is True
+    assert body["applied_to_runtime"] is True
+    assert body["restart_required"] is False
+    assert body["designer"]["applied_to_runtime"] is True
+    assert body["designer"]["runtime"]["enabled"] is True
+    assert isolated_agent_designer["runtime_path"].exists()
+
+    snapshot = get_runtime_orchestration_snapshot()
+    assert snapshot.graph_enabled is True
+    assert snapshot.config.mode == "graph"
+    assert snapshot.config.node_order[0] == "summary_history"
+    assert snapshot.config.node_order[-1] == "persist"
+
+    invalid_apply = await manager_client.put(
+        "/api/v1/manager/agents/designer",
+        headers=manager_auth_headers,
+        json={
+            "nodes": [
+                {
+                    "id": "normalize_input",
+                    "node_type": "normalize_input",
+                    "module_id": "pipeline",
+                    "label": "NormalizeUserInput",
+                    "phase": "输入",
+                },
+                {
+                    "id": "append_user_message",
+                    "node_type": "append_user_message",
+                    "module_id": "pipeline",
+                    "label": "AppendUserMessage",
+                    "phase": "会话",
+                },
+            ],
+            "edges": [
+                {
+                    "id": "normalize_input__append_user_message",
+                    "source": "normalize_input",
+                    "target": "append_user_message",
+                }
+            ],
+            "apply_to_runtime": True,
+        },
+    )
+    assert invalid_apply.status_code == 400
+    assert "missing required nodes" in invalid_apply.json()["detail"]
 
 
 async def test_manager_checkpoint_crud(manager_client, manager_auth_headers, seeded_manager_checkpoint):

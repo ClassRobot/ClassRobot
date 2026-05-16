@@ -19,7 +19,7 @@ ClassRobot 后续最推荐采用的核心原则是：
 - 命令元数据必须有单一事实来源，不能再同时手写 `matcher + Helper + Agent tool`
 - 用户直发命令和 Agent 调命令，最终应统一走 `CommandExecutor`
 - `help`、权限校验、AutoGPT 工具目录、插件启停都应基于同一套命令注册表工作
-- 对历史命令保留兼容层，但新命令优先走统一声明式架构
+- 新增和显著改造的命令走统一声明式架构，未接入 service 的命令不进入 Agent 工具目录
 
 可以把目标态理解为：
 
@@ -45,19 +45,19 @@ CommandSpec
 
 已完成：
 
-- 新增 `src/commands/` 核心包，包含 `CommandSpec`、`CommandRegistry`、`CommandPolicy`、`CommandAvailabilityService`、`CommandExecutor`、`CommandResult` 与适配层。
+- 新增 `utils/commands/` 核心包，包含 `CommandSpec`、`CommandRegistry`、`CommandPolicy`、`CommandAvailabilityService`、`CommandExecutor`、`CommandResult` 与适配层。
 - 新增 `command_alconna()` / `command_command()` 包装器，用于从命令声明自动绑定 `CommandSpec` 和 `Helper`。
 - `utils.helper.runtime` 已优先收集 matcher 上绑定的 helper，并在真实执行前优先走 `CommandPolicy`。
 - `utils.helper.depends.HelpersDepends` 已接入软关闭过滤，让 `help` 和 AutoGPT 共享相同可见命令集合。
 - AutoGPT 的 `CommandToolCatalog` 已优先使用 `CommandRegistry`，并识别 `risk_level`、`agent_callable`、`execution_mode`。
-- AutoGPT 执行命令时已变成“统一执行器优先，旧 NoneBot 事件重放兜底”。
+- AutoGPT 执行命令时只走 `AgentCommandAdapter -> CommandExecutor`，不再回放 NoneBot 事件。
 - 管理端 `nonebot_runtime` 命令清单已合并注册表数据，能暴露风险等级、执行模式、Agent 可见性和软关闭状态。
 - 第一批样例命令已迁移：`src.managers.user.commands`、`src.plugins.curriculum.commands`。
 
 仍在迁移中：
 
-- 大部分历史命令仍是 `legacy_event` 或 `interactive`，后续需要逐步抽 service。
-- 用户显式命令结果写入 `ChatSession` 的桥接工具已存在，但还没有批量接入所有 matcher。
+- 只由用户直接触发的命令使用 `execution_mode="matcher"` 或 `interactive`；需要 Agent 编排的命令必须逐步抽 service。
+- 用户显式命令输入已通过命令输入记录器写入聊天上下文；命令结果由 matcher/发送记录器或 service 输出分别处理。
 - 插件软关闭当前是进程内状态，后续可以接管理后台持久化配置。
 
 ## 当前问题
@@ -91,18 +91,11 @@ CommandSpec
 
 但它本身不是从命令对象自动派生的，这意味着“最重要的元数据”反而不在命令声明本体上。
 
-### 3. Agent 调命令仍主要依赖事件重放
+### 3. Agent 调命令必须依赖统一执行器
 
-当前 `src/plugins/autogpt/__init__.py` 里的 `dispatch_auto_task()` 主要通过：
+早期 `dispatch_auto_task()` 曾尝试把 Agent 任务重新投递到 matcher 分支来实现“Agent 调命令”。
 
-- 重新构造消息
-- `handle_event()`
-- 触发已有 matcher
-- 捕获 bot.send 输出
-
-来实现“Agent 调命令”。
-
-这个方案适合兼容旧命令，但不适合作为最终主架构，因为它存在几个限制：
+该方案已经废弃且不再保留实现，因为它存在几个限制：
 
 - 返回结果以“发送给用户的文本”形式为主，结构化程度不足
 - 多轮 `got()` / 文件上传 / 交互式命令对 Agent 不够友好
@@ -114,7 +107,7 @@ CommandSpec
 当前实际存在两套路径：
 
 - 用户直接发命令：走 matcher，通常不写入 Agent 会话语义层
-- Agent 调命令：走 `AutoTask -> handle_event()`，再回写观察结果
+- Agent 调命令：走 `AutoTask -> AgentCommandAdapter -> CommandExecutor -> service handler`，再回写观察结果
 
 目标态不应继续维持两套松散链路，而应变成：
 
@@ -224,14 +217,14 @@ flowchart LR
 - 但命令执行的摘要和结果应进入 `ChatSession`
 - 后续用户继续用自然语言追问时，Agent 可以理解“刚刚发生了什么”
 
-### 5. Agent 优先调用统一执行器，旧命令保留兼容重放层
+### 5. Agent 只调用统一执行器
 
 目标态应是：
 
-- Agent 优先 `CommandExecutor -> Service`
-- 对旧命令临时保留 `handle_event()` 兼容路径
+- Agent 只走 `CommandExecutor -> Service`
+- 未接入 service handler 的命令不会进入 Agent 工具目录
 
-也就是说，事件重放是迁移阶段兼容层，不是最终命令执行主链路。
+也就是说，Agent 不再调用 matcher 分支；迁移命令时要先抽 service，再开放 Agent 调用。
 
 ## 核心对象设计
 
@@ -370,10 +363,10 @@ flowchart LR
 
 - `service`
   推荐模式，用户和 Agent 都可通过统一执行器调用
+- `matcher`
+  只允许用户直接通过 NoneBot matcher 调用，不进入 Agent 工具目录
 - `interactive`
   依赖 `got()`、文件上传、多轮输入，优先保留给用户直接调用
-- `legacy_event`
-  迁移兼容模式，Agent 暂时通过 `handle_event()` 重放触发
 - `disabled`
   当前仅展示或保留，不允许 Agent 调用
 
@@ -388,7 +381,7 @@ flowchart LR
 为了让后续维护成本可控，建议新增一个不会被 NoneBot 当作插件自动加载的核心命令目录：
 
 ```text
-src/
+utils/
 └── commands/
     ├── __init__.py
     ├── schema.py
@@ -400,14 +393,11 @@ src/
     ├── executor.py
     ├── policy.py
     ├── availability.py
-    ├── session_bridge.py
+    ├── history.py
     ├── discovery.py
-    ├── runtime.py
     ├── adapters/
     │   ├── __init__.py
-    │   ├── nonebot.py
-    │   ├── agent.py
-    │   └── legacy_event.py
+    │   └── agent.py
     └── renderers/
         ├── __init__.py
         ├── helper.py
@@ -427,12 +417,9 @@ src/
 | `executor.py` | 统一执行器 |
 | `policy.py` | 静态权限、角色判断、风险控制 |
 | `availability.py` | 插件/命令启停、Agent 可见性控制 |
-| `session_bridge.py` | 命令结果与 `ChatSession` / workflow 的上下文桥接 |
+| `history.py` | 命令输入记录器注册表，供聊天记录、审计或可观测插件挂接 |
 | `discovery.py` | 扫描和导出命令清单，供后台与调试使用 |
-| `runtime.py` | 启动时注册、挂载 guard、刷新帮助目录 |
-| `adapters/nonebot.py` | 用户显式命令入口适配 |
 | `adapters/agent.py` | Agent 工作流入口适配 |
-| `adapters/legacy_event.py` | 旧命令事件重放兼容层 |
 | `renderers/helper.py` | `CommandSpec -> Helper` |
 | `renderers/tool.py` | `CommandSpec -> Agent Tool` |
 
@@ -479,18 +466,16 @@ src/managers/user/
 
 - `Helper` 降级为展示层视图模型
 - `helper_menu` 不再是命令事实来源
-- `utils/helper/runtime.py` 逐步转成 `src.commands.runtime` 的兼容门面
+- `utils/helper/runtime.py` 继续负责 matcher guard 和 help 视图收集
 
 ### 与 AutoGPT 的关系
 
-后续目标是：
+当前目标是：
 
 - `src/plugins/autogpt/command_tools.py`
   改为从 `CommandRegistry` 和 `CommandSpec` 生成工具目录
 - `src/plugins/autogpt/__init__.py`
-  改为优先走 `AgentCommandAdapter -> CommandExecutor`
-- `handle_event()` 事件重放
-  保留为 `legacy_event` 兼容路径
+  只走 `AgentCommandAdapter -> CommandExecutor`，未 service 化命令直接拒绝 Agent 调用
 
 ### 与管理后台的关系
 
@@ -597,12 +582,13 @@ logout_cmd = command_alconna(
 
 这里应尽量避免继续把“执行结果”等价成“用户最终看到的文本”。
 
-### 3. 兼容层
+### 3. 非 service 命令边界
 
-对还没有 service 化的旧命令：
+对还没有 service 化的 matcher 命令：
 
-- 允许 `legacy_event.py` 临时走 `handle_event()` 重放
-- 但明确标记为迁移兼容，不作为新命令标准路径
+- 用户仍可直接通过 NoneBot matcher 调用
+- Agent 不会回放事件，也不会把该命令纳入工具目录
+- 需要 Agent 调用时，先抽领域 service 并注册 `command_executor.handler()`
 
 ## 用户直接命令与 Agent 会话的统一
 
@@ -667,7 +653,7 @@ Agent 就可以基于最近命令结果继续工作。
 
 目标：
 
-- 新增 `src/commands/`
+- 新增 `utils/commands/`
 - 支持 `CommandSpec`
 - 支持 `Helper` 自动派生
 - 旧 `__helpers__` 保持兼容
@@ -712,7 +698,7 @@ Agent 就可以基于最近命令结果继续工作。
 
 - `AutoGPT` 先调用 `AgentCommandAdapter`
 - 对 service 化命令直接执行
-- 对旧命令再回退 `legacy_event`
+- 对未 service 化命令直接拒绝，不尝试 matcher 分支
 
 ### Phase 5：把用户直接命令结果写进会话
 
@@ -753,13 +739,13 @@ Agent 就可以基于最近命令结果继续工作。
 - 两种入口的结果是否一致
 - 软关闭插件后 `help`、Agent、执行器是否都拒绝
 
-### 兼容测试
+### 迁移边界测试
 
 重点覆盖：
 
-- 旧 `__helpers__` 仍可被收集
-- `legacy_event` 仍可驱动旧命令
-- service 化前后的命令行为保持一致
+- `matcher` 命令仍可被用户直接触发并受 matcher guard 保护
+- 未 service 化命令不会进入 Agent 工具目录
+- service 化前后的命令权限、输出和数据归属保持一致
 
 ## 与当前文档的关系
 
@@ -776,7 +762,7 @@ Agent 就可以基于最近命令结果继续工作。
 
 如果要最小成本开始推进，最推荐的第一批切片是：
 
-1. 新增 `src/commands/schema.py`、`spec.py`、`registry.py`
+1. 新增 `utils/commands/schema.py`、`spec.py`、`registry.py`
 2. 实现 `renderers/helper.py` 和 `renderers/tool.py`
 3. 改造 `utils/helper/runtime.py`，优先读取 matcher 上绑定的 helper
 4. 实现 `command_alconna()` 包装器

@@ -55,9 +55,9 @@ def bind_helper_access_guard(matcher: type[Matcher], helper: Helper) -> None:
         return
 
     from utils.models.depends import UserOrCreatedDepends
-    from src.commands.availability import command_availability
-    from src.commands.context import CommandExecutionContext
-    from src.commands.policy import command_policy
+    from utils.commands.availability import command_availability
+    from utils.commands.context import CommandExecutionContext
+    from utils.commands.policy import command_policy
 
     async def _guard(runtime_matcher: Matcher, user: UserOrCreatedDepends, __helper: Helper = helper):
         spec = getattr(runtime_matcher, "__command_spec__", None)
@@ -136,12 +136,12 @@ def bootstrap_helper_runtime(plugins: Iterable[Plugin]) -> None:
     for plugin in plugins:
         for module in filter(None, (plugin.module, getattr(plugin.module, "commands", None))):
             bound_helpers = collect_bound_helpers(module)
-            legacy_helpers = getattr(module, "__helpers__", None) or []
-            helpers = merge_helpers(bound_helpers, legacy_helpers)
+            manual_helpers = getattr(module, "__helpers__", None) or []
+            helpers = merge_helpers(bound_helpers, manual_helpers)
             if not helpers:
                 continue
             helper_menu.extend(helpers)
-            if legacy_helpers:
-                bind_module_helpers(module, legacy_helpers)
+            if manual_helpers:
+                bind_module_helpers(module, manual_helpers)
 
     logger.info("helper runtime bootstrapped with {} helpers", len(helper_menu.helpers))

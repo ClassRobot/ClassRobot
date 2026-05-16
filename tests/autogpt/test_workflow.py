@@ -6,11 +6,12 @@ def test_build_turn_result_promotes_tasks_to_explicit_workflow(loaded_plugins):
     from src.plugins.autogpt.command_tools import CommandToolCatalog
     from src.plugins.autogpt.schema import Param, AutoTask, AgentPlan, IntentRoute, AutoTaskList
 
-    from utils.helper import Helper, Helpers
+    from utils.helper import Helpers
+    from tests.autogpt.command_tool_helpers import ensure_service_helper
 
     helpers = Helpers()
-    helpers.append(Helper(command="添加班级", description="添加一个班级"))
-    helpers.append(Helper(command="创建通知", description="创建班级通知"))
+    helpers.append(ensure_service_helper("添加班级", "添加一个班级", risk_level="medium"))
+    helpers.append(ensure_service_helper("创建通知", "创建班级通知", risk_level="high"))
 
     result = build_turn_result(
         trace_id="autogpt-workflow",
@@ -50,10 +51,11 @@ def test_build_turn_result_marks_high_risk_workflow_for_approval(loaded_plugins)
     from src.plugins.autogpt.command_tools import CommandToolCatalog
     from src.plugins.autogpt.schema import Param, AutoTask, AgentPlan, IntentRoute, AutoTaskList
 
-    from utils.helper import Helper, Helpers
+    from utils.helper import Helpers
+    from tests.autogpt.command_tool_helpers import ensure_service_helper
 
     helpers = Helpers()
-    helpers.append(Helper(command="创建通知", description="创建班级通知"))
+    helpers.append(ensure_service_helper("创建通知", "创建班级通知", risk_level="high"))
 
     result = build_turn_result(
         trace_id="autogpt-approval",
@@ -130,7 +132,7 @@ async def test_workflow_executor_runs_steps_in_order(loaded_plugins):
                 command=task.command,
                 params=task.params,
                 success=True,
-                message="命令已投递给 NoneBot 事件系统。",
+                message="命令已通过统一执行器完成。",
             )
         ]
 
@@ -252,7 +254,7 @@ async def test_workflow_executor_stops_on_failed_step(loaded_plugins):
                 command=task.command,
                 params=task.params,
                 success=success,
-                message="命令投递失败：network error" if not success else "命令已投递给 NoneBot 事件系统。",
+                message="命令执行失败：network error" if not success else "命令已通过统一执行器完成。",
             )
         ]
 

@@ -737,6 +737,7 @@ export interface ModelConfigItem {
   key: string
   url: string
   model: string
+  proxy?: string | null
   priority: number
   tasks: string[]
   multi_modal: boolean
@@ -852,6 +853,228 @@ export interface ModelTestResult {
 }
 
 // ─── Agents ─────────────────────────────────────────────────
+export interface AgentOverviewStats {
+  modules: number
+  enabled_modules: number
+  skills: number
+  loaded_skills: number
+  playbooks: number
+  agent_callable_commands: number
+  available_agent_commands: number
+  runs: number
+  pending_checkpoints: number
+  failed_runs: number
+}
+
+export interface AgentModuleInfo {
+  id: string
+  node_type?: string
+  module_id?: string
+  name: string
+  category: string
+  source: string
+  description: string
+  capabilities: string[]
+  control_note: string
+  status: string
+  toggleable: boolean
+  configurable: boolean
+  draft_configurable?: boolean
+  mutable: boolean
+  control_supported: boolean
+  runtime_config_supported?: boolean
+  runtime_orchestration_supported?: boolean
+  required?: boolean
+  allow_disable?: boolean
+  config_schema?: AgentConfigField[]
+}
+
+export interface AgentModelOption {
+  label: string
+  value: string
+  model?: string
+  multi_modal?: boolean
+}
+
+export interface AgentConfigField {
+  key: string
+  label: string
+  type: 'select' | 'number' | 'text' | string
+  description: string
+  placeholder?: string
+  options?: AgentModelOption[] | Array<{ label: string; value: string }>
+  min?: number
+  max?: number
+  step?: number
+  runtime_supported?: boolean
+}
+
+export interface AgentOrchestrationNode {
+  id: string
+  node_type?: string
+  label: string
+  phase: string
+  module_id: string
+  description: string
+  order: number
+  status: string
+  required?: boolean
+  allow_disable?: boolean
+}
+
+export interface AgentOrchestrationEdge {
+  from: string
+  to: string
+  label: string
+}
+
+export interface AgentOrchestrationInfo {
+  nodes: AgentOrchestrationNode[]
+  edges: AgentOrchestrationEdge[]
+}
+
+export interface AgentConfigItem {
+  id: string
+  group: string
+  name: string
+  value: string
+  description: string
+  source: string
+  editable: boolean
+  toggleable: boolean
+}
+
+export interface AgentControlInfo {
+  id: string
+  name: string
+  supported: boolean
+  status: string
+  description: string
+  route: string | null
+}
+
+export interface AgentPlaybookStep {
+  command: string
+  title: string
+  description: string
+}
+
+export interface AgentPlaybookInfo {
+  id: string
+  name: string
+  description: string
+  step_count: number
+  steps: AgentPlaybookStep[]
+}
+
+export interface AgentSkillInfo {
+  name: string
+  description: string
+  path: string
+  loaded: boolean
+  runtime: boolean
+}
+
+export interface AgentOverviewResponse {
+  stats: AgentOverviewStats
+  modules: AgentModuleInfo[]
+  designer?: {
+    draft_orchestration_supported: boolean
+    drag_node_supported: boolean
+    edge_edit_supported: boolean
+    draft_config_supported: boolean
+    runtime_apply_supported: boolean
+    runtime_apply_status: string
+    message: string
+    draft_nodes: number
+    draft_edges: number
+    saved_at: string | null
+  }
+  orchestration: AgentOrchestrationInfo
+  config: AgentConfigItem[]
+  controls: AgentControlInfo[]
+  playbooks: AgentPlaybookInfo[]
+  skills: AgentSkillInfo[]
+  metrics: {
+    runs_by_status: Record<string, number>
+    runs_by_kind: Record<string, number>
+    checkpoints_by_status: Record<string, number>
+  }
+}
+
+export interface AgentDesignerNode {
+  id: string
+  node_type: string
+  module_id: string
+  label: string
+  phase: string
+  x: number
+  y: number
+  enabled: boolean
+  config: Record<string, unknown>
+  runtime_applied?: boolean
+}
+
+export interface AgentDesignerEdge {
+  id: string
+  source: string
+  target: string
+  label: string
+  runtime_applied?: boolean
+}
+
+export interface AgentDesignerDraft {
+  version: number
+  updated_at: string | null
+  note: string
+  nodes: AgentDesignerNode[]
+  edges: AgentDesignerEdge[]
+}
+
+export interface AgentRuntimeStatus {
+  mode: string
+  enabled: boolean
+  valid: boolean
+  errors: string[]
+  warnings?: string[]
+  config_path: string
+  hot_reload_supported: boolean
+  applied_at: string | null
+  updated_at: string | null
+  active_node_count: number
+  active_edge_count: number
+}
+
+export interface AgentDesignerResponse {
+  capabilities: {
+    draft_orchestration_supported: boolean
+    drag_node_supported: boolean
+    edge_edit_supported: boolean
+    draft_config_supported: boolean
+    runtime_apply_supported: boolean
+    runtime_apply_status: string
+    message: string
+  }
+  palette: AgentModuleInfo[]
+  config_schema: AgentConfigField[]
+  model_options: AgentModelOption[]
+  draft: AgentDesignerDraft
+  limits: {
+    max_nodes: number
+    max_edges: number
+  }
+  runtime: AgentRuntimeStatus
+  applied_to_runtime: boolean
+}
+
+export interface AgentDesignerSaveResponse {
+  saved: boolean
+  applied_to_runtime: boolean
+  restart_required: boolean
+  designer: AgentDesignerResponse
+  message: string
+}
+
 export interface AgentRunSummary {
   id: number
   user_id: number

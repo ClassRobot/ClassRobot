@@ -1,7 +1,7 @@
-from src.commands import CommandBinding, command_alconna
+from utils.commands import CommandBinding, command_alconna
 from utils.config import priority, comp_config
 from utils.helper import HelperScope, UserRole
-from src.commands.schema import CommandParam
+from utils.commands.schema import CommandParam
 from nonebot_plugin_alconna import Args, File, Field, Image, Other, Alconna, MultiVar
 
 file_command_kwargs = {
@@ -217,7 +217,7 @@ upload_file_cmd = command_alconna(
         tags={"file", "storage"},
         risk_level="medium",
         agent_callable=False,
-        execution_mode="legacy_event",
+        execution_mode="matcher",
         params=[
             CommandParam(
                 name="文件参数",

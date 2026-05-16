@@ -1,6 +1,9 @@
 import client from './client'
 import type {
   PaginatedResponse,
+  AgentDesignerResponse,
+  AgentDesignerSaveResponse,
+  AgentOverviewResponse,
   AgentRunSummary,
   AgentRunDetail,
   AgentCheckpointSummary,
@@ -13,6 +16,23 @@ export interface AgentListParams {
   q?: string
   page?: number
   page_size?: number
+}
+
+export function fetchAgentOverview(): Promise<AgentOverviewResponse> {
+  return client.get('/agents/overview').then((r) => r.data)
+}
+
+export function fetchAgentDesigner(): Promise<AgentDesignerResponse> {
+  return client.get('/agents/designer').then((r) => r.data)
+}
+
+export function saveAgentDesigner(payload: {
+  nodes: AgentDesignerResponse['draft']['nodes']
+  edges: AgentDesignerResponse['draft']['edges']
+  note?: string
+  apply_to_runtime?: boolean
+}): Promise<AgentDesignerSaveResponse> {
+  return client.put('/agents/designer', payload).then((r) => r.data)
 }
 
 export function fetchAgentRuns(

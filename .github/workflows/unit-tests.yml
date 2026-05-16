@@ -53,5 +53,8 @@ jobs:
       - name: Run typing check
         run: poetry run pre-commit run mypy-agents --all-files
 
+      - name: Run Pylance-compatible diagnostics
+        run: poetry run pre-commit run pyright-pylance --all-files
+
       - name: Run unit tests
         run: poetry run pytest tests -q

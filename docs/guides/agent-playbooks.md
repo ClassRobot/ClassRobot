@@ -96,7 +96,7 @@ sequenceDiagram
     participant Workflow as 待确认 AgentWorkflow
     participant Entry as AutoGPT 入口
     participant Executor as WorkflowExecutor
-    participant Matcher as NoneBot2 命令系统
+    participant Commands as 统一命令执行器
 
     User->>Entry: 提出高风险或需确认任务
     Entry->>Session: 记录待确认工作流
@@ -106,8 +106,8 @@ sequenceDiagram
         User->>Entry: 确认执行
         Entry->>Session: 恢复待确认工作流
         Session->>Executor: 重置状态并开始执行
-        Executor->>Matcher: 顺序投递项目命令
-        Matcher-->>Executor: 返回观察记录
+        Executor->>Commands: 顺序调用 service 命令
+        Commands-->>Executor: 返回观察记录
         Executor-->>Entry: 返回执行结果
         Entry-->>User: 告知继续处理并返回后续结果
     else 用户回复“取消 / 不用了”
@@ -123,16 +123,16 @@ sequenceDiagram
 
 - AI 不直接调用数据库写操作
 - AI 不绕过现有命令体系
-- AI 恢复执行后，仍然复用 `handle_event()` 把命令投递给现有 matcher
+- AI 恢复执行后，仍然通过 `AgentCommandAdapter -> CommandExecutor` 调用已 service 化命令
 
 因此确认执行只是“恢复工作流”，不是“绕过规则”。
 
 真正执行时，下面这些能力仍然有效：
 
-- matcher 参数解析
-- depends 注入
-- 用户身份与权限校验
-- 原有业务命令逻辑
+- `CommandSpec` 参数和元数据
+- `CommandPolicy`、软关闭和动态业务权限校验
+- 用户身份与数据归属校验
+- 领域 service 业务逻辑
 
 ## 当前实现边界
 

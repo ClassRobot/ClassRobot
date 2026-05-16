@@ -8,7 +8,7 @@ from typing import Literal
 from nonebot.adapters import Event
 from pydantic import BaseModel, Field
 
-from src.commands import CommandExecutionContext
+from utils.commands import CommandExecutionContext
 from src.plugins.chat_context.resolvers import resolve_bound_group_id, resolve_or_create_bound_group
 from utils.models import Classes, College, Group, School, TeacherClasses, User
 from utils.roles import StudentRole

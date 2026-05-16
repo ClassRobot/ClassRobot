@@ -1,7 +1,7 @@
 from nonebot import logger
 from pydantic import Field, BaseModel
-from utils.llm.message import Messages
-from utils.llm.agents import BaseFunctionAgent
+from core.agent import BaseFunctionAgent
+from core.llm.message import Messages
 
 from .config import helper_menu
 from .schema import Helpers

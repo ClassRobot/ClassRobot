@@ -19,8 +19,8 @@
 当前链路处于兼容迁移期：
 
 - 新命令优先由 `CommandSpec` 派生 `Helper`
-- 旧命令继续允许手写 `__helpers__`
-- `helper_menu` 仍是 `help` 渲染和 AutoGPT 可见命令集合的展示层入口
+- 已有命令仍可手写 `__helpers__` 作为 help 展示视图
+- `helper_menu` 是 `help` 渲染入口；AutoGPT 工具目录只接收已 service 化的 `CommandSpec`
 - 通过 `command_alconna()` / `command_command()` 注册的非交互命令，会自动绑定命令输入记录 hook，保证聊天记录与命令定义强绑定
 
 运行时链路如下：
@@ -38,7 +38,7 @@
 可以把它理解成：
 
 - `CommandSpec` = 新命令的事实来源
-- `Helper` = 展示层和旧命令兼容视图
+- `Helper` = 展示层视图
 - `command_input_hook` = 非交互命令的聊天记录入口，保证显式命令输入一定可审计
 - `HelpersDepends` = 当前用户视角下的可见命令集
 - `bind_helper_access_guard` = 最后一道真实执行闸门
@@ -119,10 +119,10 @@ AutoGPT 不再直接读取全量命令目录，而是依赖当前用户视角下
 - `src/plugins/autogpt/pipeline.py`
   - `MessageProcessingPipeline` 用当前用户 helpers 构建 `CommandToolCatalog`
 - `src/plugins/autogpt/command_tools.py`
-  - 优先把 `CommandSpec` 转成 Agent 可见工具，未迁移命令再从 `Helper` 转换
+  - 只把当前用户可见且 `execution_mode="service"` 的 `CommandSpec` 转成 Agent 工具
 - `src/plugins/autogpt/__init__.py`
-  - 执行命令时先走 `AgentCommandAdapter -> CommandExecutor`
-  - 若命令尚未 service 化，则回退到原来的 NoneBot 事件重放
+  - 执行命令时只走 `AgentCommandAdapter -> CommandExecutor`
+  - 若命令尚未 service 化，返回结构化失败，不回放 NoneBot 事件
 
 因此：
 
@@ -137,7 +137,7 @@ AutoGPT 不再直接读取全量命令目录，而是依赖当前用户视角下
 2. 用 `CommandBinding(...)` 填写角色、目录、风险等级、Agent 可见性和参数中文名。
 3. 若命令是多轮交互、文件上传或依赖 `got()`，先标记 `execution_mode="interactive"`。
 4. 若命令已抽出领域 service，注册 `command_executor.handler("命令名")`，让 Agent 和用户入口复用同一能力。
-5. 旧命令迁移期可以保留 `__helpers__`，但不要再新增第二套 Agent tool schema。
+5. 只需要用户直接触发的 matcher 命令使用 `execution_mode="matcher"`；需要 Agent 调用时必须先补 service handler。
 6. 如果命令内部还存在业务侧身份判断，优先基于 `user.student` / `user.teacher` 或 `user.roles` 判断，不要继续依赖单值 `user.role`。
 7. 补单元测试，至少覆盖 `CommandSpec -> Helper`、Agent 工具目录和权限/软关闭行为。
 
@@ -163,7 +163,7 @@ AutoGPT 不再直接读取全量命令目录，而是依赖当前用户视角下
 - `utils/helper/schema.py`
 - `utils/helper/runtime.py`
 - `utils/helper/depends.py`
-- `src/commands/`
+- `utils/commands/`
 - `src/plugins/helper/__init__.py`
 - `src/plugins/autogpt/command_tools.py`
 - `src/plugins/autogpt/pipeline.py`

@@ -100,7 +100,7 @@ async def test_cache_convenience_wrappers_work_with_local_fallback(loaded_plugin
 
 async def test_manager_status_reports_local_cache_backend(loaded_plugins, monkeypatch, tmp_path):
     import utils.cache as cache_module
-    from src.routers.managers.status import check_cache
+    from src.routers.managers.runtime.status import check_cache
 
     monkeypatch.setattr(cache_module.plugin_config, "cache_backend", "local")
     monkeypatch.setattr(cache_module.plugin_config, "cache_path", str(tmp_path / "cache.sqlite3"))
@@ -115,16 +115,12 @@ async def test_manager_status_reports_local_cache_backend(loaded_plugins, monkey
     assert Path(payload["local_path"]) == tmp_path / "cache.sqlite3"
 
 
-async def test_cache_storage_path_keeps_legacy_cache_local_path_compatible(
-    loaded_plugins, monkeypatch, tmp_path
-):
+async def test_cache_storage_path_keeps_legacy_cache_local_path_compatible(loaded_plugins, monkeypatch, tmp_path):
     import utils.cache as cache_module
 
     monkeypatch.setattr(cache_module.plugin_config, "cache_backend", "local")
     monkeypatch.setattr(cache_module.plugin_config, "cache_path", None)
-    monkeypatch.setattr(
-        cache_module.plugin_config, "cache_local_path", str(tmp_path / "legacy-cache.sqlite3")
-    )
+    monkeypatch.setattr(cache_module.plugin_config, "cache_local_path", str(tmp_path / "legacy-cache.sqlite3"))
     cache_module._reset_runtime_state()
 
     cache = cache_module.get_cache()
@@ -135,9 +131,7 @@ async def test_cache_storage_path_keeps_legacy_cache_local_path_compatible(
     assert (tmp_path / "legacy-cache.sqlite3").exists()
 
 
-async def test_cache_path_takes_precedence_over_legacy_cache_local_path(
-    loaded_plugins, monkeypatch, tmp_path
-):
+async def test_cache_path_takes_precedence_over_legacy_cache_local_path(loaded_plugins, monkeypatch, tmp_path):
     import utils.cache as cache_module
 
     primary_path = tmp_path / "primary-cache.sqlite3"

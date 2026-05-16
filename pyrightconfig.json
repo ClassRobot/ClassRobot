@@ -1,0 +1,31 @@
+{
+  "include": [
+    "core/llm",
+    "core/agent",
+    "src/plugins/autogpt/__init__.py",
+    "src/routers/managers/agent",
+    "src/routers/managers/api/agents.py",
+    "src/routers/managers/router.py",
+    "utils/storage/local_rag.py"
+  ],
+  "exclude": [
+    "**/__pycache__",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".venv",
+    "deploy",
+    "migrations",
+    "resources",
+    "src/managers",
+    "website"
+  ],
+  "extraPaths": ["."],
+  "pythonVersion": "3.12",
+  "typeCheckingMode": "basic",
+  "useLibraryCodeForTypes": true,
+  "reportMissingTypeStubs": "none",
+  "reportMissingModuleSource": "warning",
+  "reportPrivateImportUsage": "warning",
+  "reportUnusedExcept": "error",
+  "reportUnnecessaryTypeIgnoreComment": "warning"
+}

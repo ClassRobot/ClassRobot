@@ -3,7 +3,7 @@ import pytest
 
 @pytest.mark.asyncio
 async def test_workflow_checkpoint_store_roundtrip(loaded_plugins, workflow_checkpoint_table):
-    from src.plugins.autogpt.checkpoints import WorkflowCheckpointStore
+    from src.plugins.autogpt.persistence import WorkflowCheckpointStore
     from src.plugins.autogpt.schema import AgentWorkflow, WorkflowStep
 
     store = WorkflowCheckpointStore()
@@ -72,7 +72,7 @@ async def test_chat_session_restores_pending_workflow_from_checkpoint(loaded_plu
 async def test_confirming_restored_workflow_updates_checkpoint(loaded_plugins, workflow_checkpoint_table):
     from utils.helper import Helpers
     from src.plugins.autogpt.util import ChatSession
-    from src.plugins.autogpt.checkpoints import WorkflowCheckpointStore
+    from src.plugins.autogpt.persistence import WorkflowCheckpointStore
     from src.plugins.autogpt.schema import AgentWorkflow, WorkflowStep
 
     pending_session = ChatSession(user_id=12, helpers=Helpers())
@@ -108,7 +108,7 @@ async def test_confirming_restored_workflow_updates_checkpoint(loaded_plugins, w
 async def test_clearing_session_removes_persisted_checkpoint(loaded_plugins, workflow_checkpoint_table):
     from utils.helper import Helpers
     from src.plugins.autogpt.util import ChatSession
-    from src.plugins.autogpt.checkpoints import WorkflowCheckpointStore
+    from src.plugins.autogpt.persistence import WorkflowCheckpointStore
     from src.plugins.autogpt.schema import AgentWorkflow, WorkflowStep
 
     session = ChatSession(user_id=20, helpers=Helpers())

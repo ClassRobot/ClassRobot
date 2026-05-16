@@ -4,7 +4,7 @@
 
 ## 设计目的
 
-AutoGPT 最初承担的是“自然语言转项目命令”的职责：用户用白话描述需求，系统根据当前用户可见的 Helper 命令清单，生成回复和 `AutoTaskList`，再通过 `handle_event()` 把任务重新投递给 NoneBot。
+AutoGPT 最初承担的是“自然语言转项目命令”的职责：用户用白话描述需求，系统根据当前用户可见的命令目录生成回复和 `AutoTaskList`，再通过 `AgentCommandAdapter -> CommandExecutor` 调用已 service 化的项目命令。
 
 它真正要解决的不是自由聊天，而是三件事：
 
@@ -25,9 +25,9 @@ AutoGPT 最初承担的是“自然语言转项目命令”的职责：用户用
 5. `ExtractAgent` 通过一次 LLM 调用从历史中抽取当前任务上下文。
 6. `RagAgent` 根据上下文调用 RagFlow 检索补充资料。
 7. `AutoTaskAgent` 再通过一次 LLM 调用生成回复和自动任务。
-8. `autogpt` 把任务重新投递给 NoneBot，让原有 matcher、权限依赖和数据库依赖继续生效。
+8. `autogpt` 把任务交给统一命令执行器，让 service handler、权限策略和数据库依赖继续生效。
 
-这个设计有一个优点：它没有绕过业务命令层，能复用项目已有权限、参数解析和业务逻辑。
+这个设计有一个优点：它没有绕过业务命令层，能复用项目已有权限、参数校验和业务逻辑。
 
 ## 主要问题
 
@@ -88,7 +88,7 @@ flowchart TD
     H --> I["AgentWorkflow"]
     I --> J["WorkflowExecutor"]
     J --> K["dispatch_auto_task()"]
-    K --> L["NoneBot2 matcher / depends / 业务逻辑"]
+    K --> L["AgentCommandAdapter / CommandExecutor / service"]
     L --> M["CommandObservation + Workflow 状态"]
     M --> B
 ```
@@ -122,7 +122,7 @@ flowchart TD
 | 消息驱动 Agent 编排 | `ChatSession + MessageProcessingPipeline` |
 | typed tool / capability catalog | `CommandToolCatalog` |
 | 用户消息定制工作流 | `IntentRoute + AgentPlan + WorkflowBuilder` |
-| 确定性执行 | `WorkflowExecutor + handle_event()` |
+| 确定性执行 | `WorkflowExecutor + AgentCommandAdapter + CommandExecutor` |
 | 观察记录与追踪 | `trace_id + CommandObservation + record_workflow()` |
 | 多轮继续规划 | 会话历史 + 工作流状态回写 |
 
@@ -141,8 +141,8 @@ flowchart TD
 - RAG 配置缺失时跳过检索，普通对话不能被可选依赖打断。
 - 给 `ExtractAgent`、`AutoTaskAgent`、`RagAgent` 增加明确失败降级。
 - 去掉 `print()` 调试输出，改为结构化日志。
-- 保留 `handle_event()` 命令投递方式，继续复用项目权限和依赖。
-- 让 `Param.separate` 真正参与消息投递，支持分步 matcher。
+- AutoGPT 命令执行改为只调用接入 `CommandExecutor` 的 service handler。
+- `Param.separate` 不再用于 Agent 自动拆分投递；需要多轮交互的命令应标记为 `interactive`，不暴露给 Agent。
 
 ### 第二阶段：拆出路由与规划
 
@@ -181,12 +181,12 @@ flowchart TD
 - 已加入 `IntentRouteNode`，普通聊天可以直接回复，只有需要知识或命令能力时才进入后续链路。
 - 已加入显式 `PlannerNode` 和 `AgentPlan`，在生成自动任务前先产出目标、事实、缺失信息、风险等级、候选命令和确认问题。
 - 已加入 `ExecutionPolicyNode` 和 `ValidateAutoTasksNode`，用代码规则拦截高风险操作、不可执行计划、不可用候选命令和模型幻觉命令。
-- `Param.separate=true` 已参与命令投递，支持把后续参数作为独立消息交给同一个 matcher。
-- 已加入命令投递 observation：AutoGPT 会记录主命令、分离参数、缺失命令和投递失败，并写回会话上下文，供下一轮规划参考。
+- `Param.separate=true` 会被 Agent 执行层拒绝，避免多轮 matcher 交互进入自动编排。
+- 已加入命令执行 observation：AutoGPT 会记录主命令、缺失命令、未 service 化命令和执行失败，并写回会话上下文，供下一轮规划参考。
 - 已加入 `trace_id`：每轮 AutoGPT 请求会生成独立追踪 ID，流水线节点、路由结果、规划结果和命令投递 observation 会使用同一个 ID 串联。
-- 已加入命令工具目录 `CommandToolCatalog`：把当前用户可见的 Helper 命令包装成结构化工具，保留真实命令名、ASCII 安全工具名、别名、参数约束和默认风险等级。
+- 已加入命令工具目录 `CommandToolCatalog`：只把当前用户可见、已注册 `CommandSpec`、允许 Agent 调用且具备 service handler 的命令包装成结构化工具。
 - 已加入显式工作流对象 `AgentWorkflow` 与 `WorkflowStep`：每轮自然语言请求会被提升成可被检查、记录和顺序执行的工作流。
-- 已加入 `WorkflowExecutor`：工作流步骤会按顺序复用 `handle_event()` 重新投递到 NoneBot2 命令系统，失败即停并回写状态。
+- 已加入 `WorkflowExecutor`：工作流步骤会按顺序调用统一命令执行器，失败即停并回写状态。
 - 已加入 `AgentTurnResult`：`ChatSession` 现在会保存本轮路由、计划、自动任务和工作流结果，便于后续扩展审批、恢复和长期记忆。
 - 已加入内置 `playbook` 模板目录：高频命令序列会被提升成更稳定的模板化工作流，并补充步骤标题与说明。
 - 已加入待确认工作流恢复：用户回复“确认 / 继续执行 / 取消”时，会话层可以恢复或取消上一条待确认工作流。
@@ -197,7 +197,7 @@ flowchart TD
 - 已加入克制的用户反馈：AutoGPT 只在确实需要等待时发送一条面向用户的状态提示，例如查资料或处理项目能力，不暴露内部路由、Planner、校验等流水线细节。
 - `print()` 调试输出已逐步替换为 logger，便于后续接入 trace 和审计。
 
-当前 observation 记录的是“是否成功投递到 NoneBot 事件系统”，不是业务命令最终是否完成。业务结果仍由原有 matcher、权限依赖和业务逻辑负责回复用户。后续如果要做完整审计，可以在业务命令层补充成功、失败、影响对象和回滚信息。
+当前 observation 记录的是统一执行器返回的 `CommandResult`，包含命令是否成功、用户可见输出、上下文输出和结构化数据。后续如果要做完整审计，可以在业务命令 service 层补充影响对象、风险确认和回滚信息。
 
 排查 AutoGPT 行为时，可以先在日志里搜索 `AutoGPT trace`。同一个 `trace_id` 下通常会包含节点耗时、意图路由、Planner 输出摘要、命令投递和 observation 写回结果。
 
@@ -216,7 +216,7 @@ flowchart TD
 
 除了 run history，现在每条工作流快照里还会同步保留事件时间线。这样排查时不只能看到“最后状态是什么”，还能看到“先进入待确认，后被用户确认，再开始执行到第几步失败/完成”的顺序。
 
-命令工具目录目前先用于 Planner、Router 和 AutoTask 提示词，以及候选命令校验。它不会绕过 `handle_event()` 直接执行业务逻辑。后续进入工具循环阶段时，可以把 `CommandTool.name` 暴露给 function calling，把模型返回的工具名映射回 `CommandTool.command`，再继续交给项目原有命令体系执行。
+命令工具目录目前用于 Planner、Router 和 AutoTask 提示词，以及候选命令校验。它不会暴露未 service 化命令。后续进入工具循环阶段时，可以把 `CommandTool.name` 暴露给 function calling，把模型返回的工具名映射回 `CommandTool.command`，再交给 `AgentCommandAdapter -> CommandExecutor` 执行。
 
 用户反馈通过 `MessageProcessingPipeline` 的 `progress_reporter` 回调实现，发送失败只记录日志，不会中断主流程。反馈内容必须对用户有价值，默认最多发送一条“正在查资料/正在处理”的等待提示，不能把内部节点、模型规划或命令名直接暴露给用户。
 
@@ -232,3 +232,4 @@ flowchart TD
 
 对应的架构层说明见 [Agent 工作流编排架构](../architecture/agent-workflow-orchestration.md)。
 具体的模板和确认恢复机制见 [Agent Playbook 与确认执行](./agent-playbooks.md)。
+如果要继承基类或开发自定义 Agent，见 [Agent 继承与扩展开发指南](./agent-inheritance.md)。

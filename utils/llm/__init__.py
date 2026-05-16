@@ -1,45 +1,37 @@
-from openai import NOT_GIVEN, NotGiven
+"""`utils.llm` 已降级为兼容路径，新代码请统一从 `core.llm` 导入。"""
 
-from .gateway import LLMRequest, LLMResult, LLMTaskType, llm_gateway
-from .message import Messages
-from .typings import (
-    ChatCompletion,
-    ChatCompletionToolParam,
-    ChatCompletionMessageParam,
-    ChatCompletionToolChoiceOptionParam,
-)
+from __future__ import annotations
 
+import sys
+from importlib import import_module
+from types import ModuleType
 
-async def client_create(
-    messages: list[ChatCompletionMessageParam] | Messages | str,
-    functools: list[ChatCompletionToolParam] | NotGiven | None = None,
-    tool_choice: ChatCompletionToolChoiceOptionParam | NotGiven | None = None,
-    *,
-    max_tokens: int = 2048,
-    llm_name: str | None = None,
-    multi_modal: bool | None = None,
-    temperature: float | NotGiven | None = 0.1,
-    task_type: LLMTaskType = LLMTaskType.chat,
-) -> ChatCompletion:
-    """兼容旧调用入口，并转发给统一的 LLM Gateway。"""
-    request = LLMRequest(
-        messages=messages,
-        tools=functools if functools is not None else NOT_GIVEN,
-        tool_choice=tool_choice if tool_choice is not None else NOT_GIVEN,
-        max_tokens=max_tokens,
-        llm_name=llm_name,
-        multi_modal=multi_modal,
-        temperature=temperature if temperature is not None else NOT_GIVEN,
-        task_type=task_type,
-    )
-    result = await llm_gateway.create(request)
-    return result.response
+LEGACY_SUBMODULE_ALIASES = {
+    "utils.llm.config": "core.llm.config",
+    "utils.llm.exceptions": "core.llm.exceptions",
+    "utils.llm.functools": "core.llm.functools",
+    "utils.llm.gateway": "core.llm.gateway",
+    "utils.llm.message": "core.llm.message",
+    "utils.llm.session": "core.llm.session",
+    "utils.llm.typings": "core.llm.typings",
+    "utils.llm.util": "core.llm.util",
+}
 
 
-__all__ = [
-    "LLMRequest",
-    "LLMResult",
-    "LLMTaskType",
-    "client_create",
-    "llm_gateway",
-]
+def register_legacy_aliases() -> ModuleType:
+    """把旧的 `utils.llm.*` 子模块映射到 `core.llm.*`。"""
+
+    package = sys.modules[__name__]
+    core_module = import_module("core.llm")
+    for legacy_name, target_name in LEGACY_SUBMODULE_ALIASES.items():
+        target_module = import_module(target_name)
+        sys.modules[legacy_name] = target_module
+        setattr(package, legacy_name.rsplit(".", 1)[-1], target_module)
+    return core_module
+
+
+core_module = register_legacy_aliases()
+
+from core.llm import *  # noqa: F403
+
+__all__ = list(getattr(core_module, "__all__", ()))

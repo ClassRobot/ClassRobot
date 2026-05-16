@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from nonebot_plugin_alconna import Args, Alconna, CommandMeta, Field, MultiVar
 
-from src.commands import CommandBinding, CommandParam, command_alconna
+from utils.commands import CommandBinding, CommandParam, command_alconna
 from utils.config import comp_config, priority
 from utils.helper import HelperScope
 

@@ -5,19 +5,18 @@ from datetime import datetime, timedelta
 def build_helpers_with_self_info():
     """构造包含“我的信息”的最小命令目录。"""
 
-    from utils.helper import Helper, HelperScope, Helpers, UserRole
+    from utils.helper import HelperScope, Helpers, UserRole
+    from tests.autogpt.command_tool_helpers import ensure_service_helper
 
     helpers = Helpers()
-    helpers.extend(
-        [
-            Helper(
-                command="我的信息",
-                description="查看自己的账号信息、当前角色、是否为管理员、是否为教师或学生",
-                aliases={"个人信息", "用户信息"},
-                roles={UserRole.user},
-                scopes={HelperScope.user},
-            )
-        ]
+    helpers.append(
+        ensure_service_helper(
+            "我的信息",
+            "查看自己的账号信息、当前角色、是否为管理员、是否为教师或学生",
+            aliases={"个人信息", "用户信息"},
+            roles={UserRole.user},
+            scopes={HelperScope.user},
+        )
     )
     return helpers
 
@@ -25,28 +24,29 @@ def build_helpers_with_self_info():
 def build_helpers_with_local_queries():
     """构造常见本地状态查询命令目录。"""
 
-    from utils.helper import Helper, HelperScope, Helpers, UserRole
+    from utils.helper import HelperScope, Helpers, UserRole
+    from tests.autogpt.command_tool_helpers import ensure_service_helper
 
     helpers = Helpers()
     helpers.extend(
         [
-            Helper(
-                command="我的信息",
-                description="查看自己的账号信息、当前角色、是否为管理员、是否为教师或学生",
+            ensure_service_helper(
+                "我的信息",
+                "查看自己的账号信息、当前角色、是否为管理员、是否为教师或学生",
                 aliases={"个人信息", "用户信息"},
                 roles={UserRole.user},
                 scopes={HelperScope.user},
             ),
-            Helper(
-                command="查询班级",
-                description="查询自己管理的班级",
+            ensure_service_helper(
+                "查询班级",
+                "查询自己管理的班级",
                 aliases={"我的班级", "班级列表"},
                 roles={UserRole.teacher},
                 scopes={HelperScope.teacher},
             ),
-            Helper(
-                command="查询课表",
-                description="查询本人课表",
+            ensure_service_helper(
+                "查询课表",
+                "查询本人课表",
                 aliases={"我的课表", "查看课表"},
                 roles={UserRole.user},
                 scopes={HelperScope.user},
@@ -213,7 +213,7 @@ async def test_user_chat_statistics_query_routes_to_local_summary_without_llm(lo
     from utils.storage import ChatHistoryStore, MessageActorRole, StorageManager
     from utils.llm.message import Content, Messages
     from src.plugins.autogpt import pipeline as pipeline_module
-    from src.plugins.autogpt.knowledge import AgentRuntimeContext
+    from src.plugins.autogpt.knowledge import RuntimeContext
     from src.plugins.autogpt.schema import ChatMessage
 
     async def fail_client_create(*args, **kwargs):
@@ -267,7 +267,7 @@ async def test_user_chat_statistics_query_routes_to_local_summary_without_llm(lo
         build_helpers_with_local_queries(),
         Messages(),
         trace_id="user-chat-statistics",
-        runtime_context=AgentRuntimeContext(user_id=42, message_id="ask"),
+        runtime_context=RuntimeContext(user_id=42, message_id="ask"),
         chat_store=store,
     )
 
@@ -277,7 +277,9 @@ async def test_user_chat_statistics_query_routes_to_local_summary_without_llm(lo
     assert result.route.intent == "knowledge"
     assert result.auto_tasks is not None
     assert result.auto_tasks.tasks == []
-    assert result.auto_tasks.reply == "按当前保存的聊天记录统计，我们一共聊了 2 条消息。其中你发了 1 条，我回复了 1 条。"
+    assert (
+        result.auto_tasks.reply == "按当前保存的聊天记录统计，我们一共聊了 2 条消息。其中你发了 1 条，我回复了 1 条。"
+    )
 
 
 @pytest.mark.asyncio
@@ -289,11 +291,13 @@ async def test_group_chat_statistics_query_only_reads_current_group_without_llm(
     from utils.storage import ChatHistoryStore, StorageManager
     from utils.llm.message import Content, Messages
     from src.plugins.autogpt import pipeline as pipeline_module
-    from src.plugins.autogpt.knowledge import AgentRuntimeContext
+    from src.plugins.autogpt.knowledge import RuntimeContext
     from src.plugins.autogpt.schema import ChatMessage
 
     async def fail_client_create(*args, **kwargs):
-        raise AssertionError("group chat statistics queries should use deterministic local summaries before LLM planning")
+        raise AssertionError(
+            "group chat statistics queries should use deterministic local summaries before LLM planning"
+        )
 
     monkeypatch.setattr(pipeline_module, "client_create", fail_client_create)
 
@@ -341,7 +345,7 @@ async def test_group_chat_statistics_query_only_reads_current_group_without_llm(
         build_helpers_with_local_queries(),
         Messages(),
         trace_id="group-chat-statistics",
-        runtime_context=AgentRuntimeContext(
+        runtime_context=RuntimeContext(
             user_id=42,
             group_id="group-1",
             channel_id="channel-1",

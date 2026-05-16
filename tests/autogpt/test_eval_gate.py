@@ -7,19 +7,20 @@ from tests.autogpt.test_local_context_query import build_helpers_with_local_quer
 def build_eval_helpers():
     """构造 route/tool/arg 门禁共用的命令目录。"""
 
-    from utils.helper import Helper
+    from tests.autogpt.command_tool_helpers import ensure_service_helper
 
     helpers = build_helpers_with_local_queries()
-    helpers.append(Helper(command="创建通知", description="给班级创建一条通知"))
+    helpers.append(ensure_service_helper("创建通知", "给班级创建一条通知", risk_level="high"))
     return helpers
 
 
 def assert_eval_report(report: EvalGateReport) -> None:
     """断言某类评测样例全部通过。"""
 
-    assert report.passed == report.total, (
-        f"{report.category} 评测未全部通过: {report.passed}/{report.total}\n"
-        + "\n".join(f"- {failure}" for failure in report.failures)
+    assert (
+        report.passed == report.total
+    ), f"{report.category} 评测未全部通过: {report.passed}/{report.total}\n" + "\n".join(
+        f"- {failure}" for failure in report.failures
     )
 
 

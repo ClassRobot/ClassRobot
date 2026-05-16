@@ -5,37 +5,37 @@ from datetime import datetime
 import pytest
 
 
-def test_agent_skill_catalog_renders_builtin_skill_summaries(loaded_plugins):
-    from src.plugins.autogpt.knowledge import AgentSkillCatalog
+def test_skill_catalog_renders_builtin_skill_summaries(loaded_plugins):
+    from src.plugins.autogpt.knowledge import SkillCatalog
 
-    prompt = AgentSkillCatalog().to_prompt()
+    prompt = SkillCatalog().to_prompt()
 
     assert "ocr" in prompt
     assert "markdown-to-image" in prompt
     assert "image-generation" in prompt
 
 
-def test_agent_skill_catalog_can_render_named_subset(loaded_plugins):
-    from src.plugins.autogpt.knowledge import AgentSkillCatalog
+def test_skill_catalog_can_render_named_subset(loaded_plugins):
+    from src.plugins.autogpt.knowledge import SkillCatalog
 
-    prompt = AgentSkillCatalog().to_prompt(skill_names=["ocr"], limit=1)
+    prompt = SkillCatalog().to_prompt(skill_names=["ocr"], limit=1)
 
     assert "ocr" in prompt
     assert "markdown-to-image" not in prompt
     assert "image-generation" not in prompt
 
 
-def test_agent_skill_catalog_can_render_relevant_subset_by_query(loaded_plugins):
-    from src.plugins.autogpt.knowledge import AgentSkillCatalog
+def test_skill_catalog_can_render_relevant_subset_by_query(loaded_plugins):
+    from src.plugins.autogpt.knowledge import SkillCatalog
 
-    prompt = AgentSkillCatalog().to_prompt(query="识别图片里的文字", limit=1)
+    prompt = SkillCatalog().to_prompt(query="识别图片里的文字", limit=1)
 
     assert "ocr" in prompt
 
 
 @pytest.mark.asyncio
 async def test_local_knowledge_retriever_reads_user_chat_history(loaded_plugins, tmp_path):
-    from src.plugins.autogpt.knowledge import AgentRuntimeContext, AgentLocalKnowledgeRetriever
+    from src.plugins.autogpt.knowledge import LocalKnowledgeRetriever, RuntimeContext
 
     from utils.storage import StorageManager, ChatHistoryStore, MessageActorRole
 
@@ -51,8 +51,8 @@ async def test_local_knowledge_retriever_reads_user_chat_history(loaded_plugins,
         created_at=datetime(2026, 5, 6, 8, 30),
     )
 
-    retriever = AgentLocalKnowledgeRetriever(manager=manager, chat_store=store)
-    context = await retriever.retrieve("查一下聊天记录 report.md", AgentRuntimeContext(user_id=90001))
+    retriever = LocalKnowledgeRetriever(manager=manager, chat_store=store)
+    context = await retriever.retrieve("查一下聊天记录 report.md", RuntimeContext(user_id=90001))
 
     assert context is not None
     assert "用户人机聊天记录检索" in context
@@ -62,7 +62,7 @@ async def test_local_knowledge_retriever_reads_user_chat_history(loaded_plugins,
 
 @pytest.mark.asyncio
 async def test_local_knowledge_retriever_uses_rag_overlap_recall(loaded_plugins, tmp_path):
-    from src.plugins.autogpt.knowledge import AgentRuntimeContext, AgentLocalKnowledgeRetriever
+    from src.plugins.autogpt.knowledge import LocalKnowledgeRetriever, RuntimeContext
 
     from utils.storage import StorageManager, ChatHistoryStore, MessageActorRole
 
@@ -78,8 +78,8 @@ async def test_local_knowledge_retriever_uses_rag_overlap_recall(loaded_plugins,
         created_at=datetime(2026, 5, 6, 8, 30),
     )
 
-    retriever = AgentLocalKnowledgeRetriever(manager=manager, chat_store=store)
-    context = await retriever.retrieve("查一下聊天记录 班会资料", AgentRuntimeContext(user_id=90003))
+    retriever = LocalKnowledgeRetriever(manager=manager, chat_store=store)
+    context = await retriever.retrieve("查一下聊天记录 班会资料", RuntimeContext(user_id=90003))
 
     assert context is not None
     assert "本地 RAG" in context
@@ -89,7 +89,7 @@ async def test_local_knowledge_retriever_uses_rag_overlap_recall(loaded_plugins,
 
 @pytest.mark.asyncio
 async def test_local_knowledge_retriever_reads_user_file_space(loaded_plugins, tmp_path):
-    from src.plugins.autogpt.knowledge import AgentRuntimeContext, AgentLocalKnowledgeRetriever
+    from src.plugins.autogpt.knowledge import LocalKnowledgeRetriever, RuntimeContext
 
     from utils.storage import StorageManager, ChatHistoryStore
 
@@ -98,8 +98,8 @@ async def test_local_knowledge_retriever_reads_user_file_space(loaded_plugins, t
     report = space.home_dir / "documents" / "report.md"
     report.write_text("班会材料：周五下午三点开会，带上作业统计。", encoding="utf-8")
 
-    retriever = AgentLocalKnowledgeRetriever(manager=manager, chat_store=ChatHistoryStore(manager))
-    context = await retriever.retrieve("查一下文件 report", AgentRuntimeContext(user_id=90002))
+    retriever = LocalKnowledgeRetriever(manager=manager, chat_store=ChatHistoryStore(manager))
+    context = await retriever.retrieve("查一下文件 report", RuntimeContext(user_id=90002))
 
     assert context is not None
     assert "用户文件空间检索" in context
@@ -109,17 +109,17 @@ async def test_local_knowledge_retriever_reads_user_file_space(loaded_plugins, t
 
 @pytest.mark.asyncio
 async def test_local_knowledge_retriever_reads_group_file_space_by_system_group_id(loaded_plugins, tmp_path):
-    from src.plugins.autogpt.knowledge import AgentRuntimeContext, AgentLocalKnowledgeRetriever
+    from src.plugins.autogpt.knowledge import LocalKnowledgeRetriever, RuntimeContext
     from utils.storage import StorageManager, ChatHistoryStore
 
     manager = StorageManager(tmp_path / "storage")
     report = manager.group_space("system-group-92001").home_dir / "documents" / "group-report.md"
     report.write_text("群文件材料：周三晚自习前提交班会记录。", encoding="utf-8")
 
-    retriever = AgentLocalKnowledgeRetriever(manager=manager, chat_store=ChatHistoryStore(manager))
+    retriever = LocalKnowledgeRetriever(manager=manager, chat_store=ChatHistoryStore(manager))
     context = await retriever.retrieve(
         "查一下文件 report",
-        AgentRuntimeContext(
+        RuntimeContext(
             user_id=90004,
             group_id="system-group-92001",
             platform="onebot11.qq_client",
@@ -132,6 +132,24 @@ async def test_local_knowledge_retriever_reads_group_file_space_by_system_group_
     assert "~/documents/group-report.md" in context
     assert "群文件材料" in context
     assert not (manager.group_space("92001").home_dir / "documents" / "group-report.md").exists()
+
+
+@pytest.mark.asyncio
+async def test_local_knowledge_retriever_does_not_treat_channel_id_as_system_group_id(loaded_plugins, tmp_path):
+    from src.plugins.autogpt.knowledge import LocalKnowledgeRetriever, RuntimeContext
+    from utils.storage import StorageManager, ChatHistoryStore
+
+    manager = StorageManager(tmp_path / "storage")
+    report = manager.group_space("92002").home_dir / "documents" / "channel-only-report.md"
+    report.write_text("这份材料只应该在系统群 ID 明确解析后才能读取。", encoding="utf-8")
+
+    retriever = LocalKnowledgeRetriever(manager=manager, chat_store=ChatHistoryStore(manager))
+    context = await retriever.retrieve(
+        "查一下文件 channel only report",
+        RuntimeContext(user_id=90005, channel_id="92002"),
+    )
+
+    assert context is None
 
 
 def test_extract_search_query_removes_intent_words(loaded_plugins):

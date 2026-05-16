@@ -28,6 +28,7 @@
 配套架构文档见：
 
 - [Harness Engineering 架构蓝图](../architecture/harness-engineering-architecture.md)
+- [Agent 继承与扩展开发指南](./agent-inheritance.md)
 
 ## 外部实践摘要
 
@@ -101,10 +102,24 @@ ClassRobot 的智能体不是一个绕过系统权限、直接改数据库的万
 
 核心边界：
 
-- `src.plugins.autogpt` 是用户侧自然语言智能入口，后续优先在这里增强。
-- `utils.llm.agents` 是轻量 agent 基础模块，适合放通用 agent、tool calling、模型路由、会话压缩和可复用执行循环。
-- 业务写操作优先通过 `src.commands`、领域 service 和现有 NoneBot matcher 执行。
+- `src.plugins.autogpt` 是用户侧自然语言智能入口，只保留 NoneBot 接线和兼容导入。
+- `core.agent` 是统一 Agent 基础模块，适合放通用 agent、tool calling、模型路由、会话压缩和可复用执行循环。
+- `core.agent.runtime` 是 AutoGPT 的真实运行时层，负责任务路由、Runtime 图、TaskWorkflow、执行器和 observation 回填。
+- 业务写操作优先通过 `utils.commands`、领域 service 和现有 NoneBot matcher 执行。
 - Agent 可以组织命令，但不能把命令层已有的权限、参数校验、审计和业务规则写进 prompt 里凑合。
+
+如果要基于现有基类继承或组合新的 Agent，先读 [Agent 继承与扩展开发指南](./agent-inheritance.md)，确认该能力应该作为独立 Agent、Function Tool、Skill，还是 AutoGPT Runtime 节点接入。
+
+### Agent 命名边界
+
+从 2026-05-15 起，项目采用统一 Agent 抽象边界：
+
+- 只有继承 `BaseAgent` 或 `BaseFunctionAgent` 的可执行对象才叫 Agent。
+- 通用工具调用智能体统一使用 `ToolCallingAgent`，旧名 `Agent` 只作为兼容别名保留。
+- `RuntimeContext`、`WorkflowNode`、`SkillCatalog`、`LocalKnowledgeRetriever`、`RuntimeNodeDefinition`、`RuntimeGraphConfig` 都是运行时组件，不进入 Agent 继承树。
+- 新增 Agent 依靠 `BaseAgent.iter_agent_classes()` 自动发现，不再在多个 list/dict 中重复登记。
+
+这条规则用于避免概念漂移、命名污染和平行抽象，让后续扩展更接近主流 agent runtime 的单一扩展点设计。
 
 ## 推荐运行闭环
 
@@ -135,7 +150,7 @@ flowchart TD
 | 能力类型 | 适用场景 | 推荐位置 | 关键约束 |
 | --- | --- | --- | --- |
 | Domain Service | 稳定业务规则，例如班级、任务、请假、课表 | `src/managers/*`、`src/plugins/*/services.py` | 不依赖 LLM，不写 prompt |
-| Command | 用户可直接触发的业务能力 | `src/commands` + 插件 matcher | 元数据必须进入统一命令注册表 |
+| Command | 用户可直接触发的业务能力 | `utils/commands` + 插件 matcher | 元数据必须进入统一命令注册表 |
 | Function Tool | Agent 可调用的结构化函数 | `utils/llm/agents/tool.py` 或 AutoGPT tool catalog | 必须有 typed schema、风险等级、可观测结果 |
 | Skill | 可复用的能力说明和运行时封装 | `src/agents/skills/` | 必须有 `SKILL.md`，说明触发条件和边界 |
 | MCP Server | 外部系统、跨应用工具、标准协议集成 | 后续 `src/agents/mcp/` 或独立服务 | 不让 MCP server 读取完整会话，Host 控制上下文和权限 |
@@ -223,7 +238,7 @@ Prompt 是工程资产，不是随手写的长文本。后续所有 prompt 都�
 | `extract` | 抽取稳定事实、上下文、缺失信息 | 不自行决定执行 |
 | `agent_plan` | 生成目标、步骤、风险和候选能力 | 不编造不存在的命令 |
 | `auto_task` | 把计划转换成可执行任务 | 不绕过权限或确认 |
-| `final_reply` | 汇总 observation 并回复用户 | 不暴露内部思考链 |
+| `execution_reply` | 汇总任务流 observation 并回复用户 | 不暴露内部思考链 |
 | `summary` | 压缩会话 | 不丢弃未完成任务、确认状态和关键事实 |
 | `memory` | 提炼长期记忆 | 不保存临时闲聊和敏感凭证 |
 

@@ -1,6 +1,6 @@
 from utils import tip
 from utils.config import priority, comp_config
-from src.commands import CommandBinding, command_alconna
+from utils.commands import CommandBinding, command_alconna
 from utils.helper import Param, Helper, HelperScope, ParamMode, UserRole
 from nonebot_plugin_alconna import Args, Field, Alconna, MultiVar, CommandMeta
 

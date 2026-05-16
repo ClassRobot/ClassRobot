@@ -6,16 +6,44 @@ from nonebot.adapters import Bot, Event
 from nonebot_plugin_alconna import AlconnaMatcher
 
 from utils.config import priority
+from utils.commands import CommandSpec, register_command_input_recorder
 from utils.session import EventSession
 
 from .commands import query_group_history_cmd
-from .collector import collect_message
+from .collector import collect_message, record_command_message
 from .outbound import install_outbound_message_recorder
-from .resolvers import resolve_bound_group_id
+from .resolvers import resolve_bound_group_id, resolve_session_from_event
 from .services import normalize_query_values, query_group_history
 from . import services as _
 
 install_outbound_message_recorder()
+
+
+async def record_command_input_for_chat_context(bot: Bot, event: Event, spec: CommandSpec) -> None:
+    """把显式命令输入写入聊天上下文。
+
+    Args:
+        bot: 当前 Bot 实例。
+        event: 当前命令事件。
+        spec: 命令元数据，用于记录命令名、别名和所属插件模块。
+    """
+
+    install_outbound_message_recorder(bot)
+    platform = resolve_session_from_event(bot, event)
+    if platform is None:
+        return
+
+    await record_command_message(
+        platform,
+        event,
+        bot,
+        command_name=spec.name,
+        command_aliases=spec.aliases,
+        plugin_module=spec.plugin_module,
+    )
+
+
+register_command_input_recorder("chat_context", record_command_input_for_chat_context)
 
 message_history_collector = on_message(priority=max(1, priority - 1), block=False)
 

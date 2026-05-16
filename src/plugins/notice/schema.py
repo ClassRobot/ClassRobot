@@ -4,7 +4,7 @@ from typing import Callable, Iterator, Awaitable
 
 from nonebot import logger
 from pydantic import BaseModel
-from utils.llm.message import Content
+from core.llm.message import Content
 from nonebot_plugin_apscheduler import scheduler
 from apscheduler.jobstores.base import JobLookupError
 from utils.models import User, Group, ScheduledNotice

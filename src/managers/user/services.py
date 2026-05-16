@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.commands import CommandExecutionContext, CommandResult, command_executor
+from utils.commands import CommandExecutionContext, CommandResult, command_executor
 from utils.models import User
 
 from .presenters import render_user_card

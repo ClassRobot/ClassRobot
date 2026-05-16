@@ -8,10 +8,10 @@ from tests.autogpt.test_local_context_query import build_helpers_with_local_quer
 def build_observability_helpers():
     """构造观测测试使用的最小命令目录。"""
 
-    from utils.helper import Helper
+    from tests.autogpt.command_tool_helpers import ensure_service_helper
 
     helpers = build_helpers_with_local_queries()
-    helpers.append(Helper(command="创建通知", description="给班级创建一条通知"))
+    helpers.append(ensure_service_helper("创建通知", "给班级创建一条通知", risk_level="high"))
     return helpers
 
 
@@ -82,7 +82,7 @@ async def test_workflow_executor_observability_detects_repeated_invocation(loade
                 trace_id="obs-repeat",
                 command=task.command,
                 success=True,
-                message="命令已投递给 NoneBot 事件系统。",
+                message="命令已通过统一执行器完成。",
             )
         ]
 

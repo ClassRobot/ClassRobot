@@ -3,8 +3,8 @@ from base64 import b64decode
 from utils import Emoji
 from nonebot import logger
 from utils.tools.cos import upload_file
-from utils.llm.util import uni_message_to_contents
-from src.plugins.autogpt.util import ChatSessionDepends
+from core.llm.util import uni_message_to_contents
+from core.agent.runtime.util import ChatSessionDepends
 from nonebot_plugin_alconna import Text, Image, UniMessage, AlconnaMatcher
 
 from .util import generate_image

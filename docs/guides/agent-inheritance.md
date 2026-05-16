@@ -1,0 +1,217 @@
+# Agent 继承与扩展开发指南
+
+> 核验日期：2026-05-15
+
+本文定义 ClassRobot 的 Agent 统一写法。后续开发时先按本文判断：你要写的是 **Agent**、**Tool**、**Skill**、**WorkflowNode**、**Retriever**，还是 **Catalog**。不要因为某个对象服务于 AI 流程，就把它命名成 Agent。
+
+## 核心标准
+
+ClassRobot 中只有两类对象可以称为 Agent：
+
+- 继承 `core.agent.BaseAgent` 的可执行智能体。
+- 继承 `core.agent.BaseFunctionAgent` 的函数型智能体。
+
+其他对象不叫 Agent：
+
+| 对象 | 正确命名 | 职责 |
+| --- | --- | --- |
+| 运行时上下文 | `RuntimeContext` | 保存当前用户、群、平台、消息 ID 等运行态 |
+| 编排节点 | `WorkflowNode` | 表示 AutoGPT Runtime 图中的一个处理阶段 |
+| Skill 目录 | `SkillCatalog` | 把项目 Skill 摘要暴露给 Planner |
+| 本地知识检索 | `LocalKnowledgeRetriever` | 检索聊天记录、文件空间和本地 RAG |
+| Runtime 节点定义 | `RuntimeNodeDefinition` | 描述管理端画布可拖拽的流程节点 |
+| Runtime 图配置 | `RuntimeGraphConfig` | 保存可热更新的编排图 |
+
+这条边界用于避免概念漂移、平行抽象和手工注册表反模式。
+
+## Agent 继承树
+
+```mermaid
+flowchart TD
+    Base["BaseAgent\n统一 Agent 协议"] --> Function["BaseFunctionAgent\nfunction calling Agent"]
+    Base --> ToolCalling["ToolCallingAgent\n工具调用闭环"]
+    Base --> Summary["SummaryAgent"]
+    Base --> Extract["ExtractAgent"]
+    Base --> Rag["RagAgent"]
+    Base --> AutoTask["AutoTaskAgent"]
+    Function --> Vision["VisionAgent"]
+    Function --> File["FileAgent"]
+
+    Runtime["RuntimeContext / WorkflowNode / Catalog / Retriever"] -. "不是 Agent" .-> Base
+```
+
+`BaseAgent` 负责统一元数据、执行入口、工具声明和类型驱动发现。新增 Agent 后不需要再把类手写进多个 list/dict，系统会通过继承树发现。
+
+内置 Agent 的源码按职责放在 `core/agent/builtin/`：
+
+- `conversation.py`
+  - `LLMAgent`、`SummaryAgent`、`ExtractAgent`
+- `multimodal.py`
+  - `VisionAgent`、`FileAgent`
+- `retrieval.py`
+  - `RagAgent`
+- `planning.py`
+  - `AutoTaskAgent`
+
+`utils/llm/agents/*` 现在只保留旧导入兼容，不再作为新增 Agent 的落点。
+
+## BaseAgent 标准协议
+
+新增 Agent 时优先设置这些类级元数据：
+
+```python
+from core.agent import BaseAgent
+from core.llm.message import Messages
+
+
+class ClassSummaryAgent(BaseAgent):
+    """根据当前上下文生成班级摘要。"""
+
+    agent_name = "class_summary_agent"
+    display_name = "班级摘要智能体"
+    capabilities = ("class_summary", "context_synthesis")
+    risk_level = "low"
+
+    async def execute(self, messages: Messages) -> Messages:
+        """执行 Agent 核心能力。"""
+
+        messages.assistant_message("这里是班级摘要结果。")
+        return messages
+```
+
+约束：
+
+- `agent_name` 必须全局唯一。
+- `execute()` 必须返回结果，不要只做副作用。
+- 业务读写优先走已有 command、service 或 tool，不在 Agent 中绕过权限。
+- 调 LLM 时统一走 `utils.llm.client_create`，不要绕过模型配置。
+- 复杂参数用 `Params` 或 Pydantic 模型表达，别把 JSON 解析散落到业务代码里。
+
+## 自动发现
+
+`BaseAgent` 提供类型驱动发现：
+
+```python
+from utils.llm.agents import BaseAgent
+
+
+agent_classes = BaseAgent.iter_agent_classes()
+summary_class = BaseAgent.get_agent_class("summary_agent")
+summary_agent = BaseAgent.create("summary_agent")
+```
+
+适用场景：
+
+- 管理端展示 Agent 类型。
+- 测试约束所有 Agent 继承统一基类。
+- 后续把 Agent 暴露到 Runtime 节点或工具目录。
+
+不适用场景：
+
+- Runtime 图节点仍由 `RuntimeNodeDefinition` 管理，因为节点是流程阶段，不是 Agent。
+- Command 工具仍由 `CommandToolCatalog` 管理，因为命令来自 Helper 和统一命令注册表。
+
+## ToolCallingAgent
+
+`ToolCallingAgent` 是通用工具调用智能体，继承 `BaseAgent`，实现现代 Agent 的基础闭环：
+
+```text
+context -> model -> tool call -> observation -> model -> final reply
+```
+
+示例：
+
+```python
+from utils.llm.agents import AgentSession, ToolCallingAgent, tool
+
+
+@tool(name="query_current_class", description="查询当前用户所在班级")
+async def query_current_class(user_id: int) -> dict[str, str]:
+    return {"status": "success", "class_name": "软件工程 1 班"}
+
+
+agent = ToolCallingAgent(
+    name="class_query_agent",
+    tools=[query_current_class],
+    instructions="你只能根据工具结果回答用户班级信息。",
+)
+
+session = AgentSession()
+response = await agent.run("我现在在哪个班级？", session=session)
+```
+
+旧导入 `Agent` 仍保留为兼容别名，但新代码统一写 `ToolCallingAgent`。
+
+## Function Agent
+
+当 Agent 需要作为 function calling 工具挂到其他 Agent 下时，继承 `BaseFunctionAgent`：
+
+```python
+from pydantic import BaseModel, Field
+
+from utils.llm.agents import BaseFunctionAgent
+from utils.llm.message import Messages
+
+
+class QueryScheduleAgent(BaseFunctionAgent):
+    """查询用户课表，并把查询结果写回模型上下文。"""
+
+    agent_name = "query_schedule"
+    display_name = "课表查询工具智能体"
+    capabilities = ("schedule_query",)
+    risk_level = "low"
+
+    class Params(BaseModel):
+        user_id: int = Field(description="系统用户 ID")
+        day_offset: int = Field(default=0, description="日期偏移，今天为 0，明天为 1")
+
+    async def execute(self, messages: Messages) -> Messages:
+        for tool_call in self.call_tools(messages):
+            params = self.Params.parse_raw(tool_call.function.arguments)
+            messages.tool_message(tool_call.id, f"用户 {params.user_id} 的课表查询完成。")
+        return messages
+```
+
+## 接入 AutoGPT Runtime
+
+继承 `BaseAgent` 不会自动让它出现在管理端编排画布里。画布编排的是 Runtime 节点，不是 Agent 类。
+
+如果要把某个 Agent 接入主流程：
+
+1. 在 `src/plugins/autogpt/coordination/nodes.py` 编写 `WorkflowNode` 子类。
+2. 节点内部调用 `BaseAgent.get_agent_class()` 或直接实例化具体 Agent。
+3. 在 `src/plugins/autogpt/node_registry.py` 新增 `RuntimeNodeDefinition`。
+4. 在 Runtime 节点目录中注册节点类型。
+5. 补 `tests/autogpt` 的图构建、禁用规则和回归测试。
+
+```mermaid
+flowchart LR
+    Designer["管理端 Runtime 图"] --> Node["WorkflowNode"]
+    Node --> Agent["BaseAgent 子类"]
+    Agent --> Tool["Tool / Command / RAG / Skill"]
+    Tool --> Observation["Observation 写回上下文"]
+```
+
+## 代码风格要求
+
+- 不新增无意义 `_helper` 方法。
+- 能表达业务概念的方法写成公开方法，便于测试和复用。
+- 多个方法稳定围绕一个概念工作时，抽成小类，例如 `WorkflowStepBuilder`、`WorkflowApprovalBuilder`。
+- 私有方法只保留给非常局部、不可复用的实现细节。
+- 不把 Runtime、Context、Retriever、Catalog 命名成 Agent。
+
+## 测试入口
+
+相关测试在：
+
+- `tests/autogpt/test_agent_standard.py`
+- `tests/autogpt/test_orchestration_config.py`
+- `tests/autogpt/test_knowledge.py`
+- `tests/autogpt/test_harness.py`
+
+建议每次改 Agent 基类或 Runtime 边界后运行：
+
+```powershell
+D:\Software\anaconda3\envs\classbot\python.exe -m pytest tests\autogpt -q
+D:\Software\anaconda3\envs\classbot\python.exe -m mypy --explicit-package-bases --follow-imports skip utils\llm\agents src\plugins\autogpt
+```

@@ -1,11 +1,13 @@
 from types import ModuleType, SimpleNamespace
 
+import pytest
+
 
 def test_spec_from_alconna_derives_params_and_helper_view(loaded_plugins):
     from arclet.alconna import Args, Alconna, MultiVar, CommandMeta
-    from src.commands import CommandBinding, spec_from_alconna
+    from utils.commands import CommandBinding, spec_from_alconna
     from utils.helper import HelperScope, ParamMode, UserRole
-    from src.commands.renderers.helper import command_spec_to_helper
+    from utils.commands.renderers.helper import command_spec_to_helper
 
     spec = spec_from_alconna(
         Alconna(
@@ -38,7 +40,7 @@ def test_spec_from_alconna_derives_params_and_helper_view(loaded_plugins):
 
 def test_command_alconna_registers_spec_and_attaches_helper(loaded_plugins):
     from arclet.alconna import Args, Alconna, CommandMeta
-    from src.commands import CommandBinding, command_alconna, command_registry
+    from utils.commands import CommandBinding, command_alconna, command_registry
     from utils.helper import HelperScope, ParamMode, UserRole
 
     matcher = command_alconna(
@@ -67,9 +69,94 @@ def test_command_alconna_registers_spec_and_attaches_helper(loaded_plugins):
     assert helper.params[0].mode == ParamMode.OPTIONAL
 
 
+@pytest.mark.asyncio
+async def test_on_agent_command_registers_alconna_matcher_helper_and_service_handler(loaded_plugins):
+    from arclet.alconna import Args, Alconna, CommandMeta
+    from utils.commands import (
+        CommandBinding,
+        CommandExecutionContext,
+        CommandResult,
+        command_executor,
+        command_registry,
+    )
+    from utils.commands import on_agent_command
+    from utils.helper import HelperScope
+    from utils.roles import UserRole
+
+    async def execute(params, context):
+        return CommandResult.ok(f"统一入口已处理：{params['关键词']}")
+
+    matcher = on_agent_command(
+        Alconna(
+            "测试统一入口",
+            Args["keyword", str],
+            meta=CommandMeta(description="测试统一命令入口"),
+        ),
+        aliases={"测试Agent入口"},
+        binding=CommandBinding(
+            roles={UserRole.user},
+            scopes={HelperScope.user},
+            param_labels={"keyword": "关键词"},
+        ),
+        service_handler=execute,
+        priority=1,
+        block=True,
+    )
+
+    spec = matcher.__command_spec__
+    helper = matcher.__helper__
+    result = await command_executor.execute(
+        "测试Agent入口",
+        {"关键词": "样例"},
+        CommandExecutionContext(roles={UserRole.user}, invoker="agent_workflow"),
+    )
+
+    assert command_registry.get("测试统一入口") is spec
+    assert command_registry.get("测试Agent入口") is spec
+    assert spec.execution_mode == "service"
+    assert helper.command == "测试统一入口"
+    assert helper.params[0].name == "关键词"
+    assert result.success is True
+    assert result.summary == "统一入口已处理：样例"
+
+
+@pytest.mark.asyncio
+async def test_on_agent_command_supports_decorator_style_agent_handler(loaded_plugins):
+    from utils.commands import CommandBinding, CommandExecutionContext, command_executor, on_agent_command
+    from utils.helper import HelperScope
+    from utils.roles import UserRole
+
+    matcher = on_agent_command(
+        "测试普通统一入口",
+        binding=CommandBinding(
+            description="测试普通命令统一入口",
+            roles={UserRole.user},
+            scopes={HelperScope.user},
+        ),
+        priority=1,
+        block=True,
+    )
+
+    @matcher.agent_handler
+    async def execute(params, context):
+        return {"summary": f"普通入口已处理：{params['名称']}", "name": params["名称"]}
+
+    result = await command_executor.execute(
+        "测试普通统一入口",
+        {"名称": "小明"},
+        CommandExecutionContext(roles={UserRole.user}, invoker="agent_workflow"),
+    )
+
+    assert matcher.__command_spec__.execution_mode == "service"
+    assert matcher.__helper__.description == "测试普通命令统一入口"
+    assert result.success is True
+    assert result.summary == "普通入口已处理：小明"
+    assert result.data["name"] == "小明"
+
+
 def test_bootstrap_helper_runtime_collects_matcher_bound_helpers(loaded_plugins):
     from arclet.alconna import Alconna, CommandMeta
-    from src.commands import CommandBinding, command_alconna
+    from utils.commands import CommandBinding, command_alconna
     from utils.helper.config import helper_menu
     from utils.helper.runtime import bootstrap_helper_runtime
 
@@ -92,3 +179,29 @@ def test_bootstrap_helper_runtime_collects_matcher_bound_helpers(loaded_plugins)
         assert helper.description == "测试绑定帮助说明"
     finally:
         bootstrap_helper_runtime(loaded_plugins)
+
+
+@pytest.mark.asyncio
+async def test_command_input_recorder_registry_dispatches_without_src_dependency(loaded_plugins):
+    from utils.commands import (
+        CommandSpec,
+        dispatch_command_input_recorders,
+        register_command_input_recorder,
+        unregister_command_input_recorder,
+    )
+
+    calls = []
+    spec = CommandSpec(name="测试记录器", description="测试命令输入记录器")
+
+    async def recorder(bot, event, command_spec):
+        calls.append((bot, event, command_spec.name))
+
+    register_command_input_recorder("tests.command_input_recorder", recorder)
+    try:
+        bot = SimpleNamespace(self_id="test-bot")
+        event = SimpleNamespace()
+        await dispatch_command_input_recorders(bot, event, spec)
+    finally:
+        unregister_command_input_recorder("tests.command_input_recorder")
+
+    assert calls == [(bot, event, "测试记录器")]

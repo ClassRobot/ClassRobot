@@ -4,7 +4,7 @@ from typing import Any
 
 from utils import Emoji
 from utils.session import EventSession
-from src.commands import CommandExecutionContext, CommandResult, command_executor
+from utils.commands import CommandExecutionContext, CommandResult, command_executor
 from utils.models import User, School, Classes, College, Major, Teacher
 from nonebot_plugin_alconna import AlconnaMatcher
 

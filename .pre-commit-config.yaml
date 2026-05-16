@@ -28,12 +28,20 @@ repos:
     hooks:
       - id: mypy-agents
         name: mypy agents
-        entry: mypy --follow-imports=skip --ignore-missing-imports utils/llm/agents/agent.py utils/llm/agents/schema.py utils/llm/agents/tool.py utils/llm/agents/tools.py utils/llm/agents/profiles.py utils/llm/agents/domestic.py utils/llm/agents/ragflow/client.py utils/storage/local_rag.py src/plugins/autogpt/__init__.py src/plugins/autogpt/checkpoints.py src/plugins/autogpt/command_tools.py src/plugins/autogpt/knowledge.py src/plugins/autogpt/pipeline.py src/plugins/autogpt/playbooks.py src/plugins/autogpt/runs.py src/plugins/autogpt/schema.py src/plugins/autogpt/util.py src/plugins/autogpt/workflow.py
+        entry: mypy --follow-imports=skip --ignore-missing-imports core/llm/__init__.py core/llm/config.py core/llm/gateway.py core/llm/message.py core/llm/typings.py core/llm/util.py core/llm/session.py core/llm/functools.py core/llm/exceptions.py core/agent/base.py core/agent/agent.py core/agent/schema.py core/agent/tool.py core/agent/tools.py core/agent/profiles.py core/agent/domestic.py core/agent/builtin/conversation.py core/agent/builtin/multimodal.py core/agent/builtin/planning.py core/agent/builtin/retrieval.py core/agent/ragflow/client.py core/agent/runtime/__init__.py core/agent/runtime/checkpoints.py core/agent/runtime/command_tools.py core/agent/runtime/knowledge.py core/agent/runtime/node_registry.py core/agent/runtime/orchestration_config.py core/agent/runtime/pipeline.py core/agent/runtime/playbooks.py core/agent/runtime/runs.py core/agent/runtime/schema.py core/agent/runtime/util.py core/agent/runtime/workflow.py core/agent/runtime/coordination/state.py core/agent/runtime/coordination/local_context.py core/agent/runtime/coordination/nodes.py core/agent/runtime/persistence/checkpoints.py core/agent/runtime/persistence/runs.py utils/storage/local_rag.py src/plugins/autogpt/__init__.py
         language: python
         language_version: python3.12
         additional_dependencies: ["mypy==1.18.2"]
         pass_filenames: false
-        files: ^(utils/llm/agents/(agent|schema|tool|tools|profiles|domestic)|utils/llm/agents/ragflow/client|utils/storage/local_rag|src/plugins/autogpt/(__init__|checkpoints|command_tools|knowledge|pipeline|playbooks|runs|schema|util|workflow))\.py$
+        files: ^(core/llm/.*|core/agent/.*|utils/storage/local_rag\.py|src/plugins/autogpt/__init__\.py)$
+        stages: [pre-commit]
+
+      - id: pyright-pylance
+        name: pyright pylance diagnostics
+        entry: python scripts/run_pyright_pylance.py -p pyrightconfig.json
+        language: system
+        pass_filenames: false
+        files: ^(core/llm/.*|core/agent/.*|src/plugins/autogpt/__init__\.py|src/routers/managers/(agent/.*|api/agents\.py|router\.py)|utils/storage/local_rag\.py)$
         stages: [pre-commit]
 
   - repo: https://github.com/python-poetry/poetry
