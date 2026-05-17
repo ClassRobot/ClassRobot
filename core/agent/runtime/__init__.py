@@ -13,15 +13,27 @@ from .pipeline import MessageProcessingPipeline as MessageProcessingPipeline
 from .workflow import WorkflowBuilder as WorkflowBuilder
 from .workflow import WorkflowExecutor as WorkflowExecutor
 from .graph_executor import RuntimeGraphExecutor as RuntimeGraphExecutor
+from .loop import LoopBudget as LoopBudget
+from .loop import AgentLoopConfig as AgentLoopConfig
+from .loop import AgentLoopDecision as AgentLoopDecision
+from .loop import CognitiveAgentLoop as CognitiveAgentLoop
+from .loop import ObservationFact as ObservationFact
+from .loop import CapabilityCatalog as CapabilityCatalog
 from .schema import TaskWorkflow as TaskWorkflow
 
 __all__ = [
     "AutoGPTHarness",
+    "AgentLoopConfig",
+    "AgentLoopDecision",
+    "CapabilityCatalog",
     "ChatSession",
     "ChatSessionDepends",
     "ChatSessionManager",
+    "CognitiveAgentLoop",
     "LocalKnowledgeRetriever",
+    "LoopBudget",
     "MessageProcessingPipeline",
+    "ObservationFact",
     "RuntimeContext",
     "RuntimeGraphExecutor",
     "SkillCatalog",

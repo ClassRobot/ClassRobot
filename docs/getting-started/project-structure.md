@@ -43,7 +43,8 @@ flowchart LR
 
 - `core/agent/`: Agent 类、工具调用 Agent、运行时编排图和 AutoGPT 消息处理流水线。
 - `core/llm/`: LLM 配置、网关、消息结构、模型调用和工具类型。
-- `core/skills/`: Agent Skill 的标准入口、运行时注册表和内置 skill。
+- `core/skills/`: Agent Skill 的标准入口、运行时注册表和内置 skill 代码。
+- `resources/skills/`: Skill 的资源定义文件，例如 `SKILL.md`。
 - `core/storage/`: 文件空间、聊天记录、本地 RAG 和存储隔离规则。
 
 新增 Agent、模型调用、Skill 或存储能力时，优先放在 `core` 对应子包；不要把核心能力塞回 `src/features`。
@@ -62,7 +63,7 @@ flowchart LR
 
 ## Agent Skill 目录约定
 
-- `core/skills/builtin/<name>/SKILL.md`: AI 可读的 skill 元数据与使用说明。
+- `resources/skills/<name>/SKILL.md`: AI 可读的 skill 元数据与使用说明。
 - `core/skills/builtin/<name>/runtime.py`: 可选的 skill 运行时入口，存在时可被自动加载。
 - `core/skills/registry.py`: 支持目录自动加载和手动注册。
 
@@ -79,7 +80,7 @@ flowchart LR
 - 新增用户命令：放在 `src/features/<feature>/commands.py`，共享逻辑放同目录 service 或更底层的 `core`。
 - 新增管理端接口：放在 `src/interfaces/http/managers/api/` 和对应领域子包中。
 - 新增 Agent 编排能力：放在 `core/agent/runtime`，并更新对应 Agent 文档和测试。
-- 新增 Skill：放在 `core/skills/builtin/<name>/`，并注册或提供 `runtime.py`。
+- 新增 Skill：资源放在 `resources/skills/<name>/`，代码放在 `core/skills/builtin/<name>/runtime.py`。
 - 新增存储能力：放在 `core/storage`，同时补充路径逃逸、归属隔离和删除语义测试。
 
 推荐做法：

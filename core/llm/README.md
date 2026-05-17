@@ -22,9 +22,11 @@
 ## 配置约定
 
 - `.env*`
-  - 放启动前就需要确定的模型接入配置，例如 `LLM_CONFIGS`、代理、密钥。
+  - 放启动前就需要确定的模型接入配置和硬限制，例如 `LLM_CONFIGS`、代理、密钥、Agent 循环锁。
 - `config/`
-  - 放运行时热更新数据，例如 Agent 编排图或本地动态配置。
+  - 放管理端或系统运行期的普通热更新数据。
+- `resources/agent/`
+  - 放 Agent 运行时编排图，例如 `agent_orchestration_runtime.json`。
 - 路径统一由 `utils.config` 提供，不在业务代码里手写绝对路径。
 
 ## 模型配置示例
@@ -48,6 +50,19 @@ LLM_CONFIGS='[
 - 每个模型可单独设置 `proxy`。
 - 默认不设置代理。
 - Agent 和 Runtime 不直接拼接 HTTP 客户端，统一走 `LLMConfig.build_async_openai_client()`。
+
+## Agent 循环锁
+
+这些配置同样写在 `.env`，因为它们是启动级安全边界，不属于运行时热更新数据：
+
+```dotenv
+AGENT_LOOP_MAX_STEPS=8
+AGENT_LOOP_MAX_VERIFY_ATTEMPTS=3
+AGENT_LOOP_MAX_REPEAT_ACTIONS=2
+AGENT_LOOP_MAX_RUNTIME_SECONDS=120
+```
+
+`core.agent.runtime.LoopBudget` 会强制执行这些上限，避免 Agent 反复验证或重复调用命令导致 token 和命令资源持续消耗。
 
 ## 导入约定
 

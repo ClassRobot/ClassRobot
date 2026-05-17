@@ -3,7 +3,7 @@ import inspect
 from pathlib import Path
 from typing import TypeVar, cast
 
-from utils.config import skills_dir
+from utils.config import skill_runtime_dir, skills_dir
 
 from .base import BaseProjectSkill, SkillManifest, discover_skill_manifests, parse_skill_manifest
 
@@ -13,13 +13,15 @@ T = TypeVar("T", bound=BaseProjectSkill)
 class SkillRegistry:
     """负责发现、注册并按名称提供项目内的 skill。"""
 
-    def __init__(self, root: Path) -> None:
+    def __init__(self, root: Path, runtime_root: Path | None = None) -> None:
         """初始化 skill 注册表。
 
         参数:
-            root (Path): skill 根目录。
+            root (Path): skill 资源根目录。
+            runtime_root (Path | None): skill 运行时代码根目录。
         """
         self.root = root
+        self.runtime_root = runtime_root or root
         self.manifests = discover_skill_manifests(root)
         self._classes: dict[str, type[BaseProjectSkill]] = {}
         self._instances: dict[str, BaseProjectSkill] = {}
@@ -49,18 +51,45 @@ class SkillRegistry:
         if not skill_cls.skill_name:
             raise ValueError(f"{skill_cls.__name__} 未定义 `skill_name`")
         if manifest is None and skill_dir is not None:
-            manifest = parse_skill_manifest(Path(skill_dir) / "SKILL.md")
+            manifest = parse_skill_manifest(self.resolve_manifest_dir(skill_dir) / "SKILL.md")
         self._ensure_manifest(skill_cls.skill_name, manifest)
         self._classes[skill_cls.skill_name] = skill_cls
         self._instances.pop(skill_cls.skill_name, None)
 
-    def _load_runtime_module(self, skill_dir: Path):
+    def resolve_manifest_dir(self, skill_dir: str | Path) -> Path:
+        """把 skill 名称、旧代码目录或资源目录统一解析成资源目录。"""
+
+        skill_path = Path(skill_dir)
+        candidates: list[Path] = []
+        if skill_path.is_absolute():
+            candidates.append(skill_path)
+        else:
+            candidates.extend((skill_path, self.root / skill_path, self.root / skill_path.name))
+            if self.runtime_root != self.root:
+                candidates.extend((self.runtime_root / skill_path, self.runtime_root / skill_path.name))
+
+        for candidate in candidates:
+            skill_file = candidate / "SKILL.md"
+            if skill_file.exists():
+                return candidate
+            resource_candidate = self.root / candidate.name
+            if resource_candidate != candidate and (resource_candidate / "SKILL.md").exists():
+                return resource_candidate
+        raise FileNotFoundError(f"未找到 skill 资源目录: {skill_dir}")
+
+    def resolve_runtime_dir(self, manifest_dir: Path) -> Path:
+        """根据资源目录名称解析对应的运行时代码目录。"""
+
+        runtime_dir = self.runtime_root / manifest_dir.name
+        return runtime_dir
+
+    def _load_runtime_module(self, runtime_dir: Path):
         """加载 skill 目录中的运行时模块。"""
-        runtime_file = skill_dir / "runtime.py"
+        runtime_file = runtime_dir / "runtime.py"
         if not runtime_file.exists():
             return None
 
-        module_name = f"classrobot_skill_{skill_dir.name.replace('-', '_')}"
+        module_name = f"classrobot_skill_{runtime_dir.name.replace('-', '_')}"
         spec = importlib.util.spec_from_file_location(module_name, runtime_file)
         if spec is None or spec.loader is None:
             raise ImportError(f"无法加载 skill 运行时模块: {runtime_file}")
@@ -93,11 +122,11 @@ class SkillRegistry:
         返回:
             tuple[type[BaseProjectSkill], ...]: 自动注册的 skill 类型列表。
         """
-        skill_path = Path(skill_dir)
-        manifest = parse_skill_manifest(skill_path / "SKILL.md")
+        manifest_dir = self.resolve_manifest_dir(skill_dir)
+        manifest = parse_skill_manifest(manifest_dir / "SKILL.md")
         self.manifests[manifest.name] = manifest
 
-        module = self._load_runtime_module(skill_path)
+        module = self._load_runtime_module(self.resolve_runtime_dir(manifest_dir))
         if module is None:
             return tuple()
 
@@ -115,7 +144,13 @@ class SkillRegistry:
         返回:
             tuple[type[BaseProjectSkill], ...]: 自动注册的 skill 类型列表。
         """
-        skills_root = Path(root) if root is not None else self.root
+        if root is None:
+            skills_root = self.root
+        else:
+            candidate = Path(root)
+            if (candidate / "SKILL.md").exists():
+                return self.load_skill(candidate)
+            skills_root = candidate
         if not skills_root.exists():
             return tuple()
 
@@ -159,5 +194,5 @@ class SkillRegistry:
         ]
 
 
-skill_registry = SkillRegistry(skills_dir)
+skill_registry = SkillRegistry(skills_dir, runtime_root=skill_runtime_dir)
 skill_registry.load_skills()

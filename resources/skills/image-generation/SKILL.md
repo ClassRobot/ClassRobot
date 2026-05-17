@@ -17,4 +17,4 @@ Use this skill when the request is to generate a new image from text, or to gene
 
 - This skill is the canonical image generation entry inside the project.
 - The current runtime implementation calls the configured Gemini image generation API.
-- The runtime implementation lives in `core/skills/runtime.py`.
+- The runtime implementation lives in `core/skills/builtin/image-generation/runtime.py`.

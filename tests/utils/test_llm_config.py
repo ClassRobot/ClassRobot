@@ -31,3 +31,21 @@ def test_core_llm_config_imports_from_canonical_entry(loaded_plugins):
     import core.llm.config as core_config_module
 
     assert core_config_module.__name__ == "core.llm.config"
+
+
+def test_autogpt_config_accepts_agent_loop_limits(loaded_plugins):
+    from core.llm.config import AutoGPTConfig
+
+    config = AutoGPTConfig.parse_obj(
+        {
+            "agent_loop_max_steps": "6",
+            "agent_loop_max_verify_attempts": "3",
+            "agent_loop_max_repeat_actions": "2",
+            "agent_loop_max_runtime_seconds": "90",
+        }
+    )
+
+    assert config.agent_loop_max_steps == 6
+    assert config.agent_loop_max_verify_attempts == 3
+    assert config.agent_loop_max_repeat_actions == 2
+    assert config.agent_loop_max_runtime_seconds == 90

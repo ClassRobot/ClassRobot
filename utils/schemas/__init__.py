@@ -1,11 +1,3 @@
-"""与教师相关的用户身份"""
+"""utils.schemas — 通用数据模型包。"""
 
-
-from strenum import StrEnum
-
-
-class Teacher(StrEnum):
-    """教师身份分为
-
-    任课老师
-    """
+__all__: list[str] = []

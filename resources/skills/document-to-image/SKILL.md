@@ -16,4 +16,4 @@ Use this skill when the input is a `.doc`, `.docx`, `.ppt`, `.pptx`, or `.pdf` f
 ## Notes
 
 - This skill is the canonical entry for document-to-image normalization inside the project.
-- The runtime implementation lives in `core/skills/runtime.py`.
+- The runtime implementation lives in `core/skills/builtin/document-to-image/runtime.py`.

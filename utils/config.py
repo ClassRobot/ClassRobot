@@ -67,12 +67,15 @@ features_dir: Path = project_root / "src" / "features"
 interfaces_dir: Path = project_root / "src" / "interfaces"
 agents_dir: Path = core_dir / "agent"
 agent_resources_dir: Path = resources_dir / "agent"
-skills_dir: Path = core_dir / "skills" / "builtin"
+skill_resources_dir: Path = resources_dir / "skills"
+skill_runtime_dir: Path = core_dir / "skills" / "builtin"
+skills_dir: Path = skill_resources_dir
 static_dir: Path = resources_dir
 prompts_dir = resources_dir / "prompts"
 template_dir = resources_dir / "templates"
 
 agent_resources_dir.mkdir(parents=True, exist_ok=True)
+skill_resources_dir.mkdir(parents=True, exist_ok=True)
 
 temp_dir = data_dir / "temp"
 temp_dir.mkdir(parents=True, exist_ok=True)

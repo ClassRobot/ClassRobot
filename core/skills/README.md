@@ -16,12 +16,12 @@
 ## 当前约定
 
 - 统一导入入口：`core.skills`
-- Skill 元数据：`core/skills/builtin/<name>/SKILL.md`
+- Skill 元数据：`resources/skills/<name>/SKILL.md`
 - Skill 运行时：`core/skills/builtin/<name>/runtime.py`
 - 注册与发现：通过 `skill_registry` 统一完成
 
 ## 维护建议
 
-- 新增 Skill 时，先补 `SKILL.md`，再决定是否需要 `runtime.py`
+- 新增 Skill 时，先补 `resources/skills/<name>/SKILL.md`，再决定是否需要 `core/skills/builtin/<name>/runtime.py`
 - 业务模块不要自行维护第二套 Skill 扫描逻辑
-- 如果未来需要迁移 Skill 资源目录，优先保持统一导入入口不变，再迁移物理路径
+- Skill 资源和 Skill 代码分层维护，不要再把 `SKILL.md` 放回 `core/skills/builtin/`

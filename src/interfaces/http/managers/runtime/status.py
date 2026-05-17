@@ -10,7 +10,7 @@ from sqlalchemy import text
 from nonebot import get_driver
 from nonebot_plugin_orm import get_session
 
-from utils.config import cache_dir, config_dir, data_dir, prompts_dir, project_root, skills_dir
+from utils.config import cache_dir, config_dir, data_dir, prompts_dir, project_root, skill_runtime_dir, skills_dir
 from utils.cache.config import plugin_config as cache_config
 from core.llm.config import plugin_config as llm_config
 from utils.tools.cos.config import plugin_config as cos_config
@@ -82,7 +82,8 @@ def check_paths() -> dict[str, Any]:
         "cache_dir": path_payload(cache_dir),
         "config_dir": path_payload(config_dir),
         "prompts_dir": path_payload(prompts_dir),
-        "skills_dir": path_payload(skills_dir),
+        "skill_resources_dir": path_payload(skills_dir),
+        "skill_runtime_dir": path_payload(skill_runtime_dir),
     }
 
 

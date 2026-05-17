@@ -23,8 +23,8 @@ from core.agent.runtime.orchestration_config import (
     write_runtime_orchestration_config,
 )
 from core.agent.runtime.playbooks import playbook_catalog
-from utils.config import autogpt_dir, project_root, prompts_dir, skills_dir, storage_dir
 from core.llm.config import plugin_config as llm_config
+from utils.config import autogpt_dir, project_root, prompts_dir, skill_runtime_dir, skills_dir, storage_dir
 from utils.models import AgentWorkflowCheckpoint, AgentWorkflowRun
 from ..runtime import nonebot
 from ..service import manager_config_path, now_iso, relative_to_project
@@ -762,10 +762,20 @@ class AgentManagerService:
             AgentConfigItem(
                 id="skill_root",
                 group="Skill",
-                name="Skill 根目录",
+                name="Skill 资源目录",
                 value=relative_to_project(skills_dir),
-                description="Agent Skill 由 SkillRegistry 从该目录发现并加载。",
+                description="Agent Skill 的 SKILL.md 资源由 SkillRegistry 从该目录发现。",
                 source="utils.config.skills_dir",
+                editable=False,
+                toggleable=False,
+            ),
+            AgentConfigItem(
+                id="skill_runtime_root",
+                group="Skill",
+                name="Skill 代码目录",
+                value=relative_to_project(skill_runtime_dir),
+                description="Skill 的 runtime.py 代码从该目录加载。",
+                source="utils.config.skill_runtime_dir",
                 editable=False,
                 toggleable=False,
             ),

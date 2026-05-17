@@ -8,6 +8,8 @@
   - LLM、Agent、任务规划等场景使用的 Prompt 模板
 - `agent/`
   - Agent Runtime 工作流编排配置和相关资源
+- `skills/`
+  - Skill 的 `SKILL.md` 资源定义文件
 - `templates/`
   - HTML 渲染模板、卡片模板或其他展示层静态模板
 - `models/ocr/`

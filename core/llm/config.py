@@ -72,6 +72,14 @@ class AutoGPTConfig(BaseModel):
 
     llm_configs: list[LLMConfig] = Field(default_factory=list)
     llm_timeout: float = 20
+    agent_loop_max_steps: int = 8
+    """单轮 Agent observe-act 循环最多执行多少步。"""
+    agent_loop_max_verify_attempts: int = 3
+    """同一目标最多验证多少次。"""
+    agent_loop_max_repeat_actions: int = 2
+    """同一命令和同一参数最多重复多少次。"""
+    agent_loop_max_runtime_seconds: int = 120
+    """单轮 Agent observe-act 循环最长运行秒数。"""
 
     @validator("llm_configs", pre=True, allow_reuse=True)
     def normalize_llm_configs(cls, value: object) -> object:

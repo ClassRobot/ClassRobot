@@ -22,9 +22,11 @@ from .harness import AutoGPTHarness
 from .knowledge import RuntimeContext
 from .exception import SessionLockError
 from .pipeline import MessageProcessingPipeline
+from .loop import CognitiveAgentLoop
+from .command_tools import CommandToolCatalog
 from .persistence import WorkflowRunStore, WorkflowCheckpointStore
 from .orchestration_config import get_runtime_orchestration_snapshot
-from .workflow import WorkflowDispatcher, WorkflowExecutor, workflow_to_auto_tasks, clone_workflow_for_execution, workflow_requires_confirmation
+from .workflow import WorkflowDispatcher, workflow_to_auto_tasks, clone_workflow_for_execution, workflow_requires_confirmation
 from .schema import (
     ChatMessage,
     IntentRoute,
@@ -246,7 +248,11 @@ class ChatSession:
         """执行 AI 任务流，并在同一轮把观察结果整理为最终回复。"""
 
         current_trace_id = trace_id or self.last_trace_id
-        execution = await WorkflowExecutor(dispatcher).execute(workflow)
+        execution = await CognitiveAgentLoop(
+            dispatcher,
+            messages=self.messages,
+            command_tools=CommandToolCatalog.from_helpers(self.helpers),
+        ).execute(workflow)
         if execution.observations:
             self.record_observations(execution.observations, trace_id=current_trace_id)
         await self.record_workflow(execution.workflow, trace_id=current_trace_id)

@@ -14,6 +14,8 @@
   - 本地聊天、文件空间、本地 RAG 和 Skill 目录。
 - `workflow.py`
   - 显式工作流构建、审批语义和执行器。
+- `loop.py`
+  - 观察驱动循环、循环预算锁、Observation 事实化和能力目录契约。
 - `orchestration_config.py`
   - 运行时图编排配置、热更新、默认图和图校验。
 - `node_registry.py`
@@ -39,10 +41,55 @@ flowchart TD
     Route --> Context["上下文与检索"]
     Context --> Plan["任务计划"]
     Plan --> TaskFlow["TaskWorkflow\nAI 临时任务流"]
-    TaskFlow --> Executor["WorkflowExecutor\n命令 / Skill / 确认 / 定时任务"]
-    Executor --> Observation["CommandObservation\n写回会话上下文"]
+    TaskFlow --> Loop["CognitiveAgentLoop\n选择能力 / 执行 / 观察 / 验证"]
+    Loop --> Observation["CommandObservation\n写回会话上下文"]
     Observation --> Reply["ExecutionReplyAgent\n最终自然语言总结"]
 ```
+
+## 观察驱动循环
+
+`CognitiveAgentLoop` 是任务执行层的新标准，不再为某个业务场景写死“先查再建再查”的过程代码，而是用同一套通用闭环处理任务、班级、通知、课表等能力：
+
+```text
+理解目标 -> 选择能力 -> 执行一步 -> 读取观察 -> 自我修正规划 -> 验证结果 -> 总结/追问
+```
+
+循环中的核心对象：
+
+- `CapabilityCatalog`
+  - 当前用户可见且可由 Agent 调用的能力目录。第一版承接 service-style command，后续 skill、RAG、schedule 按同一契约加入。
+- `ObservationFact`
+  - 把 `CommandObservation` 转成结构化事实，例如 `exists=false`、`changed=true`、`verified=false`。
+- `AgentLoopDecision`
+  - 单轮下一步动作，只保存可审计摘要，不保存冗长推理。
+- `LoopBudget`
+  - 代码强制的循环锁，负责最大步数、最大验证次数、重复动作次数和运行时间上限。
+
+已有 `TaskWorkflow.steps` 会作为候选步骤进入循环；每步执行后都会解释 observation。若 observation 显示“需要验证”或“目标不存在且可继续处理”，循环可通过 `resources/prompts/agent_loop_decision.jinja` 让监督模型基于能力目录决定下一步。模型只能选择能力目录中的能力，不能绕过权限、可见性、风险确认或循环预算。
+
+## 循环锁配置
+
+循环锁是启动级硬配置，写在 `.env`，不是热更新配置，也不是 prompt 建议：
+
+```dotenv
+AGENT_LOOP_MAX_STEPS=8
+AGENT_LOOP_MAX_VERIFY_ATTEMPTS=3
+AGENT_LOOP_MAX_REPEAT_ACTIONS=2
+AGENT_LOOP_MAX_RUNTIME_SECONDS=120
+```
+
+含义：
+
+- `AGENT_LOOP_MAX_STEPS`
+  - 单轮最多执行多少次 act-observe 动作。
+- `AGENT_LOOP_MAX_VERIFY_ATTEMPTS`
+  - 同一验证目标最多验证多少次。
+- `AGENT_LOOP_MAX_REPEAT_ACTIONS`
+  - 同一命令和同一参数最多重复多少次。
+- `AGENT_LOOP_MAX_RUNTIME_SECONDS`
+  - 单轮循环最长运行秒数。
+
+达到上限后，循环必须停止，并基于已有 observation 说明已经尝试了哪些步骤、为什么停止、用户可以怎样继续。不能静默失败，也不能编造成已经成功。
 
 ## 调用链
 
@@ -55,7 +102,7 @@ flowchart TD
     D --> E["BaseAgent 子类"]
     E --> F["Command / Skill / RAG / Local Memory"]
     F --> G["Observation 写回 Messages"]
-    G --> H["WorkflowBuilder / WorkflowExecutor"]
+    G --> H["WorkflowBuilder / CognitiveAgentLoop"]
     H --> I["ExecutionReplyAgent"]
 ```
 
@@ -108,7 +155,7 @@ flowchart TD
 
 AI 代替用户执行命令后，不能只把命令原始输出丢给用户。标准链路是：
 
-1. `WorkflowExecutor` 执行 `TaskWorkflow` 步骤。
+1. `CognitiveAgentLoop` 执行 `TaskWorkflow` 步骤，并在每步后读取 observation 和循环预算。
 2. 每个命令返回 `CommandObservation`。
 3. `ChatSession.record_observations()` 把紧凑结果写回会话上下文。
 4. `ExecutionReplyAgent` 基于 workflow、observation 和短原始输出生成最终自然语言回复。
@@ -140,7 +187,7 @@ result = await agent.execute(pipeline.messages)
 
 ## 热更新规则
 
-- 草稿保存到 `config/`。
+- Agent 运行时编排图保存到 `resources/agent/agent_orchestration_runtime.json`，路径由 `utils.config.agent_resources_dir` 统一提供。
 - 运行时通过 `mtime` 检测自动重载。
 - 图无效时退回默认编排图，并记录 warning。
 - 管理端看到的是 `WorkflowGraph` 和 `RuntimeNodeDefinition`，不是随意拼出来的匿名步骤。
@@ -161,5 +208,6 @@ result = await agent.execute(pipeline.messages)
 - `tests/autogpt/test_harness.py`
 - `tests/autogpt/test_knowledge.py`
 - `tests/autogpt/test_orchestration_config.py`
+- `tests/autogpt/test_agent_loop.py`
 - `tests/autogpt/test_workflow.py`
 - `tests/autogpt/test_session.py`

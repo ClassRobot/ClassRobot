@@ -4,7 +4,7 @@
 
 项目里这类可复用的 AI 增强能力不再只以“零散工具函数”存在，而是统一收敛为 skill：
 
-- `core/skills/builtin/<skill-name>/SKILL.md` 保存 AI 可读的能力定义
+- `resources/skills/<skill-name>/SKILL.md` 保存 AI 可读的能力定义
 - `core/skills/` 负责 skill 的运行时注册、发现与调用
 - `core/skills/` 负责 skill 的运行时注册、发现与调用
 - 业务模块优先通过 skill 入口使用能力，而不是直接拼装底层库调用
@@ -74,9 +74,10 @@
 
 ## 目录约定
 
+- `resources/skills/`
+  - 存放符合 skill 规范的能力资源目录，每个 skill 至少包含一个 `SKILL.md`
 - `core/skills/builtin/`
-  - 存放符合 skill 规范的能力目录，每个 skill 至少包含一个 `SKILL.md`
-  - 若希望被自动加载，目录下再提供一个 `runtime.py`
+  - 存放 skill 的运行时代码目录，若希望被自动加载，目录下提供 `runtime.py`
 - `core/skills/base.py`
   - 负责解析 `SKILL.md` frontmatter，并生成 manifest
 - `core/skills/registry.py`
@@ -97,7 +98,7 @@
 
 ## 默认行为
 
-- 导入 `core.skills` 时，会默认扫描 `core/skills/builtin/`
+- 导入 `core.skills` 时，会默认扫描 `resources/skills/`
 - 注册表初始化位置在 `core/skills/registry.py`
 - 默认扫描完成后，`skill_registry` 就可以直接按名称获取 skill
 - 如果你新增了新的 skill 目录，通常不需要再手写注册代码，只要目录结构和 `runtime.py` 符合约定即可
@@ -110,7 +111,7 @@
 ```python
 from core.skills import load_skills
 
-load_skills("core/skills/builtin")
+load_skills("resources/skills")
 ```
 
 自动加载规则：
@@ -125,9 +126,14 @@ load_skills("core/skills/builtin")
 最小目录结构：
 
 ```text
+resources/skills/
+└── my-skill/
+    └── SKILL.md
+```
+
+```text
 core/skills/builtin/
 └── my-skill/
-    ├── SKILL.md
     └── runtime.py
 ```
 
@@ -178,7 +184,7 @@ __skills__ = [FooSkill, BarSkill]
 ```python
 from core.skills import register_skill
 
-register_skill(MySkill, skill_dir="core/skills/builtin/my-skill")
+register_skill(MySkill, skill_dir="resources/skills/my-skill")
 ```
 
 手动注册仍然保留，目录自动加载只是默认方案，不会取代显式注册。
@@ -189,7 +195,7 @@ register_skill(MySkill, skill_dir="core/skills/builtin/my-skill")
 from core.skills import register_skill
 from core.skills.base import parse_skill_manifest
 
-manifest = parse_skill_manifest(Path("core/skills/builtin/my-skill/SKILL.md"))
+manifest = parse_skill_manifest(Path("resources/skills/my-skill/SKILL.md"))
 register_skill(MySkill, manifest=manifest)
 ```
 
@@ -197,8 +203,8 @@ register_skill(MySkill, manifest=manifest)
 
 当你要新增一个项目内 skill，推荐按下面的顺序做：
 
-1. 在 `core/skills/builtin/<skill-name>/` 下创建 `SKILL.md`
-2. 在同目录下创建 `runtime.py`
+1. 在 `resources/skills/<skill-name>/` 下创建 `SKILL.md`
+2. 在 `core/skills/builtin/<skill-name>/` 下创建 `runtime.py`
 3. 在 `runtime.py` 中暴露 `__skill__` 或 `__skills__`
 4. 让运行时类继承 `BaseProjectSkill`
 5. 保证类上的 `skill_name` 和 `SKILL.md` 的 `name` 一致
@@ -242,7 +248,7 @@ image = qr_code_skill.encode("https://example.com")
 
 - `skill_name` 必须和 `SKILL.md` 的 `name` 一致，否则无法正确注册
 - `register_skill(...)` 会覆盖同名 skill 的运行时类型，并清掉旧实例缓存
-- `SKILL.md` 只有元数据和说明作用；真正给 Python 运行时用的是 `runtime.py`
+- `SKILL.md` 只有元数据和说明作用；真正给 Python 运行时用的是 `core/skills/builtin/<name>/runtime.py`
 - 自动加载时尽量避免在 `runtime.py` 顶层做重初始化
   - 推荐把 OCR 模型、COS 客户端、浏览器渲染器之类的重依赖放到方法里按需导入
 - 如果一个目录只有 `SKILL.md` 没有 `runtime.py`
@@ -254,15 +260,16 @@ image = qr_code_skill.encode("https://example.com")
 
 可以直接参考这些目录：
 
-- `core/skills/builtin/document-to-image/`
-- `core/skills/builtin/image-generation/`
-- `core/skills/builtin/ocr/`
-- `core/skills/builtin/qr-code/`
-- `core/skills/builtin/markdown-to-image/`
+- `resources/skills/document-to-image/`
+- `resources/skills/image-generation/`
+- `resources/skills/markdown-to-image/`
+- `resources/skills/ocr/`
+- `resources/skills/qr-code/`
 
 对应运行时实现集中在：
 
 - `core/skills/runtime.py`
+- `core/skills/builtin/<skill-name>/runtime.py`
 
 对应注册与发现逻辑在：
 
