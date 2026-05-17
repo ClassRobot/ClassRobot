@@ -224,7 +224,7 @@ SQLALCHEMY_DATABASE_URL=postgresql+asyncpg://user:password@127.0.0.1:5432/classb
 
 ### 4.2 LLM 模型路由配置
 
-这部分来自 `utils/llm/config.py`。
+这部分来自 `core/llm/config.py`。
 
 | 变量名 | 是否必填 | 示例值 | 作用 |
 | --- | --- | --- | --- |

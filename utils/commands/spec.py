@@ -29,6 +29,7 @@ class CommandSpec(BaseModel):
     agent_callable: bool = True
     execution_mode: CommandExecutionMode = "matcher"
     plugin_module: str | None = None
+    helper_visible: bool = True
 
     @property
     def commands(self) -> set[str]:

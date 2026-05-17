@@ -4,7 +4,7 @@ import pytest
 
 
 def test_file_space_initializes_expected_directories(loaded_plugins, tmp_path):
-    from utils.storage import DEFAULT_HOME_DIRS, StorageManager
+    from core.storage import DEFAULT_HOME_DIRS, StorageManager
 
     manager = StorageManager(tmp_path / "storage")
     space = manager.user_space(10001)
@@ -19,7 +19,7 @@ def test_file_space_initializes_expected_directories(loaded_plugins, tmp_path):
 
 
 def test_file_space_keeps_cwd_inside_home(loaded_plugins, tmp_path):
-    from utils.storage import StorageManager
+    from core.storage import StorageManager
 
     space = StorageManager(tmp_path / "storage").user_space(1)
     space.mkdir("documents/project")
@@ -31,7 +31,7 @@ def test_file_space_keeps_cwd_inside_home(loaded_plugins, tmp_path):
 
 
 def test_file_space_rejects_query_and_delete_escape(loaded_plugins, tmp_path):
-    from utils.storage import PathEscapeError, StorageManager
+    from core.storage import PathEscapeError, StorageManager
 
     manager = StorageManager(tmp_path / "storage")
     user_a = manager.user_space("A")
@@ -48,7 +48,7 @@ def test_file_space_rejects_query_and_delete_escape(loaded_plugins, tmp_path):
 
 
 def test_file_space_file_crud_and_protected_directories(loaded_plugins, tmp_path):
-    from utils.storage import FileSpaceError, StorageManager
+    from core.storage import FileSpaceError, StorageManager
 
     space = StorageManager(tmp_path / "storage").group_space(20001)
 
@@ -70,7 +70,7 @@ def test_file_space_file_crud_and_protected_directories(loaded_plugins, tmp_path
 
 
 def test_file_space_list_entries_skips_size_calculation_by_default(loaded_plugins, tmp_path):
-    from utils.storage import StorageManager
+    from core.storage import StorageManager
 
     space = StorageManager(tmp_path / "storage").user_space(30001)
     space.mkdir("documents/project")
@@ -88,7 +88,7 @@ def test_file_space_list_entries_skips_size_calculation_by_default(loaded_plugin
 
 
 def test_storage_manager_can_delete_whole_user_and_group_space(loaded_plugins, tmp_path):
-    from utils.storage import StorageManager
+    from core.storage import StorageManager
 
     manager = StorageManager(tmp_path / "storage")
     user_space = manager.user_space(40001)
@@ -111,7 +111,7 @@ def test_storage_manager_can_delete_whole_user_and_group_space(loaded_plugins, t
 @pytest.mark.asyncio
 async def test_collect_upload_payloads_downloads_file_url(loaded_plugins, monkeypatch):
     from nonebot_plugin_alconna import File
-    from src.plugins.file_manager import services
+    from src.features.file_manager import services
 
     async def fake_download_file(url):
         return f"downloaded:{url}".encode()

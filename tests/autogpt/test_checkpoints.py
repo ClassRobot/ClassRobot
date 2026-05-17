@@ -3,11 +3,11 @@ import pytest
 
 @pytest.mark.asyncio
 async def test_workflow_checkpoint_store_roundtrip(loaded_plugins, workflow_checkpoint_table):
-    from src.plugins.autogpt.persistence import WorkflowCheckpointStore
-    from src.plugins.autogpt.schema import AgentWorkflow, WorkflowStep
+    from core.agent.runtime.persistence import WorkflowCheckpointStore
+    from core.agent.runtime.schema import TaskWorkflow, WorkflowStep
 
     store = WorkflowCheckpointStore()
-    workflow = AgentWorkflow(
+    workflow = TaskWorkflow(
         trace_id="autogpt-persist",
         kind="command_sequence",
         status="needs_confirm",
@@ -37,11 +37,11 @@ async def test_workflow_checkpoint_store_roundtrip(loaded_plugins, workflow_chec
 @pytest.mark.asyncio
 async def test_chat_session_restores_pending_workflow_from_checkpoint(loaded_plugins, workflow_checkpoint_table):
     from utils.helper import Helpers
-    from src.plugins.autogpt.util import ChatSession
-    from src.plugins.autogpt.schema import AgentWorkflow, WorkflowStep
+    from core.agent.runtime.util import ChatSession
+    from core.agent.runtime.schema import TaskWorkflow, WorkflowStep
 
     first_session = ChatSession(user_id=9, helpers=Helpers())
-    workflow = AgentWorkflow(
+    workflow = TaskWorkflow(
         trace_id="autogpt-restore",
         kind="command",
         status="needs_confirm",
@@ -71,12 +71,12 @@ async def test_chat_session_restores_pending_workflow_from_checkpoint(loaded_plu
 @pytest.mark.asyncio
 async def test_confirming_restored_workflow_updates_checkpoint(loaded_plugins, workflow_checkpoint_table):
     from utils.helper import Helpers
-    from src.plugins.autogpt.util import ChatSession
-    from src.plugins.autogpt.persistence import WorkflowCheckpointStore
-    from src.plugins.autogpt.schema import AgentWorkflow, WorkflowStep
+    from core.agent.runtime.util import ChatSession
+    from core.agent.runtime.persistence import WorkflowCheckpointStore
+    from core.agent.runtime.schema import TaskWorkflow, WorkflowStep
 
     pending_session = ChatSession(user_id=12, helpers=Helpers())
-    workflow = AgentWorkflow(
+    workflow = TaskWorkflow(
         trace_id="autogpt-pending",
         kind="command_sequence",
         status="needs_confirm",
@@ -107,12 +107,12 @@ async def test_confirming_restored_workflow_updates_checkpoint(loaded_plugins, w
 @pytest.mark.asyncio
 async def test_clearing_session_removes_persisted_checkpoint(loaded_plugins, workflow_checkpoint_table):
     from utils.helper import Helpers
-    from src.plugins.autogpt.util import ChatSession
-    from src.plugins.autogpt.persistence import WorkflowCheckpointStore
-    from src.plugins.autogpt.schema import AgentWorkflow, WorkflowStep
+    from core.agent.runtime.util import ChatSession
+    from core.agent.runtime.persistence import WorkflowCheckpointStore
+    from core.agent.runtime.schema import TaskWorkflow, WorkflowStep
 
     session = ChatSession(user_id=20, helpers=Helpers())
-    workflow = AgentWorkflow(
+    workflow = TaskWorkflow(
         trace_id="autogpt-clear",
         kind="command",
         status="needs_confirm",

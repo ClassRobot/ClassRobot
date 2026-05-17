@@ -33,10 +33,12 @@
   - 把运行时鉴权 guard 绑定到 matcher 前面
 - `utils/helper/depends.py`
   - 基于 `user.roles` 过滤出当前用户可见的命令集合
-- `src/plugins/helper/__init__.py`
+- `src/features/helper/__init__.py`
   - `help` 命令入口
-- `src/plugins/autogpt/`
-  - 使用过滤后的 helpers 构建 Agent 可见命令目录
+- `src/features/autogpt/`
+  - 负责把平台消息接入 Agent 入口
+- `core/agent/runtime/`
+  - 使用过滤后的 helpers 构建 Agent 可见命令目录并执行统一命令桥接
 
 ## 总体流向图
 
@@ -187,9 +189,10 @@ flowchart TD
 
 - `utils/helper/depends.py`
   - 根据 `user.roles` 返回过滤后的 `Helpers`
-- `src/plugins/helper/__init__.py`
+- `src/features/helper/__init__.py`
   - `help` 用这份结果渲染目录
-- `src/plugins/autogpt/*`
+- `src/features/autogpt/*`
+- `core/agent/runtime/*`
   - AutoGPT 用这份结果构建 `CommandToolCatalog`
 
 只要命令补齐了 `Helper` 元数据，这三处就会自然保持一致。
@@ -246,7 +249,7 @@ flowchart TD
 2. 再看 `utils/models/depends.py`
 3. 再看 `utils/models/models.py` 的 `User.roles`
 4. 再看 `utils/helper/schema.py`
-5. 最后看 `utils/helper/runtime.py` 和 `src/plugins/helper/__init__.py`
+5. 最后看 `utils/helper/runtime.py` 和 `src/features/helper/__init__.py`
 
 ## 对应专题文档
 

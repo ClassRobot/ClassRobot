@@ -35,7 +35,7 @@
 | 运行时编排图 | `RuntimeGraphConfig` | 开发者 / 管理后台 | 热更新配置，决定消息进入系统后经过哪些 Runtime 节点和条件分支 |
 | AI 任务执行流 | `TaskWorkflow` | AI 在系统约束内生成 | 按用户目标临时生成 command、skill、confirm、respond、schedule 步骤 |
 
-`AgentWorkflow` 仅作为历史兼容别名保留，新代码统一使用 `TaskWorkflow`。
+`TaskWorkflow` 仅作为历史兼容别名保留，新代码统一使用 `TaskWorkflow`。
 
 ## 为什么不是直接让 AI 调数据库
 
@@ -116,7 +116,7 @@ flowchart TD
 
 ## 当前已落地的两层工作流
 
-本轮改造后，核心实现已经迁入 `core.agent.runtime`，`src/plugins/autogpt` 只保留 NoneBot 薄入口和旧导入兼容。
+本轮改造后，核心实现已经迁入 `core.agent.runtime`，`src/features/autogpt` 只保留 NoneBot 薄入口、会话接线和结果发送。
 
 ### 1. 运行时编排图
 
@@ -350,7 +350,7 @@ sequenceDiagram
 
 - 新意图类型：扩展 Router / Planner
 - 新项目命令：使用 `on_agent_command()` 声明，并按需注册 service handler
-- 新通用能力：补 `src/agents/skills/`
+- 新通用能力：补 `core/skills/`
 - 新执行器能力：扩展 `WorkflowExecutor`
 - 新高频多步场景：补 `playbooks.py`
 

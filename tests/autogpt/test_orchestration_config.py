@@ -8,7 +8,7 @@ pytestmark = pytest.mark.usefixtures("loaded_plugins")
 
 
 def _node_registry():
-    from src.plugins.autogpt.node_registry import (
+    from core.agent.runtime.node_registry import (
         DEFAULT_RUNTIME_NODE_ORDER,
         REQUIRED_RUNTIME_NODE_TYPES,
         RUNTIME_NODE_REGISTRY,
@@ -18,7 +18,7 @@ def _node_registry():
 
 
 def _orchestration_config():
-    from src.plugins.autogpt import orchestration_config
+    from core.agent.runtime import orchestration_config
 
     return orchestration_config
 
@@ -210,9 +210,9 @@ def test_runtime_orchestration_store_recomputes_node_order(monkeypatch, tmp_path
 
 def test_pipeline_build_nodes_uses_hot_reloaded_runtime_graph(monkeypatch, tmp_path, loaded_plugins):
     from utils.helper import Helpers
-    from utils.llm.message import Messages
-    from src.plugins.autogpt.harness import AutoGPTHarness
-    from src.plugins.autogpt.pipeline import MessageProcessingPipeline
+    from core.llm.message import Messages
+    from core.agent.runtime.harness import AutoGPTHarness
+    from core.agent.runtime.pipeline import MessageProcessingPipeline
 
     default_node_order, required_node_types, _ = _node_registry()
     orchestration_config = _orchestration_config()
@@ -233,9 +233,9 @@ def test_pipeline_build_nodes_uses_hot_reloaded_runtime_graph(monkeypatch, tmp_p
 
 def test_pipeline_build_nodes_uses_default_graph_without_config(monkeypatch, tmp_path, loaded_plugins):
     from utils.helper import Helpers
-    from utils.llm.message import Messages
-    from src.plugins.autogpt.harness import AutoGPTHarness
-    from src.plugins.autogpt.pipeline import MessageProcessingPipeline
+    from core.llm.message import Messages
+    from core.agent.runtime.harness import AutoGPTHarness
+    from core.agent.runtime.pipeline import MessageProcessingPipeline
 
     default_node_order, _, _ = _node_registry()
     orchestration_config = _orchestration_config()
@@ -253,10 +253,10 @@ def test_pipeline_build_nodes_uses_default_graph_without_config(monkeypatch, tmp
 
 @pytest.mark.asyncio
 async def test_runtime_graph_executor_takes_conditional_direct_reply_branch(loaded_plugins):
-    from src.plugins.autogpt.schema import AutoTaskList
-    from src.plugins.autogpt.coordination import PipelineState
-    from src.plugins.autogpt.graph_executor import RuntimeGraphExecutor
-    from src.plugins.autogpt.orchestration_config import default_graph_config
+    from core.agent.runtime.schema import AutoTaskList
+    from core.agent.runtime.coordination import PipelineState
+    from core.agent.runtime.graph_executor import RuntimeGraphExecutor
+    from core.agent.runtime.orchestration_config import default_graph_config
 
     visited: list[str] = []
 
@@ -298,10 +298,10 @@ async def test_runtime_graph_executor_takes_conditional_direct_reply_branch(load
 
 def test_pipeline_resolves_configured_model_profile(loaded_plugins):
     from utils.helper import Helpers
-    from utils.llm.message import Messages
-    from src.plugins.autogpt.harness import AutoGPTHarness
-    from src.plugins.autogpt.pipeline import MessageProcessingPipeline
-    from src.plugins.autogpt.orchestration_config import ModelProfileConfig, default_graph_config
+    from core.llm.message import Messages
+    from core.agent.runtime.harness import AutoGPTHarness
+    from core.agent.runtime.pipeline import MessageProcessingPipeline
+    from core.agent.runtime.orchestration_config import ModelProfileConfig, default_graph_config
 
     harness = AutoGPTHarness.build(helpers=Helpers(), messages=Messages(), trace_id="autogpt-model-profile")
     pipeline = MessageProcessingPipeline(harness=harness)
@@ -312,16 +312,13 @@ def test_pipeline_resolves_configured_model_profile(loaded_plugins):
     assert pipeline.resolve_model_name() == "strong-model"
 
 
-def test_runtime_compatibility_modules_alias_core_runtime():
-    """旧运行时路径应与 core 运行时共享同一实现模块。"""
+def test_runtime_modules_are_imported_from_core_runtime():
+    """运行时模块应直接从 core 运行时入口导入。"""
 
     import core.agent.runtime.knowledge as core_knowledge
-    import src.plugins.autogpt.pipeline as legacy_pipeline
-    import src.plugins.autogpt.orchestration_config as legacy_orchestration
-    import src.plugins.autogpt.knowledge as legacy_knowledge
     import core.agent.runtime.pipeline as core_pipeline
     import core.agent.runtime.orchestration_config as core_orchestration
 
-    assert legacy_pipeline is core_pipeline
-    assert legacy_orchestration is core_orchestration
-    assert legacy_knowledge is core_knowledge
+    assert core_pipeline.__name__ == "core.agent.runtime.pipeline"
+    assert core_orchestration.__name__ == "core.agent.runtime.orchestration_config"
+    assert core_knowledge.__name__ == "core.agent.runtime.knowledge"

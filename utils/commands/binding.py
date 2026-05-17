@@ -35,6 +35,7 @@ class CommandBinding(BaseModel):
     agent_callable: bool = True
     execution_mode: CommandExecutionMode = "matcher"
     plugin_module: str | None = None
+    helper_visible: bool = True
 
 
 def command_alconna(alconna: Alconna, *, binding: CommandBinding | None = None, aliases=None, **kwargs):
@@ -174,6 +175,7 @@ def spec_from_alconna(
         agent_callable=binding.agent_callable,
         execution_mode=binding.execution_mode,
         plugin_module=binding.plugin_module,
+        helper_visible=binding.helper_visible,
     )
 
 
@@ -210,6 +212,7 @@ def spec_from_command(
         agent_callable=binding.agent_callable,
         execution_mode=binding.execution_mode,
         plugin_module=binding.plugin_module,
+        helper_visible=binding.helper_visible,
     )
 
 
@@ -221,11 +224,12 @@ def _bind_spec_to_matcher(matcher, spec: CommandSpec) -> None:
         spec: 待绑定的命令元数据。
     """
 
-    helper = command_spec_to_helper(spec)
     command_registry.register(spec)
     matcher.__command_spec__ = spec
-    matcher.__helper__ = helper
-    matcher.__helper_command__ = helper.command
+    if spec.helper_visible:
+        helper = command_spec_to_helper(spec)
+        matcher.__helper__ = helper
+        matcher.__helper_command__ = helper.command
 
 
 def _bind_command_history_recorder(matcher, spec: CommandSpec) -> None:
@@ -490,14 +494,14 @@ def _plugin_module_from_module_name(module_name: str) -> str:
     """将业务子模块名折叠成插件模块名。
 
     Args:
-        module_name: Python 模块名，例如 ``src.managers.user.commands``。
+        module_name: Python 模块名，例如 ``src.features.user.commands``。
 
     Returns:
-        str: 插件模块名，例如 ``src.managers.user``。
+        str: 插件模块名，例如 ``src.features.user``。
     """
 
     parts = module_name.split(".")
-    if len(parts) >= 3 and parts[0] == "src" and parts[1] in {"managers", "plugins", "others", "routers"}:
+    if len(parts) >= 3 and parts[0] == "src" and parts[1] == "features":
         return ".".join(parts[:3])
     return module_name
 

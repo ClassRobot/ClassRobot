@@ -53,7 +53,7 @@ flowchart TD
 - `planning.py`
   - `AutoTaskAgent`
 
-`utils/llm/agents/*` 现在只保留旧导入兼容，不再作为新增 Agent 的落点。
+Agent 实现统一放在 `core/agent/`，其中内置 Agent 放在 `core/agent/builtin/`。
 
 ## BaseAgent 标准协议
 
@@ -84,7 +84,7 @@ class ClassSummaryAgent(BaseAgent):
 - `agent_name` 必须全局唯一。
 - `execute()` 必须返回结果，不要只做副作用。
 - 业务读写优先走已有 command、service 或 tool，不在 Agent 中绕过权限。
-- 调 LLM 时统一走 `utils.llm.client_create`，不要绕过模型配置。
+- 调 LLM 时统一走 `core.llm.client_create`，不要绕过模型配置。
 - 复杂参数用 `Params` 或 Pydantic 模型表达，别把 JSON 解析散落到业务代码里。
 
 ## 自动发现
@@ -92,7 +92,7 @@ class ClassSummaryAgent(BaseAgent):
 `BaseAgent` 提供类型驱动发现：
 
 ```python
-from utils.llm.agents import BaseAgent
+from core.agent import BaseAgent
 
 
 agent_classes = BaseAgent.iter_agent_classes()
@@ -122,7 +122,7 @@ context -> model -> tool call -> observation -> model -> final reply
 示例：
 
 ```python
-from utils.llm.agents import AgentSession, ToolCallingAgent, tool
+from core.agent import AgentSession, ToolCallingAgent, tool
 
 
 @tool(name="query_current_class", description="查询当前用户所在班级")
@@ -140,7 +140,7 @@ session = AgentSession()
 response = await agent.run("我现在在哪个班级？", session=session)
 ```
 
-旧导入 `Agent` 仍保留为兼容别名，但新代码统一写 `ToolCallingAgent`。
+项目中不再维护 `Agent` 旧别名；通用工具调用智能体统一写 `ToolCallingAgent`。
 
 ## Function Agent
 
@@ -149,8 +149,8 @@ response = await agent.run("我现在在哪个班级？", session=session)
 ```python
 from pydantic import BaseModel, Field
 
-from utils.llm.agents import BaseFunctionAgent
-from utils.llm.message import Messages
+from core.agent import BaseFunctionAgent
+from core.llm.message import Messages
 
 
 class QueryScheduleAgent(BaseFunctionAgent):
@@ -178,9 +178,9 @@ class QueryScheduleAgent(BaseFunctionAgent):
 
 如果要把某个 Agent 接入主流程：
 
-1. 在 `src/plugins/autogpt/coordination/nodes.py` 编写 `WorkflowNode` 子类。
+1. 在 `core/agent/runtime/coordination/nodes.py` 编写 `WorkflowNode` 子类。
 2. 节点内部调用 `BaseAgent.get_agent_class()` 或直接实例化具体 Agent。
-3. 在 `src/plugins/autogpt/node_registry.py` 新增 `RuntimeNodeDefinition`。
+3. 在 `core/agent/runtime/node_registry.py` 新增 `RuntimeNodeDefinition`。
 4. 在 Runtime 节点目录中注册节点类型。
 5. 补 `tests/autogpt` 的图构建、禁用规则和回归测试。
 
@@ -213,5 +213,5 @@ flowchart LR
 
 ```powershell
 D:\Software\anaconda3\envs\classbot\python.exe -m pytest tests\autogpt -q
-D:\Software\anaconda3\envs\classbot\python.exe -m mypy --explicit-package-bases --follow-imports skip utils\llm\agents src\plugins\autogpt
+D:\Software\anaconda3\envs\classbot\python.exe -m mypy --explicit-package-bases --follow-imports skip core\llm core\agent src\features
 ```

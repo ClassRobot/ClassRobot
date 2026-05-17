@@ -14,7 +14,7 @@ def test_command_policy_and_availability_share_soft_disable_state(loaded_plugins
         description="用于测试软关闭",
         roles={UserRole.user},
         scopes={HelperScope.user},
-        plugin_module="src.plugins.test_command_core",
+        plugin_module="src.features.test_command_core",
     )
     helpers = Helpers()
     helpers.append(command_spec_to_helper(spec))
@@ -30,6 +30,28 @@ def test_command_policy_and_availability_share_soft_disable_state(loaded_plugins
         assert "维护中" in decision.reason
     finally:
         command_availability.clear()
+
+
+def test_hidden_command_spec_does_not_create_helper_view():
+    from utils.commands import CommandSpec
+    from utils.commands.binding import _bind_spec_to_matcher
+    from utils.helper import HelperScope
+
+    class DummyMatcher:
+        pass
+
+    matcher = DummyMatcher()
+    spec = CommandSpec(
+        name="隐藏命令",
+        description="不应出现在帮助菜单中",
+        scopes={HelperScope.public},
+        helper_visible=False,
+    )
+
+    _bind_spec_to_matcher(matcher, spec)
+
+    assert matcher.__command_spec__ is spec
+    assert not hasattr(matcher, "__helper__")
 
 
 @pytest.mark.asyncio
@@ -75,7 +97,7 @@ def test_command_tool_catalog_prefers_registered_spec_and_respects_agent_visibil
     from utils.commands import CommandParam, CommandResult, CommandSpec, command_executor, command_registry
     from utils.commands.availability import command_availability
     from utils.commands.renderers.helper import command_spec_to_helper
-    from src.plugins.autogpt.command_tools import CommandToolCatalog
+    from core.agent.runtime.command_tools import CommandToolCatalog
     from utils.helper import Helpers, HelperScope
     from utils.roles import UserRole
 
@@ -86,7 +108,7 @@ def test_command_tool_catalog_prefers_registered_spec_and_respects_agent_visibil
         roles={UserRole.user},
         scopes={HelperScope.user},
         risk_level="medium",
-        plugin_module="src.plugins.test_command_core",
+        plugin_module="src.features.test_command_core",
         execution_mode="service",
     )
     hidden_spec = CommandSpec(
@@ -95,7 +117,7 @@ def test_command_tool_catalog_prefers_registered_spec_and_respects_agent_visibil
         roles={UserRole.user},
         scopes={HelperScope.user},
         agent_callable=False,
-        plugin_module="src.plugins.test_command_core",
+        plugin_module="src.features.test_command_core",
     )
     command_registry.register(visible_spec)
     command_registry.register(hidden_spec)

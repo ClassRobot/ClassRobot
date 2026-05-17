@@ -286,10 +286,6 @@ class TaskWorkflow(BaseModel):
         return event
 
 
-AgentWorkflow = TaskWorkflow
-"""兼容旧导入名；新代码应使用 TaskWorkflow。"""
-
-
 class AgentTurnResult(BaseModel):
     """统一承载一次 AutoGPT 处理的结构化结果。"""
 
@@ -315,7 +311,7 @@ class WorkflowExecutionResult(BaseModel):
     raw_outputs: list[str] = Field(default_factory=list)
     """命令产生且尚未直接发送给用户的原始可见输出。"""
     user_message: str | None = None
-    """兼容旧入口的回退消息；新代码优先使用 final_reply。"""
+    """展示层可选的简短执行消息；最终回复优先使用 final_reply。"""
     final_reply: str | None = None
     """基于观察结果生成的最终自然语言回复。"""
     show_raw_outputs: bool = False

@@ -1,6 +1,6 @@
 # AutoGPT Runtime 开发指南
 
-`core.agent.runtime` 是 AutoGPT 的真实运行时层。`src/plugins/autogpt/__init__.py` 现在只负责 NoneBot 消息入口、会话接线和结果发送；重逻辑统一放在这里。
+`core.agent.runtime` 是 AutoGPT 的真实运行时层。`src/features/autogpt/__init__.py` 现在只负责 NoneBot 消息入口、会话接线和结果发送；重逻辑统一放在这里。
 
 ## 模块边界
 
@@ -48,7 +48,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    A["src/plugins/autogpt/__init__.py<br/>NoneBot 入口"] --> B["ChatSession"]
+    A["src/features/autogpt/__init__.py<br/>NoneBot 入口"] --> B["ChatSession"]
     B --> C["MessageProcessingPipeline"]
     C --> X["RuntimeGraphExecutor<br/>条件边执行器"]
     X --> D["WorkflowNode"]

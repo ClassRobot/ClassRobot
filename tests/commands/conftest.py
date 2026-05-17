@@ -383,7 +383,7 @@ def patch_onebot_userinfo(monkeypatch, loaded_plugins):
 def fake_cache(monkeypatch) -> MemoryCache:
     """把命令里的缓存调用切到内存实现。"""
 
-    import src.managers.user as user_module
+    import src.features.user as user_module
     import utils.cache as cache_module
 
     cache = MemoryCache()

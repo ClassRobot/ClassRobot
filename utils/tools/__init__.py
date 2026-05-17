@@ -154,7 +154,7 @@ def get_url_suffix(url: str) -> str | None:
 
 async def md_to_html(md: str) -> str:
     """将 Markdown 转换为 HTML。"""
-    from src.agents.skills import markdown_to_image_skill
+    from core.skills import markdown_to_image_skill
 
     return await markdown_to_image_skill.to_html(md)
 
@@ -168,7 +168,7 @@ def text_to_qrcode(text: str) -> bytes:
     返回:
         bytes: 二维码图片
     """
-    from src.agents.skills import qr_code_skill
+    from core.skills import qr_code_skill
 
     return qr_code_skill.encode(text)
 
@@ -182,7 +182,7 @@ def decode_qrcode(image: bytes | str | Path) -> list[str]:
     返回:
         list[str]: 识别得到的二维码文本列表。
     """
-    from src.agents.skills import qr_code_skill
+    from core.skills import qr_code_skill
 
     return qr_code_skill.decode(image)
 

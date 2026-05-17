@@ -4,7 +4,7 @@ import re
 from nonebot.internal.matcher.matcher import MatcherMeta
 
 EXPECTED_COMMAND_OBJECTS = {
-    "src.managers.classes.commands": {
+    "src.features.classes.commands": {
         "import_classes_cmd": "导入班级",
         "create_classes_cmd": "添加班级",
         "delete_classes_cmd": "删除班级",
@@ -15,7 +15,7 @@ EXPECTED_COMMAND_OBJECTS = {
         "set_join_classes_cmd": "修改班级加入方式",
         "exit_classes_cmd": "退出班级",
     },
-    "src.managers.group.commands": {
+    "src.features.group.commands": {
         "add_school": "添加学校",
         "set_school": "修改学校",
         "delete_school": "删除学校",
@@ -33,50 +33,50 @@ EXPECTED_COMMAND_OBJECTS = {
         "join_organization": "加入组织",
         "exit_organization": "退出组织",
     },
-    "src.managers.student.commands": {
+    "src.features.student.commands": {
         "query_cmd": "查询学生信息",
         "set_cmd": "修改学生信息",
     },
-    "src.managers.teacher.commands": {
+    "src.features.teacher.commands": {
         "query_teacher_cmd": "查询教师信息",
         "set_teacher_cmd": "修改教师信息",
     },
-    "src.managers.user.commands": {
+    "src.features.user.commands": {
         "self_info_cmd": "我的信息",
         "bind_user_cmd": "绑定用户",
         "logout_cmd": "注销",
         "token_cmd": "token",
     },
-    "src.plugins.curriculum.commands": {
+    "src.features.curriculum.commands": {
         "add_curricula": "添加课表",
         "del_curricula": "删除课表",
         "query_curricula": "查询课表",
         "share_curricula": "分享课表",
         "set_week_cmd": "设置当前周",
     },
-    "src.plugins.find_at.commands": {
+    "src.features.find_at.commands": {
         "find_student_cmd": "查找学生",
         "at_cmd": "at",
     },
-    "src.plugins.leave.commands": {
+    "src.features.leave.commands": {
         "add_leave_cmd": "请假",
         "query_leave_cmd": "请假列表",
         "set_leave_push_cmd": "设置请假推送",
         "delete_leave_cmd": "删除请假",
     },
-    "src.plugins.notice.commands": {
+    "src.features.notice.commands": {
         "notice_cmd": "创建通知",
         "query_notice_cmd": "查询通知",
         "delete_notice_cmd": "删除通知",
     },
-    "src.plugins.tasks.commands": {
+    "src.features.tasks.commands": {
         "push_task_cmd": "提交任务",
         "create_task_cmd": "创建任务",
         "delete_task_cmd": "删除任务",
         "export_task_cmd": "导出任务",
         "query_task_cmd": "查询任务",
     },
-    "src.plugins.file_manager.commands": {
+    "src.features.file_manager.commands": {
         "pwd_cmd": "pwd",
         "ls_cmd": "ls",
         "cd_cmd": "cd",
@@ -89,16 +89,16 @@ EXPECTED_COMMAND_OBJECTS = {
         "tree_cmd": "tree",
         "upload_file_cmd": "上传文件",
     },
-    "src.plugins.chat_context.commands": {
+    "src.features.chat_context.commands": {
         "query_group_history_cmd": "检索群聊记录",
     },
-    "src.plugins.helper": {"help_cmd": "help"},
-    "src.plugins.autogpt": {"clear_chat": "清空聊天"},
+    "src.features.helper.commands": {"help_cmd": "help"},
+    "src.features.autogpt.commands": {"clear_chat": "清空聊天"},
 }
 
 EXPECTED_RULE_ALIASES = {
-    ("src.plugins.notice.commands", "notice_cmd"): {"创建通知", "定时", "转发"},
-    ("src.managers.user.commands", "token_cmd"): {"token"},
+    ("src.features.notice.commands", "notice_cmd"): {"创建通知", "定时", "转发"},
+    ("src.features.user.commands", "token_cmd"): {"token"},
 }
 
 

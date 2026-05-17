@@ -9,7 +9,7 @@ from utils.helper import Helpers
 from core.llm import LLMTaskType, client_create
 from core.llm.message import Content, Context, Messages
 from core.llm.util import uni_message_to_contents
-from utils.storage import ChatHistoryStore, ChatHistorySummary, chat_history_store
+from core.storage import ChatHistoryStore, ChatHistorySummary, chat_history_store
 from core.agent.builtin import AutoTaskAgent, ExtractAgent, RagAgent, SummaryAgent
 from core.agent.builtin.conversation import ExtractAgentConfig, SummaryAgentConfig
 

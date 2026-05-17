@@ -30,7 +30,7 @@ async def _recreate_admin_orm_schema() -> None:
 
 @pytest.fixture(scope="session")
 def manager_app(loaded_plugins):
-    import src.routers.path  # noqa: F401
+    import src.interfaces.http.path  # noqa: F401
 
     return nonebot.get_app()
 
@@ -44,7 +44,7 @@ async def manager_client(manager_app):
 
 @pytest.fixture(autouse=True)
 def reset_manager_tokens():
-    from src.routers.managers.security import token_store
+    from src.interfaces.http.managers.security import token_store
 
     token_store.rotate_startup_token(log_token=False)
     yield
@@ -53,8 +53,8 @@ def reset_manager_tokens():
 
 @pytest.fixture(autouse=True)
 def isolate_manager_audit_log(monkeypatch, tmp_path):
-    from src.routers.managers import audit
-    from src.routers.managers.runtime import operations
+    from src.interfaces.http.managers import audit
+    from src.interfaces.http.managers.runtime import operations
 
     monkeypatch.setattr(audit, "AUDIT_LOG_PATH", tmp_path / "manager_audit.jsonl")
     monkeypatch.setattr(operations, "AUTOMATION_SCRIPT_PATH", tmp_path / "manager_automation_scripts.json")
@@ -62,7 +62,7 @@ def isolate_manager_audit_log(monkeypatch, tmp_path):
 
 @pytest.fixture(autouse=True)
 def isolate_manager_command_state(monkeypatch, tmp_path):
-    from src.routers.managers.runtime import command_state
+    from src.interfaces.http.managers.runtime import command_state
 
     from utils.commands.availability import command_availability
 
@@ -77,7 +77,7 @@ def isolate_manager_command_state(monkeypatch, tmp_path):
 
 @pytest.fixture(autouse=True)
 def isolate_manager_database_cache():
-    from src.routers.managers.database import service as databases
+    from src.interfaces.http.managers.database import service as databases
 
     databases.clear_database_metadata_cache()
     yield
@@ -86,8 +86,8 @@ def isolate_manager_database_cache():
 
 @pytest.fixture
 def isolated_agent_designer(monkeypatch, tmp_path):
-    from src.plugins.autogpt import orchestration_config
-    from src.routers.managers.agent import service as agents
+    from core.agent.runtime import orchestration_config
+    from src.interfaces.http.managers.agent import service as agents
 
     designer_path = tmp_path / "agent_designer.json"
     runtime_path = tmp_path / "agent_orchestration_runtime.json"
@@ -102,11 +102,11 @@ def isolated_agent_designer(monkeypatch, tmp_path):
 
 @pytest.fixture
 def manager_storage(monkeypatch, tmp_path):
-    from src.routers.managers.storage import files as manager_files
-    from src.routers.managers.identity import groups as manager_groups
-    from src.routers.managers.storage import chat_history as manager_chat_history
+    from src.interfaces.http.managers.storage import files as manager_files
+    from src.interfaces.http.managers.identity import groups as manager_groups
+    from src.interfaces.http.managers.storage import chat_history as manager_chat_history
 
-    from utils.storage import StorageManager
+    from core.storage import StorageManager
     import utils.models.models as model_definitions
 
     isolated_storage = StorageManager(root=tmp_path / "storage")
@@ -119,7 +119,7 @@ def manager_storage(monkeypatch, tmp_path):
 
 @pytest_asyncio.fixture
 async def manager_auth_headers(manager_client):
-    from src.routers.managers.security import token_store
+    from src.interfaces.http.managers.security import token_store
 
     response = await manager_client.post(
         "/api/v1/manager/auth/login",
@@ -217,7 +217,7 @@ async def seeded_manager_checkpoint(manager_workflow_tables):
 
 
 async def test_manager_auth_flow(manager_client):
-    from src.routers.managers.security import token_store
+    from src.interfaces.http.managers.security import token_store
 
     unauthorized = await manager_client.get("/api/v1/manager/auth/me")
     assert unauthorized.status_code == 401
@@ -264,7 +264,7 @@ async def test_manager_settings_masks_secrets_and_rejects_invalid_keys(manager_c
 
 
 async def test_manager_settings_update_writes_temp_env(manager_client, manager_auth_headers, monkeypatch, tmp_path):
-    from src.routers.managers.runtime import settings as settings_store
+    from src.interfaces.http.managers.runtime import settings as settings_store
 
     env_path = tmp_path / ".env"
     env_path.write_text("GLOBAL_PROXY=http://old.example\n", "utf-8")
@@ -305,7 +305,7 @@ async def test_manager_settings_update_writes_temp_env(manager_client, manager_a
 
 
 async def test_manager_runtime_config_snapshot_reads_driver_config(manager_client, manager_auth_headers, monkeypatch):
-    from src.routers.managers.runtime import settings as settings_store
+    from src.interfaces.http.managers.runtime import settings as settings_store
 
     class DummyConfig:
         def dict(self):
@@ -342,7 +342,7 @@ async def test_manager_runtime_config_snapshot_reads_driver_config(manager_clien
 
 
 async def test_manager_models_validate_payload(manager_client, manager_auth_headers, monkeypatch, tmp_path):
-    from src.routers.managers.runtime import settings as settings_store
+    from src.interfaces.http.managers.runtime import settings as settings_store
 
     env_path = tmp_path / ".env"
     monkeypatch.setattr(settings_store, "ENV_PATH", env_path)
@@ -386,7 +386,7 @@ async def test_manager_models_validate_payload(manager_client, manager_auth_head
 
 
 async def test_manager_models_save_proxy_field(manager_client, manager_auth_headers, monkeypatch, tmp_path):
-    from src.routers.managers.runtime import settings as settings_store
+    from src.interfaces.http.managers.runtime import settings as settings_store
 
     env_path = tmp_path / ".env"
     monkeypatch.setattr(settings_store, "ENV_PATH", env_path)
@@ -441,7 +441,7 @@ async def test_manager_prompts_validate_update_and_reject_invalid_name(
     monkeypatch,
     tmp_path,
 ):
-    from src.routers.managers.catalog import prompts
+    from src.interfaces.http.managers.catalog import prompts
 
     prompts_root = tmp_path / "prompts"
     prompts_root.mkdir()
@@ -489,14 +489,14 @@ async def test_manager_prompts_validate_update_and_reject_invalid_name(
 
 
 async def test_safe_prompt_path_rejects_cross_platform_traversal():
-    from src.routers.managers.catalog.prompts import _safe_prompt_path
+    from src.interfaces.http.managers.catalog.prompts import _safe_prompt_path
 
     with pytest.raises(ValueError):
         _safe_prompt_path("..\\secret")
 
 
 async def test_manager_logs_limit_access_to_allowed_roots(manager_client, manager_auth_headers, monkeypatch, tmp_path):
-    from src.routers.managers.runtime import logs
+    from src.interfaces.http.managers.runtime import logs
 
     allowed_root = tmp_path / "logs"
     allowed_root.mkdir()
@@ -545,7 +545,7 @@ async def test_manager_system_metrics_include_resource_usage(manager_client, man
 
 
 async def test_manager_operations_list_run_and_404_missing_action(manager_client, manager_auth_headers, monkeypatch):
-    from src.routers.managers.runtime import operations
+    from src.interfaces.http.managers.runtime import operations
 
     async def sample_action():
         return {"ok": True, "message": "sample"}
@@ -1097,7 +1097,7 @@ async def test_manager_nonebot_availability_controls(manager_client, manager_aut
     assert pwd_command["availability_reason"] == "maintenance"
 
     plugin_update = await manager_client.patch(
-        "/api/v1/manager/nonebot/plugins/src.plugins.file_manager/availability",
+        "/api/v1/manager/nonebot/plugins/src.features.file_manager/availability",
         headers=manager_auth_headers,
         json={"enabled": False, "reason": "plugin-disabled"},
     )
@@ -1107,7 +1107,7 @@ async def test_manager_nonebot_availability_controls(manager_client, manager_aut
     plugin_listing = await manager_client.get("/api/v1/manager/nonebot/plugins", headers=manager_auth_headers)
     assert plugin_listing.status_code == 200, plugin_listing.text
     file_manager_plugin = next(
-        item for item in plugin_listing.json()["items"] if item["module_name"] == "src.plugins.file_manager"
+        item for item in plugin_listing.json()["items"] if item["module_name"] == "src.features.file_manager"
     )
     assert file_manager_plugin["available"] is False
     assert file_manager_plugin["availability_reason"] == "plugin-disabled"
@@ -1259,7 +1259,7 @@ async def test_manager_chat_history_management_api(
     manager_storage,
 ):
     from utils.models import User, Classes
-    from utils.storage import ChatHistoryStore, MessageActorRole
+    from core.storage import ChatHistoryStore, MessageActorRole
 
     suffix = uuid4().hex[:8]
     private_user = await User.create_user(nickname="聊天用户", username=f"manager_chat_user_{suffix}")
@@ -1458,7 +1458,7 @@ async def test_manager_chat_history_delete_space(
     manager_storage,
 ):
     from utils.models import User
-    from utils.storage import ChatHistoryStore, MessageActorRole
+    from core.storage import ChatHistoryStore, MessageActorRole
 
     suffix = uuid4().hex[:8]
     private_user = await User.create_user(nickname="聊天删除用户", username=f"manager_chat_delete_{suffix}")
@@ -1600,7 +1600,7 @@ async def test_manager_agent_designer_draft(manager_client, manager_auth_headers
 
 
 async def test_manager_agent_designer_apply_hot_reload(manager_client, manager_auth_headers, isolated_agent_designer):
-    from src.plugins.autogpt.orchestration_config import get_runtime_orchestration_snapshot
+    from core.agent.runtime.orchestration_config import get_runtime_orchestration_snapshot
 
     detail = await manager_client.get("/api/v1/manager/agents/designer", headers=manager_auth_headers)
     assert detail.status_code == 200, detail.text

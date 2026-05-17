@@ -245,7 +245,7 @@ RAG 不等于“查文档 + 拼 Prompt”。
 当前项目的 RAG 更接近：
 
 - `RagAgent`
-- `utils/llm/agents/ragflow/`
+- `core/agent/ragflow/`
 - 外部 RagFlow 服务
 
 一句话理解：
@@ -454,27 +454,27 @@ Workflow 是“复杂请求的骨架”，Agent 是“骨架中的智能节点�
 ### 当前已经有的部分
 
 - 入口层
-  - `src/plugins/`
-  - `src/others/`
+  - `src/features/`
+  - `src/features/`
 - 上下文与策略层
   - `utils/session/`
   - `utils/models/depends.py`
   - `utils/helper/depends.py`
 - 编排层
-  - `src/plugins/autogpt/`
-  - `utils/llm/agents/`
+  - `src/features/autogpt/`
+  - `core/agent/`
 - 能力层
   - `skills/`
-  - `utils/skills/`
+  - `core/skills/`
 - 知识层
   - `RagAgent + RagFlow`
 - 业务层
-  - `src/managers/`
+  - `src/features/`
   - 多个业务插件
 - 基础设施层
   - `utils/models/`
   - `utils/tools/`
-  - `utils/llm/`
+  - `core/llm/`
 
 ### 当前还不完整的部分
 

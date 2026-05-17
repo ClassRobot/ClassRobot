@@ -29,7 +29,7 @@ from .schema import (
     ChatMessage,
     IntentRoute,
     AutoTaskList,
-    AgentWorkflow,
+    TaskWorkflow,
     AgentTurnResult,
     CommandObservation,
     WorkflowExecutionResult,
@@ -113,9 +113,9 @@ class ChatSession:
         self.messages = Messages()
         self.helpers = helpers
         self.last_trace_id = ""
-        self.last_workflow: AgentWorkflow | None = None
+        self.last_workflow: TaskWorkflow | None = None
         self.last_turn_result: AgentTurnResult | None = None
-        self.pending_workflow: AgentWorkflow | None = None
+        self.pending_workflow: TaskWorkflow | None = None
         self.workflow_checkpoint_store = WorkflowCheckpointStore()
         self.workflow_run_store = WorkflowRunStore()
 
@@ -238,7 +238,7 @@ class ChatSession:
 
     async def execute_task_workflow(
         self,
-        workflow: AgentWorkflow,
+        workflow: TaskWorkflow,
         dispatcher: WorkflowDispatcher,
         *,
         trace_id: str = "",
@@ -273,7 +273,7 @@ class ChatSession:
             logger.warning(f'AutoGPT trace "{self.last_trace_id}" execution reply synthesis failed: {error}')
             return execution.user_message or ""
 
-    async def record_workflow(self, workflow: AgentWorkflow, trace_id: str = "") -> None:
+    async def record_workflow(self, workflow: TaskWorkflow, trace_id: str = "") -> None:
         """把当前轮次的工作流状态写回会话。"""
 
         self.last_workflow = workflow
@@ -285,7 +285,7 @@ class ChatSession:
         await self.workflow_checkpoint_store.save_workflow(self.user_id, workflow)
         await self.workflow_run_store.save_run(self.user_id, workflow)
 
-    async def restore_pending_workflow(self) -> AgentWorkflow | None:
+    async def restore_pending_workflow(self) -> TaskWorkflow | None:
         """从持久化检查点恢复待确认工作流。"""
 
         if self.pending_workflow is not None:
@@ -382,7 +382,7 @@ class ChatSession:
         text = "".join(content.value for content in contents if content.type == "text")
         return re.sub(r"[\s,，。！？!?.；;:：~～、]", "", text).lower()
 
-    def append_workflow_message(self, workflow: AgentWorkflow, trace_id: str = "") -> None:
+    def append_workflow_message(self, workflow: TaskWorkflow, trace_id: str = "") -> None:
         """把工作流快照写入会话消息，便于后续轮次继续引用。"""
 
         content = json.dumps(workflow.dict(), ensure_ascii=False, default=str)

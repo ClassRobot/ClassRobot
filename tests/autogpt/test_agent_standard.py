@@ -62,7 +62,7 @@ def test_runtime_components_do_not_enter_agent_registry():
     assert not issubclass(WorkflowNode, BaseAgent)
 
 
-def test_utils_llm_agent_suffix_classes_inherit_base_agent():
+def test_core_agent_suffix_classes_inherit_base_agent():
     """core.agent 中以 Agent 结尾的真实类必须继承 BaseAgent。"""
 
     import core.agent.agent as agent_module
@@ -93,21 +93,21 @@ def test_builtin_agents_are_exported_from_new_entrypoints():
     assert builtin_module.ExecutionReplyAgent is ExecutionReplyAgent
 
 
-def test_core_agent_entrypoints_match_compatibility_paths():
-    """新旧导入路径应指向同一套 Agent 实现。"""
+def test_core_agent_entrypoints_export_builtin_agents():
+    """核心入口应直接导出内置 Agent 实现。"""
 
     from core.agent import SummaryAgent as CoreSummaryAgent, ToolCallingAgent as CoreToolCallingAgent
-    from utils.llm.agents import SummaryAgent, ToolCallingAgent
+    from core.agent import SummaryAgent, ToolCallingAgent
 
     assert ToolCallingAgent is CoreToolCallingAgent
     assert SummaryAgent is CoreSummaryAgent
 
 
-def test_core_packages_do_not_import_legacy_llm_or_autogpt_namespaces():
-    """core 层不应反向依赖兼容路径。"""
+def test_core_packages_do_not_import_removed_namespaces():
+    """core 层不应反向依赖已经移除的旧命名空间。"""
 
     project_root = Path(__file__).resolve().parents[2]
-    legacy_prefixes = ("utils.llm", "src.plugins.autogpt")
+    removed_prefixes = ("utils.llm", "utils.storage", "utils.skills", "src.features.autogpt.")
     for root in (project_root / "core" / "llm", project_root / "core" / "agent"):
         for path in root.rglob("*.py"):
             tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
@@ -118,7 +118,7 @@ def test_core_packages_do_not_import_legacy_llm_or_autogpt_namespaces():
                 elif isinstance(node, ast.ImportFrom) and node.module:
                     imported_modules = [node.module]
                 for module_name in imported_modules:
-                    assert not module_name.startswith(legacy_prefixes), f"{path} imports legacy module {module_name}"
+                    assert not module_name.startswith(removed_prefixes), f"{path} imports removed module {module_name}"
 
 
 def test_builtin_agents_use_explicit_config_objects():

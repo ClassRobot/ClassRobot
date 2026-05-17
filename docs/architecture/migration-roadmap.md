@@ -70,11 +70,11 @@
 
 | 当前位置 | 迁移目标 |
 | --- | --- |
-| `src/managers/user/*` `src/managers/student/*` `src/managers/teacher/*` | `src/domain/identity_access/` |
-| `src/managers/classes/*` `src/managers/group/*` | `src/domain/organization_membership/` |
-| `src/plugins/tasks/*` `src/plugins/leave/*` | `src/domain/transactional_orchestration/` |
-| `src/plugins/curriculum/*` | `src/domain/campus_integration/` |
-| `src/plugins/notice/*` | `src/domain/communication/` |
+| `src/features/user/*` `src/features/student/*` `src/features/teacher/*` | `src/domain/identity_access/` |
+| `src/features/classes/*` `src/features/group/*` | `src/domain/organization_membership/` |
+| `src/features/tasks/*` `src/features/leave/*` | `src/domain/transactional_orchestration/` |
+| `src/features/curriculum/*` | `src/domain/campus_integration/` |
+| `src/features/notice/*` | `src/domain/communication/` |
 
 ### 完成标志
 

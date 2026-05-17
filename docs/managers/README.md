@@ -2,7 +2,7 @@
 
 本目录用于沉淀 ClassRobot 本地管理后台的产品范围、接口约定、前端布局、权限模型和落地路线。
 
-这里讨论的后台不是校园业务管理后台。班级、请假、课表、校园审批等功能会在后续独立的校园管理界面中展开；本目录聚焦机器人项目本身的本地化运维、调试、AI 资产和系统设置。
+这里讨论的不是校园业务后台，而是“机器人系统自身的管理后台”。班级、请假、课表、校园审批等业务能力后续会进入独立的校园管理界面；本目录聚焦项目运维、调试、AI 资产和系统设置。
 
 ## 阅读顺序
 
@@ -53,16 +53,16 @@
 
 ## 当前代码落点
 
-- FastAPI 入口：`src/routers/path.py`
-- 管理后台后端目录：`src/routers/managers/`
-- 后端路由层：`src/routers/managers/api/`
-- 后端领域实现：`src/routers/managers/agent/`、`catalog/`、`database/`、`identity/`、`runtime/`、`storage/`
+- FastAPI 入口：`src/interfaces/http/path.py`
+- 管理后台后端目录：`src/interfaces/http/managers/`
+- 后端路由层：`src/interfaces/http/managers/api/`
+- 后端领域实现：`src/interfaces/http/managers/agent/`、`catalog/`、`database/`、`identity/`、`runtime/`、`storage/`
 - 管理后台前端预留目录：`website/managers/`
 - 用户与绑定数据：`utils/models/models.py`
-- Agent 运行数据：`src/plugins/autogpt/runs.py`、`src/plugins/autogpt/checkpoints.py`
-- Skill 注册：`src/agents/skills/registry.py`
+- Agent 运行数据：`core/agent/runtime/persistence/runs.py`、`core/agent/runtime/persistence/checkpoints.py`
+- Skill 注册：`core/skills/registry.py`
 - Prompt 模板：`resources/prompts/`
-- 模型配置：`utils/llm/config.py`
+- 模型配置：`core/llm/config.py`
 - 全局配置：`utils/config.py`
 
 ## 文档放置约定

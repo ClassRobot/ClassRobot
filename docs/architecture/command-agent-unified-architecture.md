@@ -52,7 +52,7 @@ CommandSpec
 - AutoGPT 的 `CommandToolCatalog` 已优先使用 `CommandRegistry`，并识别 `risk_level`、`agent_callable`、`execution_mode`。
 - AutoGPT 执行命令时只走 `AgentCommandAdapter -> CommandExecutor`，不再回放 NoneBot 事件。
 - 管理端 `nonebot_runtime` 命令清单已合并注册表数据，能暴露风险等级、执行模式、Agent 可见性和软关闭状态。
-- 第一批样例命令已迁移：`src.managers.user.commands`、`src.plugins.curriculum.commands`。
+- 第一批样例命令已迁移：`src.features.user.commands`、`src.features.curriculum.commands`。
 
 仍在迁移中：
 
@@ -430,7 +430,7 @@ utils/
 推荐形态：
 
 ```text
-src/managers/user/
+src/features/user/
 ├── __init__.py
 ├── commands.py
 ├── service.py
@@ -472,9 +472,9 @@ src/managers/user/
 
 当前目标是：
 
-- `src/plugins/autogpt/command_tools.py`
+- `core/agent/runtime/command_tools.py`
   改为从 `CommandRegistry` 和 `CommandSpec` 生成工具目录
-- `src/plugins/autogpt/__init__.py`
+- `src/features/autogpt/__init__.py`
   只走 `AgentCommandAdapter -> CommandExecutor`，未 service 化命令直接拒绝 Agent 调用
 
 ### 与管理后台的关系
@@ -483,7 +483,7 @@ src/managers/user/
 
 - 管理端插件中心、命令中心、技能中心都从统一注册表取数
 - 插件软关闭和命令可用性状态统一由 `availability.py` 暴露
-- 当前 `src/routers/managers/nonebot_runtime.py` 的命令扫描逻辑可逐步转向注册表直出
+- 当前管理端里的命令扫描逻辑可逐步转向注册表直出，避免继续依赖分散的运行时探测
 
 ## `Helper` 与命令声明的统一方式
 
@@ -570,7 +570,7 @@ logout_cmd = command_alconna(
 
 - `MessageProcessingPipeline`
 - `AgentPlan`
-- `AgentWorkflow`
+- `TaskWorkflow`
 
 ### 2. 执行层
 
@@ -668,8 +668,8 @@ Agent 就可以基于最近命令结果继续工作。
 
 推荐先迁移：
 
-- `src/managers/user/commands.py`
-- `src/plugins/curriculum/commands.py`
+- `src/features/user/commands.py`
+- `src/features/curriculum/commands.py`
 
 这两组最能验证：
 

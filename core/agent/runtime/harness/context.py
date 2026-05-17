@@ -4,7 +4,7 @@ from typing import Callable
 from dataclasses import field, dataclass
 
 from core.llm.message import Content, LLMRole, Messages
-from utils.storage import ChatHistoryStore, chat_history_store
+from core.storage import ChatHistoryStore, chat_history_store
 
 from ..knowledge import RuntimeContext, LocalKnowledgeRetriever
 

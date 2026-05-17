@@ -26,9 +26,9 @@ def assert_eval_report(report: EvalGateReport) -> None:
 
 @pytest.mark.asyncio
 async def test_route_eval_gate(loaded_plugins, monkeypatch):
-    from utils.llm.message import Content, Messages
-    from src.plugins.autogpt import pipeline as pipeline_module
-    from src.plugins.autogpt.schema import ChatMessage
+    from core.llm.message import Content, Messages
+    from core.agent.runtime import pipeline as pipeline_module
+    from core.agent.runtime.schema import ChatMessage
 
     async def fail_client_create(*args, **kwargs):
         raise AssertionError("route eval gate should stay on deterministic local routing")
@@ -64,7 +64,7 @@ async def test_route_eval_gate(loaded_plugins, monkeypatch):
 
 
 def test_tool_eval_gate(loaded_plugins):
-    from src.plugins.autogpt.command_tools import CommandToolCatalog
+    from core.agent.runtime.command_tools import CommandToolCatalog
 
     catalog = CommandToolCatalog.from_helpers(build_eval_helpers())
     report = EvalGateReport(category="tool")
@@ -80,9 +80,9 @@ def test_tool_eval_gate(loaded_plugins):
 
 @pytest.mark.asyncio
 async def test_arg_eval_gate(loaded_plugins, monkeypatch):
-    from utils.llm.message import Content, Messages
-    from src.plugins.autogpt import pipeline as pipeline_module
-    from src.plugins.autogpt.schema import ChatMessage
+    from core.llm.message import Content, Messages
+    from core.agent.runtime import pipeline as pipeline_module
+    from core.agent.runtime.schema import ChatMessage
 
     async def fail_client_create(*args, **kwargs):
         raise AssertionError("arg eval gate should stay on deterministic local routing")

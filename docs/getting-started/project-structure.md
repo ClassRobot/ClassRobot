@@ -4,97 +4,86 @@
 
 ```mermaid
 flowchart LR
-    Platform["平台入口\nQQ / OneBot"] --> Access["接入层\nsrc/managers / src/plugins / src/others / src/routers"]
-    Access --> Orchestrator["编排层\nsrc/plugins/autogpt / utils/session"]
-    Access --> Domain["业务层\nsrc/managers + 业务插件"]
-    Orchestrator --> Domain
-    Orchestrator --> Skills["能力层\nsrc/agents/skills / utils/skills(兼容)"]
-    Domain --> Infra["基础设施层\nutils/models / utils/llm / utils/tools"]
-    Skills --> Infra
+    Platform["平台入口\nQQ / OneBot"] --> Features["用户侧接入层\nsrc/features"]
+    Platform --> Http["HTTP 接口层\nsrc/interfaces/http"]
+    Features --> Commands["命令封装\nutils/commands"]
+    Features --> AgentEntry["AutoGPT 薄入口\nsrc/features/autogpt"]
+    AgentEntry --> AgentCore["Agent 核心\ncore/agent/runtime"]
+    AgentCore --> LLM["模型层\ncore/llm"]
+    AgentCore --> Skills["Skill 层\ncore/skills"]
+    Commands --> Storage["存储层\ncore/storage"]
+    AgentCore --> Storage
+    Features --> Models["数据模型\nutils/models"]
+    Http --> Managers["管理后台 API\nsrc/interfaces/http/managers"]
+    Managers --> AgentCore
+    Managers --> Storage
 ```
 
 如果你想看更完整的系统设计图，而不只是目录结构，可以继续阅读 [架构视图总览](../architecture/architecture-views.md)。
 
 ## 顶层目录
 
-- `src/`: NoneBot 插件与路由
-- `utils/`: 跨插件共享的配置、模型、会话、LLM 和工具
-- `resources/`: 非源码运行资源，例如 prompts、HTML 模板和 OCR 模型
-- `scripts/`: 仓库级辅助脚本
-- `migrations/`: 数据库迁移
-- `docs/`: 使用和开发文档
-- `website/`: Web 前端相关资源，当前预留 `website/managers/` 作为本地管理后台前端目录
+- `src/`: 接入层，只放 NoneBot 用户侧功能入口与 HTTP 接口入口。
+- `core/`: 核心能力层，承载 Agent、LLM、Skill、Storage 等系统级能力。
+- `utils/`: 项目通用工具层，保留配置、ORM 模型、命令封装、角色、消息发送等共享能力。
+- `resources/`: 非源码运行资源，例如 prompts、HTML 模板、Agent 编排配置和 OCR 模型。
+- `tests/`: 单元测试、nonebug 命令测试、管理端 API 测试和 Agent 回归测试。
+- `docs/`: 使用、架构和开发文档。
+- `website/`: Web 前端资源，`website/managers/` 是本地管理后台前端。
 
 ## src 下的约定
 
-- `src/managers/`: 班级、用户、权限等管理能力
-- `src/plugins/`: 面向最终功能的主要插件
-- `src/others/`: 额外实验性或外部集成能力
-- `src/routers/`: 路由或路径相关模块
-- `src/routers/managers/`: 本地管理后台 API 预留目录，建议承载 `/api/v1/manager` 路由
+- `src/features/`: 用户侧 NoneBot 功能入口，包含命令 matcher、事件入口、权限边界和轻量参数接线。
+- `src/interfaces/http/`: HTTP 接口入口，负责挂载本地管理后台 API。
+- `src/interfaces/http/managers/`: 管理后台 API 唯一实现目录，承载 `/api/v1/manager/*`。
+
+`src/features` 中的功能模块应该保持“薄入口”：命令声明、事件接入和返回用户消息可以放在这里，复杂业务规则应下沉到 `core` 或明确的 service 模块。
+
+## core 下的约定
+
+- `core/agent/`: Agent 类、工具调用 Agent、运行时编排图和 AutoGPT 消息处理流水线。
+- `core/llm/`: LLM 配置、网关、消息结构、模型调用和工具类型。
+- `core/skills/`: Agent Skill 的标准入口、运行时注册表和内置 skill。
+- `core/storage/`: 文件空间、聊天记录、本地 RAG 和存储隔离规则。
+
+新增 Agent、模型调用、Skill 或存储能力时，优先放在 `core` 对应子包；不要把核心能力塞回 `src/features`。
 
 ## utils 下的约定
 
-- `config.py`: 全局配置和路径入口
-- `models/`: ORM 模型与依赖
-- `helper/`: 帮助系统与参数抽象
-- `llm/`: 大模型客户端、消息结构和 Agent 能力
-- `utils/skills/`: 兼容旧导入路径的门面层，实际实现已迁到 `src/agents/skills/`
-- `tools/`: OCR、文档转图、COS 等工具能力
-- `template/`: 渲染 prompt 和 HTML 模板的统一入口
+- `utils/config.py`: 全局配置和路径入口。
+- `utils/models/`: ORM 模型与数据库相关依赖。
+- `utils/commands/`: 命令统一注册、Helper 绑定、AgentCommandAdapter 和结构化执行上下文。
+- `utils/helper/`: 帮助系统与参数抽象。
+- `utils/roles/`: 用户身份与权限枚举。
+- `utils/tools/`: OCR、文档转图、COS 等底层工具能力。
+- `utils/template/`: 渲染 prompt 和 HTML 模板的统一入口。
+
+`utils` 不再承载 LLM、Storage、Skill 的兼容门面；这些能力统一从 `core` 导入。
 
 ## Agent Skill 目录约定
 
-- `src/agents/skills/builtin/<name>/SKILL.md`: AI 可读的 skill 元数据与使用说明
-- `src/agents/skills/builtin/<name>/runtime.py`: 可选的 skill 运行时入口，存在时可被自动加载
-- 目前已经拆分的能力包括：
-  - `document-to-image`
-  - `ocr`
-  - `qr-code`
-  - `markdown-to-image`
-- `src/agents/skills/` 负责定义能力边界、运行时发现与调用
-- `utils/skills/` 保留为兼容层，避免历史插件导入路径立刻失效
-- `src/agents/skills/registry.py` 同时支持目录自动加载和手动注册两种模式
-- `utils/tools/` 继续承载底层实现细节，例如 OCR 模型、Office 转图、二维码库封装等
+- `core/skills/builtin/<name>/SKILL.md`: AI 可读的 skill 元数据与使用说明。
+- `core/skills/builtin/<name>/runtime.py`: 可选的 skill 运行时入口，存在时可被自动加载。
+- `core/skills/registry.py`: 支持目录自动加载和手动注册。
 
-## 当前整理原则
+目前已经拆分的内置能力包括：
 
-- 源码和资源文件分离，避免模型和模板散落在代码目录里
-- 能力边界优先以 skill 表达，再决定底层代码落在 `utils/tools/` 还是其他共享模块
-- 明显拼写错误直接收敛到统一命名，避免同义目录和文件长期并存
-- 优先做低风险收敛，再考虑后续把 `utils/` 进一步拆成更清晰的领域模块
-- 平台消息如何流经权限、流水线、Agent 与数据库，统一参考 [消息处理流程](../guides/message-processing-flow.md)
+- `document-to-image`
+- `image-generation`
+- `markdown-to-image`
+- `ocr`
+- `qr-code`
 
-## 面向总架构图的放置建议
+## 放置建议
 
-如果后续按“接入层 -> Agent 核心层 -> Skill 层 -> 数据基础设施层”继续扩展，建议遵循下面的放置方式：
-
-- 接入层
-  - 当前优先放在 `src/plugins/`、`src/others/`、`src/routers/`
-  - 未来如果引入 FastAPI，可逐步收敛到独立 `gateway/`、`interfaces/` 或 `src/routers/http/`
-  - 本地管理后台 API 先放在 `src/routers/managers/`，不要混入校园业务插件目录
-- Agent 核心层
-  - 当前优先放在 `src/plugins/autogpt/`、`src/agents/`、`utils/llm/agents/`、`utils/session/`
-  - 例如消息流水线、Planner、记忆层、上下文编排
-- Skill 层
-  - 内置 skill 放在 `src/agents/skills/builtin/`
-  - 运行时注册与绑定放在 `src/agents/skills/`
-  - `utils/skills/` 仅作为兼容出口保留
-  - 底层可复用实现仍放在 `utils/tools/` 或其他基础设施模块
-- 数据与基础设施层
-  - ORM 与业务数据放在 `utils/models/`
-  - 知识检索接入放在 `utils/llm/agents/ragflow/`
-  - 对象存储、OCR、文档处理等放在 `utils/tools/`
-
-## 文档目录补充
-
-- `docs/managers/`: 本地管理后台专题文档，包含范围、信息架构、接口、前端布局、权限数据、后端实现和实施路线
-- 后台专用接口文档放在 `docs/managers/api-design.md`
-- 通用外部接口文档仍放在 `docs/api/`
-- 后台前端布局和交互说明放在 `docs/managers/frontend-layout.md`
+- 新增用户命令：放在 `src/features/<feature>/commands.py`，共享逻辑放同目录 service 或更底层的 `core`。
+- 新增管理端接口：放在 `src/interfaces/http/managers/api/` 和对应领域子包中。
+- 新增 Agent 编排能力：放在 `core/agent/runtime`，并更新对应 Agent 文档和测试。
+- 新增 Skill：放在 `core/skills/builtin/<name>/`，并注册或提供 `runtime.py`。
+- 新增存储能力：放在 `core/storage`，同时补充路径逃逸、归属隔离和删除语义测试。
 
 推荐做法：
 
-- 先按层放置代码，再决定是否要新增目录名
-- 优先保证职责边界正确，不要一开始就为了“看起来高级”做大规模目录迁移
-- 未来如果代码量继续增长，再把这些边界从“约定”升级成更显式的目录结构
+- 先按层放置代码，再决定是否需要新增子目录。
+- `src/features` 保持薄入口，`core` 保持高内聚核心能力。
+- 文档中的代码路径使用仓库相对路径，不写本机绝对路径。

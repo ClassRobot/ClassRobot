@@ -1,7 +1,7 @@
 import importlib
 
 BASIC_HELPER_MODULES = {
-    "src.managers.group.commands": {
+    "src.features.group.commands": {
         "添加学校",
         "修改学校",
         "删除学校",
@@ -19,7 +19,7 @@ BASIC_HELPER_MODULES = {
         "加入组织",
         "退出组织",
     },
-    "src.managers.classes.commands": {
+    "src.features.classes.commands": {
         "添加班级",
         "查询班级",
         "查询入班申请",
@@ -30,14 +30,14 @@ BASIC_HELPER_MODULES = {
         "删除班级",
         "修改班级加入方式",
     },
-    "src.managers.student.commands": {"查询学生信息", "修改学生信息"},
-    "src.managers.teacher.commands": {"查询教师信息", "修改教师信息"},
-    "src.managers.user.commands": {"我的信息", "绑定用户", "注销"},
-    "src.plugins.curriculum.commands": {"添加课表", "删除课表", "查询课表", "分享课表", "设置当前周"},
-    "src.plugins.find_at.commands": {"查找学生", "at"},
-    "src.plugins.leave.commands": {"请假", "请假列表", "设置请假推送", "删除请假"},
-    "src.plugins.tasks.commands": {"提交任务", "创建任务", "删除任务", "导出任务", "查询任务"},
-    "src.plugins.file_manager.commands": {
+    "src.features.student.commands": {"查询学生信息", "修改学生信息"},
+    "src.features.teacher.commands": {"查询教师信息", "修改教师信息"},
+    "src.features.user.commands": {"我的信息", "绑定用户", "注销"},
+    "src.features.curriculum.commands": {"添加课表", "删除课表", "查询课表", "分享课表", "设置当前周"},
+    "src.features.find_at.commands": {"查找学生", "at"},
+    "src.features.leave.commands": {"请假", "请假列表", "设置请假推送", "删除请假"},
+    "src.features.tasks.commands": {"提交任务", "创建任务", "删除任务", "导出任务", "查询任务"},
+    "src.features.file_manager.commands": {
         "pwd",
         "ls",
         "cd",
@@ -50,10 +50,10 @@ BASIC_HELPER_MODULES = {
         "tree",
         "上传文件",
     },
-    "src.plugins.chat_context.commands": {"检索群聊记录"},
-    "src.plugins.helper": {"help"},
-    "src.plugins.autogpt": {"清空聊天"},
-    "src.others.image_generate.commands": {"图片生成"},
+    "src.features.chat_context.commands": {"检索群聊记录"},
+    "src.features.helper.commands": {"help"},
+    "src.features.autogpt.commands": {"清空聊天"},
+    "src.features.image_generate.commands": {"图片生成"},
 }
 
 

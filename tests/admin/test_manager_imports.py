@@ -6,21 +6,37 @@ import sys
 from pathlib import Path
 
 
-def test_manager_package_import_does_not_register_old_module_aliases() -> None:
-    """管理端包导入只暴露新架构入口，不再注册历史模块别名。"""
+def test_manager_interface_imports_stay_light_before_nonebot_init() -> None:
+    """接口层包与轻量模块导入不应提前触发管理端初始化副作用。"""
 
     project_root = Path(__file__).resolve().parents[2]
     script = """
 import importlib
-import src.routers.managers as managers
+import src.interfaces.http.managers as managers
 
 print("__all__", managers.__all__)
-print("has_status_attr", hasattr(managers, "status"))
+print("exports_router", "router" in managers.__all__)
 
-try:
-    importlib.import_module("src.routers.managers.status")
-except ModuleNotFoundError as exc:
-    print("old_path_missing", exc.name)
+for module_name in (
+    "src.interfaces.http.managers.schemas",
+    "src.interfaces.http.managers.service",
+):
+    module = importlib.import_module(module_name)
+    print("imported", module.__name__)
+
+for old_module in (
+    "src.routers.path",
+    "src.managers",
+    "src.plugins",
+    "src.others",
+    "src.agents",
+):
+    try:
+        importlib.import_module(old_module)
+    except ModuleNotFoundError as exc:
+        print("old_path_missing", old_module, exc.name)
+    else:
+        raise AssertionError(f"old module should not be importable: {old_module}")
 """
     env = os.environ.copy()
     env["PYTHONPATH"] = str(project_root)
@@ -39,15 +55,24 @@ except ModuleNotFoundError as exc:
     assert "ClassRobot 管理后台登录令牌" not in output
     assert "NoneBot has not been initialized" not in output
     assert "__all__ ['router']" in output
-    assert "has_status_attr False" in output
-    assert "old_path_missing src.routers.managers.status" in output
+    assert "exports_router True" in output
+    assert "imported src.interfaces.http.managers.schemas" in output
+    assert "imported src.interfaces.http.managers.service" in output
+    assert "old_path_missing src.routers.path src.routers" in output
+    assert "old_path_missing src.managers src.managers" in output
+    assert "old_path_missing src.plugins src.plugins" in output
+    assert "old_path_missing src.others src.others" in output
+    assert "old_path_missing src.agents src.agents" in output
+    assert not (project_root / "utils" / "storage").exists()
+    assert not (project_root / "utils" / "llm").exists()
+    assert not (project_root / "utils" / "skills").exists()
 
 
-def test_manager_interfaces_http_entry_matches_legacy_router(loaded_plugins) -> None:
-    """新接口层入口应桥接到既有管理端主路由。"""
+def test_manager_interfaces_http_entry_exposes_router(loaded_plugins) -> None:
+    """接口层入口在插件加载后应暴露可挂载的管理端主路由。"""
 
     _ = loaded_plugins
-    from src.interfaces.http.manager import router as interface_router
-    from src.routers.managers import router as legacy_router
+    from src.interfaces.http.managers import router as interface_router
+    from src.interfaces.http.managers.router import router as direct_router
 
-    assert interface_router is legacy_router
+    assert interface_router is direct_router

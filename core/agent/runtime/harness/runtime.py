@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 from utils.helper import Helpers
 from core.llm.message import Messages
-from utils.storage import ChatHistoryStore, chat_history_store
+from core.storage import ChatHistoryStore, chat_history_store
 
 from .policy import PolicyHarness
 from .context import ContextHarness

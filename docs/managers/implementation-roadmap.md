@@ -1,8 +1,10 @@
 # 实施路线与验收清单
 
+本文档用于说明后台管理端的实施节奏、阶段目标和验收口径。它描述的是“推荐落地顺序”，不是要求所有模块一次性做完。
+
 ## 开发顺序
 
-建议按低风险到高风险推进。
+建议按低风险到高风险推进，优先把只读观测能力做稳，再逐步开放可写能力和自动化操作。
 
 ## Phase 1: 后台骨架
 
@@ -10,7 +12,7 @@
 
 任务：
 
-- 新增 `src/routers/managers/` FastAPI router。
+- 新增 `src/interfaces/http/managers/` FastAPI router。
 - 实现启动 token 生成和登录接口。
 - 实现 `/api/v1/manager/overview`。
 - 实现 `/api/v1/manager/status` 只读接口。
@@ -128,17 +130,17 @@
 
 ### 后端
 
-- `src/routers/managers/router.py`
-- `src/routers/managers/security.py`
-- `src/routers/managers/schemas.py`
-- `src/routers/managers/service.py`
-- `src/routers/managers/status.py`
-- `src/routers/managers/settings_store.py`
-- `src/routers/managers/skills.py`
-- `src/routers/managers/prompts.py`
-- `src/routers/managers/agents.py`
-- `src/routers/managers/logs.py`
-- `src/routers/managers/operations.py`
+- `src/interfaces/http/managers/router.py`
+- `src/interfaces/http/managers/security.py`
+- `src/interfaces/http/managers/schemas.py`
+- `src/interfaces/http/managers/service.py`
+- `src/interfaces/http/managers/api/`
+- `src/interfaces/http/managers/agent/`
+- `src/interfaces/http/managers/catalog/`
+- `src/interfaces/http/managers/database/`
+- `src/interfaces/http/managers/identity/`
+- `src/interfaces/http/managers/runtime/`
+- `src/interfaces/http/managers/storage/`
 
 ### 前端
 

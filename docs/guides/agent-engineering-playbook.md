@@ -80,7 +80,7 @@
   - 定义路由、提取、规划、任务生成等 Prompt 契约
 - `.codex/skills/`
   - 为本地开发 Agent 提供项目专属守则
-- `src/agents/skills/`
+- `core/skills/`
   - 为运行时 Agent 提供可复用能力说明和封装
 - `tests/autogpt/` 与 `tests/storage/`
   - 固化行为边界、隐私边界和回归场景
@@ -102,7 +102,7 @@ ClassRobot 的智能体不是一个绕过系统权限、直接改数据库的万
 
 核心边界：
 
-- `src.plugins.autogpt` 是用户侧自然语言智能入口，只保留 NoneBot 接线和兼容导入。
+- `src.features.autogpt` 是用户侧自然语言智能入口，只保留 NoneBot 接线和消息发送。
 - `core.agent` 是统一 Agent 基础模块，适合放通用 agent、tool calling、模型路由、会话压缩和可复用执行循环。
 - `core.agent.runtime` 是 AutoGPT 的真实运行时层，负责任务路由、Runtime 图、TaskWorkflow、执行器和 observation 回填。
 - 业务写操作优先通过 `utils.commands`、领域 service 和现有 NoneBot matcher 执行。
@@ -149,13 +149,13 @@ flowchart TD
 
 | 能力类型 | 适用场景 | 推荐位置 | 关键约束 |
 | --- | --- | --- | --- |
-| Domain Service | 稳定业务规则，例如班级、任务、请假、课表 | `src/managers/*`、`src/plugins/*/services.py` | 不依赖 LLM，不写 prompt |
+| Domain Service | 稳定业务规则，例如班级、任务、请假、课表 | `src/features/*`、`src/features/*/services.py` | 不依赖 LLM，不写 prompt |
 | Command | 用户可直接触发的业务能力 | `utils/commands` + 插件 matcher | 元数据必须进入统一命令注册表 |
-| Function Tool | Agent 可调用的结构化函数 | `utils/llm/agents/tool.py` 或 AutoGPT tool catalog | 必须有 typed schema、风险等级、可观测结果 |
-| Skill | 可复用的能力说明和运行时封装 | `src/agents/skills/` | 必须有 `SKILL.md`，说明触发条件和边界 |
-| MCP Server | 外部系统、跨应用工具、标准协议集成 | 后续 `src/agents/mcp/` 或独立服务 | 不让 MCP server 读取完整会话，Host 控制上下文和权限 |
-| RAG | 校园制度、文档、知识库、FAQ 检索 | `utils/llm/agents/ragflow/` 或知识服务 | 只在需要知识检索时调用，配置缺失必须降级 |
-| Workflow | 多步、有状态、可恢复任务 | `src/plugins/autogpt/workflow.py` 及后续 workflow engine | 每步要有状态、输入输出、失败策略 |
+| Function Tool | Agent 可调用的结构化函数 | `core/agent/tool.py` 或 AutoGPT tool catalog | 必须有 typed schema、风险等级、可观测结果 |
+| Skill | 可复用的能力说明和运行时封装 | `core/skills/` | 必须有 `SKILL.md`，说明触发条件和边界 |
+| MCP Server | 外部系统、跨应用工具、标准协议集成 | 后续 `core/mcp/` 或独立服务 | 不让 MCP server 读取完整会话，Host 控制上下文和权限 |
+| RAG | 校园制度、文档、知识库、FAQ 检索 | `core/agent/ragflow/` 或知识服务 | 只在需要知识检索时调用，配置缺失必须降级 |
+| Workflow | 多步、有状态、可恢复任务 | `core/agent/runtime/workflow.py` 及后续 workflow engine | 每步要有状态、输入输出、失败策略 |
 | Prompt | 语义理解、规划、回复组织 | `resources/prompts/` | 单 prompt 单职责，必须有结构化输出约束 |
 | Scheduled Task | 定时提醒、长期跟踪、会话心跳 | 任务/通知插件 + workflow checkpoint | 触发器和业务执行分离 |
 | Memory | 长期偏好、稳定事实、项目经验 | 后续 memory store 或文件化 memory | 只保存稳定有用信息，敏感内容要受控 |

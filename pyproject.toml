@@ -79,14 +79,11 @@ plugins = [
     "nonebot_plugin_apscheduler",
     "nonebot_plugin_status",
     "nonebot_plugin_waiter",
+    "src.interfaces.http.path",
     "utils.models",
 ]
 plugin_dirs = [
-    "src/managers",
-    "src/plugins",
-    "src/others",
-    "src/routers",
-    "src/extensions",
+    "src/features",
 ]
 adapters = [
     {name = "OneBot V11", module_name = "nonebot.adapters.onebot.v11"},

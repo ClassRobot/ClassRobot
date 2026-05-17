@@ -6,7 +6,7 @@ from typing import Any, Callable, List, Literal, Optional
 from nonebot import logger
 from utils.tools import get_file_suffix
 from utils.config import data_dir, task_dir
-from utils.storage.files import StorageManager, storage_manager
+from core.storage.files import StorageManager, storage_manager
 from nonebot_plugin_orm import Model, get_session
 from sqlalchemy.orm import Mapped, relationship, mapped_column, selectinload
 from sqlalchemy import (

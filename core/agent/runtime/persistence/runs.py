@@ -5,14 +5,14 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from utils.models.models import AgentWorkflowRun
 
-from ..schema import AgentWorkflow
+from ..schema import TaskWorkflow
 from .checkpoints import serialize_workflow
 
 
 class WorkflowRunStore:
     """保存工作流运行历史，供后续审计、恢复链路和调试使用。"""
 
-    async def save_run(self, user_id: int, workflow: AgentWorkflow) -> AgentWorkflowRun | None:
+    async def save_run(self, user_id: int, workflow: TaskWorkflow) -> AgentWorkflowRun | None:
         """按 trace_id 创建或更新一条工作流运行记录。"""
 
         payload = serialize_workflow(workflow)

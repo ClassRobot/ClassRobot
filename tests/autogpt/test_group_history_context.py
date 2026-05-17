@@ -8,9 +8,9 @@ import pytest
 @pytest.mark.asyncio
 async def test_group_history_context_is_not_injected_into_intent_route_prompt(loaded_plugins, monkeypatch):
     from utils.helper import Helpers
-    from utils.llm.message import Content, Context, LLMRole, Messages
-    from src.plugins.autogpt import pipeline as pipeline_module
-    from src.plugins.autogpt.schema import ChatMessage
+    from core.llm.message import Content, Context, LLMRole, Messages
+    from core.agent.runtime import pipeline as pipeline_module
+    from core.agent.runtime.schema import ChatMessage
 
     captured = {"prompt": ""}
 

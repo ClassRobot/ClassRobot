@@ -4,11 +4,11 @@ import pytest
 @pytest.mark.asyncio
 async def test_confirm_message_resumes_pending_workflow(loaded_plugins):
     from utils.helper import Helpers
-    from src.plugins.autogpt.util import ChatSession
-    from src.plugins.autogpt.schema import AgentWorkflow, WorkflowApproval, WorkflowStep
+    from core.agent.runtime.util import ChatSession
+    from core.agent.runtime.schema import TaskWorkflow, WorkflowApproval, WorkflowStep
 
     session = ChatSession(user_id=1, helpers=Helpers())
-    workflow = AgentWorkflow(
+    workflow = TaskWorkflow(
         trace_id="autogpt-pending",
         kind="command_sequence",
         status="needs_confirm",
@@ -45,11 +45,11 @@ async def test_confirm_message_resumes_pending_workflow(loaded_plugins):
 @pytest.mark.asyncio
 async def test_cancel_message_clears_pending_workflow(loaded_plugins):
     from utils.helper import Helpers
-    from src.plugins.autogpt.util import ChatSession
-    from src.plugins.autogpt.schema import AgentWorkflow, WorkflowApproval, WorkflowStep
+    from core.agent.runtime.util import ChatSession
+    from core.agent.runtime.schema import TaskWorkflow, WorkflowApproval, WorkflowStep
 
     session = ChatSession(user_id=1, helpers=Helpers())
-    workflow = AgentWorkflow(
+    workflow = TaskWorkflow(
         trace_id="autogpt-pending",
         kind="command",
         status="needs_confirm",
@@ -82,11 +82,11 @@ async def test_cancel_message_clears_pending_workflow(loaded_plugins):
 @pytest.mark.asyncio
 async def test_non_decision_text_keeps_pending_workflow_for_followup(loaded_plugins):
     from utils.helper import Helpers
-    from src.plugins.autogpt.util import ChatSession
-    from src.plugins.autogpt.schema import AgentWorkflow, WorkflowApproval, WorkflowStep
+    from core.agent.runtime.util import ChatSession
+    from core.agent.runtime.schema import TaskWorkflow, WorkflowApproval, WorkflowStep
 
     session = ChatSession(user_id=1, helpers=Helpers())
-    workflow = AgentWorkflow(
+    workflow = TaskWorkflow(
         trace_id="autogpt-pending",
         kind="command",
         status="needs_confirm",

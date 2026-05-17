@@ -6,7 +6,7 @@ import pytest
 
 
 def test_skill_catalog_renders_builtin_skill_summaries(loaded_plugins):
-    from src.plugins.autogpt.knowledge import SkillCatalog
+    from core.agent.runtime.knowledge import SkillCatalog
 
     prompt = SkillCatalog().to_prompt()
 
@@ -16,7 +16,7 @@ def test_skill_catalog_renders_builtin_skill_summaries(loaded_plugins):
 
 
 def test_skill_catalog_can_render_named_subset(loaded_plugins):
-    from src.plugins.autogpt.knowledge import SkillCatalog
+    from core.agent.runtime.knowledge import SkillCatalog
 
     prompt = SkillCatalog().to_prompt(skill_names=["ocr"], limit=1)
 
@@ -26,7 +26,7 @@ def test_skill_catalog_can_render_named_subset(loaded_plugins):
 
 
 def test_skill_catalog_can_render_relevant_subset_by_query(loaded_plugins):
-    from src.plugins.autogpt.knowledge import SkillCatalog
+    from core.agent.runtime.knowledge import SkillCatalog
 
     prompt = SkillCatalog().to_prompt(query="识别图片里的文字", limit=1)
 
@@ -35,9 +35,9 @@ def test_skill_catalog_can_render_relevant_subset_by_query(loaded_plugins):
 
 @pytest.mark.asyncio
 async def test_local_knowledge_retriever_reads_user_chat_history(loaded_plugins, tmp_path):
-    from src.plugins.autogpt.knowledge import LocalKnowledgeRetriever, RuntimeContext
+    from core.agent.runtime.knowledge import LocalKnowledgeRetriever, RuntimeContext
 
-    from utils.storage import StorageManager, ChatHistoryStore, MessageActorRole
+    from core.storage import StorageManager, ChatHistoryStore, MessageActorRole
 
     manager = StorageManager(tmp_path / "storage")
     store = ChatHistoryStore(manager)
@@ -62,9 +62,9 @@ async def test_local_knowledge_retriever_reads_user_chat_history(loaded_plugins,
 
 @pytest.mark.asyncio
 async def test_local_knowledge_retriever_uses_rag_overlap_recall(loaded_plugins, tmp_path):
-    from src.plugins.autogpt.knowledge import LocalKnowledgeRetriever, RuntimeContext
+    from core.agent.runtime.knowledge import LocalKnowledgeRetriever, RuntimeContext
 
-    from utils.storage import StorageManager, ChatHistoryStore, MessageActorRole
+    from core.storage import StorageManager, ChatHistoryStore, MessageActorRole
 
     manager = StorageManager(tmp_path / "storage")
     store = ChatHistoryStore(manager)
@@ -89,9 +89,9 @@ async def test_local_knowledge_retriever_uses_rag_overlap_recall(loaded_plugins,
 
 @pytest.mark.asyncio
 async def test_local_knowledge_retriever_reads_user_file_space(loaded_plugins, tmp_path):
-    from src.plugins.autogpt.knowledge import LocalKnowledgeRetriever, RuntimeContext
+    from core.agent.runtime.knowledge import LocalKnowledgeRetriever, RuntimeContext
 
-    from utils.storage import StorageManager, ChatHistoryStore
+    from core.storage import StorageManager, ChatHistoryStore
 
     manager = StorageManager(tmp_path / "storage")
     space = manager.user_space(90002)
@@ -109,8 +109,8 @@ async def test_local_knowledge_retriever_reads_user_file_space(loaded_plugins, t
 
 @pytest.mark.asyncio
 async def test_local_knowledge_retriever_reads_group_file_space_by_system_group_id(loaded_plugins, tmp_path):
-    from src.plugins.autogpt.knowledge import LocalKnowledgeRetriever, RuntimeContext
-    from utils.storage import StorageManager, ChatHistoryStore
+    from core.agent.runtime.knowledge import LocalKnowledgeRetriever, RuntimeContext
+    from core.storage import StorageManager, ChatHistoryStore
 
     manager = StorageManager(tmp_path / "storage")
     report = manager.group_space("system-group-92001").home_dir / "documents" / "group-report.md"
@@ -136,8 +136,8 @@ async def test_local_knowledge_retriever_reads_group_file_space_by_system_group_
 
 @pytest.mark.asyncio
 async def test_local_knowledge_retriever_does_not_treat_channel_id_as_system_group_id(loaded_plugins, tmp_path):
-    from src.plugins.autogpt.knowledge import LocalKnowledgeRetriever, RuntimeContext
-    from utils.storage import StorageManager, ChatHistoryStore
+    from core.agent.runtime.knowledge import LocalKnowledgeRetriever, RuntimeContext
+    from core.storage import StorageManager, ChatHistoryStore
 
     manager = StorageManager(tmp_path / "storage")
     report = manager.group_space("92002").home_dir / "documents" / "channel-only-report.md"
@@ -153,6 +153,6 @@ async def test_local_knowledge_retriever_does_not_treat_channel_id_as_system_gro
 
 
 def test_extract_search_query_removes_intent_words(loaded_plugins):
-    from src.plugins.autogpt.knowledge import extract_search_query
+    from core.agent.runtime.knowledge import extract_search_query
 
     assert extract_search_query("帮我查一下聊天记录 report.md") == "report md"

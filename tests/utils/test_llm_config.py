@@ -27,8 +27,7 @@ def test_autogpt_config_accepts_json_string_llm_configs(loaded_plugins):
     assert config.llm_configs[0].multi_modal is True
 
 
-def test_utils_llm_config_aliases_core_llm_config(loaded_plugins):
+def test_core_llm_config_imports_from_canonical_entry(loaded_plugins):
     import core.llm.config as core_config_module
-    import utils.llm.config as legacy_config_module
 
-    assert legacy_config_module is core_config_module
+    assert core_config_module.__name__ == "core.llm.config"

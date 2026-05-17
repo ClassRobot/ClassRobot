@@ -100,7 +100,7 @@ async def test_cache_convenience_wrappers_work_with_local_fallback(loaded_plugin
 
 async def test_manager_status_reports_local_cache_backend(loaded_plugins, monkeypatch, tmp_path):
     import utils.cache as cache_module
-    from src.routers.managers.runtime.status import check_cache
+    from src.interfaces.http.managers.runtime.status import check_cache
 
     monkeypatch.setattr(cache_module.plugin_config, "cache_backend", "local")
     monkeypatch.setattr(cache_module.plugin_config, "cache_path", str(tmp_path / "cache.sqlite3"))

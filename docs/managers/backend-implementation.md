@@ -1,33 +1,68 @@
 # 后端实现方案
 
+本文档说明管理后台后端应该如何分层、如何落目录，以及哪些能力适合放在统一入口、领域服务和运行时探针中。
+
+## 总体思路
+
+管理后台后端建议继续保持“薄路由 + 领域服务 + 运行时探针”的结构：
+
+- `router.py`
+  - 负责统一挂载和模块聚合。
+- `api/`
+  - 负责按页面或资源拆分 HTTP 接口。
+- `agent/`、`catalog/`、`database/`、`identity/`、`runtime/`、`storage/`
+  - 负责具体领域能力。
+- `security.py`
+  - 负责后台鉴权和会话令牌。
+- `schemas.py`
+  - 负责公共响应模型和共享请求模型。
+
+这样可以避免把后台做成一个“只有接口没有边界”的大目录，也方便后续持续扩展。
+
 ## 代码放置
 
-后台后端建议继续使用当前已经预留的目录：
+后台后端统一放在：
 
 ```text
-src/routers/managers/
+src/interfaces/http/managers/
 ```
 
-推荐结构：
+推荐结构如下：
 
 ```text
-src/routers/managers/
+src/interfaces/http/managers/
   __init__.py
+  README.md
   router.py
   security.py
   schemas.py
   service.py
-  settings_store.py
-  status.py
-  skills.py
-  prompts.py
-  models.py
-  agents.py
-  logs.py
-  operations.py
+  audit.py
+  api/
+    auth.py
+    overview.py
+    users.py
+    groups.py
+    models.py
+    skills.py
+    prompts.py
+    agents.py
+    settings.py
+    logs.py
+    operations.py
+    chat_history.py
+    files.py
+    databases.py
+    nonebot.py
+  agent/
+  catalog/
+  database/
+  identity/
+  runtime/
+  storage/
 ```
 
-前端放置：
+前端管理端继续放在：
 
 ```text
 website/managers/
@@ -35,48 +70,50 @@ website/managers/
 
 ## FastAPI 挂载方式
 
-当前 `src/routers/path.py` 已经通过 `get_app()` 获取 FastAPI app 并挂载 `/api/v1`。
+当前 `src/interfaces/http/path.py` 已经通过 `get_app()` 获取 FastAPI app，并在同一个应用实例上挂载管理端路由。
 
-建议新增：
+示意代码：
 
 ```python
-from src.routers.managers.router import router as manager_router
+from src.interfaces.http.managers.router import router as managers_router
 
-app.include_router(manager_router)
+app.include_router(managers_router)
 ```
 
-后台 router 自身使用：
+后台 router 自身建议保持：
 
 ```python
 APIRouter(prefix="/api/v1/manager", tags=["Manager"])
 ```
 
-## 启动 token
+## 鉴权收口
 
-建议在 `security.py` 中维护后台 token。
+后台鉴权建议统一收口到 `security.py`，不要把 token 校验散落到各个 API 文件中。
 
 ### MVP 策略
 
 - 项目启动时生成随机 token。
 - 在控制台输出一次。
-- 进程内保存 hash。
+- 进程内保存 hash 或签发依据。
 - 登录时校验用户输入。
-- 登录成功返回 session token。
+- 登录成功后返回短期 session token。
 
 ### 轮换策略
 
-- 系统设置页触发轮换。
+- 在系统设置页触发轮换。
 - 新 token 输出到控制台。
 - 旧 session token 失效。
-- 前端跳转登录页。
+- 前端回到登录页重新认证。
 
 ### 不建议
 
 - 不建议把启动 token 明文写入仓库。
 - 不建议在前端展示完整 token。
-- 不建议支持任意用户密码登录，避免和现有 `User.password` 混淆。
+- 不建议把后台登录直接做成普通用户密码登录，避免和 `User.password` 概念混淆。
 
 ## 服务分层
+
+这里建议明确区分“入口层”和“领域服务层”，避免后续把所有逻辑重新堆回 `api/*.py`。
 
 ### Router 层
 
@@ -86,6 +123,7 @@ APIRouter(prefix="/api/v1/manager", tags=["Manager"])
 - 鉴权依赖。
 - 调用 service。
 - 返回 Pydantic schema。
+- 把能力按页面或资源拆到 `api/*.py`。
 
 ### Service 层
 
@@ -95,17 +133,11 @@ APIRouter(prefix="/api/v1/manager", tags=["Manager"])
 - 做业务校验。
 - 控制危险操作。
 - 组装状态检查结果。
+- 尽量按领域放到子包中，而不是继续往根目录新增无边界模块。
 
-### Store 层
+## 主要模块职责
 
-职责：
-
-- 读写后台配置。
-- 读写 `.env` 或 overlay 配置。
-- 管理 Prompt 备份。
-- 管理动作执行记录。
-
-## 主要模块
+下面的说明更偏“职责视角”，不要求所有文件名与早期草案完全一致。实现时应优先服从当前目录边界。
 
 ### `security.py`
 
@@ -114,20 +146,19 @@ APIRouter(prefix="/api/v1/manager", tags=["Manager"])
 - 生成启动 token。
 - 登录校验。
 - session token 签发与校验。
-- FastAPI dependency：`ManagerAuthDepends`。
+- 提供 FastAPI 鉴权依赖。
 
-### `status.py`
+### `runtime/status.py`
 
 职责：
 
 - 检测数据库连接。
 - 检测 Alembic 版本。
-- 检测 Redis。
-- 检测路径存在性。
-- 检测 Prompt 和 Skill 状态。
-- 检测 COS、RAGFlow、模型连通性。
+- 检测缓存状态。
+- 检测关键路径存在性。
+- 检测 Prompt、Skill、模型、COS、RAGFlow 等依赖状态。
 
-### `settings_store.py`
+### `runtime/settings.py`
 
 职责：
 
@@ -137,21 +168,21 @@ APIRouter(prefix="/api/v1/manager", tags=["Manager"])
 - 标记是否需要重启。
 - 写入前创建备份。
 
-推荐先支持两种写入：
+推荐先支持两类写入：
 
 - 后台自身状态写入 `config_dir/manager-settings.json`。
 - 项目运行配置更新 `.env`，并返回 `restart_required`。
 
-### `skills.py`
+### `catalog/skills.py`
 
 职责：
 
 - 读取 `skill_registry.manifests`。
 - 检查 skill 目录。
 - 检查 runtime 是否存在。
-- 调用 registry 重载。
+- 提供重载入口。
 
-### `prompts.py`
+### `catalog/prompts.py`
 
 职责：
 
@@ -159,20 +190,20 @@ APIRouter(prefix="/api/v1/manager", tags=["Manager"])
 - 读取 Prompt。
 - 校验 Jinja 模板。
 - 写入 Prompt 前备份。
-- 提供 diff 需要的版本内容。
+- 提供 diff 所需版本内容。
 
-### `models.py`
+### `catalog/llm_models.py`
 
 职责：
 
-- 读取 `plugin_config.llm_configs`。
+- 读取 `llm_configs`。
 - 脱敏模型 key。
 - 测试指定模型。
 - 保存模型配置。
 
-注意：文件名 `models.py` 可能和 ORM `utils.models` 产生阅读歧义，也可以命名为 `llm_models.py`。
+使用 `llm_models.py` 这类显式命名，可以避免和 ORM `utils.models` 混淆。
 
-### `agents.py`
+### `agent/service.py`
 
 职责：
 
@@ -182,7 +213,7 @@ APIRouter(prefix="/api/v1/manager", tags=["Manager"])
 - 删除检查点。
 - 提取工作流事件、步骤、审批信息。
 
-### `logs.py`
+### `runtime/logs.py`
 
 职责：
 
@@ -193,7 +224,7 @@ APIRouter(prefix="/api/v1/manager", tags=["Manager"])
 
 日志读取必须做路径限制。
 
-### `operations.py`
+### `runtime/operations.py`
 
 职责：
 
@@ -241,7 +272,7 @@ website/managers/dist
 
 ## 数据库访问
 
-后台接口读取 ORM 时优先使用当前项目的模型：
+后台接口读取 ORM 时优先使用当前项目模型：
 
 ```text
 utils.models.models

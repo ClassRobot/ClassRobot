@@ -105,11 +105,9 @@ async def test_client_create_keeps_explicit_tool_request_fields(loaded_plugins, 
     assert captured["max_tokens"] == 32
 
 
-def test_utils_llm_aliases_core_llm_modules(loaded_plugins):
+def test_core_llm_modules_import_from_canonical_entry(loaded_plugins):
     import core.llm.message as core_message_module
     import core.llm.gateway as core_gateway_module
-    import utils.llm.message as legacy_message_module
-    import utils.llm.gateway as legacy_gateway_module
 
-    assert legacy_message_module is core_message_module
-    assert legacy_gateway_module is core_gateway_module
+    assert core_message_module.__name__ == "core.llm.message"
+    assert core_gateway_module.__name__ == "core.llm.gateway"

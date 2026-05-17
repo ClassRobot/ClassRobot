@@ -17,9 +17,9 @@ def build_observability_helpers():
 
 @pytest.mark.asyncio
 async def test_route_stage_observability_records_prompt_length_and_recall(loaded_plugins, monkeypatch):
-    from utils.llm.message import Content, Messages
-    from src.plugins.autogpt import pipeline as pipeline_module
-    from src.plugins.autogpt.schema import ChatMessage
+    from core.llm.message import Content, Messages
+    from core.agent.runtime import pipeline as pipeline_module
+    from core.agent.runtime.schema import ChatMessage
 
     async def fake_client_create(*args, **kwargs):
         return SimpleNamespace(
@@ -50,9 +50,9 @@ async def test_route_stage_observability_records_prompt_length_and_recall(loaded
 
 @pytest.mark.asyncio
 async def test_local_query_observability_records_final_hit_commands(loaded_plugins, monkeypatch):
-    from utils.llm.message import Content, Messages
-    from src.plugins.autogpt import pipeline as pipeline_module
-    from src.plugins.autogpt.schema import ChatMessage
+    from core.llm.message import Content, Messages
+    from core.agent.runtime import pipeline as pipeline_module
+    from core.agent.runtime.schema import ChatMessage
 
     async def fail_client_create(*args, **kwargs):
         raise AssertionError("local context queries should not require LLM planning")
@@ -73,8 +73,8 @@ async def test_local_query_observability_records_final_hit_commands(loaded_plugi
 
 @pytest.mark.asyncio
 async def test_workflow_executor_observability_detects_repeated_invocation(loaded_plugins):
-    from src.plugins.autogpt.workflow import WorkflowExecutor
-    from src.plugins.autogpt.schema import WorkflowStep, AgentWorkflow, CommandObservation
+    from core.agent.runtime.workflow import WorkflowExecutor
+    from core.agent.runtime.schema import WorkflowStep, TaskWorkflow, CommandObservation
 
     async def dispatch(task):
         return [
@@ -86,7 +86,7 @@ async def test_workflow_executor_observability_detects_repeated_invocation(loade
             )
         ]
 
-    workflow = AgentWorkflow(
+    workflow = TaskWorkflow(
         trace_id="obs-repeat",
         kind="command_sequence",
         steps=[

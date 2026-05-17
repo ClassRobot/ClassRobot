@@ -7,7 +7,7 @@ import pytest
 
 @pytest.mark.asyncio
 async def test_local_rag_indexes_chat_history_with_overlap_recall(loaded_plugins, tmp_path):
-    from utils.storage import StorageManager, LocalRagService, ChatHistoryStore, MessageActorRole, MessageOwnerKind
+    from core.storage import StorageManager, LocalRagService, ChatHistoryStore, MessageActorRole, MessageOwnerKind
 
     manager = StorageManager(tmp_path / "storage")
     store = ChatHistoryStore(manager)
@@ -43,7 +43,7 @@ async def test_local_rag_indexes_chat_history_with_overlap_recall(loaded_plugins
 
 @pytest.mark.asyncio
 async def test_local_rag_indexes_file_space_and_builds_summary_context(loaded_plugins, tmp_path):
-    from utils.storage import StorageManager, LocalRagService, MessageOwnerKind
+    from core.storage import StorageManager, LocalRagService, MessageOwnerKind
 
     manager = StorageManager(tmp_path / "storage")
     space = manager.user_space(91002)
@@ -65,7 +65,7 @@ async def test_local_rag_indexes_file_space_and_builds_summary_context(loaded_pl
 
 @pytest.mark.asyncio
 async def test_local_rag_removes_deleted_file_chunks_after_full_refresh(loaded_plugins, tmp_path):
-    from utils.storage import StorageManager, LocalRagService, MessageOwnerKind
+    from core.storage import StorageManager, LocalRagService, MessageOwnerKind
 
     manager = StorageManager(tmp_path / "storage")
     space = manager.user_space(91003)

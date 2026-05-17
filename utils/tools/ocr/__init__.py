@@ -4,7 +4,7 @@ from PIL import Image
 
 def read_code(image):
     """识别图片中的验证码文本。"""
-    from src.agents.skills import ocr_skill
+    from core.skills import ocr_skill
 
     if isinstance(image, Image.Image):
         image = cv.cvtColor(np.asarray(image.convert("RGB")), cv.COLOR_RGB2BGR)

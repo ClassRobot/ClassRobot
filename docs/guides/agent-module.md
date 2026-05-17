@@ -1,6 +1,6 @@
 # AutoGPT 智能能力改进方案
 
-本文用于统一 ClassRobot 的 AI Agent 演进方向。当前用户侧智能入口仍然是 `src.plugins.autogpt`，后续应在这条主链路上增强，而不是再增加平行入口。
+本文用于统一 ClassRobot 的 AI Agent 演进方向。当前用户侧智能入口仍然是 `src.features.autogpt`，后续应在这条主链路上增强，而不是再增加平行入口。
 
 ## 设计目的
 
@@ -85,7 +85,7 @@ flowchart TD
     E --> F["AutoTaskList"]
     F --> G["WorkflowBuilder"]
     G --> H["Playbook Matching"]
-    H --> I["AgentWorkflow"]
+    H --> I["TaskWorkflow"]
     I --> J["WorkflowExecutor"]
     J --> K["dispatch_auto_task()"]
     K --> L["AgentCommandAdapter / CommandExecutor / service"]
@@ -97,7 +97,7 @@ flowchart TD
 
 - `AgentTurnResult`
   - 统一承载本轮 `route`、`plan`、`auto_tasks`、`workflow`
-- `AgentWorkflow`
+- `TaskWorkflow`
   - 面向执行与审计的显式工作流对象
 - `WorkflowStep`
   - 可顺序执行的命令步骤
@@ -185,7 +185,7 @@ flowchart TD
 - 已加入命令执行 observation：AutoGPT 会记录主命令、缺失命令、未 service 化命令和执行失败，并写回会话上下文，供下一轮规划参考。
 - 已加入 `trace_id`：每轮 AutoGPT 请求会生成独立追踪 ID，流水线节点、路由结果、规划结果和命令投递 observation 会使用同一个 ID 串联。
 - 已加入命令工具目录 `CommandToolCatalog`：只把当前用户可见、已注册 `CommandSpec`、允许 Agent 调用且具备 service handler 的命令包装成结构化工具。
-- 已加入显式工作流对象 `AgentWorkflow` 与 `WorkflowStep`：每轮自然语言请求会被提升成可被检查、记录和顺序执行的工作流。
+- 已加入显式工作流对象 `TaskWorkflow` 与 `WorkflowStep`：每轮自然语言请求会被提升成可被检查、记录和顺序执行的工作流。
 - 已加入 `WorkflowExecutor`：工作流步骤会按顺序调用统一命令执行器，失败即停并回写状态。
 - 已加入 `AgentTurnResult`：`ChatSession` 现在会保存本轮路由、计划、自动任务和工作流结果，便于后续扩展审批、恢复和长期记忆。
 - 已加入内置 `playbook` 模板目录：高频命令序列会被提升成更稳定的模板化工作流，并补充步骤标题与说明。
@@ -193,7 +193,7 @@ flowchart TD
 - 已加入工作流检查点持久化：`WorkflowCheckpointStore` 会把每个用户最近一次工作流状态保存到 `AgentWorkflowCheckpoint`，让 `needs_confirm` 场景在进程重启后仍可恢复。
 - 已加入审批元数据：`WorkflowApproval` 会记录当前确认属于高风险确认还是信息缺失确认，并保留 `pending / approved / rejected` 状态。
 - 已加入运行历史：`WorkflowRunStore` 会按 `trace_id` 保存 `AgentWorkflowRun`，把待确认规划、确认恢复后的子运行、取消状态和最终执行状态串起来。
-- 已加入工作流事件时间线：`AgentWorkflow.events` 会记录工作流创建、审批请求、恢复、步骤开始、步骤完成、失败和取消等离散事件。
+- 已加入工作流事件时间线：`TaskWorkflow.events` 会记录工作流创建、审批请求、恢复、步骤开始、步骤完成、失败和取消等离散事件。
 - 已加入克制的用户反馈：AutoGPT 只在确实需要等待时发送一条面向用户的状态提示，例如查资料或处理项目能力，不暴露内部路由、Planner、校验等流水线细节。
 - `print()` 调试输出已逐步替换为 logger，便于后续接入 trace 和审计。
 

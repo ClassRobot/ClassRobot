@@ -2,7 +2,7 @@
 
 `utils/commands` 是项目命令体系的统一元数据、权限策略、可用性与执行调度层。
 
-该目录只放可复用封装，不放具体业务命令。具体命令声明和业务实现应继续放在 `src/managers/*`、`src/plugins/*`、`src/others/*` 等业务模块中。
+该目录只放可复用封装，不放具体业务命令。具体命令声明和业务实现应继续放在 `src/features/*`、`src/features/*`、`src/features/*` 等业务模块中。
 
 如果你要看“为什么会有这层，以及它和 Agent、`Helper`、统一执行器是什么关系”，请先阅读 [命令与 Agent 一体化架构设计](../../docs/architecture/command-agent-unified-architecture.md)。本文只聚焦当前代码目录的职责和落地方式，尽量不重复写整套架构推导。
 
@@ -19,11 +19,11 @@
 
 - `utils.helper.runtime` 已支持优先收集 matcher 上的 `__command_spec__` / `__helper__`。
 - `utils.helper.depends.HelpersDepends` 已接入软关闭过滤，`help` 与 AutoGPT 会共享同一份可见命令集。
-- `src.plugins.autogpt.command_tools.CommandToolCatalog` 会优先从 `CommandSpec` 生成 Agent 工具。
-- `src.plugins.autogpt.dispatch_auto_task()` 只通过 `AgentCommandAdapter -> CommandExecutor` 调用 service 命令，没有 service handler 的命令不会暴露给 Agent。
-- `src.routers.managers.nonebot_runtime` 已合并 `CommandRegistry` 元数据，管理端命令清单可以看到风险等级、执行模式、Agent 可见性和软关闭状态。
-- `src.managers.user.commands`、`src.plugins.curriculum.commands` 与 `src.managers.classes.commands` 中的高频“查询班级”已作为样例迁移到 `command_alconna()`。
-- 命令输入记录通过 `history.py` 的注册式钩子派发，具体聊天记录逻辑由 `src.plugins.chat_context` 注册，避免封装层反向依赖业务插件。
+- `core.agent.runtime.command_tools.CommandToolCatalog` 会优先从 `CommandSpec` 生成 Agent 工具。
+- `core.agent.runtime.dispatch_auto_task()` 只通过 `AgentCommandAdapter -> CommandExecutor` 调用 service 命令，没有 service handler 的命令不会暴露给 Agent。
+- `src.interfaces.http.managers.runtime.nonebot` 已合并 `CommandRegistry` 元数据，管理端命令清单可以看到风险等级、执行模式、Agent 可见性和软关闭状态。
+- `src.features.user.commands`、`src.features.curriculum.commands` 与 `src.features.classes.commands` 中的高频“查询班级”已作为样例迁移到 `command_alconna()`。
+- 命令输入记录通过 `history.py` 的注册式钩子派发，具体聊天记录逻辑由 `src.features.chat_context` 注册，避免封装层反向依赖业务插件。
 
 ## 当前模块
 
@@ -90,6 +90,12 @@ flowchart TD
 `command_alconna()` / `command_command()` 仍然保留，用于只需要用户直接触发的 matcher 命令；这类命令默认 `execution_mode="matcher"`，不会进入 Agent 工具目录。
 
 新增或显著改造的命令不要再手写第二份 `__helpers__`。`Helper` 应由 `CommandSpec` 自动派生；未接入 `CommandSpec + CommandExecutor` 的命令只属于普通 matcher 能力，不会进入 Agent 工具目录。
+
+如果某条命令已经需要接入统一注册表，但暂时不应该展示到 `help`，可以在 `CommandBinding` 中设置 `helper_visible=False`。适合的场景包括：
+
+- 内部配套命令，例如只给工作流或特殊消息流程使用的命令
+- 尚未完成、但需要先保留 matcher 或注册表接线的命令
+- 像旧通知命令这类暂时不应暴露给普通用户的入口
 
 ## 统一命令推荐写法
 

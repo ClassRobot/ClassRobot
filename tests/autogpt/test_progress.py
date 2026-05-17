@@ -13,8 +13,8 @@ import pytest
     ],
 )
 def test_build_user_progress_message(loaded_plugins, intent, requires_rag, requires_command, expected):
-    from src.plugins.autogpt.schema import IntentRoute
-    from src.plugins.autogpt.pipeline import MessageProcessingPipeline
+    from core.agent.runtime.schema import IntentRoute
+    from core.agent.runtime.pipeline import MessageProcessingPipeline
 
     route = IntentRoute(
         intent=intent,
@@ -26,7 +26,7 @@ def test_build_user_progress_message(loaded_plugins, intent, requires_rag, requi
 
 
 def test_format_progress_message_adds_stage_prefix(loaded_plugins):
-    from src.plugins.autogpt.pipeline import MessageProcessingPipeline
+    from core.agent.runtime.pipeline import MessageProcessingPipeline
 
     assert (
         MessageProcessingPipeline.format_progress_message(
@@ -46,10 +46,10 @@ def test_format_progress_message_adds_stage_prefix(loaded_plugins):
 
 @pytest.mark.asyncio
 async def test_report_progress_deduplicates_messages(loaded_plugins):
-    from src.plugins.autogpt.pipeline import MessageProcessingPipeline
+    from core.agent.runtime.pipeline import MessageProcessingPipeline
 
     from utils.helper import Helpers
-    from utils.llm.message import Messages
+    from core.llm.message import Messages
 
     reports: list[str] = []
 
@@ -77,8 +77,8 @@ async def test_report_progress_deduplicates_messages(loaded_plugins):
 @pytest.mark.asyncio
 async def test_extract_node_reports_stage_tagged_progress(loaded_plugins, monkeypatch):
     from utils.helper import Helpers
-    from utils.llm.message import Context, LLMRole, Messages
-    from src.plugins.autogpt import pipeline as pipeline_module
+    from core.llm.message import Context, LLMRole, Messages
+    from core.agent.runtime import pipeline as pipeline_module
 
     reports: list[str] = []
 
@@ -105,8 +105,8 @@ async def test_extract_node_reports_stage_tagged_progress(loaded_plugins, monkey
 
 
 def test_normalize_auto_task_reply_builds_fallback_for_commands(loaded_plugins):
-    from src.plugins.autogpt.pipeline import MessageProcessingPipeline
-    from src.plugins.autogpt.schema import AutoTask, AgentPlan, IntentRoute, AutoTaskList
+    from core.agent.runtime.pipeline import MessageProcessingPipeline
+    from core.agent.runtime.schema import AutoTask, AgentPlan, IntentRoute, AutoTaskList
 
     reply = MessageProcessingPipeline.normalize_auto_task_reply(
         IntentRoute(intent="command", requires_command=True),
@@ -118,8 +118,8 @@ def test_normalize_auto_task_reply_builds_fallback_for_commands(loaded_plugins):
 
 
 def test_normalize_auto_task_reply_builds_fallback_for_confirmation(loaded_plugins):
-    from src.plugins.autogpt.pipeline import MessageProcessingPipeline
-    from src.plugins.autogpt.schema import AgentPlan, IntentRoute, AutoTaskList
+    from core.agent.runtime.pipeline import MessageProcessingPipeline
+    from core.agent.runtime.schema import AgentPlan, IntentRoute, AutoTaskList
 
     reply = MessageProcessingPipeline.normalize_auto_task_reply(
         IntentRoute(intent="command", requires_command=True, need_confirm=True),

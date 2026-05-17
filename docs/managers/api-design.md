@@ -8,15 +8,15 @@
 /api/v1/manager
 ```
 
-当前项目已经在 `src/routers/path.py` 中使用 `/api/v1` 挂载通用接口，后台接口可以继续复用同一个 FastAPI app，但要放到独立 router 中。
+当前项目已经在 `src/interfaces/http/path.py` 中使用 `/api/v1` 挂载通用接口，后台接口可以继续复用同一个 FastAPI app，但要放到独立 router 中。
 
 建议代码位置：
 
 ```text
-src/routers/managers/router.py
-src/routers/managers/security.py
-src/routers/managers/schemas.py
-src/routers/managers/service.py
+src/interfaces/http/managers/router.py
+src/interfaces/http/managers/security.py
+src/interfaces/http/managers/schemas.py
+src/interfaces/http/managers/service.py
 ```
 
 ## 鉴权
@@ -363,7 +363,7 @@ GET /api/v1/manager/skills
     {
       "name": "ocr",
       "description": "OCR 检测与识别",
-      "path": "src/agents/skills/builtin/ocr",
+      "path": "core/skills/builtin/ocr",
       "has_runtime": true,
       "loaded": true,
       "updated_at": "2026-05-03T15:02:02+08:00"

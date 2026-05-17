@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 
 from utils.helper import Helpers
 from core.llm.message import Content
-from utils.storage import ChatHistorySummary
+from core.storage import ChatHistorySummary
 
 from .state import LocalChatStatisticsQuery
 from ..harness.context import ContextHarness

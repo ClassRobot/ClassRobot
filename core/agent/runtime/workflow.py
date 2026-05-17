@@ -14,7 +14,7 @@ from .schema import (
     AutoTaskList,
     WorkflowKind,
     WorkflowStep,
-    AgentWorkflow,
+    TaskWorkflow,
     WorkflowStatus,
     AgentTurnResult,
     WorkflowApproval,
@@ -270,7 +270,7 @@ class WorkflowBuilder:
         auto_tasks: AutoTaskList | None,
         command_tools: CommandToolCatalog,
         observability: AgentObservabilityMetrics | None = None,
-    ) -> AgentWorkflow | None:
+    ) -> TaskWorkflow | None:
         """根据路由、计划和自动任务结果构建工作流。"""
 
         if route is None and plan is None and auto_tasks is None:
@@ -280,7 +280,7 @@ class WorkflowBuilder:
         steps = cls.step_builder.build(auto_tasks, command_tools, playbook)
         approval = cls.approval_builder.build(route, plan, auto_tasks, steps)
         cls.approval_builder.apply_to_steps(steps, approval)
-        workflow = AgentWorkflow(
+        workflow = TaskWorkflow(
             trace_id=trace_id,
             kind=cls.kind_resolver.infer_kind(route, auto_tasks),
             status=cls.kind_resolver.infer_status(plan, auto_tasks),
@@ -312,7 +312,7 @@ class WorkflowBuilder:
         return workflow
 
     @classmethod
-    def fill_final_hit_commands(cls, workflow: AgentWorkflow, command_tools: CommandToolCatalog) -> None:
+    def fill_final_hit_commands(cls, workflow: TaskWorkflow, command_tools: CommandToolCatalog) -> None:
         """为跳过校验节点的确定性命令路径补齐最终命中记录。"""
 
         if workflow.observability.final_hit_commands:
@@ -345,7 +345,7 @@ class WorkflowExecutor:
     def __init__(self, dispatcher: WorkflowDispatcher) -> None:
         self.dispatcher = dispatcher
 
-    async def execute(self, workflow: AgentWorkflow) -> WorkflowExecutionResult:
+    async def execute(self, workflow: TaskWorkflow) -> WorkflowExecutionResult:
         """执行工作流中的命令步骤。"""
 
         if workflow.need_confirm or workflow.status == "needs_confirm":
@@ -445,7 +445,7 @@ class WorkflowExecutor:
 
     def handle_non_command_step(
         self,
-        workflow: AgentWorkflow,
+        workflow: TaskWorkflow,
         step: WorkflowStep,
         result: WorkflowExecutionResult,
     ) -> WorkflowExecutionResult:
@@ -505,7 +505,7 @@ def build_turn_result(
     )
 
 
-def workflow_to_auto_tasks(workflow: AgentWorkflow, reply: str | None = None) -> AutoTaskList:
+def workflow_to_auto_tasks(workflow: TaskWorkflow, reply: str | None = None) -> AutoTaskList:
     """把显式工作流重新投影为兼容当前入口的自动任务结果。"""
 
     return AutoTaskList(
@@ -515,7 +515,7 @@ def workflow_to_auto_tasks(workflow: AgentWorkflow, reply: str | None = None) ->
     )
 
 
-def clone_workflow_for_execution(workflow: AgentWorkflow, trace_id: str) -> AgentWorkflow:
+def clone_workflow_for_execution(workflow: TaskWorkflow, trace_id: str) -> TaskWorkflow:
     """复制并重置一个待确认工作流，供用户确认后重新执行。"""
 
     cloned = workflow.copy(deep=True)
@@ -539,7 +539,7 @@ def clone_workflow_for_execution(workflow: AgentWorkflow, trace_id: str) -> Agen
     return cloned
 
 
-def workflow_requires_confirmation(workflow: AgentWorkflow) -> bool:
+def workflow_requires_confirmation(workflow: TaskWorkflow) -> bool:
     """判断当前工作流是否属于“待确认后可直接执行”的状态。"""
 
     return workflow.need_confirm and bool(workflow.steps)
@@ -562,7 +562,7 @@ def collect_unsent_observation_outputs(observations: list[CommandObservation]) -
     return outputs
 
 
-def update_execution_metrics(workflow: AgentWorkflow, observations: list[CommandObservation]) -> None:
+def update_execution_metrics(workflow: TaskWorkflow, observations: list[CommandObservation]) -> None:
     """根据命令执行观察结果回填重复调用等执行指标。"""
 
     executed_commands = [observation.command for observation in observations if observation.dispatch_type == "command"]

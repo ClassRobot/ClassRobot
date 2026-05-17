@@ -8,10 +8,10 @@ from collections.abc import Iterable
 
 from nonebot import logger
 from core.skills import skill_registry
-from src.plugins.chat_context.resolvers import resolve_bound_group_id
+from src.features.chat_context.resolvers import resolve_bound_group_id
 
 from utils.session import BaseSession
-from utils.storage import (
+from core.storage import (
     FileSpace,
     StorageManager,
     LocalRagService,

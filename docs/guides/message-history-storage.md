@@ -175,12 +175,12 @@ Agent 如果需要回顾系统群上下文，应优先调用 `检索群聊记录
 
 ## 代码入口
 
-- 存储层：[../../utils/storage/chat_history.py](../../utils/storage/chat_history.py)
-- 插件入口：[../../src/plugins/chat_context/__init__.py](../../src/plugins/chat_context/__init__.py)
-- 采集逻辑：[../../src/plugins/chat_context/collector.py](../../src/plugins/chat_context/collector.py)
-- 出站记录：[../../src/plugins/chat_context/outbound.py](../../src/plugins/chat_context/outbound.py)
-- 归属解析：[../../src/plugins/chat_context/resolvers.py](../../src/plugins/chat_context/resolvers.py)
-- 群历史命令服务：[../../src/plugins/chat_context/services.py](../../src/plugins/chat_context/services.py)
+- 存储层：[../../core/storage/chat_history.py](../../core/storage/chat_history.py)
+- 插件入口：[../../src/features/chat_context/__init__.py](../../src/features/chat_context/__init__.py)
+- 采集逻辑：[../../src/features/chat_context/collector.py](../../src/features/chat_context/collector.py)
+- 出站记录：[../../src/features/chat_context/outbound.py](../../src/features/chat_context/outbound.py)
+- 归属解析：[../../src/features/chat_context/resolvers.py](../../src/features/chat_context/resolvers.py)
+- 群历史命令服务：[../../src/features/chat_context/services.py](../../src/features/chat_context/services.py)
 
 ## 扩展原则
 

@@ -8,7 +8,7 @@ pytestmark = pytest.mark.asyncio
 
 
 async def test_plain_user_can_create_and_query_teacher_profile(app, onebot, send_recorder, models):
-    from src.managers.teacher.commands import query_teacher_cmd, set_teacher_cmd
+    from src.features.teacher.commands import query_teacher_cmd, set_teacher_cmd
     from utils.models import Teacher
 
     user = await models.create_user(account_id=10002, nickname="小王")
@@ -43,7 +43,7 @@ async def test_plain_user_can_create_and_query_teacher_profile(app, onebot, send
 
 
 async def test_teacher_can_create_class_and_query_classes(app, onebot, send_recorder, models):
-    from src.managers.classes.commands import create_classes_cmd, query_classes_cmd
+    from src.features.classes.commands import create_classes_cmd, query_classes_cmd
     from utils.models import Classes
 
     user = await models.create_user(account_id=10003, nickname="老师甲")
@@ -81,7 +81,7 @@ async def test_teacher_can_create_class_and_query_classes(app, onebot, send_reco
 
 
 async def test_plain_user_can_join_class_and_exit_after_confirmation(app, onebot, send_recorder, models):
-    from src.managers.classes.commands import exit_classes_cmd, join_classes_cmd
+    from src.features.classes.commands import exit_classes_cmd, join_classes_cmd
     from utils.models import Student
 
     teacher_user = await models.create_user(account_id=10004, nickname="班主任")
@@ -115,7 +115,7 @@ async def test_plain_user_can_join_class_and_exit_after_confirmation(app, onebot
 
 
 async def test_teacher_can_change_join_method_and_approve_join_request(app, onebot, send_recorder, models):
-    from src.managers.classes.commands import (
+    from src.features.classes.commands import (
         join_classes_cmd,
         query_join_request_cmd,
         review_join_request_cmd,
@@ -176,7 +176,7 @@ async def test_teacher_can_change_join_method_and_approve_join_request(app, oneb
 
 
 async def test_student_can_query_and_update_profile(app, onebot, send_recorder, models):
-    from src.managers.student.commands import query_cmd, set_cmd
+    from src.features.student.commands import query_cmd, set_cmd
     from utils.models import Student
 
     owner = await models.create_user(account_id=10008, nickname="班主任乙")
@@ -215,9 +215,9 @@ async def test_student_can_query_and_update_profile(app, onebot, send_recorder, 
 
 
 async def test_teacher_can_delete_empty_class(app, onebot, send_recorder, models, monkeypatch, tmp_path):
-    from src.managers.classes.commands import delete_classes_cmd
+    from src.features.classes.commands import delete_classes_cmd
     from utils.models import Classes
-    from utils.storage import StorageManager
+    from core.storage import StorageManager
     import utils.models.models as model_definitions
 
     storage = StorageManager(tmp_path / "storage")
@@ -245,8 +245,8 @@ async def test_teacher_can_delete_empty_class(app, onebot, send_recorder, models
 
 
 async def test_import_classes_can_create_teacher_class_and_student(app, onebot, send_recorder, monkeypatch, models):
-    import src.managers.classes.depends as classes_depends
-    from src.managers.classes.commands import import_classes_cmd
+    import src.features.classes.depends as classes_depends
+    from src.features.classes.commands import import_classes_cmd
     from utils.models import Classes, Student, Teacher
 
     user = await models.create_user(account_id=10011, nickname="导入老师")
@@ -291,9 +291,9 @@ async def test_import_classes_can_create_teacher_class_and_student(app, onebot, 
 
 
 async def test_my_info_bind_user_and_logout_flow(app, onebot, send_recorder, models, fake_cache, monkeypatch, tmp_path):
-    from src.managers.user.commands import bind_user_cmd, logout_cmd, self_info_cmd
+    from src.features.user.commands import bind_user_cmd, logout_cmd, self_info_cmd
     from utils.models import User
-    from utils.storage import StorageManager
+    from core.storage import StorageManager
     import utils.models.models as model_definitions
 
     storage = StorageManager(tmp_path / "storage")
@@ -337,9 +337,9 @@ async def test_my_info_bind_user_and_logout_flow(app, onebot, send_recorder, mod
 
 
 async def test_help_menu_filters_commands_by_current_role(app, onebot, send_recorder, monkeypatch, models):
-    import src.plugins.helper as helper_module
+    import src.features.helper as helper_module
     from nonebot_plugin_alconna import UniMessage
-    from src.plugins.helper import help_cmd
+    from src.features.helper import help_cmd
 
     async def fake_render_pic(self):
         lines = []

@@ -17,9 +17,9 @@
 
 | 能力 | 文件 |
 | --- | --- |
-| 管理端 Agent 服务 | `src/routers/managers/agent/service.py` |
-| 管理端路由 | `src/routers/managers/router.py` |
-| 管理端请求模型 | `src/routers/managers/agent/models.py` |
+| 管理端 Agent 服务 | `src/interfaces/http/managers/agent/service.py` |
+| 管理端路由 | `src/interfaces/http/managers/router.py` |
+| 管理端请求模型 | `src/interfaces/http/managers/agent/models.py` |
 | Runtime 节点注册表 | `core/agent/runtime/node_registry.py` |
 | Runtime 编排配置读写与校验 | `core/agent/runtime/orchestration_config.py` |
 | Runtime 条件图执行器 | `core/agent/runtime/graph_executor.py` |

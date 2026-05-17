@@ -58,9 +58,9 @@ def build_helpers_with_local_queries():
 
 @pytest.mark.asyncio
 async def test_self_admin_query_routes_to_self_info_command_without_llm(loaded_plugins, monkeypatch):
-    from utils.llm.message import Content, Messages
-    from src.plugins.autogpt import pipeline as pipeline_module
-    from src.plugins.autogpt.schema import ChatMessage
+    from core.llm.message import Content, Messages
+    from core.agent.runtime import pipeline as pipeline_module
+    from core.agent.runtime.schema import ChatMessage
 
     async def fail_client_create(*args, **kwargs):
         raise AssertionError("self identity queries should use local command routing before LLM planning")
@@ -85,8 +85,8 @@ async def test_self_admin_query_routes_to_self_info_command_without_llm(loaded_p
 
 
 def test_self_identity_query_does_not_match_mutating_requests(loaded_plugins):
-    from utils.llm.message import Content
-    from src.plugins.autogpt.pipeline import MessageProcessingPipeline
+    from core.llm.message import Content
+    from core.agent.runtime.pipeline import MessageProcessingPipeline
 
     assert MessageProcessingPipeline.is_self_identity_query([Content(type="text", value="我想成为管理员")]) is False
     assert MessageProcessingPipeline.is_self_identity_query([Content(type="text", value="我的身份是管理员吗")]) is True
@@ -94,9 +94,9 @@ def test_self_identity_query_does_not_match_mutating_requests(loaded_plugins):
 
 @pytest.mark.asyncio
 async def test_owned_class_query_routes_to_query_class_without_llm(loaded_plugins, monkeypatch):
-    from utils.llm.message import Content, Messages
-    from src.plugins.autogpt import pipeline as pipeline_module
-    from src.plugins.autogpt.schema import ChatMessage
+    from core.llm.message import Content, Messages
+    from core.agent.runtime import pipeline as pipeline_module
+    from core.agent.runtime.schema import ChatMessage
 
     async def fail_client_create(*args, **kwargs):
         raise AssertionError("local class queries should use deterministic command routing")
@@ -118,9 +118,9 @@ async def test_owned_class_query_routes_to_query_class_without_llm(loaded_plugin
 
 @pytest.mark.asyncio
 async def test_class_membership_query_routes_to_self_info_without_llm(loaded_plugins, monkeypatch):
-    from utils.llm.message import Content, Messages
-    from src.plugins.autogpt import pipeline as pipeline_module
-    from src.plugins.autogpt.schema import ChatMessage
+    from core.llm.message import Content, Messages
+    from core.agent.runtime import pipeline as pipeline_module
+    from core.agent.runtime.schema import ChatMessage
 
     async def fail_client_create(*args, **kwargs):
         raise AssertionError("class membership queries should use deterministic command routing")
@@ -141,9 +141,9 @@ async def test_class_membership_query_routes_to_self_info_without_llm(loaded_plu
 
 @pytest.mark.asyncio
 async def test_schedule_query_routes_to_query_curriculum_with_day_offset_without_llm(loaded_plugins, monkeypatch):
-    from utils.llm.message import Content, Messages
-    from src.plugins.autogpt import pipeline as pipeline_module
-    from src.plugins.autogpt.schema import ChatMessage
+    from core.llm.message import Content, Messages
+    from core.agent.runtime import pipeline as pipeline_module
+    from core.agent.runtime.schema import ChatMessage
 
     async def fail_client_create(*args, **kwargs):
         raise AssertionError("schedule queries should use deterministic command routing")
@@ -165,9 +165,9 @@ async def test_schedule_query_routes_to_query_curriculum_with_day_offset_without
 
 @pytest.mark.asyncio
 async def test_short_local_query_aliases_route_without_llm(loaded_plugins, monkeypatch):
-    from utils.llm.message import Content, Messages
-    from src.plugins.autogpt import pipeline as pipeline_module
-    from src.plugins.autogpt.schema import ChatMessage
+    from core.llm.message import Content, Messages
+    from core.agent.runtime import pipeline as pipeline_module
+    from core.agent.runtime.schema import ChatMessage
 
     async def fail_client_create(*args, **kwargs):
         raise AssertionError("short local query aliases should use deterministic command routing")
@@ -195,7 +195,7 @@ async def test_short_local_query_aliases_route_without_llm(loaded_plugins, monke
 
 
 def test_local_chat_statistics_query_only_matches_self_or_current_group(loaded_plugins):
-    from src.plugins.autogpt.pipeline import MessageProcessingPipeline
+    from core.agent.runtime.pipeline import MessageProcessingPipeline
 
     self_query = MessageProcessingPipeline.parse_local_chat_statistics_query("我们聊了几条消息")
     group_query = MessageProcessingPipeline.parse_local_chat_statistics_query("这个群今天聊了多少条消息")
@@ -210,11 +210,11 @@ def test_local_chat_statistics_query_only_matches_self_or_current_group(loaded_p
 
 @pytest.mark.asyncio
 async def test_user_chat_statistics_query_routes_to_local_summary_without_llm(loaded_plugins, monkeypatch, tmp_path):
-    from utils.storage import ChatHistoryStore, MessageActorRole, StorageManager
-    from utils.llm.message import Content, Messages
-    from src.plugins.autogpt import pipeline as pipeline_module
-    from src.plugins.autogpt.knowledge import RuntimeContext
-    from src.plugins.autogpt.schema import ChatMessage
+    from core.storage import ChatHistoryStore, MessageActorRole, StorageManager
+    from core.llm.message import Content, Messages
+    from core.agent.runtime import pipeline as pipeline_module
+    from core.agent.runtime.knowledge import RuntimeContext
+    from core.agent.runtime.schema import ChatMessage
 
     async def fail_client_create(*args, **kwargs):
         raise AssertionError("chat statistics queries should use deterministic local summaries before LLM planning")
@@ -288,11 +288,11 @@ async def test_group_chat_statistics_query_only_reads_current_group_without_llm(
     monkeypatch,
     tmp_path,
 ):
-    from utils.storage import ChatHistoryStore, StorageManager
-    from utils.llm.message import Content, Messages
-    from src.plugins.autogpt import pipeline as pipeline_module
-    from src.plugins.autogpt.knowledge import RuntimeContext
-    from src.plugins.autogpt.schema import ChatMessage
+    from core.storage import ChatHistoryStore, StorageManager
+    from core.llm.message import Content, Messages
+    from core.agent.runtime import pipeline as pipeline_module
+    from core.agent.runtime.knowledge import RuntimeContext
+    from core.agent.runtime.schema import ChatMessage
 
     async def fail_client_create(*args, **kwargs):
         raise AssertionError(

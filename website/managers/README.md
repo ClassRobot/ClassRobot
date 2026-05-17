@@ -1,6 +1,6 @@
 # ClassRobot 管理后台
 
-基于 Vue 3 + TypeScript + Tailwind CSS + Less 的本地管理平台前端。
+基于 Vue 3、TypeScript、Tailwind CSS 与 Less 的本地管理平台前端。它服务于项目维护者和管理员，重点承载“查看状态、管理数据、调试 Agent、维护 Prompt / Skill / 模型配置”等运维与工程任务，而不是校园业务本身。
 
 如果你想看“为什么要做这个后台、范围是什么、接口怎么设计”，先读 [docs/managers/README.md](../../docs/managers/README.md)；本文主要聚焦前端本地开发与目录结构。
 
@@ -15,6 +15,12 @@ npm run preview    # 预览生产构建
 ```
 
 开发时 Vite 会将 `/api` 请求代理到 `http://127.0.0.1:8080`（后端 FastAPI 端口）。
+
+## 建议先读
+
+- 如果你想先理解后台为什么存在、范围是什么、权限怎么定，先读 [docs/managers/README.md](../../docs/managers/README.md)
+- 如果你想直接看前后端接口边界，再读 [docs/managers/api-design.md](../../docs/managers/api-design.md)
+- 如果你想看页面结构和布局原则，再读 [docs/managers/frontend-layout.md](../../docs/managers/frontend-layout.md)
 
 ## 目录结构
 

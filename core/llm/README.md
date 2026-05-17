@@ -1,8 +1,8 @@
 # LLM 核心入口
 
-`core.llm` 是模型网关、消息协议和模型配置的 canonical import。
+`core.llm` 是项目统一的大模型接入层，负责模型配置、消息协议、网关路由和请求下发。
 
-从这一轮开始，`core.llm` 已经成为真实实现层；`utils.llm` 只保留兼容 alias。
+后续代码如果需要接入模型，请直接从这里导入；不要在业务模块里再各自包一层“私有 LLM 工具”。
 
 ## 主要入口
 
@@ -22,10 +22,10 @@
 ## 配置约定
 
 - `.env*`
-  - 放硬编码运行配置，例如 `LLM_CONFIGS`、代理、密钥。
+  - 放启动前就需要确定的模型接入配置，例如 `LLM_CONFIGS`、代理、密钥。
 - `config/`
-  - 放运行时热更新数据，例如 Agent 编排图。
-- 路径统一由 `utils.config` / `core.config` 提供。
+  - 放运行时热更新数据，例如 Agent 编排图或本地动态配置。
+- 路径统一由 `utils.config` 提供，不在业务代码里手写绝对路径。
 
 ## 模型配置示例
 
@@ -49,8 +49,7 @@ LLM_CONFIGS='[
 - 默认不设置代理。
 - Agent 和 Runtime 不直接拼接 HTTP 客户端，统一走 `LLMConfig.build_async_openai_client()`。
 
-## 兼容约定
+## 导入约定
 
-- `utils.llm.*`
-  - 旧路径，当前通过包级 alias 映射到 `core.llm.*`
-- 新代码统一从 `core.llm.*` 导入
+- 新代码统一从 `core.llm.*` 导入。
+- 不要在业务代码中重新建立 LLM 门面或兼容 alias。

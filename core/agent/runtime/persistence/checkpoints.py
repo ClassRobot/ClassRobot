@@ -7,10 +7,10 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from utils.models.models import AgentWorkflowCheckpoint
 
-from ..schema import AgentWorkflow
+from ..schema import TaskWorkflow
 
 
-def serialize_workflow(workflow: AgentWorkflow) -> dict:
+def serialize_workflow(workflow: TaskWorkflow) -> dict:
     """把工作流转换成适合写入 JSON 列的结构。"""
 
     return json.loads(workflow.json(ensure_ascii=False))
@@ -23,7 +23,7 @@ class WorkflowCheckpointStore:
     如果数据库表尚未迁移完成，这里会自动降级为只记录日志，避免影响主流程。
     """
 
-    async def load_workflow(self, user_id: int) -> AgentWorkflow | None:
+    async def load_workflow(self, user_id: int) -> TaskWorkflow | None:
         """读取用户最近一次保存的工作流。"""
 
         checkpoint = await self.get_checkpoint_model(user_id)
@@ -31,7 +31,7 @@ class WorkflowCheckpointStore:
             return None
         return self.parse_workflow(checkpoint.workflow_data, user_id=user_id, trace_id=checkpoint.trace_id)
 
-    async def load_pending_workflow(self, user_id: int) -> AgentWorkflow | None:
+    async def load_pending_workflow(self, user_id: int) -> TaskWorkflow | None:
         """读取仍处于待确认状态的工作流。"""
 
         checkpoint = await self.get_checkpoint_model(user_id)
@@ -42,7 +42,7 @@ class WorkflowCheckpointStore:
             return None
         return workflow
 
-    async def save_workflow(self, user_id: int, workflow: AgentWorkflow) -> AgentWorkflowCheckpoint | None:
+    async def save_workflow(self, user_id: int, workflow: TaskWorkflow) -> AgentWorkflowCheckpoint | None:
         """更新用户最近一次工作流检查点。"""
 
         payload = serialize_workflow(workflow)
@@ -108,11 +108,11 @@ class WorkflowCheckpointStore:
             return None
 
     @staticmethod
-    def parse_workflow(payload: dict, user_id: int, trace_id: str) -> AgentWorkflow | None:
+    def parse_workflow(payload: dict, user_id: int, trace_id: str) -> TaskWorkflow | None:
         """从 JSON 快照恢复工作流对象。"""
 
         try:
-            return AgentWorkflow.parse_obj(payload)
+            return TaskWorkflow.parse_obj(payload)
         except Exception as error:
             logger.warning(
                 'AutoGPT workflow checkpoint parse failed for user {} trace "{}": {}'.format(

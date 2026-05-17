@@ -2,9 +2,9 @@ import pytest
 
 
 def test_build_turn_result_promotes_tasks_to_explicit_workflow(loaded_plugins):
-    from src.plugins.autogpt.workflow import build_turn_result
-    from src.plugins.autogpt.command_tools import CommandToolCatalog
-    from src.plugins.autogpt.schema import Param, AutoTask, AgentPlan, IntentRoute, AutoTaskList
+    from core.agent.runtime.workflow import build_turn_result
+    from core.agent.runtime.command_tools import CommandToolCatalog
+    from core.agent.runtime.schema import Param, AutoTask, AgentPlan, IntentRoute, AutoTaskList
 
     from utils.helper import Helpers
     from tests.autogpt.command_tool_helpers import ensure_service_helper
@@ -47,9 +47,9 @@ def test_build_turn_result_promotes_tasks_to_explicit_workflow(loaded_plugins):
 
 
 def test_build_turn_result_marks_high_risk_workflow_for_approval(loaded_plugins):
-    from src.plugins.autogpt.workflow import build_turn_result
-    from src.plugins.autogpt.command_tools import CommandToolCatalog
-    from src.plugins.autogpt.schema import Param, AutoTask, AgentPlan, IntentRoute, AutoTaskList
+    from core.agent.runtime.workflow import build_turn_result
+    from core.agent.runtime.command_tools import CommandToolCatalog
+    from core.agent.runtime.schema import Param, AutoTask, AgentPlan, IntentRoute, AutoTaskList
 
     from utils.helper import Helpers
     from tests.autogpt.command_tool_helpers import ensure_service_helper
@@ -88,9 +88,9 @@ def test_build_turn_result_marks_high_risk_workflow_for_approval(loaded_plugins)
 
 
 def test_build_turn_result_marks_missing_info_approval(loaded_plugins):
-    from src.plugins.autogpt.workflow import build_turn_result
-    from src.plugins.autogpt.command_tools import CommandToolCatalog
-    from src.plugins.autogpt.schema import AgentPlan, IntentRoute, AutoTaskList
+    from core.agent.runtime.workflow import build_turn_result
+    from core.agent.runtime.command_tools import CommandToolCatalog
+    from core.agent.runtime.schema import AgentPlan, IntentRoute, AutoTaskList
 
     from utils.helper import Helpers
 
@@ -119,8 +119,8 @@ def test_build_turn_result_marks_missing_info_approval(loaded_plugins):
 
 @pytest.mark.asyncio
 async def test_workflow_executor_runs_steps_in_order(loaded_plugins):
-    from src.plugins.autogpt.workflow import WorkflowExecutor
-    from src.plugins.autogpt.schema import Param, WorkflowStep, AgentWorkflow, CommandObservation
+    from core.agent.runtime.workflow import WorkflowExecutor
+    from core.agent.runtime.schema import Param, WorkflowStep, TaskWorkflow, CommandObservation
 
     calls: list[str] = []
 
@@ -136,7 +136,7 @@ async def test_workflow_executor_runs_steps_in_order(loaded_plugins):
             )
         ]
 
-    workflow = AgentWorkflow(
+    workflow = TaskWorkflow(
         trace_id="autogpt-exec",
         kind="command_sequence",
         goal="批量处理班级事务",
@@ -174,8 +174,8 @@ async def test_workflow_executor_runs_steps_in_order(loaded_plugins):
 
 @pytest.mark.asyncio
 async def test_workflow_executor_surfaces_unsent_service_outputs(loaded_plugins):
-    from src.plugins.autogpt.workflow import WorkflowExecutor
-    from src.plugins.autogpt.schema import WorkflowStep, AgentWorkflow, CommandObservation
+    from core.agent.runtime.workflow import WorkflowExecutor
+    from core.agent.runtime.schema import WorkflowStep, TaskWorkflow, CommandObservation
 
     async def dispatch(task):
         return [
@@ -190,7 +190,7 @@ async def test_workflow_executor_surfaces_unsent_service_outputs(loaded_plugins)
             )
         ]
 
-    workflow = AgentWorkflow(
+    workflow = TaskWorkflow(
         trace_id="autogpt-service-output",
         kind="command",
         goal="查询我的信息",
@@ -204,10 +204,10 @@ async def test_workflow_executor_surfaces_unsent_service_outputs(loaded_plugins)
 
 
 def test_format_execution_status_counts_completed_commands(loaded_plugins):
-    from src.plugins.autogpt.workflow import format_execution_status
-    from src.plugins.autogpt.schema import WorkflowStep, AgentWorkflow, WorkflowExecutionResult
+    from core.agent.runtime.workflow import format_execution_status
+    from core.agent.runtime.schema import WorkflowStep, TaskWorkflow, WorkflowExecutionResult
 
-    workflow = AgentWorkflow(
+    workflow = TaskWorkflow(
         trace_id="autogpt-status",
         kind="command_sequence",
         steps=[
@@ -220,10 +220,10 @@ def test_format_execution_status_counts_completed_commands(loaded_plugins):
 
 
 def test_format_execution_status_marks_failed_command(loaded_plugins):
-    from src.plugins.autogpt.workflow import format_execution_status
-    from src.plugins.autogpt.schema import WorkflowStep, AgentWorkflow, WorkflowExecutionResult
+    from core.agent.runtime.workflow import format_execution_status
+    from core.agent.runtime.schema import WorkflowStep, TaskWorkflow, WorkflowExecutionResult
 
-    workflow = AgentWorkflow(
+    workflow = TaskWorkflow(
         trace_id="autogpt-status-failed",
         kind="command_sequence",
         steps=[
@@ -240,8 +240,8 @@ def test_format_execution_status_marks_failed_command(loaded_plugins):
 
 @pytest.mark.asyncio
 async def test_workflow_executor_stops_on_failed_step(loaded_plugins):
-    from src.plugins.autogpt.workflow import WorkflowExecutor
-    from src.plugins.autogpt.schema import Param, WorkflowStep, AgentWorkflow, CommandObservation
+    from core.agent.runtime.workflow import WorkflowExecutor
+    from core.agent.runtime.schema import Param, WorkflowStep, TaskWorkflow, CommandObservation
 
     calls: list[str] = []
 
@@ -258,7 +258,7 @@ async def test_workflow_executor_stops_on_failed_step(loaded_plugins):
             )
         ]
 
-    workflow = AgentWorkflow(
+    workflow = TaskWorkflow(
         trace_id="autogpt-failed",
         kind="command_sequence",
         goal="先创建班级再发送通知",

@@ -23,9 +23,9 @@
 
 对应调用位置可先看：
 
-- `src/managers/user/__init__.py`
-- `src/plugins/curriculum/__init__.py`
-- `src/routers/managers/status.py`
+- `src/features/user/__init__.py`
+- `src/features/curriculum/__init__.py`
+- `src/interfaces/http/managers/runtime/status.py`
 
 ## 文件结构
 
@@ -350,5 +350,5 @@ monkeypatch.setattr(cache_module, "get_cache", lambda db=0, decode_responses=Tru
 
 1. 先看 `utils/cache/__init__.py`
 2. 再看 `utils/cache/config.py`
-3. 然后看 `src/managers/user/__init__.py` 的 token 流程
+3. 然后看 `src/features/user/__init__.py` 的 token 流程
 4. 最后看 `tests/commands/conftest.py` 的 `MemoryCache`

@@ -1,13 +1,13 @@
 # Agent Playbook 与确认执行
 
-本文档说明当前 `autogpt` 中新增的两类关键能力：
+本文档说明当前 AutoGPT Runtime 中两类很关键的工程能力：
 
 - `playbook`
   - 把高频、多步、可复用的命令组合沉淀成稳定模板
 - `确认后继续执行`
   - 让待确认工作流在用户回复“确认 / 取消”后真正恢复或终止
 
-这两类能力是当前项目向 OpenClaw 风格 Agent 继续演进时，最适合优先落地的部分。
+这两类能力决定了系统能否把“一次性的临时规划”沉淀成“稳定、可复用、可恢复的执行模板”，也是后续继续增强 Agent 工程化时最值得优先维护的部分。
 
 ## 为什么需要 Playbook
 
@@ -27,7 +27,7 @@
 
 ## 当前内置模板
 
-当前内置在 [playbooks.py](../../src/plugins/autogpt/playbooks.py) 里的模板包括：
+当前内置在 [playbooks.py](../../core/agent/runtime/playbooks.py) 里的模板包括：
 
 - `class_bootstrap_and_notice`
   - `添加班级 -> 修改班级加入方式 -> 创建通知`
@@ -64,7 +64,7 @@ flowchart TD
     D --> E{"是否命中 Playbook?"}
     E -- 是 --> F["补充 playbook_id / playbook_name\n并填充步骤标题与说明"]
     E -- 否 --> G["保留通用工作流步骤"]
-    F --> H["AgentWorkflow"]
+    F --> H["TaskWorkflow"]
     G --> H
     H --> I["WorkflowExecutor"]
 ```
@@ -93,7 +93,7 @@ sequenceDiagram
     autonumber
     actor User as 用户
     participant Session as ChatSession
-    participant Workflow as 待确认 AgentWorkflow
+    participant Workflow as 待确认 TaskWorkflow
     participant Entry as AutoGPT 入口
     participant Executor as WorkflowExecutor
     participant Commands as 统一命令执行器
@@ -163,7 +163,7 @@ sequenceDiagram
 
 ## 相关代码
 
-- [workflow.py](../../src/plugins/autogpt/workflow.py)
-- [playbooks.py](../../src/plugins/autogpt/playbooks.py)
-- [util.py](../../src/plugins/autogpt/util.py)
-- [__init__.py](../../src/plugins/autogpt/__init__.py)
+- [workflow.py](../../core/agent/runtime/workflow.py)
+- [playbooks.py](../../core/agent/runtime/playbooks.py)
+- [util.py](../../core/agent/runtime/util.py)
+- [__init__.py](../../src/features/autogpt/__init__.py)
