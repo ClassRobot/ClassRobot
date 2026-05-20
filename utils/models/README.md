@@ -40,6 +40,7 @@
 - `User` -> `bot_user`
 - `UserBind` -> `bot_user_bind`
 - `TeacherClasses` -> `bot_teacher_classes`
+- `CollegeTeacher` -> `bot_college_teacher`
 
 ### 2. 这里的“群组”是系统群，不等于平台原始群号
 
@@ -193,6 +194,8 @@ flowchart TD
     GroupSettings["GroupSettings 群组设置"]
     Classes["Classes 班级"]
     TeacherClasses["TeacherClasses 教师-班级关系"]
+    College["College 学院"]
+    CollegeTeacher["CollegeTeacher 教师-学院岗位"]
 
     User --> UserBind
     User --> Teacher
@@ -204,6 +207,8 @@ flowchart TD
     Group --> Classes
     Teacher --> TeacherClasses
     Classes --> TeacherClasses
+    College --> CollegeTeacher
+    Teacher --> CollegeTeacher
     Classes --> Student
 ```
 
@@ -684,6 +689,35 @@ flowchart TD
 - 这是直接往多对多关系里追加，不做重复校验。
 - 更常用的是通过 `Classes.bind_teacher(...)` 间接调用。
 
+#### `get_managed_college_ids()`
+
+作用：
+
+- 查询当前教师以学院负责人身份管理的学院 ID 集合。
+
+工作逻辑：
+
+1. 查询 `CollegeTeacher` 中 `teacher_id` 等于当前教师 ID 的记录。
+2. 只认可 `role=manager` 的关系。
+3. 返回这些关系里的 `college_id` 集合。
+
+副作用：无。
+
+#### `manages_college(college_id)`
+
+作用：
+
+- 判断当前教师是否负责指定学院。
+
+工作逻辑：
+
+- `college_id` 为空时直接返回 `False`。
+- 否则复用 `get_managed_college_ids()` 判断是否命中。
+
+常用于：
+
+- 学院负责人管理教师、学生、班级和班级岗位时的动态权限校验。
+
 ## `Classes`
 
 ### 这张表是干什么的
@@ -784,6 +818,7 @@ flowchart TD
 
 - 可能新建 `Student`
 - 可能修改 `Student.classes_id`
+- 学生切换班级时会同步 `Student.school_id`
 
 #### `apply_join_classes(user, describe=None)`
 
@@ -827,7 +862,7 @@ flowchart TD
 - 平台群第一次被识别为班级时，不一定总是新建系统群
 - 已有系统群时会尽量复用
 
-#### `bind_teacher(teacher)`
+#### `bind_teacher(teacher, role=TeacherClassesRole.teacher)`
 
 作用：
 
@@ -836,6 +871,11 @@ flowchart TD
 底层实际走的是：
 
 - `TeacherClasses.association(...)`
+
+说明：
+
+- 如果教师已绑定该班级，会更新岗位而不是重复插入。
+- 新增班级教师时应优先走这个方法，避免绕过 `TeacherClasses` 的唯一约束。
 
 #### `update_teacher_role(teacher, role)`
 
@@ -876,7 +916,42 @@ flowchart TD
 
 注意：
 
-- 当前实现是直接创建，不做去重检查。
+- 当前实现会先检查同一教师和班级是否已有关系。
+- 已存在时更新 `role` 并返回原关系。
+- 不存在时创建新关系。
+
+## `CollegeTeacher`
+
+这张表是教师和学院的管理岗位关系表。
+
+它解决的问题是：
+
+- `UserRole.teacher` 只能说明“这个人是教师”。
+- `Teacher.college_id` 只能说明“这个教师属于哪个学院”。
+- `CollegeTeacher` 才说明“这个教师是否负责某个学院，以及权限在哪个学院内生效”。
+
+核心字段：
+
+- `teacher_id`
+- `college_id`
+- `role`
+
+### `association(teacher, college, role=CollegeTeacherRole.manager)`
+
+作用：
+
+- 创建或更新教师与学院的岗位关系。
+
+工作逻辑：
+
+1. 先查同一教师和学院是否已有关系。
+2. 已有关系时，如果岗位不同则更新岗位。
+3. 没有关系时创建新记录。
+
+副作用：
+
+- 只写 `CollegeTeacher` 表，不会自动修改 `UserRole`。
+- 调用方需要在命令或 service 层校验教师的学校/学院归属是否允许对齐。
 
 ## `Student`
 
@@ -916,6 +991,8 @@ flowchart TD
 副作用：
 
 - 会把学生角色重置成普通 `student`
+- 会同步更新 `classes_id`
+- 会同步更新 `school_id`，让学生冗余学校归属与新班级保持一致
 
 #### `get_classmates()`
 

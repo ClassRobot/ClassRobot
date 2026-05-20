@@ -280,7 +280,7 @@ async def test_runtime_graph_executor_takes_conditional_direct_reply_branch(load
         def resolve_runtime_scene(self, state: PipelineState):
             return "chat"
 
-        def can_retrieve_local_knowledge(self, contents):
+        def needs_local_knowledge(self, route):
             return False
 
         def should_retrieve(self, route, plan):
@@ -294,6 +294,62 @@ async def test_runtime_graph_executor_takes_conditional_direct_reply_branch(load
     assert "route" in visited
     assert "persist" in visited
     assert "extract" not in visited
+
+
+@pytest.mark.asyncio
+async def test_runtime_graph_executor_uses_route_knowledge_sources_for_local_rag(loaded_plugins):
+    from core.agent.runtime.schema import IntentRoute, KnowledgeSourceRequest
+    from core.agent.runtime.coordination import PipelineState
+    from core.agent.runtime.graph_executor import RuntimeGraphExecutor
+    from core.agent.runtime.orchestration_config import default_graph_config
+
+    visited: list[str] = []
+
+    class StubNode:
+        def __init__(self, node_type: str) -> None:
+            self.node_type = node_type
+
+        async def run(self, pipeline, state: PipelineState) -> None:
+            visited.append(self.node_type)
+            if self.node_type == "route":
+                state.intent_route = IntentRoute(
+                    intent="knowledge",
+                    requires_command=False,
+                    requires_rag=False,
+                    reason="需要读取当前用户历史聊天",
+                    knowledge_sources=[
+                        KnowledgeSourceRequest(
+                            source="user_chat_history",
+                            query="之前让我记住的事情",
+                            reason="用户追问历史上下文",
+                        )
+                    ],
+                )
+
+    class StubPipeline:
+        trace_id = "autogpt-local-knowledge-route"
+        current_node_config = {}
+        current_node_type = ""
+
+        def build_node_from_config(self, node_config, message):
+            return StubNode(node_config.node_type)
+
+        def resolve_runtime_scene(self, state: PipelineState):
+            return "knowledge"
+
+        def needs_local_knowledge(self, route):
+            return bool(route and route.knowledge_sources)
+
+        def should_retrieve(self, route, plan):
+            return False
+
+        def should_direct_reply_from_vision(self, route, contents):
+            return False
+
+    await RuntimeGraphExecutor(default_graph_config()).run(StubPipeline(), PipelineState(), "之前我让你记了什么")
+
+    assert "route" in visited
+    assert "local_rag" in visited
 
 
 def test_pipeline_resolves_configured_model_profile(loaded_plugins):

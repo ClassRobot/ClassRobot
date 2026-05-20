@@ -1,22 +1,10 @@
 from __future__ import annotations
 
-from typing import Literal
-from datetime import datetime
 from dataclasses import field, dataclass
 
 from core.llm.message import Content, Context
 
 from ..schema import AgentPlan, RuntimeScene, IntentRoute, AutoTaskList
-
-
-@dataclass(slots=True)
-class LocalChatStatisticsQuery:
-    """描述一次可直接命中的聊天统计请求。"""
-
-    scope: Literal["user", "group"]
-    time_label: str = "当前保存的"
-    start_at: datetime | None = None
-    end_at: datetime | None = None
 
 
 @dataclass(slots=True)

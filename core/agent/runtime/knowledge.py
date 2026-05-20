@@ -22,8 +22,7 @@ from core.storage import (
     chat_history_store,
 )
 
-from .prompt_selection import score_prompt_relevance
-
+from .schema import KnowledgeSourceRequest, KnowledgeSourceObservation
 TEXT_FILE_SUFFIXES = {
     ".cfg",
     ".csv",
@@ -38,67 +37,6 @@ TEXT_FILE_SUFFIXES = {
     ".yaml",
     ".yml",
 }
-CHAT_QUERY_WORDS = (
-    "刚才",
-    "之前",
-    "最近",
-    "聊天",
-    "群聊",
-    "记录",
-    "说过",
-    "谁说",
-    "回顾",
-    "总结群",
-)
-FILE_QUERY_WORDS = (
-    "文件",
-    "文档",
-    "目录",
-    "资料",
-    "文件夹",
-    "上传",
-    "笔记",
-    "内容",
-    "搜索",
-    "检索",
-)
-QUERY_STOP_PHRASES = (
-    "帮我",
-    "请",
-    "一下",
-    "查一下",
-    "查",
-    "查询",
-    "检索",
-    "搜索",
-    "找一下",
-    "看看",
-    "刚才",
-    "之前",
-    "最近",
-    "聊天记录",
-    "聊天",
-    "群聊记录",
-    "群聊",
-    "记录",
-    "文件夹",
-    "文件",
-    "文档",
-    "目录",
-    "资料",
-    "里面",
-    "里",
-    "内容",
-    "关于",
-    "有关",
-    "的",
-    "什么",
-    "哪些",
-    "谁说过",
-    "说过",
-    "回顾",
-    "总结",
-)
 
 
 @dataclass(slots=True)
@@ -123,14 +61,6 @@ class RuntimeContext:
 class SkillCatalog:
     """把项目内 Skill 注册表转换为 Runtime 可读能力目录。"""
 
-    KEYWORD_HINTS = {
-        "document-to-image": ("文档", "文件", "pdf", "ppt", "word", "预览", "转图片", "转成图片"),
-        "image-generation": ("生成图片", "画图", "海报", "插画", "配图", "风格图", "图片生成"),
-        "markdown-to-image": ("markdown", "md", "渲染", "长文", "长回复", "截图", "转图片"),
-        "ocr": ("文字", "识别", "提取文字", "图片文字", "验证码", "截图文字", "读图"),
-        "qr-code": ("二维码", "扫码", "扫码识别", "生成二维码", "解码二维码"),
-    }
-
     def summaries(self) -> list[dict[str, str]]:
         """返回排序后的 Skill 摘要列表。"""
 
@@ -139,11 +69,10 @@ class SkillCatalog:
     def select_summaries(
         self,
         *,
-        query: str | None = None,
         limit: int | None = None,
         skill_names: Iterable[str] | None = None,
     ) -> list[dict[str, str]]:
-        """按显式技能名或自然语言查询挑选最相关的 Skill 子集。"""
+        """按显式技能名挑选 Skill 子集，否则返回完整 Skill 目录。"""
 
         summaries = self.summaries()
         if skill_names:
@@ -152,9 +81,6 @@ class SkillCatalog:
                 return selected[:limit] if limit is not None else selected
 
         selected = summaries
-        if query:
-            selected = self.select_relevant_summaries(summaries, query, limit=limit)
-
         if limit is not None:
             selected = selected[:limit]
         return selected
@@ -162,13 +88,12 @@ class SkillCatalog:
     def to_prompt(
         self,
         *,
-        query: str | None = None,
         limit: int | None = None,
         skill_names: Iterable[str] | None = None,
     ) -> str:
         """渲染完整或裁剪后的 Skill 摘要，供路由器和 Planner 选择能力。"""
 
-        summaries = self.select_summaries(query=query, limit=limit, skill_names=skill_names)
+        summaries = self.select_summaries(limit=limit, skill_names=skill_names)
         if not summaries:
             return "暂无可用 Skill。"
         return "\n".join(f"- {item['name']}: {item['description']}" for item in summaries)
@@ -191,44 +116,6 @@ class SkillCatalog:
             seen.add(skill_name)
         return selected
 
-    @staticmethod
-    def select_relevant_summaries(
-        summaries: list[dict[str, str]],
-        query: str,
-        *,
-        limit: int | None = None,
-    ) -> list[dict[str, str]]:
-        """按自然语言问题挑选最相关的 Skill 摘要。"""
-
-        scored: list[tuple[int, int, dict[str, str]]] = []
-        for index, summary in enumerate(summaries):
-            score = score_prompt_relevance(
-                query,
-                names=(summary["name"],),
-                texts=(
-                    summary["description"],
-                    *SkillCatalog.KEYWORD_HINTS.get(summary["name"], ()),
-                ),
-            )
-            if score > 0:
-                scored.append((score, index, summary))
-
-        scored.sort(key=lambda item: (-item[0], item[1]))
-        selected = [summary for _, _, summary in scored]
-        if limit is None or len(selected) >= limit:
-            return selected
-
-        seen = {summary["name"] for summary in selected}
-        for summary in summaries:
-            if summary["name"] in seen:
-                continue
-            selected.append(summary)
-            seen.add(summary["name"])
-            if len(selected) >= limit:
-                break
-        return selected
-
-
 class LocalKnowledgeRetriever:
     """按需检索用户聊天记录、群聊采集消息和隔离文件空间。"""
 
@@ -245,65 +132,192 @@ class LocalKnowledgeRetriever:
         self.chat_store = chat_store or chat_history_store
         self.rag_service = rag_service or LocalRagService(manager=self.manager, chat_store=self.chat_store)
 
-    async def retrieve(self, query: str, context: RuntimeContext | None) -> str | None:
-        """根据用户问题和运行时上下文检索本地知识。"""
+    async def retrieve_sources(
+        self,
+        requests: Iterable[KnowledgeSourceRequest],
+        context: RuntimeContext | None,
+    ) -> str | None:
+        """按模型选择的受控知识来源检索，并返回结构化 observation 文本。"""
+
+        observations: list[KnowledgeSourceObservation] = []
+        for request in requests:
+            if request.source == "external_rag":
+                continue
+            observations.append(await self.retrieve_source(request, context))
+
+        if not observations:
+            return None
+        return self.format_observations(observations)
+
+    async def retrieve_source(
+        self,
+        request: KnowledgeSourceRequest,
+        context: RuntimeContext | None,
+    ) -> KnowledgeSourceObservation:
+        """检索单个本地知识来源，所有权限和范围在代码层强制校验。"""
+
+        query = extract_search_query(request.query)
+        if not query:
+            query = extract_search_query(request.reason)
 
         if context is None:
-            return None
+            return self.skipped_observation(request, query, "当前没有可用运行时上下文，无法读取本地知识。")
 
-        sections: list[str] = []
-        search_query = extract_search_query(query)
-        if should_search_chat_history(query):
-            chat_context = await self.retrieve_chat_history(search_query, context)
-            if chat_context:
-                sections.append(chat_context)
-
-        if should_search_files(query):
-            file_context = await self.retrieve_files(search_query, context)
-            if file_context:
-                sections.append(file_context)
-
-        if not sections:
-            return None
-        return "\n\n".join(sections)
-
-    async def retrieve_chat_history(self, query: str, context: RuntimeContext) -> str | None:
-        """检索用户聊天流和已绑定系统群的采集消息。"""
-
-        sections: list[str] = []
-        if context.user_id is not None:
-            user_context = await self.retrieve_user_chat_rag(query, context)
-            if user_context:
-                sections.append(user_context)
-            else:
-                records = await self.chat_store.search_user_chat_messages(
-                    context.user_id,
-                    query,
-                    limit=8,
-                    search_window=120,
-                    exclude_message_id=context.message_id,
-                )
-                if records:
-                    sections.append(format_chat_records("用户人机聊天记录检索", query, records))
-
-        if context.is_group:
+        unavailable_reason = self.source_unavailable_reason(request.source, context)
+        if unavailable_reason:
+            return self.skipped_observation(request, query, unavailable_reason)
+        if request.source in {"group_chat_history", "group_file_space"}:
             group_id = await self.resolve_system_group_id(context)
-            if group_id is not None:
-                group_context = await self.retrieve_group_chat_rag(group_id, query, context)
-                if group_context:
-                    sections.append(group_context)
-                else:
-                    records = await self.chat_store.search_group_messages(
-                        group_id,
-                        query,
-                        limit=8,
-                        search_window=160,
-                        exclude_message_id=context.message_id,
-                    )
-                    if records:
-                        sections.append(format_chat_records("系统群近期消息检索", query, records))
+            if group_id is None:
+                return self.skipped_observation(
+                    request,
+                    query,
+                    "当前群聊未绑定系统群或无法解析系统群 ID，已跳过群知识源检索。",
+                )
 
-        return "\n\n".join(sections) if sections else None
+        try:
+            content = await self.retrieve_allowed_source(request.source, query, context)
+        except Exception as error:
+            logger.warning(f"AutoGPT local knowledge source `{request.source}` failed: {error}")
+            return KnowledgeSourceObservation(
+                source=request.source,
+                query=query,
+                status="error",
+                summary=f"检索 {request.source} 时发生错误：{error}",
+                confidence="none",
+                required=request.required,
+            )
+
+        if content is None:
+            return KnowledgeSourceObservation(
+                source=request.source,
+                query=query,
+                status="miss",
+                summary="未检索到相关内容。",
+                confidence="none",
+                required=request.required,
+            )
+
+        return KnowledgeSourceObservation(
+            source=request.source,
+            query=query,
+            status="hit",
+            summary=content,
+            confidence="medium",
+            items_count=estimate_context_items(content),
+            required=request.required,
+        )
+
+    @staticmethod
+    def source_unavailable_reason(source: str, context: RuntimeContext) -> str:
+        """返回当前上下文无法访问某知识源的原因，空字符串表示可尝试检索。"""
+
+        if source in {"user_chat_history", "user_file_space"} and context.user_id is None:
+            return "当前没有可用用户 ID，已跳过用户私有知识源检索。"
+        if source in {"group_chat_history", "group_file_space"} and not context.is_group:
+            return "当前不是群聊或频道上下文，已跳过群知识源检索。"
+        return ""
+
+    async def retrieve_allowed_source(
+        self,
+        source: str,
+        query: str,
+        context: RuntimeContext,
+    ) -> str | None:
+        """根据受控 source 调用对应检索实现，不让模型直接决定存储范围。"""
+
+        if source == "user_chat_history":
+            if context.user_id is None:
+                return None
+            return await self.retrieve_user_chat_history(query, context)
+        if source == "group_chat_history":
+            if not context.is_group:
+                return None
+            return await self.retrieve_group_chat_history(query, context)
+        if source == "user_file_space":
+            if context.user_id is None:
+                return None
+            return await self.retrieve_user_files(query, context)
+        if source == "group_file_space":
+            if not context.is_group:
+                return None
+            return await self.retrieve_group_files(query, context)
+        return None
+
+    @staticmethod
+    def skipped_observation(
+        request: KnowledgeSourceRequest,
+        query: str,
+        summary: str,
+    ) -> KnowledgeSourceObservation:
+        """构造因权限或上下文不足而跳过的检索观察。"""
+
+        return KnowledgeSourceObservation(
+            source=request.source,
+            query=query,
+            status="skipped",
+            summary=summary,
+            confidence="none",
+            required=request.required,
+        )
+
+    @staticmethod
+    def format_observations(observations: Iterable[KnowledgeSourceObservation]) -> str:
+        """把结构化检索 observation 渲染成可进入 Planner 的紧凑上下文。"""
+
+        lines = ["# 本地知识源检索观察"]
+        for observation in observations:
+            lines.extend(
+                [
+                    f"## {observation.source}",
+                    f"- query: {observation.query or '未提供'}",
+                    f"- status: {observation.status}",
+                    f"- required: {str(observation.required).lower()}",
+                    f"- confidence: {observation.confidence}",
+                    f"- items_count: {observation.items_count}",
+                    observation.summary.strip() or "未检索到相关内容。",
+                ]
+            )
+        return "\n".join(lines)
+
+    async def retrieve_user_chat_history(self, query: str, context: RuntimeContext) -> str | None:
+        """检索当前用户私聊历史，禁止读取其它用户记录。"""
+
+        if context.user_id is None:
+            return None
+        user_context = await self.retrieve_user_chat_rag(query, context)
+        if user_context:
+            return user_context
+        records = await self.chat_store.search_user_chat_messages(
+            context.user_id,
+            query,
+            limit=8,
+            search_window=120,
+            exclude_message_id=context.message_id,
+        )
+        if not records:
+            return None
+        return format_chat_records("用户人机聊天记录检索", query, records)
+
+    async def retrieve_group_chat_history(self, query: str, context: RuntimeContext) -> str | None:
+        """检索当前绑定系统群的群聊历史，不直接信任平台 channel id。"""
+
+        group_id = await self.resolve_system_group_id(context)
+        if group_id is None:
+            return None
+        group_context = await self.retrieve_group_chat_rag(group_id, query, context)
+        if group_context:
+            return group_context
+        records = await self.chat_store.search_group_messages(
+            group_id,
+            query,
+            limit=8,
+            search_window=160,
+            exclude_message_id=context.message_id,
+        )
+        if not records:
+            return None
+        return format_chat_records("系统群近期消息检索", query, records)
 
     async def retrieve_user_chat_rag(self, query: str, context: RuntimeContext) -> str | None:
         """通过本地 RAG 索引检索用户人机聊天记录。"""
@@ -348,20 +362,23 @@ class LocalKnowledgeRetriever:
             logger.warning(f"AutoGPT local RAG failed to retrieve group chat: {error}")
             return None
 
-    async def retrieve_files(self, query: str, context: RuntimeContext) -> str | None:
-        """检索当前用户或群组隔离文件空间。"""
+    async def retrieve_user_files(self, query: str, context: RuntimeContext) -> str | None:
+        """检索当前用户隔离文件空间。"""
 
-        if context.is_group:
-            group_id = await self.resolve_system_group_id(context)
-            if group_id is None:
-                return None
-            space = self.manager.group_space(group_id)
-            title = "群文件空间检索"
-        elif context.user_id is not None:
-            space = self.manager.user_space(context.user_id)
-            title = "用户文件空间检索"
-        else:
+        if context.user_id is None:
             return None
+        return await self.retrieve_file_space(query, self.manager.user_space(context.user_id), "用户文件空间检索")
+
+    async def retrieve_group_files(self, query: str, context: RuntimeContext) -> str | None:
+        """检索当前绑定系统群文件空间，不直接使用平台 channel id。"""
+
+        group_id = await self.resolve_system_group_id(context)
+        if group_id is None:
+            return None
+        return await self.retrieve_file_space(query, self.manager.group_space(group_id), "群文件空间检索")
+
+    async def retrieve_file_space(self, query: str, space: FileSpace, title: str) -> str | None:
+        """检索指定隔离文件空间。"""
 
         rag_context = await self.retrieve_file_rag(query, space, title)
         if rag_context:
@@ -415,28 +432,10 @@ class LocalKnowledgeRetriever:
         return str(group_id) if group_id is not None else None
 
 
-def should_search_chat_history(text: str) -> bool:
-    """判断用户是否在询问聊天记录或近期对话。"""
-
-    normalized = normalize_query_text(text)
-    return any(word in normalized for word in CHAT_QUERY_WORDS)
-
-
-def should_search_files(text: str) -> bool:
-    """判断用户是否在询问本地文件空间。"""
-
-    normalized = normalize_query_text(text)
-    return any(word in normalized for word in FILE_QUERY_WORDS)
-
-
 def extract_search_query(text: str) -> str:
-    """从自然语言问题中提取基础检索关键词。"""
+    """清理路由器生成的检索问题，保留语义由 AI 路由器负责。"""
 
-    query = normalize_query_text(text)
-    for phrase in QUERY_STOP_PHRASES:
-        query = query.replace(phrase, " ")
-    query = re.sub(r"\s+", " ", query).strip()
-    return query
+    return normalize_query_text(text)
 
 
 def normalize_query_text(text: str | None) -> str:
@@ -468,6 +467,12 @@ def filter_current_message(
     if not message_id:
         return results
     return [result for result in results if str(result.metadata.get("message_id") or "") != str(message_id)]
+
+
+def estimate_context_items(context: str) -> int:
+    """粗略估算检索上下文中的命中条数，用于 observation 可读性。"""
+
+    return sum(1 for line in context.splitlines() if line.startswith("- ") or line.startswith("### "))
 
 
 def search_file_space_sync(space: FileSpace, query: str, *, limit: int = 8, max_scan: int = 160) -> list[str]:

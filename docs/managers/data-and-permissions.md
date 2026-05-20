@@ -120,7 +120,6 @@
 - `autogpt.jinja`
 - `extract.jinja`
 - `intent_route.jinja`
-- `keywords.jinja`
 - `output.jinja`
 - `user.jinja`
 

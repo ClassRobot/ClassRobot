@@ -2,7 +2,14 @@ from types import SimpleNamespace
 
 import pytest
 
-from tests.autogpt.test_local_context_query import build_helpers_with_local_queries
+from tests.autogpt.semantic_helpers import (
+    task_response,
+    plan_response,
+    route_response,
+    extract_response,
+    patch_pipeline_llm,
+    build_helpers_with_semantic_commands,
+)
 
 
 def build_observability_helpers():
@@ -10,7 +17,7 @@ def build_observability_helpers():
 
     from tests.autogpt.command_tool_helpers import ensure_service_helper
 
-    helpers = build_helpers_with_local_queries()
+    helpers = build_helpers_with_semantic_commands()
     helpers.append(ensure_service_helper("创建通知", "给班级创建一条通知", risk_level="high"))
     return helpers
 
@@ -49,20 +56,25 @@ async def test_route_stage_observability_records_prompt_length_and_recall(loaded
 
 
 @pytest.mark.asyncio
-async def test_local_query_observability_records_final_hit_commands(loaded_plugins, monkeypatch):
+async def test_semantic_command_observability_records_final_hit_commands(loaded_plugins, monkeypatch):
     from core.llm.message import Content, Messages
-    from core.agent.runtime import pipeline as pipeline_module
+    from core.agent.runtime.pipeline import MessageProcessingPipeline
     from core.agent.runtime.schema import ChatMessage
 
-    async def fail_client_create(*args, **kwargs):
-        raise AssertionError("local context queries should not require LLM planning")
+    patch_pipeline_llm(
+        monkeypatch,
+        [
+            route_response(),
+            extract_response("我明天有什么课"),
+            plan_response("查询课表", "查询用户明天的课表"),
+            task_response("查询课表", "我会调用查询课表处理。", ["1"]),
+        ],
+    )
 
-    monkeypatch.setattr(pipeline_module, "client_create", fail_client_create)
-
-    pipeline = pipeline_module.MessageProcessingPipeline(
-        build_helpers_with_local_queries(),
+    pipeline = MessageProcessingPipeline(
+        build_helpers_with_semantic_commands(),
         Messages(),
-        trace_id="obs-local-query",
+        trace_id="obs-semantic-command",
     )
     result = await pipeline.process(ChatMessage(message=[Content(type="text", value="我明天有什么课")]))
 

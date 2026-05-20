@@ -1,6 +1,7 @@
 from utils import Emoji
 from utils.tools import StringCard
-from utils.models import School, College, Major, Classes, Organization, OrganizationMember
+from utils.models import School, College, Major, Teacher, Classes, CollegeTeacher, Organization, OrganizationMember
+from utils.roles import CollegeTeacherRole
 from nonebot_plugin_alconna import AlconnaMatcher
 from utils.models.depends import UserOrCreatedDepends
 
@@ -39,6 +40,8 @@ from .commands import (
     query_organization,
     join_organization,
     exit_organization,
+    set_college_manager,
+    unset_college_manager,
 )
 
 
@@ -161,6 +164,47 @@ async def _(matcher: AlconnaMatcher, school_name: str, college_name: str):
     await delete_classes_groups(classes_list)
     await college.delete()
     await matcher.finish(Emoji.success + f"学院`{college.name}`已删除。")
+
+
+@set_college_manager.handle()
+async def _(matcher: AlconnaMatcher, school_name: str, college_name: str, teacher_id: int):
+    """设置学院负责人。"""
+    school = await get_school_or_finish(matcher, school_name)
+    college = await get_college_or_finish(matcher, school, college_name)
+    teacher = await Teacher.filter(id=teacher_id).first()
+    if teacher is None:
+        await matcher.finish(Emoji.error + f"教师[{teacher_id}]不存在。")
+
+    payload = {}
+    if teacher.school_id is None:
+        payload["school_id"] = school.id
+    elif teacher.school_id != school.id:
+        await matcher.finish(Emoji.error + "该教师所属学校与目标学院所属学校不一致。")
+    if teacher.college_id is None:
+        payload["college_id"] = college.id
+    elif teacher.college_id != college.id:
+        await matcher.finish(Emoji.error + "该教师所属学院与目标学院不一致。")
+    if payload:
+        teacher = await teacher.update(**payload)
+
+    await CollegeTeacher.association(teacher, college, role=CollegeTeacherRole.manager)
+    await matcher.finish(Emoji.success + f"已将教师`{teacher.name}`设置为学院`{college.name}`负责人。")
+
+
+@unset_college_manager.handle()
+async def _(matcher: AlconnaMatcher, school_name: str, college_name: str, teacher_id: int):
+    """取消学院负责人。"""
+    school = await get_school_or_finish(matcher, school_name)
+    college = await get_college_or_finish(matcher, school, college_name)
+    relation = await CollegeTeacher.filter(
+        teacher_id=teacher_id,
+        college_id=college.id,
+        role=CollegeTeacherRole.manager,
+    ).first()
+    if relation is None:
+        await matcher.finish(Emoji.warning + "该教师不是该学院负责人。")
+    await relation.delete()
+    await matcher.finish(Emoji.success + f"已取消教师[{teacher_id}]的学院`{college.name}`负责人岗位。")
 
 
 @add_major.handle()

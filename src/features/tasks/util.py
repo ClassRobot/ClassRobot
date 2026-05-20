@@ -342,7 +342,7 @@ class PushTaskManager(TaskManager):
             self.task_file = message
             return True
         elif isinstance(message, Message):
-            message = UniMessage.generate_sync(message=message)
+            message = UniMessage.of(message)
         for file in message:
             if isinstance(file, TaskFile):
                 self.task_file = file

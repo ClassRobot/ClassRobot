@@ -57,7 +57,9 @@ def get_nonebot_overview() -> dict[str, Any]:
             "available_commands": sum(1 for item in commands if item.get("available", True)),
             "disabled_commands": sum(1 for item in commands if not item.get("available", True)),
             "service_commands": sum(1 for item in commands if item.get("execution_mode") == "service"),
+            "service_handler_commands": sum(1 for item in commands if item.get("service_handler_registered")),
             "agent_callable_commands": sum(1 for item in commands if item.get("agent_callable")),
+            "agent_executable_commands": sum(1 for item in commands if item.get("agent_executable")),
             "registry_commands": sum(1 for item in commands if item.get("metadata_source") == "command_registry"),
             "adapters": len(adapters),
             "registered_adapters": sum(1 for item in adapters if item.get("registered")),
@@ -370,6 +372,10 @@ def _command_payload_from_call(node: ast.Call) -> dict[str, Any] | None:
         command = _alconna_command(node.args[0]) if node.args else None
         matcher_type = "alconna"
         signature = _expression_text(node.args[0]) if node.args else ""
+    elif func_name == "on_agent_command":
+        command = _agent_command(node.args[0]) if node.args else None
+        matcher_type = "agent_command"
+        signature = _expression_text(node.args[0]) if node.args else ""
     else:
         return None
 
@@ -395,6 +401,8 @@ def _command_payload_from_call(node: ast.Call) -> dict[str, Any] | None:
         "execution_mode": "matcher",
         "available": True,
         "availability_reason": "",
+        "service_handler_registered": False,
+        "agent_executable": False,
         "tool_name": None,
         "metadata_source": "source_scan",
     }
@@ -465,6 +473,7 @@ def _enrich_command(
     elif not plugin_state.enabled:
         item["available"] = False
         item["availability_reason"] = plugin_state.reason or f"插件 {item.get('plugin_module') or ''} 已关闭"
+    _attach_agent_execution_flags(item)
     item["runtime_loaded"] = _module_is_loaded(item["plugin_module"], loaded_modules)
     return item
 
@@ -513,7 +522,32 @@ def _registry_payload_to_command_item(payload: dict[str, Any], loaded_modules: s
         "signature": payload["command"],
         "runtime_loaded": _module_is_loaded(plugin_module, loaded_modules),
     }
+    _attach_agent_execution_flags(item)
     return item
+
+
+def _attach_agent_execution_flags(item: dict[str, Any]) -> None:
+    """补充管理端区分 Agent 声明可调用与真实可执行的状态。"""
+
+    from utils.commands.executor import command_executor
+    from utils.commands.registry import command_registry
+
+    spec = command_registry.get(str(item.get("command") or ""))
+    if spec is None:
+        for alias in item.get("aliases", []):
+            spec = command_registry.get(str(alias))
+            if spec is not None:
+                break
+
+    command_name = spec.name if spec is not None else str(item.get("command") or "")
+    service_handler_registered = command_executor.has_handler(command_name)
+    item["service_handler_registered"] = service_handler_registered
+    item["agent_executable"] = bool(
+        item.get("available", True)
+        and item.get("agent_callable")
+        and item.get("execution_mode") == "service"
+        and service_handler_registered
+    )
 
 
 def _plugin_availability_payload(plugin_module: str) -> dict[str, Any]:
@@ -755,6 +789,12 @@ def _alconna_command(node: ast.AST) -> str | None:
     if isinstance(node, ast.Call) and _call_name(node.func).rsplit(".", 1)[-1] == "Alconna" and node.args:
         return _literal_string(node.args[0])
     return _literal_string(node)
+
+
+def _agent_command(node: ast.AST) -> str | None:
+    """提取 ``on_agent_command`` 的命令名称。"""
+
+    return _alconna_command(node) or _literal_string(node)
 
 
 def _keyword_strings(node: ast.Call, keyword_name: str) -> set[str]:

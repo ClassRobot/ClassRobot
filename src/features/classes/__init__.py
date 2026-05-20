@@ -8,7 +8,7 @@ from utils.session import EventSession
 from nonebot.params import ArgPlainText
 from nonebot_plugin_waiter import waiter
 from nonebot_plugin_alconna import AlconnaMatcher
-from utils.roles import JoinMethod, TeacherClassesRole
+from utils.roles import JoinMethod, StudentRole, TeacherClassesRole
 from utils.models import (
     Group,
     User,
@@ -20,6 +20,7 @@ from utils.models import (
     Teacher,
     GroupBind,
     StudentExtra,
+    TeacherClasses,
     ClassesJoinRequest,
 )
 from utils.models.depends import StudentDepends, TeacherDepends, UserOrCreatedDepends
@@ -29,7 +30,19 @@ from .util import student_column_renames, student_column_required
 from .constants import JOIN_METHOD_MAPPING, JOIN_REQUEST_ACTION_MAPPING
 from .importing import normalize_cell, normalize_datetime, get_student_by_student_code, build_user_update_payload
 from .presenters import get_join_method_label, render_classes_card, render_join_request_card
-from .services import ensure_teacher_scope, resolve_class_scope, resolve_teacher_request_scope
+from .services import (
+    ensure_teacher_scope,
+    manager_teacher_count,
+    parse_student_role,
+    can_manage_class,
+    ensure_can_manage_class,
+    ensure_can_manage_student,
+    get_student_role_label,
+    resolve_class_scope,
+    parse_teacher_class_role,
+    get_teacher_class_role_label,
+    resolve_teacher_request_scope,
+)
 from .commands import (
     exit_classes_cmd,
     join_classes_cmd,
@@ -37,8 +50,12 @@ from .commands import (
     create_classes_cmd,
     delete_classes_cmd,
     import_classes_cmd,
+    set_class_teacher_cmd,
     set_join_classes_cmd,
+    set_student_position_cmd,
     query_join_request_cmd,
+    unset_class_teacher_cmd,
+    unset_student_position_cmd,
     review_join_request_cmd,
 )
 
@@ -431,6 +448,106 @@ async def _(
 
     await request.delete()
     await matcher.finish(Emoji.success + f"已拒绝申请[{request.id}]。")
+
+
+# --------------------------------- 班级教师与学生岗位 ---------------------------------
+
+
+@set_class_teacher_cmd.handle()
+async def _(
+    matcher: AlconnaMatcher,
+    user: UserOrCreatedDepends,
+    classes_id: int,
+    teacher_id: int,
+    role: str,
+):
+    """设置教师在班级中的岗位。"""
+    classes = await Classes.filter(id=classes_id).first()
+    if classes is None:
+        await matcher.finish(Emoji.error + f"班级[{classes_id}]不存在。")
+    teacher = await Teacher.filter(id=teacher_id).first()
+    if teacher is None:
+        await matcher.finish(Emoji.error + f"教师[{teacher_id}]不存在。")
+    await ensure_can_manage_class(matcher, user, classes)
+    try:
+        role_value = parse_teacher_class_role(role)
+    except ValueError as error:
+        await matcher.finish(Emoji.error + str(error))
+
+    if classes.college_id is not None and teacher.college_id not in {None, classes.college_id}:
+        await matcher.finish(Emoji.error + "该教师所属学院与班级学院不一致，不能绑定到该班级。")
+    payload = {}
+    if classes.school_id is not None and teacher.school_id is None:
+        payload["school_id"] = classes.school_id
+    elif classes.school_id is not None and teacher.school_id != classes.school_id:
+        await matcher.finish(Emoji.error + "该教师所属学校与班级学校不一致，不能绑定到该班级。")
+    if classes.college_id is not None and teacher.college_id is None:
+        payload["college_id"] = classes.college_id
+    if payload:
+        teacher = await teacher.update(**payload)
+
+    await classes.bind_teacher(teacher, role=role_value, update_role=True)
+    await matcher.finish(
+        Emoji.success
+        + f"已将教师`{teacher.name}`设置为班级`{classes.name}`的{get_teacher_class_role_label(role_value)}。"
+    )
+
+
+@unset_class_teacher_cmd.handle()
+async def _(
+    matcher: AlconnaMatcher,
+    user: UserOrCreatedDepends,
+    classes_id: int,
+    teacher_id: int,
+):
+    """取消教师与班级的关联。"""
+    classes = await Classes.filter(id=classes_id).first()
+    if classes is None:
+        await matcher.finish(Emoji.error + f"班级[{classes_id}]不存在。")
+    relation = await TeacherClasses.filter(teacher_id=teacher_id, classes_id=classes.id).first()
+    if relation is None:
+        await matcher.finish(Emoji.warning + "该教师未绑定到此班级。")
+    await ensure_can_manage_class(matcher, user, classes)
+    if TeacherClassesRole(relation.role) in {TeacherClassesRole.counselor, TeacherClassesRole.homeroom}:
+        if await manager_teacher_count(classes) <= 1:
+            await matcher.finish(Emoji.error + "班级至少需要保留一位班主任或辅导员。")
+    await relation.delete()
+    await matcher.finish(Emoji.success + "已取消该教师与班级的绑定。")
+
+
+@set_student_position_cmd.handle()
+async def _(
+    matcher: AlconnaMatcher,
+    user: UserOrCreatedDepends,
+    student_id: int,
+    role: str,
+):
+    """设置学生在班级中的岗位。"""
+    student = await Student.filter(id=student_id).first()
+    if student is None:
+        await matcher.finish(Emoji.error + f"学生[{student_id}]不存在。")
+    await ensure_can_manage_student(matcher, user, student)
+    try:
+        role_value = parse_student_role(role)
+    except ValueError as error:
+        await matcher.finish(Emoji.error + str(error))
+    student = await student.update(role=role_value)
+    await matcher.finish(Emoji.success + f"已将学生`{student.name}`设置为{get_student_role_label(student.role)}。")
+
+
+@unset_student_position_cmd.handle()
+async def _(
+    matcher: AlconnaMatcher,
+    user: UserOrCreatedDepends,
+    student_id: int,
+):
+    """把学生岗位恢复为普通学生。"""
+    student = await Student.filter(id=student_id).first()
+    if student is None:
+        await matcher.finish(Emoji.error + f"学生[{student_id}]不存在。")
+    await ensure_can_manage_student(matcher, user, student)
+    student = await student.update(role=StudentRole.student)
+    await matcher.finish(Emoji.success + f"已取消学生`{student.name}`的班级岗位。")
 
 
 # --------------------------------- 加入班级 ---------------------------------

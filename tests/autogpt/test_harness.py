@@ -70,13 +70,12 @@ def test_chat_session_build_harness_reuses_session_messages(loaded_plugins):
 
 def test_internal_runtime_models_use_dataclass_and_isolated_defaults(loaded_plugins):
     from core.agent.runtime.schema import ChatMessage
-    from core.agent.runtime.pipeline import PipelineState, LocalChatStatisticsQuery
+    from core.agent.runtime.pipeline import PipelineState
     from core.agent.runtime.knowledge import RuntimeContext
     from core.llm.message import Content
 
     assert is_dataclass(ChatMessage)
     assert is_dataclass(PipelineState)
-    assert is_dataclass(LocalChatStatisticsQuery)
     assert is_dataclass(RuntimeContext)
 
     first_message = ChatMessage()

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, root_validator
 from utils.helper import ParamMode
 
 CommandRiskLevel = Literal["low", "medium", "high"]
@@ -22,13 +22,13 @@ class CommandParam(BaseModel):
     value_type: str = "string"
     multiple: bool = False
     source_name: str | None = None
+    required: bool = True
 
-    @property
-    def required(self) -> bool:
-        """判断结构化 Agent 调用中该参数是否必填。
+    @root_validator(pre=True)
+    def infer_required_from_mode(cls, values):
+        """未显式声明时，根据参数数量模式推断是否必填。"""
 
-        Returns:
-            bool: 如果参数不是可选或零个以上模式，则返回 ``True``。
-        """
-
-        return self.mode not in {ParamMode.OPTIONAL, ParamMode.ZERO_OR_MORE}
+        if values.get("required") is None:
+            mode = values.get("mode")
+            values["required"] = mode not in {ParamMode.OPTIONAL, ParamMode.ZERO_OR_MORE, "?", "*"}
+        return values

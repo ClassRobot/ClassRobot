@@ -35,7 +35,7 @@ class RuntimeEdgeConditionEvaluator:
         if condition == "no_auto_tasks":
             return state.auto_tasks is None
         if condition == "needs_local_knowledge":
-            return state.auto_tasks is None and pipeline.can_retrieve_local_knowledge(state.user_content)
+            return state.auto_tasks is None and pipeline.needs_local_knowledge(state.intent_route)
         if condition == "needs_external_rag":
             return (
                 state.auto_tasks is None

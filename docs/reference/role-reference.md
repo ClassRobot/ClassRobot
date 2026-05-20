@@ -15,7 +15,7 @@
 
 - `User`：账户主体
 - `Student` / `Teacher`：业务身份实体
-- `StudentRole` / `TeacherClassesRole`：组织岗位
+- `StudentRole` / `TeacherClassesRole` / `CollegeTeacherRole`：组织岗位
 - `School` / `College` / `Major` / `Classes` / `Organization`：组织层级与组织单元
 
 简单说：
@@ -42,6 +42,7 @@ erDiagram
     STUDENT }o--|| CLASSES : belongs_to
     STUDENT }o--o{ ORGANIZATION : joins
     TEACHER }o--o{ CLASSES : teaches_or_manages
+    TEACHER }o--o{ COLLEGE : manages
     TEACHER }o--o{ ORGANIZATION : joins
 
     SCHOOL ||--o{ ORGANIZATION : owns
@@ -93,6 +94,12 @@ erDiagram
         int user_id
         string identity
     }
+    COLLEGE_TEACHER {
+        int id
+        int teacher_id
+        int college_id
+        string role
+    }
     USER_BIND {
         int id
         int user_id
@@ -113,9 +120,11 @@ erDiagram
 6. 一个学生可以加入多个组织。
 7. 一个教师可以关联多个班级。
 8. 一个班级可以关联多个教师。
-9. 一个组织可以包含学生和教师。
-10. 一个组织不能包含普通用户。
-11. 班级和组织都归属于学校域。
+9. 一个学院可以有多个学院负责人。
+10. 一个教师可以负责多个学院，但权限只在对应学院内生效。
+11. 一个组织可以包含学生和教师。
+12. 一个组织不能包含普通用户。
+13. 班级和组织都归属于学校域。
 
 ## 班级与组织的区别
 
@@ -156,11 +165,13 @@ flowchart TD
 
     SR["StudentRole<br/>学生岗位<br/>student / monitor / secretary / ..."]
     TR["TeacherClassesRole<br/>教师班级岗位<br/>counselor / homeroom / teacher"]
+    CTR["CollegeTeacherRole<br/>教师学院岗位<br/>manager"]
 
     CR["class_cadre<br/>派生角色"]
     AR["admin<br/>系统管理角色"]
 
     C["Classes<br/>班级"]
+    COL["College<br/>学院"]
     O["Organization<br/>组织"]
 
     U --> UR
@@ -175,6 +186,8 @@ flowchart TD
     S --> O
 
     T --> C
+    T --> CTR
+    CTR --> COL
     T --> O
     T --> TR
 ```
@@ -257,10 +270,12 @@ flowchart TD
 - `mental`
 - `publicity`
 - `arts`
+- `assistant`
 
 说明：
 
 - 除 `student` 外，其余岗位都会让用户额外获得 `class_cadre`
+- `assistant` 表示班助/助教，本质仍是学生身份的班级岗位，不会把学生变成教师
 
 ### 教师在班级中的岗位
 
@@ -275,6 +290,20 @@ flowchart TD
 - 这是教师在某个班级中的岗位
 - 不是全局账户身份
 - 同一个教师在不同班级中可以有不同岗位
+- 当前管理型班级操作默认认可 `counselor` 与 `homeroom`，普通 `teacher` 只表达任课关系
+
+### 教师在学院中的岗位
+
+定义在 `CollegeTeacherRole` 中，当前包括：
+
+- `manager`
+
+说明：
+
+- `manager` 表示学院负责人。
+- 这是教师与学院之间的关系岗位，不是 `UserRole`。
+- 学院负责人只能管理自己负责学院内的教师、班级、学生和班级岗位。
+- 授予或撤销学院负责人岗位必须由管理员执行。
 
 ## 当前运行时有效角色的计算方式
 
@@ -287,6 +316,12 @@ flowchart TD
 3. 如果绑定了学生实体，追加 `student`
 4. 如果绑定了教师实体，追加 `teacher`
 5. 如果学生岗位不是普通学生，追加 `class_cadre`
+
+注意：
+
+- 学院负责人不会额外追加新的 `UserRole`。
+- 命令 help 仍按 `teacher` 目录展示学院管理能力，真实执行时再由 service 校验该教师是否负责目标学院。
+- 这样可以保持 `UserRole` 只表达全局身份，避免把“某学院内有效”的关系岗位误做成全局角色。
 
 ## 当前命令权限入口
 
@@ -325,6 +360,7 @@ flowchart TD
 - `Student`
 - `Teacher`
 - `TeacherClasses`
+- `CollegeTeacher`
 - `Group`
 - `Organization`
 - `OrganizationMember`
@@ -336,6 +372,7 @@ flowchart TD
 - 专业与班级：已通过 `Major` + `Classes.major_id` 建模
 - 班级与学校：已补充 `Classes.school_id` 直接外键
 - 班级与教师：已通过多对多关系建模
+- 学院与负责人：已通过 `CollegeTeacher` 关系表建模
 - 班级与学生：已建模
 - 学生与班级：当前是一对一主归属关系
 - 学生与组织：已通过 `OrganizationMember` 多对多关系建模
@@ -376,6 +413,7 @@ flowchart TD
 - `Major`
 - `Organization`
 - `OrganizationMember`
+- `CollegeTeacher`
 
 如果下一步继续标准化，建议进一步补足：
 
@@ -401,9 +439,9 @@ flowchart TD
 
 - 普通账户身份由 `User` 提供
 - 学生/教师身份由绑定实体提供
-- 班干部和班级教师岗位由组织关系提供
+- 班干部、班助/助教、班级教师和学院负责人由关系岗位提供
 - 命令开放由 `Helper.roles` 控制
-- 管理能力由 `is_admin` 和扩展层共同限制
+- 管理能力由 `is_admin`、`CollegeTeacher`、`TeacherClasses` 和命令 service 共同限制
 - 学校、学院、专业、班级已经有模型基础
 - 组织与组织成员关系已经进入显式建模阶段
 - 组织域能力已经进入命令层，后续仍需继续向流程层和更细粒度权限层接入

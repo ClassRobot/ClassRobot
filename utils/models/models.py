@@ -24,7 +24,16 @@ from sqlalchemy import (
     select,
     update,
 )
-from utils.roles import UserRole, JoinMethod, LeaveStatus, StudentRole, TeacherRole, PoliticalStatus, TeacherClassesRole
+from utils.roles import (
+    UserRole,
+    JoinMethod,
+    LeaveStatus,
+    StudentRole,
+    TeacherRole,
+    PoliticalStatus,
+    CollegeTeacherRole,
+    TeacherClassesRole,
+)
 
 from .filters import FilterModel
 from .columns import CreateAt, UpdateAt
@@ -506,6 +515,12 @@ class College(FilterModel, Model):
     """学院与班级一对多关系"""
     teachers: Mapped[List["Teacher"]] = relationship("Teacher", lazy="selectin", back_populates="college")
     """学院与教师一对多关系"""
+    teacher_roles: Mapped[List["CollegeTeacher"]] = relationship(
+        "CollegeTeacher",
+        lazy="selectin",
+        back_populates="college",
+    )
+    """学院与教师管理岗位一对多关系"""
 
 
 class Major(FilterModel, Model):
@@ -901,6 +916,12 @@ class Teacher(FilterModel, Model):
         back_populates="teacher",
     )
     """教师与组织成员关系一对多"""
+    college_roles: Mapped[List["CollegeTeacher"]] = relationship(
+        "CollegeTeacher",
+        lazy="selectin",
+        back_populates="teacher",
+    )
+    """教师与学院管理岗位一对多关系"""
 
     @classmethod
     async def create_teacher(
@@ -1004,6 +1025,33 @@ class Teacher(FilterModel, Model):
         """获取教师参与的组织。"""
         memberships = await OrganizationMember.filter(teacher_id=self.id).all()
         return [membership.organization for membership in memberships]
+
+    async def get_managed_college_ids(self) -> set[int]:
+        """获取教师负责的学院 ID 集合。
+
+        Returns:
+            set[int]: 当前教师以学院负责人身份管理的学院 ID。
+        """
+
+        relations = await CollegeTeacher.filter(
+            teacher_id=self.id,
+            role=CollegeTeacherRole.manager,
+        ).all()
+        return {relation.college_id for relation in relations}
+
+    async def manages_college(self, college_id: int | None) -> bool:
+        """判断教师是否负责指定学院。
+
+        Args:
+            college_id: 需要判断的学院 ID。为空时直接返回 ``False``。
+
+        Returns:
+            bool: 负责该学院时返回 ``True``。
+        """
+
+        if college_id is None:
+            return False
+        return college_id in await self.get_managed_college_ids()
 
 
 class Classes(FilterModel, Model):
@@ -1216,13 +1264,22 @@ class Classes(FilterModel, Model):
             major_id=major_id,
         ).create()
 
-    async def bind_teacher(self, teacher: Teacher, role: TeacherRole | None = None):
+    async def bind_teacher(
+        self,
+        teacher: Teacher,
+        role: TeacherClassesRole = TeacherClassesRole.teacher,
+        *,
+        update_role: bool = False,
+    ):
         """绑定教师
 
-        参数:
-            teacher (Teacher): 教师信息
+        Args:
+            teacher: 需要绑定到班级的教师。
+            role: 教师在该班级中的岗位。
+            update_role: 关系已存在时是否更新岗位。默认只保证绑定存在，
+                避免把班主任/辅导员意外降级为普通任课老师。
         """
-        await TeacherClasses.association(teacher, self)
+        await TeacherClasses.association(teacher, self, role=role, update_role=update_role)
 
     async def update_teacher_role(self, teacher: Teacher, role: TeacherClassesRole):
         """更新教师角色
@@ -1256,6 +1313,8 @@ class ClassesJoinRequest(FilterModel, Model):
 class TeacherClasses(FilterModel, Model):
     """教师与班级关联表"""
 
+    __table_args__ = (UniqueConstraint("teacher_id", "classes_id", name="uq_bot_teacher_classes_teacher_class"),)
+
     teacher_id: Mapped[int] = mapped_column(Integer, ForeignKey(Teacher.id, ondelete="CASCADE"), nullable=False)
     """教师ID"""
     classes_id: Mapped[int] = mapped_column(Integer, ForeignKey(Classes.id, ondelete="CASCADE"), nullable=False)
@@ -1273,15 +1332,73 @@ class TeacherClasses(FilterModel, Model):
         teacher: Teacher,
         classes: Classes,
         role: TeacherClassesRole = TeacherClassesRole.teacher,
+        *,
+        update_role: bool = False,
     ):
         """教师与班级关联
 
-        参数:
-            teacher (Teacher): 教师
-            classes (Classes): 班级
+        Args:
+            teacher: 教师。
+            classes: 班级。
+            role: 需要创建或显式更新到的岗位。
+            update_role: 关系已存在时是否更新岗位。默认不覆盖已有岗位。
         """
-        teacher_classes = await cls(teacher_id=teacher.id, role=role, classes_id=classes.id).create()
-        return teacher_classes
+        if teacher_classes := await cls.filter(teacher_id=teacher.id, classes_id=classes.id).first():
+            if update_role and teacher_classes.role != role:
+                teacher_classes = await teacher_classes.update(role=role)
+            return teacher_classes
+        return await cls(teacher_id=teacher.id, role=role, classes_id=classes.id).create()
+
+
+class CollegeTeacher(FilterModel, Model):
+    """教师与学院管理岗位关联表。
+
+    该表只表达教师在某个学院中的管理岗位，不改变教师本身的全局身份。
+    """
+
+    __table_args__ = (UniqueConstraint("teacher_id", "college_id", name="uq_bot_college_teacher_teacher_college"),)
+
+    teacher_id: Mapped[int] = mapped_column(Integer, ForeignKey(Teacher.id, ondelete="CASCADE"), nullable=False)
+    """教师ID"""
+    college_id: Mapped[int] = mapped_column(Integer, ForeignKey(College.id, ondelete="CASCADE"), nullable=False)
+    """学院ID"""
+    role: Mapped[CollegeTeacherRole] = mapped_column(
+        String(32),
+        nullable=False,
+        server_default=CollegeTeacherRole.manager,
+    )
+    """教师在学院中的岗位"""
+    created_at: Mapped[CreateAt]
+    updated_at: Mapped[UpdateAt]
+
+    teacher: Mapped[Teacher] = relationship("Teacher", lazy="selectin", back_populates="college_roles")
+    """学院岗位与教师多对一关系"""
+    college: Mapped[College] = relationship("College", lazy="selectin", back_populates="teacher_roles")
+    """学院岗位与学院多对一关系"""
+
+    @classmethod
+    async def association(
+        cls,
+        teacher: Teacher,
+        college: College,
+        role: CollegeTeacherRole = CollegeTeacherRole.manager,
+    ) -> "CollegeTeacher":
+        """建立或更新教师与学院岗位关系。
+
+        Args:
+            teacher: 需要授予学院岗位的教师。
+            college: 岗位所属学院。
+            role: 学院岗位。
+
+        Returns:
+            CollegeTeacher: 已创建或更新后的岗位关系。
+        """
+
+        if relation := await cls.filter(teacher_id=teacher.id, college_id=college.id).first():
+            if relation.role != role:
+                relation = await relation.update(role=role)
+            return relation
+        return await cls(teacher_id=teacher.id, college_id=college.id, role=role).create()
 
 
 class Student(FilterModel, Model):
@@ -1345,7 +1462,8 @@ class Student(FilterModel, Model):
             classes (Classes): 班级信息
         """
         await self.update(
-            classes=classes,
+            classes_id=classes.id,
+            school_id=classes.school_id,
             role=StudentRole.student,
         )
 

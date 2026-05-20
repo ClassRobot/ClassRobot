@@ -175,6 +175,57 @@ async def test_teacher_can_change_join_method_and_approve_join_request(app, oneb
     assert student.classes_id == classes.id
 
 
+async def test_student_switch_class_syncs_school_scope(app, onebot, send_recorder, models):
+    from src.features.classes.commands import join_classes_cmd
+    from utils.models import Student
+
+    old_school = await models.create_school("旧学校")
+    old_college = await models.create_college(old_school, "旧学院")
+    old_owner = await models.create_user(account_id=10131, nickname="旧班主任")
+    old_teacher = await models.create_teacher(old_owner, name="旧班主任", school=old_school, college=old_college)
+    old_class = await models.create_classes(
+        name="旧班级",
+        owner=old_owner,
+        group_id=20131,
+        teacher=old_teacher,
+        school=old_school,
+        college=old_college,
+    )
+    new_school = await models.create_school("新学校")
+    new_college = await models.create_college(new_school, "新学院")
+    new_owner = await models.create_user(account_id=10132, nickname="新班主任")
+    new_teacher = await models.create_teacher(new_owner, name="新班主任", school=new_school, college=new_college)
+    new_class = await models.create_classes(
+        name="新班级",
+        owner=new_owner,
+        group_id=20132,
+        teacher=new_teacher,
+        school=new_school,
+        college=new_college,
+    )
+    student_user = await models.create_user(account_id=10133, nickname="转班学生")
+    student = await models.create_student(student_user, classes=old_class, name="转班学生")
+    assert student.school_id == old_school.id
+
+    async with app.test_matcher(join_classes_cmd) as ctx:
+        recorder = send_recorder(ctx)
+        bot = onebot.create_bot(ctx)
+        prompt = onebot.private_event(
+            f"加入班级 {new_class.id}",
+            user_id=10133,
+            nickname="转班学生",
+        )
+        confirm = onebot.private_event("yes", user_id=10133, nickname="转班学生", message_id=2)
+        ctx.receive_event(bot, prompt)
+        ctx.receive_event(bot, confirm)
+
+    recorder.assert_any("成功加入班级", "新班级")
+    student = await Student.filter(user_id=student_user.id).first()
+    assert student is not None
+    assert student.classes_id == new_class.id
+    assert student.school_id == new_school.id
+
+
 async def test_student_can_query_and_update_profile(app, onebot, send_recorder, models):
     from src.features.student.commands import query_cmd, set_cmd
     from utils.models import Student
@@ -288,6 +339,184 @@ async def test_import_classes_can_create_teacher_class_and_student(app, onebot, 
     assert classes is not None
     assert student is not None
     assert student.classes_id == classes.id
+
+
+async def test_admin_can_assign_college_manager_and_manager_can_manage_profiles(app, onebot, send_recorder, models):
+    from src.features.group.commands import set_college_manager
+    from src.features.student.commands import add_student_profile_cmd
+    from src.features.teacher.commands import add_teacher_profile_cmd
+    from utils.models import Student, Teacher, CollegeTeacher
+
+    admin = await models.create_user(account_id=10101, nickname="管理员", is_admin=True)
+    school = await models.create_school("组织大学")
+    college = await models.create_college(school, "软件学院")
+    manager_user = await models.create_user(account_id=10102, nickname="院负责人")
+    manager = await models.create_teacher(manager_user, name="院负责人", school=school, college=college)
+
+    async with app.test_matcher(set_college_manager) as ctx:
+        recorder = send_recorder(ctx)
+        bot = onebot.create_bot(ctx)
+        event = onebot.private_event(
+            f"设置学院负责人 组织大学 软件学院 {manager.id}",
+            user_id=10101,
+            nickname=admin.nickname,
+        )
+        ctx.receive_event(bot, event)
+
+    recorder.assert_any("学院", "负责人")
+    assert await CollegeTeacher.filter(teacher_id=manager.id, college_id=college.id).first() is not None
+
+    new_teacher_user = await models.create_user(account_id=10103, nickname="新教师")
+    async with app.test_matcher(add_teacher_profile_cmd) as ctx:
+        recorder = send_recorder(ctx)
+        bot = onebot.create_bot(ctx)
+        event = onebot.private_event(
+            f"添加教师 {new_teacher_user.id} 新教师 组织大学 软件学院",
+            user_id=10102,
+            nickname="院负责人",
+            message_id=2,
+        )
+        ctx.receive_event(bot, event)
+
+    recorder.assert_any("教师档案创建成功", "新教师", "软件学院")
+    new_teacher = await Teacher.filter(user_id=new_teacher_user.id).first()
+    assert new_teacher is not None
+    assert new_teacher.college_id == college.id
+
+    classes = await models.create_classes(
+        name="组织1班",
+        owner=manager_user,
+        group_id=20101,
+        teacher=manager,
+        school=school,
+        college=college,
+    )
+    new_student_user = await models.create_user(account_id=10104, nickname="新学生")
+    async with app.test_matcher(add_student_profile_cmd) as ctx:
+        recorder = send_recorder(ctx)
+        bot = onebot.create_bot(ctx)
+        event = onebot.private_event(
+            f"添加学生 {new_student_user.id} {classes.id} 新学生",
+            user_id=10102,
+            nickname="院负责人",
+            message_id=3,
+        )
+        ctx.receive_event(bot, event)
+
+    recorder.assert_any("学生档案创建成功", "新学生", "组织1班")
+    student = await Student.filter(user_id=new_student_user.id).first()
+    assert student is not None
+    assert student.classes_id == classes.id
+    assert student.school_id == school.id
+
+
+async def test_college_manager_cannot_manage_other_college(app, onebot, send_recorder, models):
+    from src.features.group.commands import set_college_manager
+    from src.features.teacher.commands import add_teacher_profile_cmd
+
+    admin = await models.create_user(account_id=10111, nickname="管理员", is_admin=True)
+    school = await models.create_school("边界大学")
+    college_a = await models.create_college(school, "A学院")
+    await models.create_college(school, "B学院")
+    manager_user = await models.create_user(account_id=10112, nickname="A负责人")
+    manager = await models.create_teacher(manager_user, name="A负责人", school=school, college=college_a)
+    target_user = await models.create_user(account_id=10113, nickname="B教师")
+
+    async with app.test_matcher(set_college_manager) as ctx:
+        recorder = send_recorder(ctx)
+        bot = onebot.create_bot(ctx)
+        event = onebot.private_event(
+            f"设置学院负责人 边界大学 A学院 {manager.id}",
+            user_id=10111,
+            nickname=admin.nickname,
+        )
+        ctx.receive_event(bot, event)
+    recorder.assert_any("A学院", "负责人")
+
+    async with app.test_matcher(add_teacher_profile_cmd) as ctx:
+        recorder = send_recorder(ctx)
+        bot = onebot.create_bot(ctx)
+        event = onebot.private_event(
+            f"添加教师 {target_user.id} B教师 边界大学 B学院",
+            user_id=10112,
+            nickname="A负责人",
+            message_id=2,
+        )
+        ctx.receive_event(bot, event)
+
+    recorder.assert_any("只能在自己负责的学院内")
+
+
+async def test_class_manager_can_set_teacher_and_student_positions(app, onebot, send_recorder, models):
+    from src.features.classes.commands import set_class_teacher_cmd, set_student_position_cmd
+    from src.features.student.commands import set_cmd
+    from utils.models import Student, TeacherClasses
+    from utils.roles import StudentRole, TeacherClassesRole, UserRole
+
+    school = await models.create_school("岗位大学")
+    college = await models.create_college(school, "信息学院")
+    owner = await models.create_user(account_id=10121, nickname="班主任")
+    manager = await models.create_teacher(owner, name="班主任", school=school, college=college)
+    classes = await models.create_classes(
+        name="岗位1班",
+        owner=owner,
+        group_id=20121,
+        teacher=manager,
+        school=school,
+        college=college,
+    )
+    teacher_user = await models.create_user(account_id=10122, nickname="任课老师")
+    teacher = await models.create_teacher(teacher_user, name="任课老师", school=school, college=college)
+    student_user = await models.create_user(account_id=10123, nickname="学生甲")
+    student = await models.create_student(student_user, classes=classes, name="学生甲")
+
+    async with app.test_matcher(set_class_teacher_cmd) as ctx:
+        recorder = send_recorder(ctx)
+        bot = onebot.create_bot(ctx)
+        event = onebot.private_event(
+            f"设置班级教师 {classes.id} {teacher.id} 班主任",
+            user_id=10121,
+            nickname="班主任",
+        )
+        ctx.receive_event(bot, event)
+
+    recorder.assert_any("任课老师", "班主任")
+    relation = await TeacherClasses.filter(teacher_id=teacher.id, classes_id=classes.id).first()
+    assert relation is not None
+    assert relation.role == TeacherClassesRole.homeroom
+
+    async with app.test_matcher(set_student_position_cmd) as ctx:
+        recorder = send_recorder(ctx)
+        bot = onebot.create_bot(ctx)
+        event = onebot.private_event(
+            f"设置学生岗位 {student.id} 班助/助教",
+            user_id=10121,
+            nickname="班主任",
+            message_id=2,
+        )
+        ctx.receive_event(bot, event)
+
+    recorder.assert_any("学生甲", "班助/助教")
+    student = await Student.filter(id=student.id).first()
+    assert student is not None
+    assert student.role == StudentRole.assistant
+    assert UserRole.class_cadre in student.user.roles
+
+    async with app.test_matcher(set_cmd) as ctx:
+        recorder = send_recorder(ctx)
+        bot = onebot.create_bot(ctx)
+        event = onebot.private_event(
+            "修改学生信息 角色=班长",
+            user_id=10123,
+            nickname="学生甲",
+            message_id=3,
+        )
+        ctx.receive_event(bot, event)
+
+    recorder.assert_any("不能自行修改班级岗位")
+    student = await Student.filter(id=student.id).first()
+    assert student is not None
+    assert student.role == StudentRole.assistant
 
 
 async def test_my_info_bind_user_and_logout_flow(app, onebot, send_recorder, models, fake_cache, monkeypatch, tmp_path):

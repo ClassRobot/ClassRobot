@@ -1,7 +1,14 @@
 import pytest
 
 from tests.autogpt.eval_cases import ARG_EVAL_CASES, EvalGateReport, ROUTE_EVAL_CASES, TOOL_EVAL_CASES
-from tests.autogpt.test_local_context_query import build_helpers_with_local_queries
+from tests.autogpt.semantic_helpers import (
+    task_response,
+    plan_response,
+    route_response,
+    extract_response,
+    patch_pipeline_llm,
+    build_helpers_with_semantic_commands,
+)
 
 
 def build_eval_helpers():
@@ -9,7 +16,7 @@ def build_eval_helpers():
 
     from tests.autogpt.command_tool_helpers import ensure_service_helper
 
-    helpers = build_helpers_with_local_queries()
+    helpers = build_helpers_with_semantic_commands()
     helpers.append(ensure_service_helper("创建通知", "给班级创建一条通知", risk_level="high"))
     return helpers
 
@@ -27,17 +34,22 @@ def assert_eval_report(report: EvalGateReport) -> None:
 @pytest.mark.asyncio
 async def test_route_eval_gate(loaded_plugins, monkeypatch):
     from core.llm.message import Content, Messages
-    from core.agent.runtime import pipeline as pipeline_module
+    from core.agent.runtime.pipeline import MessageProcessingPipeline
     from core.agent.runtime.schema import ChatMessage
 
-    async def fail_client_create(*args, **kwargs):
-        raise AssertionError("route eval gate should stay on deterministic local routing")
-
-    monkeypatch.setattr(pipeline_module, "client_create", fail_client_create)
     report = EvalGateReport(category="route")
 
     for case in ROUTE_EVAL_CASES:
-        pipeline = pipeline_module.MessageProcessingPipeline(
+        patch_pipeline_llm(
+            monkeypatch,
+            [
+                route_response(),
+                extract_response(case.query),
+                plan_response(case.expected_command, case.query),
+                task_response(case.expected_command, f"我会调用{case.expected_command}处理。"),
+            ],
+        )
+        pipeline = MessageProcessingPipeline(
             build_eval_helpers(),
             Messages(),
             trace_id=f"eval-route-{case.name}",
@@ -64,16 +76,21 @@ async def test_route_eval_gate(loaded_plugins, monkeypatch):
 
 
 def test_tool_eval_gate(loaded_plugins):
-    from core.agent.runtime.command_tools import CommandToolCatalog
+    from core.agent.runtime.pipeline import MessageProcessingPipeline
+    from core.llm.message import Content, Messages
 
-    catalog = CommandToolCatalog.from_helpers(build_eval_helpers())
+    pipeline = MessageProcessingPipeline(
+        build_eval_helpers(),
+        Messages(),
+        trace_id="eval-tool-catalog-visibility",
+    )
+    selected = pipeline.select_route_command_tools([Content(type="text", value="没有任何关键词命中的请求")])
+    selected_commands = {tool.command for tool in selected}
     report = EvalGateReport(category="tool")
 
     for case in TOOL_EVAL_CASES:
-        selected = catalog.select_tools(query=case.query, limit=case.limit)
-        selected_commands = [tool.command for tool in selected]
-        passed = bool(selected_commands) and selected_commands[0] == case.expected_command
-        report.record(case.name, passed, detail=f"selected={selected_commands}")
+        passed = case.expected_command in selected_commands
+        report.record(case.name, passed, detail=f"visible={sorted(selected_commands)}")
 
     assert_eval_report(report)
 
@@ -81,17 +98,22 @@ def test_tool_eval_gate(loaded_plugins):
 @pytest.mark.asyncio
 async def test_arg_eval_gate(loaded_plugins, monkeypatch):
     from core.llm.message import Content, Messages
-    from core.agent.runtime import pipeline as pipeline_module
+    from core.agent.runtime.pipeline import MessageProcessingPipeline
     from core.agent.runtime.schema import ChatMessage
 
-    async def fail_client_create(*args, **kwargs):
-        raise AssertionError("arg eval gate should stay on deterministic local routing")
-
-    monkeypatch.setattr(pipeline_module, "client_create", fail_client_create)
     report = EvalGateReport(category="arg")
 
     for case in ARG_EVAL_CASES:
-        pipeline = pipeline_module.MessageProcessingPipeline(
+        patch_pipeline_llm(
+            monkeypatch,
+            [
+                route_response(),
+                extract_response(case.query),
+                plan_response(case.expected_command, case.query),
+                task_response(case.expected_command, f"我会调用{case.expected_command}处理。", case.expected_params),
+            ],
+        )
+        pipeline = MessageProcessingPipeline(
             build_eval_helpers(),
             Messages(),
             trace_id=f"eval-arg-{case.name}",

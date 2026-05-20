@@ -1,3 +1,5 @@
+from typing import Optional
+
 from utils import tip
 from utils.config import priority, comp_config
 from utils.commands import CommandBinding, on_agent_command
@@ -13,6 +15,84 @@ query_teacher_cmd = on_agent_command(
     ),
     block=True,
     priority=priority,
+    comp_config=comp_config,
+)
+
+query_teacher_profile_cmd = on_agent_command(
+    Alconna(
+        "查询教师",
+        Args["teacher_id?", Optional[int], Field(default=None, completion=tip("可选：教师ID"))],
+    ),
+    binding=CommandBinding(
+        description="按权限查询教师档案；管理员可查全部，学院负责人可查本学院教师。",
+        roles={UserRole.admin, UserRole.teacher},
+        scopes={HelperScope.teacher, HelperScope.admin},
+        tags={"teacher", "query"},
+        execution_mode="service",
+        param_labels={"teacher_id": "教师ID"},
+    ),
+    block=True,
+    priority=priority,
+    comp_config=comp_config,
+)
+
+add_teacher_profile_cmd = on_agent_command(
+    Alconna(
+        "添加教师",
+        Args["user_id", int, Field(completion=tip("请输入系统用户ID"))],
+        Args["name", str, Field(completion=tip("请输入教师姓名"))],
+        Args["school_name?", Optional[str], Field(default=None, completion=tip("可选：学校名称"))],
+        Args["college_name?", Optional[str], Field(default=None, completion=tip("可选：学院名称"))],
+    ),
+    aliases={"添加教师档案"},
+    binding=CommandBinding(
+        description="为指定系统用户创建教师档案；管理员可全局创建，学院负责人只能创建本学院教师。",
+        roles={UserRole.admin, UserRole.teacher},
+        scopes={HelperScope.teacher, HelperScope.admin},
+        risk_level="medium",
+        agent_callable=False,
+        param_labels={"user_id": "用户ID", "name": "教师姓名", "school_name": "学校名称", "college_name": "学院名称"},
+    ),
+    block=True,
+    priority=priority,
+    skip_for_unmatch=False,
+    comp_config=comp_config,
+)
+
+set_teacher_profile_cmd = on_agent_command(
+    Alconna(
+        "修改教师档案",
+        Args["teacher_id", int, Field(completion=tip("请输入教师ID"))],
+        Args["values", MultiVar(str, flag="+"), Field(completion=tip("修改方式如 姓名=张老师 学院=计算机学院"))],
+    ),
+    binding=CommandBinding(
+        description="按权限修改教师档案，采用 key=value 形式传参。",
+        roles={UserRole.admin, UserRole.teacher},
+        scopes={HelperScope.teacher, HelperScope.admin},
+        risk_level="medium",
+        agent_callable=False,
+        param_labels={"teacher_id": "教师ID", "values": "修改内容"},
+    ),
+    block=True,
+    priority=priority,
+    skip_for_unmatch=False,
+    comp_config=comp_config,
+)
+
+delete_teacher_profile_cmd = on_agent_command(
+    Alconna("删除教师", Args["teacher_id", int, Field(completion=tip("请输入教师ID"))]),
+    aliases={"删除教师档案"},
+    binding=CommandBinding(
+        description="按权限删除教师档案；不会删除系统用户账号。",
+        roles={UserRole.admin, UserRole.teacher},
+        scopes={HelperScope.teacher, HelperScope.admin},
+        risk_level="high",
+        agent_callable=False,
+        param_labels={"teacher_id": "教师ID"},
+    ),
+    block=True,
+    priority=priority,
+    skip_for_unmatch=False,
     comp_config=comp_config,
 )
 
@@ -46,5 +126,9 @@ set_teacher_cmd = on_agent_command(
 
 __helpers__ = [
     query_teacher_cmd.__helper__,
+    query_teacher_profile_cmd.__helper__,
+    add_teacher_profile_cmd.__helper__,
+    set_teacher_profile_cmd.__helper__,
+    delete_teacher_profile_cmd.__helper__,
     set_teacher_cmd.__helper__,
 ]

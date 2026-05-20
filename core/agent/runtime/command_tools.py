@@ -5,8 +5,6 @@ from pydantic import Field, BaseModel
 from utils.helper import Helpers
 from utils.commands.renderers.tool import safe_tool_name
 
-from .prompt_selection import score_prompt_relevance
-
 RiskLevel = Literal["low", "medium", "high"]
 
 
@@ -195,11 +193,10 @@ class CommandToolCatalog(BaseModel):
     def select_tools(
         self,
         *,
-        query: str | None = None,
         limit: int | None = None,
         candidate_commands: Iterable[str] | None = None,
     ) -> list[CommandTool]:
-        """按候选命令或自然语言查询挑选最相关的命令子集。"""
+        """按显式候选命令挑选命令子集，否则返回完整可见目录。"""
 
         if candidate_commands:
             selected = self.select_candidate_tools(candidate_commands)
@@ -207,9 +204,6 @@ class CommandToolCatalog(BaseModel):
                 return selected[:limit] if limit is not None else selected
 
         selected = list(self.tools)
-        if query:
-            selected = self.select_relevant_tools(query, limit=limit)
-
         if limit is not None:
             selected = selected[:limit]
         return selected
@@ -217,13 +211,12 @@ class CommandToolCatalog(BaseModel):
     def to_prompt(
         self,
         *,
-        query: str | None = None,
         limit: int | None = None,
         candidate_commands: Iterable[str] | None = None,
     ) -> str:
         """渲染完整或裁剪后的命令目录，供 Planner 和任务生成使用。"""
 
-        selected = self.select_tools(query=query, limit=limit, candidate_commands=candidate_commands)
+        selected = self.select_tools(limit=limit, candidate_commands=candidate_commands)
         if not selected:
             return "暂无可用命令。"
         return "\n".join(tool.to_prompt() for tool in selected)
@@ -250,37 +243,4 @@ class CommandToolCatalog(BaseModel):
                 continue
             selected.append(tool)
             seen.add(tool.command)
-        return selected
-
-    def select_relevant_tools(self, query: str, *, limit: int | None = None) -> list[CommandTool]:
-        """按自然语言问题挑选最相关的命令子集。"""
-
-        scored: list[tuple[int, int, CommandTool]] = []
-        for index, tool in enumerate(self.tools):
-            score = score_prompt_relevance(
-                query,
-                names=tool.command_names,
-                texts=(
-                    tool.description,
-                    tool.ai_description,
-                    *(param.name for param in tool.params),
-                    *(param.description for param in tool.params if param.description),
-                ),
-            )
-            if score > 0:
-                scored.append((score, index, tool))
-
-        scored.sort(key=lambda item: (-item[0], item[1]))
-        selected = [tool for _, _, tool in scored]
-        if limit is None or len(selected) >= limit:
-            return selected
-
-        seen = {tool.command for tool in selected}
-        for tool in self.tools:
-            if tool.command in seen:
-                continue
-            selected.append(tool)
-            seen.add(tool.command)
-            if len(selected) >= limit:
-                break
         return selected

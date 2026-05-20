@@ -83,6 +83,20 @@ class TeacherClassesRole(StrEnum):
     """任课老师"""
 
 
+class CollegeTeacherRole(StrEnum):
+    """教师在学院中的管理岗位"""
+
+    manager = "manager"
+    """学院负责人"""
+
+
+class CollegeTeacherRoleLang(StrEnum):
+    """教师在学院中的管理岗位中文名称"""
+
+    manager = "学院负责人"
+    """学院负责人"""
+
+
 class StudentRole(StrEnum):
     """学生角色"""
 
@@ -115,6 +129,9 @@ class StudentRole(StrEnum):
 
     arts = "arts"
     """文艺委员"""
+
+    assistant = "assistant"
+    """班助/助教"""
 
     student = "student"
     """学生"""

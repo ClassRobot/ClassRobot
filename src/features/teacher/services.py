@@ -16,6 +16,67 @@ TEACHER_COLUMNS = {
 """教师信息命令支持修改的字段和中文别名。"""
 
 
+async def can_manage_teacher(operator: User, teacher: Teacher, *, target_college_id: int | None = None) -> bool:
+    """判断用户是否可以管理指定教师档案。
+
+    Args:
+        operator: 当前操作用户。
+        teacher: 目标教师。
+        target_college_id: 修改后目标学院 ID；为空时使用教师当前学院。
+
+    Returns:
+        bool: 具备管理权限时返回 ``True``。
+    """
+
+    if operator.is_admin:
+        return True
+    operator_teacher = operator.teacher
+    if operator_teacher is None:
+        return False
+    college_id = target_college_id if target_college_id is not None else teacher.college_id
+    return await operator_teacher.manages_college(college_id)
+
+
+async def get_teacher_or_error(teacher_id: int) -> Teacher | None:
+    """按 ID 获取教师档案。"""
+
+    return await Teacher.filter(id=teacher_id).first()
+
+
+async def resolve_teacher_scope(
+    school_name: str | None,
+    college_name: str | None,
+    current_school: School | None = None,
+) -> tuple[School | None, College | None]:
+    """解析教师档案中的学校和学院归属。
+
+    Args:
+        school_name: 学校名称。
+        college_name: 学院名称。
+        current_school: 未提供学校名称时可复用的当前学校。
+
+    Returns:
+        tuple[School | None, College | None]: 解析后的学校与学院。
+
+    Raises:
+        ValueError: 学校或学院不存在，或参数组合不合法。
+    """
+
+    school = current_school
+    if school_name is not None:
+        school = await School.filter(name=school_name.strip()).first()
+        if school is None:
+            raise ValueError(f"学校`{school_name}`不存在。")
+    college = None
+    if college_name is not None:
+        if school is None:
+            raise ValueError("指定学院前请先提供学校名称，或先为教师绑定学校。")
+        college = await College.filter(name=college_name.strip(), school_id=school.id).first()
+        if college is None:
+            raise ValueError(f"学院`{college_name}`不存在于学校`{school.name}`下。")
+    return school, college
+
+
 @command_executor.handler("查询教师信息")
 async def execute_query_teacher(params: dict, context: CommandExecutionContext) -> CommandResult:
     """执行统一的“查询教师信息”命令。
@@ -45,6 +106,48 @@ async def execute_query_teacher(params: dict, context: CommandExecutionContext) 
             "user_id": user.id,
             "classes_count": len(user.teacher.classes),
         },
+    )
+
+
+@command_executor.handler("查询教师")
+async def execute_query_teacher_profile(params: dict, context: CommandExecutionContext) -> CommandResult:
+    """执行统一的“查询教师”管理命令。"""
+
+    if context.user_id is None:
+        return CommandResult.fail("缺少用户 ID，无法查询教师档案。")
+    operator = await User.get_user(context.user_id)
+    if operator is None:
+        return CommandResult.fail("当前账号不存在。")
+
+    teacher_id = params.get("教师ID", params.get("teacher_id"))
+    if teacher_id:
+        teacher = await Teacher.filter(id=int(teacher_id)).first()
+        if teacher is None:
+            return CommandResult.fail(f"教师[{teacher_id}]不存在。")
+        if not await can_manage_teacher(operator, teacher):
+            return CommandResult.fail("您没有权限查看该教师档案。")
+        card = await render_teacher_card(teacher)
+        return CommandResult.ok("已查询教师档案。", visible_outputs=[card], context_outputs=[card])
+
+    if operator.is_admin:
+        teachers = await Teacher.filter().all()
+    elif operator.teacher is not None:
+        college_ids = await operator.teacher.get_managed_college_ids()
+        teachers = await Teacher.filter(Teacher.college_id.in_(college_ids)).all() if college_ids else []
+    else:
+        teachers = []
+    if not teachers:
+        return CommandResult.fail("当前没有可查看的教师档案。")
+    lines = ["教师档案列表"] + [
+        f"- [{teacher.id}] {teacher.name} / 学校:{teacher.school.name if teacher.school else '未设置'} / 学院:{teacher.college.name if teacher.college else '未设置'}"
+        for teacher in teachers
+    ]
+    output = "\n".join(lines)
+    return CommandResult.ok(
+        "已查询教师档案列表。",
+        visible_outputs=[output],
+        context_outputs=[output],
+        data={"teacher_ids": [teacher.id for teacher in teachers]},
     )
 
 

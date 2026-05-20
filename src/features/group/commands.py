@@ -308,6 +308,44 @@ exit_organization = on_agent_command(
     **alcoona_kwargs,
 )
 
+set_college_manager = on_agent_command(
+    Alconna(
+        "设置学院负责人",
+        Args["school_name", str, Field(completion=tip("请输入学校名称"))],
+        Args["college_name", str, Field(completion=tip("请输入学院名称"))],
+        Args["teacher_id", int, Field(completion=tip("请输入教师ID"))],
+    ),
+    binding=CommandBinding(
+        description="授予指定教师某学院负责人岗位。仅管理员可用。",
+        roles={UserRole.admin},
+        scopes={HelperScope.admin},
+        risk_level="medium",
+        agent_callable=False,
+        param_labels={"school_name": "学校名称", "college_name": "学院名称", "teacher_id": "教师ID"},
+    ),
+    **alcoona_kwargs,
+    extensions=[AdminExtension],
+)
+
+unset_college_manager = on_agent_command(
+    Alconna(
+        "取消学院负责人",
+        Args["school_name", str, Field(completion=tip("请输入学校名称"))],
+        Args["college_name", str, Field(completion=tip("请输入学院名称"))],
+        Args["teacher_id", int, Field(completion=tip("请输入教师ID"))],
+    ),
+    binding=CommandBinding(
+        description="撤销指定教师的学院负责人岗位。仅管理员可用。",
+        roles={UserRole.admin},
+        scopes={HelperScope.admin},
+        risk_level="medium",
+        agent_callable=False,
+        param_labels={"school_name": "学校名称", "college_name": "学院名称", "teacher_id": "教师ID"},
+    ),
+    **alcoona_kwargs,
+    extensions=[AdminExtension],
+)
+
 
 __helpers__ = [
     add_school.__helper__,
@@ -326,4 +364,6 @@ __helpers__ = [
     query_organization.__helper__,
     join_organization.__helper__,
     exit_organization.__helper__,
+    set_college_manager.__helper__,
+    unset_college_manager.__helper__,
 ]

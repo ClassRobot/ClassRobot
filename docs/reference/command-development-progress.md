@@ -1,6 +1,6 @@
 # 命令开发进度表
 
-> 核验日期：2026-05-13
+> 核验日期：2026-05-19
 >
 > 统计口径：仅统计项目中已经显式声明的命令入口；不含纯消息对话入口与内部工作流参考节点。
 >
@@ -16,7 +16,7 @@
 | 指标 | 数量 | 说明 |
 | --- | ---: | --- |
 | 能力分组 | 13 | 按业务能力和基础能力分组 |
-| 显式命令 | 67 | 当前仓库中已声明的命令入口 |
+| 显式命令 | 82 | 当前仓库中已声明的命令入口 |
 | 已完成能力 | 11 | 当前可以稳定使用 |
 | 开发中能力 | 1 | 命令基础设施与会话入口仍在持续收敛 |
 | 未完成能力 | 1 | 通知与定时提醒逻辑未完整接通 |
@@ -35,15 +35,15 @@ flowchart LR
 | 能力 | 状态 | 命令数 | 跳转 |
 | --- | --- | ---: | --- |
 | 命令基础设施与会话入口 | 开发中 | 6 | [查看](#命令基础设施与会话入口) |
-| 学校、学院、专业、组织管理 | 已完成 | 16 | [查看](#学校学院专业与组织管理) |
-| 教师管理 | 已完成 | 2 | [查看](#教师管理) |
-| 学生管理 | 已完成 | 2 | [查看](#学生管理) |
-| 班级管理 | 已完成 | 9 | [查看](#班级管理) |
+| 学校、学院、专业、组织管理 | 已完成 | 18 | [查看](#学校学院专业与组织管理) |
+| 教师管理 | 已完成 | 6 | [查看](#教师管理) |
+| 学生管理 | 已完成 | 6 | [查看](#学生管理) |
+| 班级管理 | 已完成 | 13 | [查看](#班级管理) |
 | 课表管理 | 已完成 | 5 | [查看](#课表管理) |
 | 任务管理 | 已完成 | 5 | [查看](#任务管理) |
 | 请假管理 | 已完成 | 4 | [查看](#请假管理) |
 | 文件管理 | 已完成 | 11 | [查看](#文件管理) |
-| 群聊历史检索 | 已完成 | 1 | [查看](#群聊历史检索) |
+| 群聊历史检索 | 已完成 | 2 | [查看](#群聊历史检索) |
 | 学生检索与群内协作 | 已完成 | 2 | [查看](#学生检索与群内协作) |
 | 图片生成 | 已完成 | 1 | [查看](#图片生成) |
 | 通知与定时提醒 | 未完成 | 3 | [查看](#通知与定时提醒) |
@@ -111,6 +111,8 @@ flowchart LR
 | `查询组织` | 已完成 | [group/commands.py](../../src/features/group/commands.py) | 查询组织列表与详情。 |
 | `加入组织` | 已完成 | [group/commands.py](../../src/features/group/commands.py) | 以学生或教师身份加入组织。 |
 | `退出组织` | 已完成 | [group/commands.py](../../src/features/group/commands.py) | 退出组织。 |
+| `设置学院负责人` | 已完成 | [group/commands.py](../../src/features/group/commands.py) | 授予教师学院负责人岗位。 |
+| `取消学院负责人` | 已完成 | [group/commands.py](../../src/features/group/commands.py) | 撤销教师学院负责人岗位。 |
 
 ## 教师管理
 
@@ -125,6 +127,10 @@ flowchart LR
 | --- | --- | --- | --- |
 | `查询教师信息` | 已完成 | [teacher/commands.py](../../src/features/teacher/commands.py) | 查询教师资料与管理班级。 |
 | `修改教师信息` | 已完成 | [teacher/commands.py](../../src/features/teacher/commands.py) | 修改教师姓名、学校、学院。 |
+| `查询教师` | 已完成 | [teacher/commands.py](../../src/features/teacher/commands.py) | 按管理范围查询教师档案。 |
+| `添加教师` | 已完成 | [teacher/commands.py](../../src/features/teacher/commands.py) | 按管理范围创建教师档案。 |
+| `修改教师档案` | 已完成 | [teacher/commands.py](../../src/features/teacher/commands.py) | 按管理范围修改教师档案。 |
+| `删除教师` | 已完成 | [teacher/commands.py](../../src/features/teacher/commands.py) | 按管理范围删除教师档案。 |
 
 ## 学生管理
 
@@ -139,6 +145,10 @@ flowchart LR
 | --- | --- | --- | --- |
 | `查询学生信息` | 已完成 | [student/commands.py](../../src/features/student/commands.py) | 查询学生资料与班级信息。 |
 | `修改学生信息` | 已完成 | [student/commands.py](../../src/features/student/commands.py) | 修改学生附加资料。 |
+| `查询学生档案` | 已完成 | [student/commands.py](../../src/features/student/commands.py) | 按管理范围查询学生档案。 |
+| `添加学生` | 已完成 | [student/commands.py](../../src/features/student/commands.py) | 按管理范围创建学生档案并加入班级。 |
+| `修改学生档案` | 已完成 | [student/commands.py](../../src/features/student/commands.py) | 按管理范围修改学生档案。 |
+| `删除学生` | 已完成 | [student/commands.py](../../src/features/student/commands.py) | 按管理范围删除学生档案。 |
 
 ## 班级管理
 
@@ -160,6 +170,10 @@ flowchart LR
 | `加入班级` | 已完成 | [classes/commands.py](../../src/features/classes/commands.py) | 学生加入班级。 |
 | `退出班级` | 已完成 | [classes/commands.py](../../src/features/classes/commands.py) | 学生退出班级。 |
 | `修改班级加入方式` | 已完成 | [classes/commands.py](../../src/features/classes/commands.py) | 修改班级加入规则。 |
+| `设置班级教师` | 已完成 | [classes/commands.py](../../src/features/classes/commands.py) | 绑定教师并设置班级岗位。 |
+| `取消班级教师` | 已完成 | [classes/commands.py](../../src/features/classes/commands.py) | 删除教师与班级关系。 |
+| `设置学生岗位` | 已完成 | [classes/commands.py](../../src/features/classes/commands.py) | 设置班干部或班助/助教。 |
+| `取消学生岗位` | 已完成 | [classes/commands.py](../../src/features/classes/commands.py) | 恢复普通学生岗位。 |
 
 ## 课表管理
 
@@ -245,6 +259,7 @@ flowchart LR
 | 命令 | 状态 | 源码入口 | 说明 |
 | --- | --- | --- | --- |
 | `检索群聊记录` | 已完成 | [chat_context/commands.py](../../src/features/chat_context/commands.py) | 检索当前系统群的采集消息。 |
+| `统计聊天记录` | 已完成 | [chat_context/commands.py](../../src/features/chat_context/commands.py) | 统计当前用户或当前系统群的聊天记录数量。 |
 
 ## 学生检索与群内协作
 

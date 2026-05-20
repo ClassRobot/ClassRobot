@@ -9,13 +9,21 @@ from utils.helper import Helpers
 from core.llm import LLMTaskType, client_create
 from core.llm.message import Content, Context, Messages
 from core.llm.util import uni_message_to_contents
-from core.storage import ChatHistoryStore, ChatHistorySummary, chat_history_store
+from core.storage import ChatHistoryStore, chat_history_store
 from core.agent.builtin import AutoTaskAgent, ExtractAgent, RagAgent, SummaryAgent
 from core.agent.builtin.conversation import ExtractAgentConfig, SummaryAgentConfig
 
 from .workflow import build_turn_result
 from .knowledge import RuntimeContext, LocalKnowledgeRetriever
-from .schema import AgentPlan, ChatMessage, RuntimeScene, IntentRoute, AutoTaskList, AgentTurnResult
+from .schema import (
+    AgentPlan,
+    ChatMessage,
+    RuntimeScene,
+    IntentRoute,
+    AutoTaskList,
+    AgentTurnResult,
+    KnowledgeSourceRequest,
+)
 from .graph_executor import RuntimeGraphExecutor
 from .harness import ProgressStage, AutoGPTHarness, ProgressReporter, ProgressFeedbackHarness
 from .orchestration_config import RuntimeGraphConfig, RuntimeNodeConfig, default_graph_config, get_runtime_orchestration_snapshot
@@ -25,8 +33,6 @@ from .coordination import (
     WorkflowNode,
     PipelineState,
     NormalizeUserInputNode,
-    LocalChatStatisticsQuery,
-    LocalContextQueryResolver,
 )
 from .coordination.nodes import (
     PlannerNode,
@@ -37,10 +43,8 @@ from .coordination.nodes import (
     ExecutionPolicyNode,
     AppendUserMessageNode,
     DirectVisionReplyNode,
-    LocalContextQueryNode,
     RetrieveKnowledgeNode,
     ValidateAutoTasksNode,
-    LocalChatStatisticsNode,
     PersistAssistantReplyNode,
     RetrieveLocalKnowledgeNode,
 )
@@ -50,9 +54,8 @@ class MessageProcessingPipeline:
     """封装 AI 会话主链路的标准处理流水线。
 
     这个类只负责装配 Harness、构建运行节点和提供稳定 facade。
-    具体 WorkflowNode 实现放在 ``coordination/nodes.py``，本地确定性
-    查询规则放在 ``coordination/local_context.py``，避免主流程文件继续
-    膨胀成 god file。
+    具体 WorkflowNode 实现放在 ``coordination/nodes.py``，避免主流程
+    文件继续膨胀成 god file。
     """
 
     def __init__(
@@ -92,7 +95,6 @@ class MessageProcessingPipeline:
         self.runtime_context = harness.runtime_context
         self.local_knowledge_retriever = harness.local_knowledge_retriever
         self.chat_store = harness.chat_store
-        self.local_context_queries = LocalContextQueryResolver(self.helpers, self.context)
         self.runtime_graph_config = default_graph_config()
         self.current_node_config: dict[str, Any] = {}
         self.current_node_type = ""
@@ -244,90 +246,42 @@ class MessageProcessingPipeline:
         return " ".join(content.value for content in contents if content.type == "text").strip()
 
     @staticmethod
-    def should_retrieve_local_knowledge(contents: list[Content]) -> bool:
-        """判断是否需要检索聊天记录或文件空间。"""
+    def local_knowledge_source_requests(route: IntentRoute | None) -> list[KnowledgeSourceRequest]:
+        """从入口路由中提取需要本地检索的知识源。"""
 
-        from .knowledge import should_search_files, should_search_chat_history
-
-        query = MessageProcessingPipeline.text_query_from_contents(contents)
-        return bool(query and (should_search_chat_history(query) or should_search_files(query)))
-
-    def can_retrieve_local_knowledge(self, contents: list[Content]) -> bool:
-        """判断当前轮次是否具备本地知识检索条件。"""
-
-        return self.context.can_retrieve_local_knowledge(contents, self.should_retrieve_local_knowledge)
-
-    async def resolve_local_chat_statistics_query(self, contents: list[Content]) -> AutoTaskList | None:
-        """优先回答“聊了多少条消息”这类需要精确统计的问题。"""
-
-        return await self.local_context_queries.resolve_local_chat_statistics_query(contents)
-
-    async def resolve_local_user_chat_statistics(self, query: LocalChatStatisticsQuery) -> AutoTaskList:
-        """统计当前用户与机器人的聊天条数。"""
-
-        return await self.local_context_queries.resolve_local_user_chat_statistics(query)
-
-    async def resolve_local_group_chat_statistics(self, query: LocalChatStatisticsQuery) -> AutoTaskList:
-        """统计当前系统群组的群聊消息条数。"""
-
-        return await self.local_context_queries.resolve_local_group_chat_statistics(query)
-
-    def resolve_local_context_query(self, contents: list[Content]) -> AutoTaskList | None:
-        """把确定性的本地上下文问题路由到已有项目命令。"""
-
-        return self.local_context_queries.resolve_local_context_query(contents)
-
-    def resolve_class_context_query(self, contents: list[Content]) -> AutoTaskList | None:
-        """把高频班级状态问题路由到班级或用户信息查询命令。"""
-
-        return self.local_context_queries.resolve_class_context_query(contents)
-
-    def resolve_schedule_context_query(self, contents: list[Content]) -> AutoTaskList | None:
-        """把本人课表查询路由到查询课表命令，并尽量补上常见日期偏移。"""
-
-        return self.local_context_queries.resolve_schedule_context_query(contents)
+        if route is None:
+            return []
+        return [
+            request
+            for request in route.knowledge_sources
+            if request.source
+            in {
+                "user_chat_history",
+                "group_chat_history",
+                "user_file_space",
+                "group_file_space",
+            }
+        ]
 
     @staticmethod
-    def is_self_identity_query(contents: list[Content]) -> bool:
-        """判断用户是否在询问自己的身份、角色或管理员状态。"""
+    def external_knowledge_source_requests(route: IntentRoute | None) -> list[KnowledgeSourceRequest]:
+        """从入口路由中提取需要外部知识库检索的知识源。"""
 
-        return LocalContextQueryResolver.is_self_identity_query(contents)
-
-    @staticmethod
-    def normalized_text_query(contents: list[Content]) -> str:
-        """提取纯文本消息并去掉空白，供本地确定性路由使用。"""
-
-        return LocalContextQueryResolver.normalized_text_query(contents)
+        if route is None:
+            return []
+        return [request for request in route.knowledge_sources if request.source == "external_rag"]
 
     @classmethod
-    def parse_local_chat_statistics_query(cls, text: str) -> LocalChatStatisticsQuery | None:
-        """解析是否命中当前用户或当前群的聊天统计问题。"""
+    def needs_local_knowledge(cls, route: IntentRoute | None) -> bool:
+        """判断当前路由是否显式请求本地知识源。"""
 
-        return LocalContextQueryResolver.parse_local_chat_statistics_query(text)
+        return bool(cls.local_knowledge_source_requests(route))
 
-    @staticmethod
-    def resolve_chat_statistics_window(text: str) -> tuple[str, Any, Any]:
-        """从问题中提取受控的时间范围。"""
+    @classmethod
+    def needs_external_knowledge(cls, route: IntentRoute | None) -> bool:
+        """判断当前路由是否显式请求外部知识库。"""
 
-        return LocalContextQueryResolver.resolve_chat_statistics_window(text)
-
-    @staticmethod
-    def format_user_chat_statistics_reply(query: LocalChatStatisticsQuery, summary: ChatHistorySummary) -> str:
-        """渲染当前用户与机器人的聊天统计回复。"""
-
-        return LocalContextQueryResolver.format_user_chat_statistics_reply(query, summary)
-
-    @staticmethod
-    def format_group_chat_statistics_reply(query: LocalChatStatisticsQuery, summary: ChatHistorySummary) -> str:
-        """渲染当前系统群的聊天统计回复。"""
-
-        return LocalContextQueryResolver.format_group_chat_statistics_reply(query, summary)
-
-    @staticmethod
-    def contains_mutating_words(text: str) -> bool:
-        """识别会修改状态的词，避免本地查询规则误拦截写操作。"""
-
-        return LocalContextQueryResolver.contains_mutating_words(text)
+        return bool(cls.external_knowledge_source_requests(route) or (route and route.requires_rag))
 
     @staticmethod
     def should_direct_reply_from_vision(route: IntentRoute | None, contents: list[Content]) -> bool:
@@ -409,7 +363,7 @@ class MessageProcessingPipeline:
     def should_retrieve(route: IntentRoute | None, plan: AgentPlan | None) -> bool:
         """只有明确需要知识检索时才调用 RAG。"""
 
-        return bool((route and route.requires_rag) or (plan and plan.requires_rag))
+        return bool(MessageProcessingPipeline.needs_external_knowledge(route) or (plan and plan.requires_rag))
 
     @staticmethod
     def combine_knowledge(local_knowledge: str | None, rag_knowledge: str | None) -> str | None:
@@ -422,6 +376,34 @@ class MessageProcessingPipeline:
             sections.append("# 外部知识库检索结果\n" + rag_knowledge)
         return "\n\n".join(sections) if sections else None
 
+    @classmethod
+    def format_external_knowledge_observation(
+        cls,
+        knowledge: str | None,
+        *,
+        route: IntentRoute | None,
+        fallback_query: str,
+    ) -> str:
+        """把外部 RAG 结果包装成与本地检索一致的 observation 文本。"""
+
+        requests = cls.external_knowledge_source_requests(route)
+        query = requests[0].query if requests and requests[0].query else fallback_query
+        required = requests[0].required if requests else bool(route and route.requires_rag)
+        content = (knowledge or "").strip()
+        status = "hit" if content else "miss"
+        summary = content or "未检索到相关内容。"
+        return "\n".join(
+            [
+                "# 外部知识源检索观察",
+                "## external_rag",
+                f"- query: {query or '未提供'}",
+                f"- status: {status}",
+                f"- required: {str(required).lower()}",
+                f"- confidence: {'medium' if content else 'none'}",
+                summary,
+            ]
+        )
+
     def render_command_tools_prompt_from_tools(self, tools) -> str:
         """把已选中的命令工具渲染为 Prompt 片段。"""
 
@@ -433,60 +415,62 @@ class MessageProcessingPipeline:
         return self.policy.render_skill_catalog_prompt_from_summaries(summaries)
 
     def select_route_command_tools(self, contents: list[Content]):
-        """选择入口路由阶段需要暴露给模型的命令子集。"""
+        """入口路由阶段暴露完整 service 命令目录，避免关键词召回隐藏能力。"""
 
-        return self.policy.select_command_tools(query=self.text_query_from_contents(contents), limit=8)
+        _ = contents
+        return self.policy.select_command_tools()
 
     def select_route_skill_summaries(self, contents: list[Content]):
-        """选择入口路由阶段需要暴露给模型的 Skill 子集。"""
+        """入口路由阶段暴露完整 Skill 目录，避免关键词提示影响可见性。"""
 
-        return self.policy.select_skill_summaries(query=self.text_query_from_contents(contents), limit=4)
+        _ = contents
+        return self.policy.select_skill_summaries()
 
     def select_plan_command_tools(self, context: Context):
-        """选择规划阶段需要暴露给模型的命令子集。"""
+        """规划阶段暴露完整 service 命令目录。"""
 
-        return self.policy.select_command_tools(query=context.single_modal(), limit=14)
+        _ = context
+        return self.policy.select_command_tools()
 
     def select_plan_skill_summaries(self, context: Context):
-        """选择规划阶段需要暴露给模型的 Skill 子集。"""
+        """规划阶段暴露完整 Skill 目录。"""
 
-        return self.policy.select_skill_summaries(query=context.single_modal(), limit=5)
+        _ = context
+        return self.policy.select_skill_summaries()
 
     def select_task_command_tools(self, context: Context, *, plan: AgentPlan | None = None):
-        """选择任务生成阶段需要暴露给模型的命令子集。"""
+        """任务生成阶段优先按 Planner 候选命令解析，否则暴露完整目录。"""
 
+        _ = context
         return self.policy.select_command_tools(
-            query=context.single_modal(),
-            limit=12,
             candidate_commands=plan.candidate_commands if plan is not None else None,
         )
 
     def select_task_skill_summaries(self, context: Context, *, plan: AgentPlan | None = None):
-        """选择任务生成阶段需要暴露给模型的 Skill 子集。"""
+        """任务生成阶段优先按 Planner 候选 Skill 解析，否则暴露完整目录。"""
 
+        _ = context
         return self.policy.select_skill_summaries(
-            query=context.single_modal(),
-            limit=5,
             skill_names=plan.candidate_skills if plan is not None else None,
         )
 
     def render_route_command_tools_prompt(self, contents: list[Content]) -> str:
-        """为入口路由阶段生成较小的命令目录子集。"""
+        """为入口路由阶段生成命令目录。"""
 
         return self.render_command_tools_prompt_from_tools(self.select_route_command_tools(contents))
 
     def render_route_skill_catalog_prompt(self, contents: list[Content]) -> str:
-        """为入口路由阶段生成较小的 Skill 目录子集。"""
+        """为入口路由阶段生成 Skill 目录。"""
 
         return self.render_skill_catalog_prompt_from_summaries(self.select_route_skill_summaries(contents))
 
     def render_plan_command_tools_prompt(self, context: Context) -> str:
-        """为规划阶段生成较完整但仍受控的命令目录子集。"""
+        """为规划阶段生成命令目录。"""
 
         return self.render_command_tools_prompt_from_tools(self.select_plan_command_tools(context))
 
     def render_plan_skill_catalog_prompt(self, context: Context) -> str:
-        """为规划阶段生成较完整但仍受控的 Skill 目录子集。"""
+        """为规划阶段生成 Skill 目录。"""
 
         return self.render_skill_catalog_prompt_from_summaries(self.select_plan_skill_summaries(context))
 

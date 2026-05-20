@@ -11,7 +11,7 @@
 - `harness/`
   - 策略、上下文、可观测性装配层。
 - `knowledge.py`
-  - 本地聊天、文件空间、本地 RAG 和 Skill 目录。
+  - 受控知识源检索、本地聊天、文件空间、本地 RAG 和 Skill 目录。
 - `workflow.py`
   - 显式工作流构建、审批语义和执行器。
 - `loop.py`
@@ -38,7 +38,7 @@ AutoGPT Runtime 里现在固定区分两层工作流，后续开发不要再混�
 flowchart TD
     User["用户消息"] --> RuntimeGraph["RuntimeGraphConfig\n开发者热更新图"]
     RuntimeGraph --> Route["场景路由"]
-    Route --> Context["上下文与检索"]
+    Route --> Context["AI 知识路由与检索"]
     Context --> Plan["任务计划"]
     Plan --> TaskFlow["TaskWorkflow\nAI 临时任务流"]
     TaskFlow --> Loop["CognitiveAgentLoop\n选择能力 / 执行 / 观察 / 验证"]
@@ -91,6 +91,52 @@ AGENT_LOOP_MAX_RUNTIME_SECONDS=120
 
 达到上限后，循环必须停止，并基于已有 observation 说明已经尝试了哪些步骤、为什么停止、用户可以怎样继续。不能静默失败，也不能编造成已经成功。
 
+## AI 知识路由
+
+本地历史和文件检索不再由关键词触发。入口路由器会在 `IntentRoute.knowledge_sources` 中声明本轮需要哪些受控知识源，运行时只负责校验权限、执行检索和写回 observation。
+
+可选知识源：
+
+- `user_chat_history`
+  - 当前用户与机器人的历史聊天。
+- `group_chat_history`
+  - 当前绑定系统群的群聊采集消息。
+- `user_file_space`
+  - 当前用户自己的文件空间。
+- `group_file_space`
+  - 当前绑定系统群的文件空间。
+- `external_rag`
+  - 外部知识库，例如校规、制度、学校资料或公共知识库。
+
+关键边界：
+
+- AI 负责判断“用户目标需要查哪里”，不要再把“刚才、文件、聊天记录”等关键词作为主决策规则。
+- 代码负责判断“当前用户能不能查”，不能读取其它用户私聊，也不能把平台 `channel_id` 当成系统群 ID 直接读取。
+- 每个来源都会生成结构化 observation，包含 `source`、`query`、`status`、`confidence`、`items_count` 和摘要。
+- `status=miss`、`status=skipped` 或检索失败时，后续 Planner 和回复不能编造成已查到。
+
+```mermaid
+flowchart TD
+    User["用户消息"] --> Route["IntentRouteNode"]
+    Route --> Sources["knowledge_sources\nAI 选择受控知识源"]
+    Sources --> Guard["代码权限校验\n用户 / 群 / 文件空间"]
+    Guard --> Local["LocalKnowledgeRetriever"]
+    Guard --> External["RagAgent / external_rag"]
+    Local --> Obs["KnowledgeSourceObservation"]
+    External --> Obs
+    Obs --> Plan["Planner / TaskWorkflow"]
+```
+
+## Agent 决策层不做关键词预路由
+
+默认运行时图已经移除 `local_context`、`local_chat_statistics` 这类抢跑节点。身份、班级、课表、聊天统计等需求都应通过 `IntentRoute -> Planner -> service command` 的统一链路处理：
+
+- Runtime 暴露当前用户可见的完整 service command catalog 和 Skill catalog。
+- Route / Planner 依据用户目标和能力描述做语义选择。
+- 代码只做权限、参数、风险、执行入口和 observation 回填校验。
+- 聊天统计作为“统计聊天记录” service-style command 暴露给 Agent，而不是在路由前用字符串规则拦截。
+- RAG、文件搜索、后台筛选中的关键词检索属于工具内部实现，不参与 Agent 路径决策。
+
 ## 调用链
 
 ```mermaid
@@ -126,11 +172,11 @@ flowchart TD
 - `has_auto_tasks`
   - 上游已经产生直接回复、确定性命令或待确认任务时，直接进入持久化节点。
 - `needs_local_knowledge`
-  - 当前用户消息需要聊天记录或文件空间上下文时，进入本地 RAG。
+  - `IntentRoute.knowledge_sources` 中包含本地知识源时，进入本地 RAG；不再用关键词判断。
 - `direct_vision_reply`
   - 简单图片问答不需要命令或检索时，直接走视觉回复。
 - `needs_external_rag`
-  - Planner 明确需要外部知识库时，进入外部 RAG。
+  - `knowledge_sources` 包含 `external_rag`、路由 `requires_rag=true` 或 Planner 明确需要外部知识库时，进入外部 RAG。
 - `always`
   - 作为同源节点的兜底边，必须放在更具体条件之后。
 

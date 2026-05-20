@@ -36,14 +36,12 @@ class PolicyHarness:
     def render_command_tools_prompt(
         self,
         *,
-        query: str | None = None,
         limit: int | None = None,
         candidate_commands: Iterable[str] | None = None,
     ) -> str:
-        """按当前问题裁剪命令目录，减少无关 Prompt 载荷。"""
+        """渲染命令目录；只有 Planner 明确候选时才收窄。"""
 
         tools = self.select_command_tools(
-            query=query,
             limit=limit,
             candidate_commands=candidate_commands,
         )
@@ -52,14 +50,12 @@ class PolicyHarness:
     def render_skill_catalog_prompt(
         self,
         *,
-        query: str | None = None,
         limit: int | None = None,
         skill_names: Iterable[str] | None = None,
     ) -> str:
-        """按当前问题裁剪 Skill 目录，减少无关 Prompt 载荷。"""
+        """渲染 Skill 目录；只有 Planner 明确候选时才收窄。"""
 
         summaries = self.select_skill_summaries(
-            query=query,
             limit=limit,
             skill_names=skill_names,
         )
@@ -75,14 +71,12 @@ class PolicyHarness:
     def select_command_tools(
         self,
         *,
-        query: str | None = None,
         limit: int | None = None,
         candidate_commands: Iterable[str] | None = None,
     ) -> list[CommandTool]:
-        """按当前问题或候选命令挑选要暴露给模型的命令子集。"""
+        """按显式候选命令挑选命令；否则暴露完整可见目录。"""
 
         return self.command_tools.select_tools(
-            query=query,
             limit=limit,
             candidate_commands=candidate_commands,
         )
@@ -90,14 +84,12 @@ class PolicyHarness:
     def select_skill_summaries(
         self,
         *,
-        query: str | None = None,
         limit: int | None = None,
         skill_names: Iterable[str] | None = None,
     ) -> list[dict[str, str]]:
-        """按当前问题或显式技能名挑选要暴露给模型的 Skill 子集。"""
+        """按显式 Skill 名挑选摘要；否则暴露完整 Skill 目录。"""
 
         return self.skill_catalog.select_summaries(
-            query=query,
             limit=limit,
             skill_names=skill_names,
         )

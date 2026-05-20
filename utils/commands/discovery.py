@@ -5,6 +5,7 @@ from typing import Any
 from utils.helper import Helper, ParamMode
 
 from .availability import command_availability
+from .executor import command_executor
 from .registry import command_registry
 from .renderers.tool import command_spec_to_tool_schema
 from .spec import CommandSpec
@@ -14,6 +15,7 @@ def spec_to_payload(spec: CommandSpec) -> dict[str, Any]:
     """Render a command spec into a management-friendly dictionary."""
 
     availability = command_availability.check(spec)
+    service_handler_registered = command_executor.has_handler(spec.name)
     tool_schema = command_spec_to_tool_schema(spec)
     return {
         "id": f"registry:{spec.plugin_module or 'unknown'}:{spec.name}",
@@ -44,6 +46,13 @@ def spec_to_payload(spec: CommandSpec) -> dict[str, Any]:
         "documented": True,
         "available": availability.available,
         "availability_reason": availability.reason,
+        "service_handler_registered": service_handler_registered,
+        "agent_executable": (
+            availability.available
+            and spec.agent_callable
+            and spec.execution_mode == "service"
+            and service_handler_registered
+        ),
         "tool_name": tool_schema["function"]["name"] if tool_schema else None,
         "metadata_source": "command_registry",
     }
@@ -52,7 +61,9 @@ def spec_to_payload(spec: CommandSpec) -> dict[str, Any]:
 def helper_to_payload(helper: Helper) -> dict[str, Any]:
     """Render a manual helper into the same shape as registry payloads."""
 
-    availability = command_availability.check(command_registry.get(helper.command), helper.command)
+    spec = command_registry.get(helper.command)
+    availability = command_availability.check(spec, helper.command)
+    service_handler_registered = command_executor.has_handler(helper.command)
     return {
         "id": f"helper:{helper.command}",
         "command": helper.command,
@@ -82,6 +93,13 @@ def helper_to_payload(helper: Helper) -> dict[str, Any]:
         "documented": True,
         "available": availability.available,
         "availability_reason": availability.reason,
+        "service_handler_registered": service_handler_registered,
+        "agent_executable": (
+            availability.available
+            and bool(spec and spec.agent_callable)
+            and bool(spec and spec.execution_mode == "service")
+            and service_handler_registered
+        ),
         "tool_name": None,
         "metadata_source": "helper",
     }

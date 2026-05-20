@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Optional
+
 from nonebot_plugin_alconna import Args, Alconna, CommandMeta, Field, MultiVar
 
 from utils.commands import CommandBinding, CommandParam, on_agent_command
@@ -40,6 +42,41 @@ query_group_history_cmd = on_agent_command(
     **chat_context_command_kwargs,
 )
 
-__helpers__ = [query_group_history_cmd.__helper__]
+chat_statistics_cmd = on_agent_command(
+    Alconna(
+        "统计聊天记录",
+        Args["scope?", Optional[str], Field(default=None, completion="可选：user 或 group")],
+        Args["window?", Optional[str], Field(default=None, completion="可选：all、today、yesterday 或 week")],
+        meta=CommandMeta(description="统计当前用户私聊或当前系统群的消息数量。"),
+    ),
+    aliases={"聊天统计", "消息统计", "统计群聊", "统计私聊"},
+    binding=CommandBinding(
+        description="统计当前用户私聊或当前系统群的消息数量。",
+        ai_description=(
+            "当用户询问自己和机器人聊了多少条消息、当前群聊了多少条消息、今天/昨天/本周消息数量时，"
+            "调用该命令。范围 scope 只能填 user 或 group；时间 window 只能填 all、today、yesterday 或 week。"
+        ),
+        scopes={HelperScope.public},
+        tags={"chat", "statistics", "history"},
+        execution_mode="service",
+        params=[
+            CommandParam(
+                name="范围",
+                description="统计范围：user 表示当前用户私聊；group 表示当前绑定系统群。",
+                source_name="scope",
+                required=False,
+            ),
+            CommandParam(
+                name="时间范围",
+                description="统计时间范围：all、today、yesterday 或 week。",
+                source_name="window",
+                required=False,
+            ),
+        ],
+    ),
+    **chat_context_command_kwargs,
+)
 
-__all__ = ["query_group_history_cmd", "__helpers__"]
+__helpers__ = [query_group_history_cmd.__helper__, chat_statistics_cmd.__helper__]
+
+__all__ = ["query_group_history_cmd", "chat_statistics_cmd", "__helpers__"]

@@ -5,10 +5,145 @@ from typing import Any
 from utils import Emoji
 from utils.session import EventSession
 from utils.commands import CommandExecutionContext, CommandResult, command_executor
-from utils.models import User, School, Classes, College, Major, Teacher
+from utils.models import User, School, Classes, College, Major, Student, Teacher, TeacherClasses
+from utils.roles import StudentRole, StudentRoleLang, TeacherClassesRole, TeacherRoleLang
 from nonebot_plugin_alconna import AlconnaMatcher
 
 from .presenters import render_classes_card
+
+CLASS_MANAGER_ROLES = {TeacherClassesRole.counselor, TeacherClassesRole.homeroom}
+"""允许管理班级成员和班级教师的教师班级岗位。"""
+
+TEACHER_CLASS_ROLE_ALIASES = {
+    TeacherClassesRole.counselor: {"counselor", "辅导员"},
+    TeacherClassesRole.homeroom: {"homeroom", "班主任"},
+    TeacherClassesRole.teacher: {"teacher", "任课老师", "教师", "老师"},
+}
+"""教师班级岗位输入别名。"""
+
+STUDENT_ROLE_ALIASES = {
+    StudentRole.monitor: {"monitor", "班长"},
+    StudentRole.vice_monitor: {"vice_monitor", "副班长"},
+    StudentRole.secretary: {"secretary", "团支书"},
+    StudentRole.study: {"study", "学习委员"},
+    StudentRole.life: {"life", "生活委员"},
+    StudentRole.sports: {"sports", "体育委员"},
+    StudentRole.organization: {"organization", "组织委员"},
+    StudentRole.mental: {"mental", "心理委员"},
+    StudentRole.publicity: {"publicity", "宣传委员"},
+    StudentRole.arts: {"arts", "文艺委员"},
+    StudentRole.assistant: {"assistant", "助教", "班助", "班助/助教"},
+    StudentRole.student: {"student", "学生", "普通学生"},
+}
+"""学生班级岗位输入别名。"""
+
+
+def parse_teacher_class_role(value: str) -> TeacherClassesRole:
+    """解析教师在班级中的岗位。
+
+    Args:
+        value: 用户输入的岗位名称，支持中文和枚举值。
+
+    Returns:
+        TeacherClassesRole: 解析后的教师班级岗位。
+
+    Raises:
+        ValueError: 岗位无法识别时抛出。
+    """
+
+    normalized = value.strip().lower()
+    for role, aliases in TEACHER_CLASS_ROLE_ALIASES.items():
+        if normalized in aliases:
+            return role
+    raise ValueError("班级教师岗位只支持：班主任、辅导员、任课老师。")
+
+
+def get_teacher_class_role_label(role: TeacherClassesRole | str) -> str:
+    """获取教师班级岗位中文名称。"""
+
+    try:
+        return str(TeacherRoleLang[TeacherClassesRole(role).name])
+    except Exception:
+        return str(role)
+
+
+def parse_student_role(value: str) -> StudentRole:
+    """解析学生在班级中的岗位。
+
+    Args:
+        value: 用户输入的岗位名称，支持中文和枚举值。
+
+    Returns:
+        StudentRole: 解析后的学生岗位。
+
+    Raises:
+        ValueError: 岗位无法识别时抛出。
+    """
+
+    normalized = value.strip().lower()
+    for role, aliases in STUDENT_ROLE_ALIASES.items():
+        if normalized in aliases:
+            return role
+    raise ValueError("学生岗位不支持，请使用班长、副班长、团支书、学习委员、班助/助教或学生等岗位。")
+
+
+def get_student_role_label(role: StudentRole | str) -> str:
+    """获取学生岗位中文名称。"""
+
+    try:
+        return str(StudentRoleLang[StudentRole(role).name])
+    except Exception:
+        return str(role)
+
+
+async def can_manage_class(user: User, classes: Classes) -> bool:
+    """判断用户是否可以管理指定班级。
+
+    Args:
+        user: 当前操作用户。
+        classes: 目标班级。
+
+    Returns:
+        bool: 具备管理权限时返回 ``True``。
+    """
+
+    if user.is_admin:
+        return True
+    teacher = user.teacher
+    if teacher is None:
+        return False
+    if await teacher.manages_college(classes.college_id):
+        return True
+    relation = await TeacherClasses.filter(teacher_id=teacher.id, classes_id=classes.id).first()
+    return relation is not None and TeacherClassesRole(relation.role) in CLASS_MANAGER_ROLES
+
+
+async def can_manage_student(user: User, student: Student) -> bool:
+    """判断用户是否可以管理指定学生。"""
+
+    return await can_manage_class(user, student.classes)
+
+
+async def ensure_can_manage_class(matcher: AlconnaMatcher, user: User, classes: Classes) -> None:
+    """校验用户是否可以管理班级，不允许时结束命令。"""
+
+    if not await can_manage_class(user, classes):
+        await matcher.finish(Emoji.error + "您没有权限管理该班级。")
+
+
+async def ensure_can_manage_student(matcher: AlconnaMatcher, user: User, student: Student) -> None:
+    """校验用户是否可以管理学生，不允许时结束命令。"""
+
+    if not await can_manage_student(user, student):
+        await matcher.finish(Emoji.error + "您没有权限管理该学生。")
+
+
+async def manager_teacher_count(classes: Classes) -> int:
+    """统计班级中的管理教师数量。"""
+
+    return await TeacherClasses.filter(
+        (TeacherClasses.classes_id == classes.id) & (TeacherClasses.role.in_(list(CLASS_MANAGER_ROLES)))
+    ).count()
 
 
 @command_executor.handler("查询班级")

@@ -140,9 +140,7 @@ def default_graph_designer_payload() -> dict[str, Any]:
     edges = [
         ("summary_history", "normalize_input", "下一步", "always"),
         ("normalize_input", "append_user_message", "下一步", "always"),
-        ("append_user_message", "local_chat_statistics", "本地统计优先", "always"),
-        ("local_chat_statistics", "local_context", "本地确定性查询", "always"),
-        ("local_context", "route", "进入场景路由", "always"),
+        ("append_user_message", "route", "进入场景路由", "always"),
         ("route", "persist", "已有直接回复", "has_auto_tasks"),
         ("route", "local_rag", "需要本地上下文", "needs_local_knowledge"),
         ("route", "direct_vision_reply", "视觉直答", "direct_vision_reply"),
@@ -573,8 +571,6 @@ def validate_required_runtime_order(node_types: list[str]) -> None:
     for before, after in (
         ("normalize_input", "append_user_message"),
         ("append_user_message", "route"),
-        ("local_chat_statistics", "route"),
-        ("local_context", "route"),
         ("route", "local_rag"),
         ("route", "direct_vision_reply"),
         ("route", "extract"),

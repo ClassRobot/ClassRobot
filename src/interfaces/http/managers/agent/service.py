@@ -161,7 +161,7 @@ AGENT_MODULES: tuple[AgentModuleDefinition, ...] = (
         id="checkpoint_store",
         name="WorkflowCheckpointStore",
         category="持久化",
-        source="core/agent/runtime/checkpoints.py",
+        source="core/agent/runtime/persistence/checkpoints.py",
         description="保存每个用户最近一次工作流状态，用于待确认任务恢复。",
         capabilities=("待确认恢复", "工作流快照"),
         control_note="检查点数据可在 Agent 管理中查看和删除。",
@@ -170,7 +170,7 @@ AGENT_MODULES: tuple[AgentModuleDefinition, ...] = (
         id="run_store",
         name="WorkflowRunStore",
         category="持久化",
-        source="core/agent/runtime/runs.py",
+        source="core/agent/runtime/persistence/runs.py",
         description="保存每次 Agent 工作流运行历史，供审计、排障和后台查看。",
         capabilities=("运行历史", "Trace 审计", "失败排查"),
         control_note="运行历史当前只读展示。",
@@ -683,7 +683,12 @@ class AgentManagerService:
             for playbook in playbook_catalog.playbooks
         ]
 
-    def build_config_items(self, agent_callable_commands: int, available_agent_commands: int) -> list[AgentConfigItem]:
+    def build_config_items(
+        self,
+        agent_callable_commands: int,
+        available_agent_commands: int,
+        agent_executable_commands: int,
+    ) -> list[AgentConfigItem]:
         """生成 Agent 相关配置快照。"""
 
         current_driver = _get_manager_driver()
@@ -783,8 +788,8 @@ class AgentManagerService:
                 id="command_availability",
                 group="命令边界",
                 name="Agent 可调用命令",
-                value=f"{available_agent_commands}/{agent_callable_commands} 当前可用",
-                description="Agent 命令工具目录会自动过滤已软关闭或声明为不可调用的命令。",
+                value=f"{agent_executable_commands} 个实际可执行，{available_agent_commands}/{agent_callable_commands} 个声明可用",
+                description="Agent 工具目录只暴露已启用、声明可调用、service 化且已注册 handler 的命令。",
                 source="utils.commands.availability",
                 editable=False,
                 toggleable=False,
@@ -868,6 +873,7 @@ class AgentManagerService:
         commands = nonebot.list_commands()["items"]
         agent_commands = [command for command in commands if command.get("agent_callable")]
         available_agent_commands = [command for command in agent_commands if command.get("available", True)]
+        agent_executable_commands = [command for command in commands if command.get("agent_executable")]
         modules = [self.build_module_card(definition) for definition in AGENT_MODULES]
         skills = self.build_skill_items()
         playbooks = self.build_playbook_items()
@@ -903,6 +909,7 @@ class AgentManagerService:
                 playbooks=len(playbooks),
                 agent_callable_commands=len(agent_commands),
                 available_agent_commands=len(available_agent_commands),
+                agent_executable_commands=len(agent_executable_commands),
                 runs=len(runs),
                 pending_checkpoints=checkpoint_status_counts.get("needs_confirm", 0),
                 failed_runs=run_status_counts.get("failed", 0),
@@ -921,7 +928,11 @@ class AgentManagerService:
                 saved_at=designer_state.updated_at,
             ),
             orchestration=orchestration,
-            config=self.build_config_items(len(agent_commands), len(available_agent_commands)),
+            config=self.build_config_items(
+                len(agent_commands),
+                len(available_agent_commands),
+                len(agent_executable_commands),
+            ),
             controls=self.build_controls(),
             playbooks=playbooks,
             skills=skills,

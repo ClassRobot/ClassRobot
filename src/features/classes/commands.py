@@ -128,12 +128,89 @@ review_join_request_cmd = on_agent_command(
     comp_config=comp_config,
 )
 
+set_class_teacher_cmd = on_agent_command(
+    Alconna(
+        "设置班级教师",
+        Args["classes_id", int, Field(completion=tip("请输入班级ID"))],
+        Args["teacher_id", int, Field(completion=tip("请输入教师ID"))],
+        Args["role", str, Field(completion=tip("可选：班主任、辅导员、任课老师"))],
+    ),
+    binding=CommandBinding(
+        description="为班级绑定教师并设置班级岗位，可设置班主任、辅导员或任课老师。",
+        roles={UserRole.admin, UserRole.teacher},
+        scopes={HelperScope.teacher, HelperScope.admin},
+        risk_level="medium",
+        agent_callable=False,
+        param_labels={"classes_id": "班级ID", "teacher_id": "教师ID", "role": "班级教师岗位"},
+    ),
+    priority=priority,
+    block=True,
+    skip_for_unmatch=False,
+    comp_config=comp_config,
+)
+
+unset_class_teacher_cmd = on_agent_command(
+    Alconna(
+        "取消班级教师",
+        Args["classes_id", int, Field(completion=tip("请输入班级ID"))],
+        Args["teacher_id", int, Field(completion=tip("请输入教师ID"))],
+    ),
+    binding=CommandBinding(
+        description="取消教师与班级的绑定关系，至少保留一位班级管理教师。",
+        roles={UserRole.admin, UserRole.teacher},
+        scopes={HelperScope.teacher, HelperScope.admin},
+        risk_level="medium",
+        agent_callable=False,
+        param_labels={"classes_id": "班级ID", "teacher_id": "教师ID"},
+    ),
+    priority=priority,
+    block=True,
+    skip_for_unmatch=False,
+    comp_config=comp_config,
+)
+
+set_student_position_cmd = on_agent_command(
+    Alconna(
+        "设置学生岗位",
+        Args["student_id", int, Field(completion=tip("请输入学生ID"))],
+        Args["role", str, Field(completion=tip("请输入岗位，如 班长、班助/助教、学生"))],
+    ),
+    binding=CommandBinding(
+        description="设置学生在当前班级中的岗位，可用于设置班干部或班助/助教。",
+        roles={UserRole.admin, UserRole.teacher},
+        scopes={HelperScope.teacher, HelperScope.admin},
+        risk_level="medium",
+        agent_callable=False,
+        param_labels={"student_id": "学生ID", "role": "学生岗位"},
+    ),
+    priority=priority,
+    block=True,
+    skip_for_unmatch=False,
+    comp_config=comp_config,
+)
+
+unset_student_position_cmd = on_agent_command(
+    Alconna("取消学生岗位", Args["student_id", int, Field(completion=tip("请输入学生ID"))]),
+    binding=CommandBinding(
+        description="把学生岗位恢复为普通学生。",
+        roles={UserRole.admin, UserRole.teacher},
+        scopes={HelperScope.teacher, HelperScope.admin},
+        risk_level="medium",
+        agent_callable=False,
+        param_labels={"student_id": "学生ID"},
+    ),
+    priority=priority,
+    block=True,
+    skip_for_unmatch=False,
+    comp_config=comp_config,
+)
+
 join_classes_cmd = on_agent_command(
     Alconna("加入班级", Args["classes_id?", Optional[int]], Args["describe?", Optional[str]]),
     binding=CommandBinding(
         description="可通过班级ID加入指定班级；如果在班级群中执行且不携带班级ID，则会自动识别当前群对应的班级。",
-        roles={UserRole.user},
-        exclude_roles={UserRole.student, UserRole.teacher},
+        roles={UserRole.user, UserRole.student},
+        exclude_roles={UserRole.teacher},
         scopes={HelperScope.student},
         risk_level="medium",
         agent_callable=False,
@@ -188,6 +265,10 @@ __helpers__ = [
     query_classes_cmd.__helper__,
     query_join_request_cmd.__helper__,
     review_join_request_cmd.__helper__,
+    set_class_teacher_cmd.__helper__,
+    unset_class_teacher_cmd.__helper__,
+    set_student_position_cmd.__helper__,
+    unset_student_position_cmd.__helper__,
     join_classes_cmd.__helper__,
     set_join_classes_cmd.__helper__,
     exit_classes_cmd.__helper__,

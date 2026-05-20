@@ -1049,6 +1049,17 @@ async def test_manager_user_delete_returns_structured_blockers(
 
 
 async def test_manager_nonebot_runtime_inventory(manager_client, manager_auth_headers):
+    from utils.commands import CommandSpec, command_registry
+
+    command_registry.register(
+        CommandSpec(
+            name="测试管理端无Handler命令",
+            description="声明为 service 但没有注册 handler",
+            execution_mode="service",
+            agent_callable=True,
+        )
+    )
+
     unauthorized = await manager_client.get("/api/v1/manager/nonebot")
     assert unauthorized.status_code == 401
 
@@ -1059,10 +1070,25 @@ async def test_manager_nonebot_runtime_inventory(manager_client, manager_auth_he
     assert payload["runtime"]["initialized"] is True
     assert payload["stats"]["commands"] >= 1
     assert payload["stats"]["adapters"] >= 3
+    assert payload["stats"]["service_handler_commands"] >= 1
+    assert payload["stats"]["agent_executable_commands"] >= 1
     assert {"plugins", "commands", "adapters", "bots"}.issubset(payload)
 
     command_names = {item["command"] for item in payload["commands"]}
     assert {"token", "我的信息"}.issubset(command_names)
+    chat_statistics = next(item for item in payload["commands"] if item["command"] == "统计聊天记录")
+    assert chat_statistics["matcher_type"] == "agent_command"
+    assert chat_statistics["file"].replace("\\", "/").endswith("src/features/chat_context/commands.py")
+    assert chat_statistics["line"] > 0
+    assert chat_statistics["service_handler_registered"] is True
+    assert chat_statistics["agent_executable"] is True
+    assert all(param["required"] is False for param in chat_statistics["params"])
+
+    command_without_handler = next(item for item in payload["commands"] if item["command"] == "测试管理端无Handler命令")
+    assert command_without_handler["agent_callable"] is True
+    assert command_without_handler["execution_mode"] == "service"
+    assert command_without_handler["service_handler_registered"] is False
+    assert command_without_handler["agent_executable"] is False
 
     adapter_modules = {item["module_name"] for item in payload["adapters"]}
     assert {
@@ -1074,6 +1100,8 @@ async def test_manager_nonebot_runtime_inventory(manager_client, manager_auth_he
     commands = await manager_client.get("/api/v1/manager/nonebot/commands", headers=manager_auth_headers)
     assert commands.status_code == 200, commands.text
     assert commands.json()["total"] == payload["stats"]["commands"]
+    command_payload = next(item for item in commands.json()["items"] if item["command"] == "统计聊天记录")
+    assert command_payload["agent_executable"] is True
 
 
 async def test_manager_nonebot_availability_controls(manager_client, manager_auth_headers):
@@ -1540,11 +1568,15 @@ async def test_manager_agent_overview_inventory(
     assert {"pipeline", "workflow", "command_tools", "skill_registry"}.issubset(module_ids)
     assert payload["stats"]["failed_runs"] == 1
     assert payload["stats"]["pending_checkpoints"] == 1
+    assert payload["stats"]["agent_executable_commands"] >= 1
     assert payload["metrics"]["runs_by_kind"]["command_sequence"] == 1
     assert payload["orchestration"]["nodes"][0]["id"] == "summary_history"
     assert payload["designer"]["runtime_apply_supported"] is True
     assert payload["playbooks"]
     assert payload["skills"]
+    module_status = {item["id"]: item["status"] for item in payload["modules"]}
+    assert module_status["checkpoint_store"] == "enabled"
+    assert module_status["run_store"] == "enabled"
     assert any(item["id"] == "agent_module_toggle" and item["supported"] is False for item in payload["controls"])
     assert any(item["id"] == "command_soft_switch" and item["supported"] is True for item in payload["controls"])
     assert any(
@@ -1567,6 +1599,7 @@ async def test_manager_agent_designer_draft(manager_client, manager_auth_headers
     assert payload["draft"]["nodes"][0]["node_type"] == "summary_history"
     assert payload["applied_to_runtime"] is True
     assert payload["draft"]["nodes"][0]["runtime_applied"] is True
+    assert all(item["status"] == "enabled" for item in payload["palette"])
 
     draft = payload["draft"]
     draft["nodes"][0]["config"] = {"model": "default", "temperature": 0.2, "unknown": "ignored"}

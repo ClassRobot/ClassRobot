@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from typing import Callable
 from dataclasses import field, dataclass
 
-from core.llm.message import Content, LLMRole, Messages
+from core.llm.message import LLMRole, Messages
 from core.storage import ChatHistoryStore, chat_history_store
 
 from ..knowledge import RuntimeContext, LocalKnowledgeRetriever
@@ -23,12 +22,3 @@ class ContextHarness:
 
         recent_messages = Messages(messages=self.messages.messages[-keep_recent:])
         return recent_messages.get(LLMRole.user, LLMRole.assistant).json(ensure_ascii=False)
-
-    def can_retrieve_local_knowledge(
-        self,
-        contents: list[Content],
-        should_retrieve: Callable[[list[Content]], bool],
-    ) -> bool:
-        """判断当前轮次是否具备本地上下文检索条件。"""
-
-        return self.runtime_context is not None and should_retrieve(contents)

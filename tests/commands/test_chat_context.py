@@ -238,6 +238,98 @@ async def test_group_history_service_handler_works_in_group_context(monkeypatch,
     assert "调课" in result.visible_outputs[0]
 
 
+async def test_chat_statistics_service_counts_current_user_only(monkeypatch, loaded_plugins, tmp_path):
+    import src.features.chat_context.services as services_module
+    from utils.commands import CommandExecutionContext, command_executor
+    from utils.roles import UserRole
+    from core.storage import ChatHistoryStore, MessageActorRole, StorageManager
+
+    store = ChatHistoryStore(StorageManager(tmp_path / "storage"))
+    monkeypatch.setattr(services_module, "chat_history_store", store)
+
+    await store.record_user_chat_message(
+        user_id=91001,
+        user_name="当前用户",
+        plain_text="你好",
+        raw_text="你好",
+        message_id="u1",
+        actor_role=MessageActorRole.user,
+    )
+    await store.record_user_chat_message(
+        user_id=91001,
+        user_name="机器人",
+        plain_text="你好，我在",
+        raw_text="你好，我在",
+        message_id="a1",
+        actor_role=MessageActorRole.assistant,
+    )
+    await store.record_user_chat_message(
+        user_id=91002,
+        user_name="其他用户",
+        plain_text="不应该被统计",
+        raw_text="不应该被统计",
+        message_id="other",
+        actor_role=MessageActorRole.user,
+    )
+
+    result = await command_executor.execute(
+        "统计聊天记录",
+        {"范围": "user", "时间范围": "all"},
+        CommandExecutionContext(user_id=91001, roles={UserRole.user}, invoker="agent_workflow"),
+    )
+
+    assert result.success is True
+    assert result.data["scope"] == "user"
+    assert result.data["user_id"] == 91001
+    assert result.data["total"] == 2
+    assert "我们一共聊了 2 条消息" in result.visible_outputs[0]
+
+
+async def test_chat_statistics_service_counts_bound_system_group_only(monkeypatch, loaded_plugins, tmp_path):
+    from datetime import datetime, timedelta
+
+    import src.features.chat_context.services as services_module
+    from utils.commands import CommandExecutionContext, command_executor
+    from utils.models import Classes, User
+    from utils.roles import UserRole
+    from core.storage import ChatHistoryStore, StorageManager
+
+    store = ChatHistoryStore(StorageManager(tmp_path / "storage"))
+    monkeypatch.setattr(services_module, "chat_history_store", store)
+
+    owner = await User.create_user(nickname="统计群创建者", username="chat_statistics_group_owner")
+    classes = await Classes.create_classes(
+        "统计服务测试班级",
+        platform_name="",
+        platform_id="onebot11.qq_client",
+        channel_id="33101",
+        guild_id=None,
+        user=owner,
+    )
+
+    now = datetime.now().replace(microsecond=0)
+    store._record_group_message_sync(classes.group_id, "u1", "张三", "第一条", "第一条", "g1", now)
+    store._record_group_message_sync(classes.group_id, "u2", "李四", "第二条", "第二条", "g2", now + timedelta(seconds=1))
+    store._record_group_message_sync("other-group", "u9", "隔壁", "不该统计", "不该统计", "other", now)
+
+    result = await command_executor.execute(
+        "统计聊天记录",
+        {"范围": "group", "时间范围": "all"},
+        CommandExecutionContext(
+            platform="onebot11.qq_client",
+            channel_id="33101",
+            roles={UserRole.user},
+            invoker="agent_workflow",
+        ),
+    )
+
+    assert result.success is True
+    assert result.data["scope"] == "group"
+    assert result.data["group_id"] == str(classes.group_id)
+    assert result.data["total"] == 2
+    assert "这个群一共聊了 2 条消息" in result.visible_outputs[0]
+
+
 async def test_private_messages_are_recorded_under_user_chat_space(app, onebot, monkeypatch, tmp_path, loaded_plugins):
     import src.features.chat_context as chat_context_module
     import src.features.chat_context.collector as collector_module

@@ -12,6 +12,49 @@ from utils.schemas.auto_task import AutoTask as AutoTask  # noqa
 from utils.schemas.auto_task import AutoTaskList as AutoTaskList  # noqa
 
 
+KnowledgeSource = Literal[
+    "user_chat_history",
+    "group_chat_history",
+    "user_file_space",
+    "group_file_space",
+    "external_rag",
+]
+KnowledgeSourceStatus = Literal["hit", "miss", "skipped", "error"]
+KnowledgeSourceConfidence = Literal["high", "medium", "low", "none"]
+
+
+class KnowledgeSourceRequest(BaseModel):
+    """描述入口路由阶段由模型选择的受控知识来源。"""
+
+    source: KnowledgeSource
+    """要检索的知识来源。"""
+    query: str = ""
+    """面向该知识来源的检索问题。"""
+    reason: str = ""
+    """为什么当前问题需要该来源。"""
+    required: bool = False
+    """该来源是否必须命中才能可靠回答。"""
+
+
+class KnowledgeSourceObservation(BaseModel):
+    """描述一次知识源检索后的结构化观察结果。"""
+
+    source: KnowledgeSource
+    """实际处理的知识来源。"""
+    query: str = ""
+    """实际使用的检索问题。"""
+    status: KnowledgeSourceStatus = "miss"
+    """检索状态。"""
+    summary: str = ""
+    """可直接进入 Agent 上下文的简短摘要。"""
+    confidence: KnowledgeSourceConfidence = "none"
+    """检索结果可信度。"""
+    items_count: int = 0
+    """粗略命中条目数量。"""
+    required: bool = False
+    """该来源是否由路由器标记为必须命中。"""
+
+
 class IntentRoute(BaseModel):
     """AutoGPT 对当前消息的入口路由判断。"""
 
@@ -27,6 +70,8 @@ class IntentRoute(BaseModel):
     """是否需要用户补充信息或确认。"""
     reason: str = ""
     """简短说明路由原因，供日志和调试使用。"""
+    knowledge_sources: list[KnowledgeSourceRequest] = Field(default_factory=list)
+    """由入口路由器按语义选择的知识来源，代码层会继续做权限和范围校验。"""
 
 
 class AgentPlan(BaseModel):

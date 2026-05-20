@@ -81,6 +81,7 @@ def test_command_tool_catalog_builds_safe_tool_schema(loaded_plugins):
         params=[
             CommandParam(name="班级名", description="要添加的班级名称"),
             CommandParam(name="备注", description="可选备注", mode=ParamMode.OPTIONAL),
+            CommandParam(name="标签", description="显式声明的可选标签", required=False),
         ],
         risk_level="medium",
         execution_mode="service",
@@ -104,6 +105,7 @@ def test_command_tool_catalog_builds_safe_tool_schema(loaded_plugins):
     assert function["name"] == tool.name
     assert function["parameters"]["required"] == ["班级名"]
     assert "备注" in function["parameters"]["properties"]
+    assert "标签" in function["parameters"]["properties"]
 
 
 def test_command_tool_catalog_prompt_is_compact(loaded_plugins):
@@ -125,7 +127,7 @@ def test_command_tool_catalog_prompt_is_compact(loaded_plugins):
     assert str(catalog) == prompt
 
 
-def test_command_tool_catalog_can_render_relevant_subset_by_query(loaded_plugins):
+def test_command_tool_catalog_does_not_filter_by_query(loaded_plugins):
     from utils.helper import Helpers
     from utils.commands import CommandSpec
     from core.agent.runtime.command_tools import CommandToolCatalog
@@ -140,14 +142,14 @@ def test_command_tool_catalog_can_render_relevant_subset_by_query(loaded_plugins
         helpers.append(register_test_service_spec(spec))
 
     catalog = CommandToolCatalog.from_helpers(helpers)
-    prompt = catalog.to_prompt(query="帮我发一个班级通知", limit=1)
+    prompt = catalog.to_prompt()
 
     assert "测试创建通知工具" in prompt
-    assert "测试查询课表工具" not in prompt
-    assert "测试我的信息工具" not in prompt
+    assert "测试查询课表工具" in prompt
+    assert "测试我的信息工具" in prompt
 
 
-def test_command_tool_catalog_candidate_commands_override_query_subset(loaded_plugins):
+def test_command_tool_catalog_candidate_commands_can_narrow_visible_subset(loaded_plugins):
     from utils.helper import Helpers
     from utils.commands import CommandSpec
     from core.agent.runtime.command_tools import CommandToolCatalog
@@ -162,7 +164,6 @@ def test_command_tool_catalog_candidate_commands_override_query_subset(loaded_pl
 
     catalog = CommandToolCatalog.from_helpers(helpers)
     prompt = catalog.to_prompt(
-        query="帮我发一个班级通知",
         limit=1,
         candidate_commands=["测试候选查询课表"],
     )

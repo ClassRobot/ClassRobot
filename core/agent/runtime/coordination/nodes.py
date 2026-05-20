@@ -50,46 +50,6 @@ class AppendUserMessageNode(WorkflowNode):
         pipeline.messages.user_message(state.user_content)
 
 
-class LocalContextQueryNode(WorkflowNode):
-    """优先处理不需要模型猜测的本地上下文查询。"""
-
-    async def run(self, pipeline: "MessageProcessingPipeline", state: PipelineState) -> None:
-        if state.auto_tasks is not None:
-            return
-        auto_tasks = pipeline.resolve_local_context_query(state.user_content)
-        if auto_tasks is None:
-            return
-        state.intent_route = IntentRoute(
-            intent="command",
-            requires_command=True,
-            requires_rag=False,
-            need_confirm=False,
-            reason="用户正在查询本地账号、班级或课表状态，直接调用项目内查询命令。",
-        )
-        state.runtime_scene = "command"
-        state.auto_tasks = auto_tasks
-
-
-class LocalChatStatisticsNode(WorkflowNode):
-    """优先处理聊天条数这类需要精确统计的本地问题。"""
-
-    async def run(self, pipeline: "MessageProcessingPipeline", state: PipelineState) -> None:
-        if state.auto_tasks is not None:
-            return
-        auto_tasks = await pipeline.resolve_local_chat_statistics_query(state.user_content)
-        if auto_tasks is None:
-            return
-        state.intent_route = IntentRoute(
-            intent="knowledge",
-            requires_command=False,
-            requires_rag=False,
-            need_confirm=False,
-            reason="用户正在查询当前用户或当前系统群的聊天统计，直接读取本地归档结果。",
-        )
-        state.runtime_scene = "knowledge"
-        state.auto_tasks = auto_tasks
-
-
 class IntentRouteNode(WorkflowNode):
     """先判断消息类型，避免所有请求都进入重型规划链路。"""
 
@@ -158,9 +118,9 @@ class IntentRouteNode(WorkflowNode):
             )
         elif (
             not state.intent_route.requires_command
-            and not state.intent_route.requires_rag
+            and not pipeline.needs_external_knowledge(state.intent_route)
             and not pipeline.has_visual_input(state.user_content)
-            and not pipeline.can_retrieve_local_knowledge(state.user_content)
+            and not pipeline.needs_local_knowledge(state.intent_route)
         ):
             state.auto_tasks = AutoTaskList(
                 reply=state.intent_route.reply or "我在，有什么需要我帮你处理的吗？",
@@ -203,11 +163,14 @@ class RetrieveLocalKnowledgeNode(WorkflowNode):
     async def run(self, pipeline: "MessageProcessingPipeline", state: PipelineState) -> None:
         if state.auto_tasks is not None:
             return
-        if not pipeline.can_retrieve_local_knowledge(state.user_content):
+        requests = pipeline.local_knowledge_source_requests(state.intent_route)
+        if not requests:
             return
-        await pipeline.report_progress("我正在检索当前可用的聊天记录和文件上下文。", stage="memory")
-        query = pipeline.text_query_from_contents(state.user_content)
-        state.local_knowledge = await pipeline.local_knowledge_retriever.retrieve(query, pipeline.runtime_context)
+        await pipeline.report_progress("我正在按当前问题选择可用的历史记录和文件上下文。", stage="memory")
+        state.local_knowledge = await pipeline.local_knowledge_retriever.retrieve_sources(
+            requests,
+            pipeline.runtime_context,
+        )
         if state.local_knowledge:
             logger.info(f'AutoGPT trace "{state.trace_id}" loaded local knowledge context')
 
@@ -337,7 +300,12 @@ class RetrieveKnowledgeNode(WorkflowNode):
         if state.extracted_context is None:
             return
         await pipeline.report_progress("我正在补充相关知识和上下文，用来支撑后续处理。", stage="rag")
-        state.retrieved_knowledge = await pipeline.create_rag_agent().execute(state.extracted_context)
+        rag_context = await pipeline.create_rag_agent().execute(state.extracted_context)
+        state.retrieved_knowledge = pipeline.format_external_knowledge_observation(
+            rag_context,
+            route=state.intent_route,
+            fallback_query=state.extracted_context.single_modal(),
+        )
 
 
 class PlanTasksNode(WorkflowNode):
@@ -431,8 +399,6 @@ class PersistAssistantReplyNode(WorkflowNode):
 RUNTIME_NODE_CLASS_REGISTRY: dict[str, type[WorkflowNode]] = {
     "summary_history": SummaryHistoryNode,
     "append_user_message": AppendUserMessageNode,
-    "local_chat_statistics": LocalChatStatisticsNode,
-    "local_context": LocalContextQueryNode,
     "route": IntentRouteNode,
     "local_rag": RetrieveLocalKnowledgeNode,
     "direct_vision_reply": DirectVisionReplyNode,

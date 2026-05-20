@@ -36,5 +36,8 @@ class StudentRoleLang(StrEnum):
     arts = "文艺委员"
     """文艺委员"""
 
+    assistant = "班助/助教"
+    """班助/助教"""
+
     student = "学生"
     """学生"""

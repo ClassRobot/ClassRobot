@@ -354,6 +354,7 @@ class AgentOverviewStats(AgentPayloadModel):
     playbooks: int
     agent_callable_commands: int
     available_agent_commands: int
+    agent_executable_commands: int
     runs: int
     pending_checkpoints: int
     failed_runs: int
