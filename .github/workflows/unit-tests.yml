@@ -33,9 +33,11 @@ jobs:
 
       - name: Disable Tencent mirror for CI
         run: |
-          # Replace tencent mirror with primary official pypi to prevent CI timeouts
-          sed -i 's/name = "tencent"/name = "tencent"\nignore = true/g' pyproject.toml || true
-          sed -i 's/priority = "primary"/priority = "supplemental"/g' pyproject.toml || true
+          # Use Poetry's own source commands instead of editing pyproject.toml
+          # with sed. Unsupported fields in [[tool.poetry.source]] make
+          # `poetry install` fail before dependency resolution starts.
+          poetry source remove tencent || true
+          poetry source remove pypi-official || true
 
       - name: Install dependencies
         run: poetry install --with dev,test --no-interaction
