@@ -8,7 +8,7 @@ import pytest
 
 @pytest.mark.asyncio
 async def test_group_chat_history_store_can_record_search_and_build_context(loaded_plugins, tmp_path):
-    from core.storage import GroupChatHistoryStore, StorageManager
+    from src.core.storage import GroupChatHistoryStore, StorageManager
 
     store = GroupChatHistoryStore(StorageManager(tmp_path / "storage"))
     now = datetime.now()
@@ -55,7 +55,7 @@ async def test_group_chat_history_store_can_record_search_and_build_context(load
 
 
 def test_group_chat_history_store_returns_recent_messages_without_query(loaded_plugins, tmp_path):
-    from core.storage import GroupChatHistoryStore, StorageManager
+    from src.core.storage import GroupChatHistoryStore, StorageManager
 
     store = GroupChatHistoryStore(StorageManager(tmp_path / "storage"))
     now = datetime.now()
@@ -77,7 +77,7 @@ def test_group_chat_history_store_returns_recent_messages_without_query(loaded_p
 
 @pytest.mark.asyncio
 async def test_user_chat_messages_are_stored_under_user_space(loaded_plugins, tmp_path):
-    from core.storage import ChatHistoryStore, MessageActorRole, MessageDirection, StorageManager
+    from src.core.storage import ChatHistoryStore, MessageActorRole, MessageDirection, StorageManager
 
     manager = StorageManager(tmp_path / "storage")
     store = ChatHistoryStore(manager)
@@ -109,7 +109,7 @@ async def test_user_chat_messages_are_stored_under_user_space(loaded_plugins, tm
 
 @pytest.mark.asyncio
 async def test_group_assistant_messages_are_stored_under_group_space(loaded_plugins, tmp_path):
-    from core.storage import (
+    from src.core.storage import (
         ChatHistoryStore,
         MessageActorRole,
         MessageDirection,
@@ -150,7 +150,7 @@ async def test_group_assistant_messages_are_stored_under_group_space(loaded_plug
 
 @pytest.mark.asyncio
 async def test_chat_history_store_can_summarize_user_chat_messages(loaded_plugins, tmp_path):
-    from core.storage import ChatHistoryStore, MessageActorRole, StorageManager
+    from src.core.storage import ChatHistoryStore, MessageActorRole, StorageManager
 
     store = ChatHistoryStore(StorageManager(tmp_path / "storage"))
     today = datetime(2026, 5, 6, 0, 0, 0)
@@ -209,7 +209,7 @@ async def test_chat_history_store_can_summarize_user_chat_messages(loaded_plugin
 
 @pytest.mark.asyncio
 async def test_chat_history_store_can_summarize_group_collect_messages(loaded_plugins, tmp_path):
-    from core.storage import ChatHistoryStore, StorageManager
+    from src.core.storage import ChatHistoryStore, StorageManager
 
     store = ChatHistoryStore(StorageManager(tmp_path / "storage"))
     today = datetime(2026, 5, 6, 0, 0, 0)
@@ -265,7 +265,7 @@ async def test_chat_history_store_can_summarize_group_collect_messages(loaded_pl
 
 
 def test_chat_history_store_backfills_created_ts_for_legacy_rows(loaded_plugins, tmp_path):
-    from core.storage import ChatHistoryStore, MessageOwnerKind, StorageManager
+    from src.core.storage import ChatHistoryStore, MessageOwnerKind, StorageManager
 
     manager = StorageManager(tmp_path / "storage")
     db_path = manager.user_space("legacy-user").chat_dir / "messages.db"

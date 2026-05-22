@@ -2,7 +2,7 @@
   "include": [
     "core/llm",
     "core/agent",
-    "src/features/autogpt/__init__.py",
+    "src/plugins/application/active/autogpt/__init__.py",
     "src/interfaces/http/managers/agent",
     "src/interfaces/http/managers/api/agents.py",
     "src/interfaces/http/managers/router.py",

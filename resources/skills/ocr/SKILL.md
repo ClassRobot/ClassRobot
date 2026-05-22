@@ -9,9 +9,9 @@ Use this skill when image text should be recognized instead of being sent direct
 
 ## Workflow
 
-1. Use `core.skills.ocr_skill.read_code(...)` for验证码或单行短文本。
-2. Use `core.skills.ocr_skill.read_lines(...)` for multi-line text detection and recognition.
-3. Use `core.skills.ocr_skill.read_text(...)` when you want one combined text result with automatic fallback.
+1. Use `src.core.skills.ocr_skill.read_code(...)` for验证码或单行短文本。
+2. Use `src.core.skills.ocr_skill.read_lines(...)` for multi-line text detection and recognition.
+3. Use `src.core.skills.ocr_skill.read_text(...)` when you want one combined text result with automatic fallback.
 
 ## Notes
 

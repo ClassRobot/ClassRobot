@@ -4,8 +4,8 @@ import pytest
 
 
 def register_test_service_spec(spec):
-    from utils.commands import CommandResult, command_executor, command_registry
-    from utils.commands.renderers.helper import command_spec_to_helper
+    from src.platform.commands import CommandResult, command_executor, command_registry
+    from src.platform.commands.renderers.helper import command_spec_to_helper
 
     command_registry.register(spec)
 
@@ -17,10 +17,10 @@ def register_test_service_spec(spec):
 
 
 def test_command_tool_catalog_hides_matcher_and_unregistered_service_commands(loaded_plugins):
-    from utils.helper import Helpers
-    from utils.commands import CommandSpec, command_registry
-    from utils.commands.renderers.helper import command_spec_to_helper
-    from core.agent.runtime.command_tools import CommandToolCatalog
+    from src.platform.helper import Helpers
+    from src.platform.commands import CommandSpec, command_registry
+    from src.platform.commands.renderers.helper import command_spec_to_helper
+    from src.core.agent.runtime.command_tools import CommandToolCatalog
 
     matcher_spec = CommandSpec(
         name="测试仅用户命令",
@@ -45,9 +45,9 @@ def test_command_tool_catalog_hides_matcher_and_unregistered_service_commands(lo
 
 @pytest.mark.asyncio
 async def test_dispatch_auto_task_rejects_command_without_service_handler(loaded_plugins):
-    from src.features import autogpt as autogpt_module
-    from core.agent.runtime.schema import AutoTask
-    from utils.commands import CommandSpec, command_registry
+    from src.plugins.application.active import autogpt as autogpt_module
+    from src.core.agent.runtime.schema import AutoTask
+    from src.platform.commands import CommandSpec, command_registry
 
     command_registry.register(
         CommandSpec(
@@ -70,9 +70,9 @@ async def test_dispatch_auto_task_rejects_command_without_service_handler(loaded
 
 
 def test_command_tool_catalog_builds_safe_tool_schema(loaded_plugins):
-    from utils.helper import Helpers, ParamMode
-    from utils.commands import CommandParam, CommandSpec
-    from core.agent.runtime.command_tools import CommandToolCatalog
+    from src.platform.helper import Helpers, ParamMode
+    from src.platform.commands import CommandParam, CommandSpec
+    from src.core.agent.runtime.command_tools import CommandToolCatalog
 
     spec = CommandSpec(
         name="测试添加班级工具",
@@ -109,9 +109,9 @@ def test_command_tool_catalog_builds_safe_tool_schema(loaded_plugins):
 
 
 def test_command_tool_catalog_prompt_is_compact(loaded_plugins):
-    from utils.helper import Helpers
-    from utils.commands import CommandSpec
-    from core.agent.runtime.command_tools import CommandToolCatalog
+    from src.platform.helper import Helpers
+    from src.platform.commands import CommandSpec
+    from src.core.agent.runtime.command_tools import CommandToolCatalog
 
     spec = CommandSpec(name="测试提示工具", description="添加一个班级", execution_mode="service")
     helpers = Helpers()
@@ -128,9 +128,9 @@ def test_command_tool_catalog_prompt_is_compact(loaded_plugins):
 
 
 def test_command_tool_catalog_does_not_filter_by_query(loaded_plugins):
-    from utils.helper import Helpers
-    from utils.commands import CommandSpec
-    from core.agent.runtime.command_tools import CommandToolCatalog
+    from src.platform.helper import Helpers
+    from src.platform.commands import CommandSpec
+    from src.core.agent.runtime.command_tools import CommandToolCatalog
 
     specs = [
         CommandSpec(name="测试创建通知工具", description="给班级创建一条通知", execution_mode="service"),
@@ -150,9 +150,9 @@ def test_command_tool_catalog_does_not_filter_by_query(loaded_plugins):
 
 
 def test_command_tool_catalog_candidate_commands_can_narrow_visible_subset(loaded_plugins):
-    from utils.helper import Helpers
-    from utils.commands import CommandSpec
-    from core.agent.runtime.command_tools import CommandToolCatalog
+    from src.platform.helper import Helpers
+    from src.platform.commands import CommandSpec
+    from src.core.agent.runtime.command_tools import CommandToolCatalog
 
     specs = [
         CommandSpec(name="测试候选创建通知", description="给班级创建一条通知", execution_mode="service"),
@@ -173,9 +173,9 @@ def test_command_tool_catalog_candidate_commands_can_narrow_visible_subset(loade
 
 
 def test_command_tool_catalog_infers_high_risk_commands(loaded_plugins):
-    from utils.helper import Helpers
-    from utils.commands import CommandSpec
-    from core.agent.runtime.command_tools import CommandToolCatalog
+    from src.platform.helper import Helpers
+    from src.platform.commands import CommandSpec
+    from src.core.agent.runtime.command_tools import CommandToolCatalog
 
     spec = CommandSpec(
         name="测试清空聊天工具",
@@ -194,15 +194,15 @@ def test_command_tool_catalog_infers_high_risk_commands(loaded_plugins):
 
 
 def test_basic_commands_are_available_to_autogpt_command_tools(loaded_plugins):
-    from utils.helper import Helpers
-    from core.agent.runtime.command_tools import CommandToolCatalog
+    from src.platform.helper import Helpers
+    from src.core.agent.runtime.command_tools import CommandToolCatalog
     from tests.commands.test_helper_metadata import collect_helpers
 
     helper_menu = Helpers()
     helper_menu.extend(collect_helpers())
     catalog = CommandToolCatalog.from_helpers(helper_menu)
 
-    from utils.commands.registry import command_registry
+    from src.platform.commands.registry import command_registry
 
     for helper in collect_helpers():
         spec = command_registry.get(helper.command)
@@ -217,15 +217,15 @@ def test_basic_commands_are_available_to_autogpt_command_tools(loaded_plugins):
 
 
 def test_write_commands_are_not_marked_low_risk(loaded_plugins):
-    from utils.helper import Helpers
-    from core.agent.runtime.command_tools import CommandToolCatalog
+    from src.platform.helper import Helpers
+    from src.core.agent.runtime.command_tools import CommandToolCatalog
     from tests.commands.test_helper_metadata import collect_helpers
 
     helper_menu = Helpers()
     helper_menu.extend(collect_helpers())
     catalog = CommandToolCatalog.from_helpers(helper_menu)
 
-    from utils.commands.registry import command_registry
+    from src.platform.commands.registry import command_registry
 
     write_prefixes = ("添加", "修改", "删除", "创建", "提交", "导入", "退出", "加入", "请假", "注销", "设置")
     for helper in collect_helpers():
@@ -239,9 +239,9 @@ def test_write_commands_are_not_marked_low_risk(loaded_plugins):
 
 
 def test_command_tool_catalog_follows_current_user_visible_helpers(loaded_plugins):
-    from utils.helper import HelperScope, Helpers, UserRole
-    from utils.commands import CommandSpec
-    from core.agent.runtime.command_tools import CommandToolCatalog
+    from src.platform.helper import HelperScope, Helpers, UserRole
+    from src.platform.commands import CommandSpec
+    from src.core.agent.runtime.command_tools import CommandToolCatalog
 
     student_spec = CommandSpec(
         name="测试学生可见工具",
@@ -280,9 +280,9 @@ def test_command_tool_catalog_follows_current_user_visible_helpers(loaded_plugin
 
 
 def test_query_classes_tool_uses_service_command_spec(loaded_plugins):
-    from utils.helper import Helpers
-    from utils.commands.registry import command_registry
-    from core.agent.runtime.command_tools import CommandToolCatalog
+    from src.platform.helper import Helpers
+    from src.platform.commands.registry import command_registry
+    from src.core.agent.runtime.command_tools import CommandToolCatalog
     from tests.commands.test_helper_metadata import collect_helpers
 
     helper_menu = Helpers()
@@ -293,7 +293,7 @@ def test_query_classes_tool_uses_service_command_spec(loaded_plugins):
 
     assert spec is not None
     assert spec.execution_mode == "service"
-    assert spec.plugin_module == "src.features.classes"
+    assert spec.plugin_module == "src.plugins.application.active.classes.commands"
     assert tool is not None
     assert tool.command == "查询班级"
     assert [param.name for param in tool.params] == ["班级ID"]

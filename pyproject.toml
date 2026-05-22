@@ -1,16 +1,20 @@
-[tool.poetry]
+[project]
 name = "classbot"
 version = "0.1.0"
 description = "classbot"
-authors = ["2711402357@qq.com"]
+authors = [
+    { name = "Author", email = "2711402357@qq.com" }
+]
 readme = "README.md"
+requires-python = ">=3.12,<3.13"
+
+[tool.poetry]
 package-mode = false
 
-
 [tool.poetry.dependencies]
-python = ">=3.12,<3.13"
 nonebot2 = {extras = ["httpx", "fastapi", "aiohttp"], version = "^2.5.0"}
 pandas = {extras = ["tabulate"], version = "^2.3.3"}
+nonebot-adapter-wxclaw = ">=0.2.1"
 nonebot-adapter-onebot = "^2.4.6"
 nonebot-adapter-qq = "^1.6.7"
 nonebot-plugin-orm = {extras = ["postgresql", "asyncpg", "aiosqlite"], version = "^0.8.1"}
@@ -46,7 +50,7 @@ pre-commit = "^4.2.0"
 autoflake = "^2.3.1"
 isort = "^8.0.1"
 black = "^26.3.1"
-mypy = "^1.18.2"
+mypy = "^2.1.0"
 pyright = "^1.1.409"
 
 [tool.poetry.group.test.dependencies]
@@ -70,26 +74,24 @@ url = "https://pypi.python.org/simple"
 priority = "supplemental"
 
 [tool.nonebot]
-plugins = [
-    "nonebot_plugin_alconna",
-    "nonebot_plugin_orm",
-    "nonebot_plugin_htmlrender",
-    "nonebot_plugin_animeres",
-    "nonebot_plugin_localstore",
-    "nonebot_plugin_apscheduler",
-    "nonebot_plugin_status",
-    "nonebot_plugin_waiter",
-    "src.interfaces.http.path",
-    "utils.models",
-]
-plugin_dirs = [
-    "src/features",
-]
-adapters = [
-    {name = "OneBot V11", module_name = "nonebot.adapters.onebot.v11"},
-    {name = "OneBot V12", module_name = "nonebot.adapters.onebot.v12"},
-    {name = "QQ", module_name = "nonebot.adapters.qq"},
-]
+plugin_dirs = ["src/plugins/application/active", "src/plugins/application/passive", "src/plugins/library"]
+builtin_plugins = []
+[tool.nonebot.plugins]
+"@local" = ["src.interfaces.http.path", "src.models"]
+nonebot-plugin-alconna = ["nonebot_plugin_alconna"]
+nonebot-plugin-orm = ["nonebot_plugin_orm"]
+nonebot-plugin-htmlrender = ["nonebot_plugin_htmlrender"]
+nonebot-plugin-animeres = ["nonebot_plugin_animeres"]
+nonebot-plugin-localstore = ["nonebot_plugin_localstore"]
+nonebot-plugin-apscheduler = ["nonebot_plugin_apscheduler"]
+nonebot-plugin-status = ["nonebot_plugin_status"]
+nonebot-plugin-waiter = ["nonebot_plugin_waiter"]
+
+[tool.nonebot.adapters]
+"@local" = []
+nonebot-adapter-onebot = [{name = "OneBot V11", module_name = "nonebot.adapters.onebot.v11"}, {name = "OneBot V12", module_name = "nonebot.adapters.onebot.v12"}]
+nonebot-adapter-qq = [{name = "QQ", module_name = "nonebot.adapters.qq"}]
+nonebot-adapter-wxclaw = [{name = "WxClaw", module_name = "nonebot.adapters.wxclaw"}]
 [tool.black]
 line-length = 120
 target-version = ["py38", "py39", "py310", "py311"]

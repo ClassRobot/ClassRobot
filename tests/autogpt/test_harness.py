@@ -4,10 +4,10 @@ import pytest
 
 
 def test_auto_gpt_harness_builds_policy_context_and_observability(loaded_plugins):
-    from utils.helper import Helpers
-    from core.llm.message import Messages
-    from core.agent.runtime.harness import AutoGPTHarness
-    from core.agent.runtime.knowledge import RuntimeContext
+    from src.platform.helper import Helpers
+    from src.core.llm.message import Messages
+    from src.core.agent.runtime.harness import AutoGPTHarness
+    from src.core.agent.runtime.knowledge import RuntimeContext
     from tests.autogpt.command_tool_helpers import ensure_service_helper
 
     helpers = Helpers()
@@ -30,10 +30,10 @@ def test_auto_gpt_harness_builds_policy_context_and_observability(loaded_plugins
 
 @pytest.mark.asyncio
 async def test_pipeline_report_progress_uses_harness_observability(loaded_plugins):
-    from utils.helper import Helpers
-    from core.llm.message import Messages
-    from core.agent.runtime.harness import AutoGPTHarness
-    from core.agent.runtime.pipeline import MessageProcessingPipeline
+    from src.platform.helper import Helpers
+    from src.core.llm.message import Messages
+    from src.core.agent.runtime.harness import AutoGPTHarness
+    from src.core.agent.runtime.pipeline import MessageProcessingPipeline
 
     reports: list[str] = []
 
@@ -55,8 +55,8 @@ async def test_pipeline_report_progress_uses_harness_observability(loaded_plugin
 
 
 def test_chat_session_build_harness_reuses_session_messages(loaded_plugins):
-    from utils.helper import Helpers
-    from core.agent.runtime.util import ChatSession
+    from src.platform.helper import Helpers
+    from src.core.agent.runtime.util import ChatSession
 
     session = ChatSession(user_id=1, helpers=Helpers())
     session.last_trace_id = "autogpt-session-harness"
@@ -69,10 +69,10 @@ def test_chat_session_build_harness_reuses_session_messages(loaded_plugins):
 
 
 def test_internal_runtime_models_use_dataclass_and_isolated_defaults(loaded_plugins):
-    from core.agent.runtime.schema import ChatMessage
-    from core.agent.runtime.pipeline import PipelineState
-    from core.agent.runtime.knowledge import RuntimeContext
-    from core.llm.message import Content
+    from src.core.agent.runtime.schema import ChatMessage
+    from src.core.agent.runtime.pipeline import PipelineState
+    from src.core.agent.runtime.knowledge import RuntimeContext
+    from src.core.llm.message import Content
 
     assert is_dataclass(ChatMessage)
     assert is_dataclass(PipelineState)

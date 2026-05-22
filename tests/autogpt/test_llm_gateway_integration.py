@@ -32,12 +32,12 @@ class FakeOpenAIClient:
 
 @pytest.mark.asyncio
 async def test_pipeline_create_llm_completion_uses_gateway_without_sentinel_payload(loaded_plugins, monkeypatch):
-    from utils.helper import Helpers
-    import core.llm as llm_module
-    from core.agent.runtime import pipeline as pipeline_module
-    from core.llm import LLMTaskType
-    from core.llm.config import LLMConfig
-    from core.llm.message import Messages
+    from src.platform.helper import Helpers
+    import src.core.llm as llm_module
+    from src.core.agent.runtime import pipeline as pipeline_module
+    from src.core.llm import LLMTaskType
+    from src.core.llm.config import LLMConfig
+    from src.core.llm.message import Messages
 
     config = LLMConfig(
         name="test-pipeline-gateway",

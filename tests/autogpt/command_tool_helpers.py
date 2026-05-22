@@ -14,8 +14,8 @@ def ensure_service_helper(
 ):
     """为 Agent 测试构造一条符合新架构的 service 命令 Helper。"""
 
-    from utils.commands import CommandResult, CommandSpec, command_executor, command_registry
-    from utils.commands.renderers.helper import command_spec_to_helper
+    from src.platform.commands import CommandResult, CommandSpec, command_executor, command_registry
+    from src.platform.commands.renderers.helper import command_spec_to_helper
 
     alias_set = {str(alias) for alias in aliases}
     spec = command_registry.get(command)

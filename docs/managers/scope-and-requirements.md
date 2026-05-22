@@ -30,7 +30,7 @@ ClassRobot 当前已经具备机器人命令、Agent 编排、Skill、Prompt、�
 | 用户中心 | 统一查看用户、平台绑定、教师/学生扩展信息 | `User`、`UserBind`、`Teacher`、`Student` |
 | 系统状态 | 查看数据库、缓存、目录、依赖、模型连通性 | 配置、数据库、Redis、文件系统 |
 | 系统设置 | 管理全局配置、AI 配置、存储配置、安全设置 | `.env`、NoneBot config、localstore |
-| Skill 管理 | 查看、重载、测试内置 Skill | `core/skills/builtin/`、SkillRegistry |
+| Skill 管理 | 查看、重载、测试内置 Skill | `src/core/skills/builtin/`、SkillRegistry |
 | Agent 管理 | 查看工作流运行、检查点、失败和待确认状态 | `AgentWorkflowRun`、`AgentWorkflowCheckpoint` |
 | Prompt 管理 | 查看、编辑、校验 Prompt 模板 | `resources/prompts/*.jinja` |
 | Model 管理 | 管理模型路由、超时、连通性测试 | `llm_configs`、`llm_timeout` |

@@ -92,7 +92,7 @@ Harness Engineering 的思路是反过来：
 - `docs/architecture/*.md`
 - `docs/guides/*.md`
 - `.codex/skills/classrobot-agent-dev/`
-- `core/agent/runtime/harness/policy.py`
+- `src/core/agent/runtime/harness/policy.py`
 - `Helper` / `CommandToolCatalog` 中的命令、参数、风险和可见性元数据
 
 这一层应保存：
@@ -110,12 +110,12 @@ Harness Engineering 的思路是反过来：
 
 当前和目标落点：
 
-- `core/agent/runtime/knowledge.py`
-- `core/agent/runtime/harness/context.py`
-- `core/storage/chat_history.py`
-- `core/storage/local_rag.py`
-- `core/storage/files.py`
-- `src/features/chat_context/collector.py`
+- `src/core/agent/runtime/knowledge.py`
+- `src/core/agent/runtime/harness/context.py`
+- `src/core/storage/chat_history.py`
+- `src/core/storage/local_rag.py`
+- `src/core/storage/files.py`
+- `src/plugins/library/message_history/collector.py`
 - 后续可扩展的 context-engine 抽象
 
 这一层要回答的问题：
@@ -132,13 +132,13 @@ Harness Engineering 的思路是反过来：
 
 当前和目标落点：
 
-- `core/agent/runtime/pipeline.py`
-- `core/agent/runtime/schema.py`
-- `core/agent/runtime/util.py`
-- `core/agent/runtime/harness/runtime.py`
-- `core/agent/runtime/playbooks.py`
-- `core/agent/runtime/orchestration_config.py`
-- `core/agent/runtime/graph_executor.py`
+- `src/core/agent/runtime/pipeline.py`
+- `src/core/agent/runtime/schema.py`
+- `src/core/agent/runtime/util.py`
+- `src/core/agent/runtime/harness/runtime.py`
+- `src/core/agent/runtime/playbooks.py`
+- `src/core/agent/runtime/orchestration_config.py`
+- `src/core/agent/runtime/graph_executor.py`
 
 这一层的职责是：
 
@@ -156,10 +156,10 @@ Harness Engineering 的思路是反过来：
 
 当前和目标落点：
 
-- `core/agent/runtime/workflow.py`
-- `src/features/autogpt/__init__.py`
-- `utils/commands/`
-- `src/features/*`
+- `src/core/agent/runtime/workflow.py`
+- `src/plugins/application/active/autogpt/__init__.py`
+- `src/platform/commands/`
+- `src/plugins/application/active/*`
 - 后续统一 tool executor / MCP bridge
 
 原则：
@@ -175,9 +175,9 @@ Harness Engineering 的思路是反过来：
 当前和目标落点：
 
 - NoneBot2 平台接入
-- `core/llm/`
-- `core/agent/`
-- `core/skills/`
+- `src/core/llm/`
+- `src/core/agent/`
+- `src/core/skills/`
 - 后续 MCP host / gateway
 - 外部知识库、COS、学校业务系统
 
@@ -194,7 +194,7 @@ Harness Engineering 的思路是反过来：
 当前和目标落点：
 
 - `trace_id`
-- `core/agent/runtime/harness/observability.py`
+- `src/core/agent/runtime/harness/observability.py`
 - `CommandObservation`
 - `RuntimeGraphConfig`
 - `TaskWorkflow`
@@ -215,12 +215,12 @@ Harness Engineering 的思路是反过来：
 
 | Harness 层 | 当前核心模块 | 当前状态 | 后续重点 |
 | --- | --- | --- | --- |
-| Policy | `resources/prompts/`, `docs/`, `.codex/skills/`, `core/agent/runtime/harness/policy.py` | 已有，并开始落到显式代码入口 | 收敛为明确契约和评测标准 |
-| Context | `core/agent/runtime/knowledge.py`, `core/agent/runtime/harness/context.py`, `core/storage/*` | 已有聊天记录、本地 RAG、文件空间，并开始收敛上下文入口 | 抽象成可替换的 context engine |
-| Coordination | `core/agent/runtime/pipeline.py`, `schema.py`, `orchestration_config.py`, `graph_executor.py` | 已有热更新 Runtime 图、路由、计划和 AI 任务流 | 增强 tool loop、长期任务规划 |
-| Execution | `core/agent/runtime/workflow.py`, `dispatch_auto_task()`, 命令系统 | 已能顺序执行命令并回填 observation | 统一 command/tool/skill 结果结构 |
-| Integration | `core/llm/`, `core/agent/`, skill runtime, adapters | 已接入模型、Agent、技能和 RAG | 逐步引入 MCP host 和外部服务 adapter |
-| Observability | `trace_id`, `core/agent/runtime/harness/observability.py`, workflow checkpoint/run | 已有基础，并开始把阶段反馈收敛到显式层次 | 增加评测、审批和后台可视化 |
+| Policy | `resources/prompts/`, `docs/`, `.codex/skills/`, `src/core/agent/runtime/harness/policy.py` | 已有，并开始落到显式代码入口 | 收敛为明确契约和评测标准 |
+| Context | `src/core/agent/runtime/knowledge.py`, `src/core/agent/runtime/harness/context.py`, `src/core/storage/*` | 已有聊天记录、本地 RAG、文件空间，并开始收敛上下文入口 | 抽象成可替换的 context engine |
+| Coordination | `src/core/agent/runtime/pipeline.py`, `schema.py`, `orchestration_config.py`, `graph_executor.py` | 已有热更新 Runtime 图、路由、计划和 AI 任务流 | 增强 tool loop、长期任务规划 |
+| Execution | `src/core/agent/runtime/workflow.py`, `dispatch_auto_task()`, 命令系统 | 已能顺序执行命令并回填 observation | 统一 command/tool/skill 结果结构 |
+| Integration | `src/core/llm/`, `src/core/agent/`, skill runtime, adapters | 已接入模型、Agent、技能和 RAG | 逐步引入 MCP host 和外部服务 adapter |
+| Observability | `trace_id`, `src/core/agent/runtime/harness/observability.py`, workflow checkpoint/run | 已有基础，并开始把阶段反馈收敛到显式层次 | 增加评测、审批和后台可视化 |
 
 ## Repository Is The System Of Record
 
@@ -235,9 +235,9 @@ Harness Engineering 的思路是反过来：
 | 架构原则 | `docs/architecture/` | 定义系统边界和设计方向 |
 | 开发规则 | `docs/guides/` | 定义新增能力应如何实现 |
 | Prompt 契约 | `resources/prompts/` | 约束模型输出结构和语义职责 |
-| Skill 规则 | `.codex/skills/`、`core/skills/` | 约束 Agent 如何使用能力 |
+| Skill 规则 | `.codex/skills/`、`src/core/skills/` | 约束 Agent 如何使用能力 |
 | 命令元数据 | `Helper`、`CommandToolCatalog` | 约束命令可见性、参数与风险 |
-| 记忆边界 | `core/storage/README.md`、相关代码 | 约束隐私和上下文归属 |
+| 记忆边界 | `src/core/storage/README.md`、相关代码 | 约束隐私和上下文归属 |
 | 测试与回归 | `tests/autogpt/`, `tests/storage/` | 防止能力退化 |
 
 ### 对开发方式的影响
@@ -282,7 +282,7 @@ OpenClaw 对 skill 的位置、优先级和 load-time gating 做得很明确。
 在 ClassRobot 里应采用：
 
 - 项目级 skill 放 `.codex/skills/`
-- 运行时 skill 放 `core/skills/`
+- 运行时 skill 放 `src/core/skills/`
 - 每个 skill 都要写清：
   - 什么时候触发
   - 依赖什么

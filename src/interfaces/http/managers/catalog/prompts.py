@@ -7,7 +7,7 @@ from typing import Any
 
 from jinja2 import Environment
 
-from utils.config import config_dir, prompts_dir
+from src.platform.config import config_dir, prompts_dir
 
 from ..service import relative_to_project
 

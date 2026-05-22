@@ -12,8 +12,8 @@ from nonebot_plugin_orm import get_session
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from utils.models import Classes, Group, GroupBind, User
-from core.storage import (
+from src.models import Classes, Group, GroupBind, User
+from src.core.storage import (
     MESSAGE_DB_NAME,
     MESSAGE_TABLE_NAME,
     ChatHistoryStore,
@@ -21,7 +21,7 @@ from core.storage import (
     parse_metadata,
     storage_manager,
 )
-from core.storage.files import sanitize_owner_id
+from src.core.storage.files import sanitize_owner_id
 
 
 def _space_root(kind: str) -> Path:

@@ -6,7 +6,7 @@ pytestmark = pytest.mark.asyncio
 
 
 async def test_message_text_falls_back_when_alconna_cannot_serialize(onebot, monkeypatch, loaded_plugins):
-    import src.features.chat_context.collector as collector_module
+    import src.plugins.library.message_history.collector as collector_module
 
     def raise_serialize_failed(cls, message, bot=None, adapter=None):
         raise collector_module.SerializeFailed("当前适配器不支持 alconna uniseg")
@@ -23,7 +23,7 @@ async def test_message_text_falls_back_when_alconna_cannot_serialize(onebot, mon
 
 
 async def test_message_text_does_not_fallback_on_unexpected_alconna_error(onebot, monkeypatch, loaded_plugins):
-    import src.features.chat_context.collector as collector_module
+    import src.plugins.library.message_history.collector as collector_module
 
     def raise_unexpected_error(cls, message, bot=None, adapter=None):
         raise RuntimeError("alconna 内部异常")
@@ -41,8 +41,8 @@ async def test_session_resolver_does_not_fallback_on_unexpected_alconna_error(
     monkeypatch,
     loaded_plugins,
 ):
-    import src.features.chat_context as chat_context_module
-    import src.features.chat_context.resolvers as resolver_module
+    import src.plugins.library.message_history as chat_context_module
+    import src.plugins.library.message_history.resolvers as resolver_module
 
     def raise_unexpected_error(event, bot):
         raise RuntimeError("alconna target 内部异常")
@@ -65,12 +65,12 @@ async def test_group_messages_can_be_collected_and_queried(
     tmp_path,
     loaded_plugins,
 ):
-    import src.features.chat_context as chat_context_module
-    import src.features.chat_context.collector as collector_module
-    import src.features.chat_context.services as services_module
-    from src.features.chat_context.commands import query_group_history_cmd
-    from utils.models import Classes, User
-    from core.storage import (
+    import src.plugins.library.message_history as chat_context_module
+    import src.plugins.library.message_history.collector as collector_module
+    import src.plugins.library.message_history.services as services_module
+    from src.plugins.library.message_history.commands import query_group_history_cmd
+    from src.models import Classes, User
+    from src.core.storage import (
         ChatHistoryStore,
         MessageActorRole,
         MessageDirection,
@@ -147,11 +147,11 @@ async def test_group_command_input_and_response_are_recorded_without_message_col
     tmp_path,
     loaded_plugins,
 ):
-    import src.features.chat_context.collector as collector_module
-    import src.features.file_manager.services as file_services
-    from src.features.file_manager.commands import ls_cmd
-    from utils.models import Classes, User
-    from core.storage import (
+    import src.plugins.library.message_history.collector as collector_module
+    import src.plugins.application.active.file_manager.services as file_services
+    from src.plugins.application.active.file_manager.commands import ls_cmd
+    from src.models import Classes, User
+    from src.core.storage import (
         ChatHistoryStore,
         MessageActorRole,
         MessageDirection,
@@ -196,10 +196,10 @@ async def test_group_command_input_and_response_are_recorded_without_message_col
 
 
 async def test_group_history_service_handler_works_in_group_context(monkeypatch, loaded_plugins, tmp_path):
-    import src.features.chat_context.services as services_module
-    from utils.commands import CommandExecutionContext, command_executor
-    from utils.models import Classes, User
-    from core.storage import ChatHistoryStore, StorageManager
+    import src.plugins.library.message_history.services as services_module
+    from src.platform.commands import CommandExecutionContext, command_executor
+    from src.models import Classes, User
+    from src.core.storage import ChatHistoryStore, StorageManager
 
     store = ChatHistoryStore(StorageManager(tmp_path / "storage"))
     monkeypatch.setattr(services_module, "chat_history_store", store)
@@ -239,10 +239,10 @@ async def test_group_history_service_handler_works_in_group_context(monkeypatch,
 
 
 async def test_chat_statistics_service_counts_current_user_only(monkeypatch, loaded_plugins, tmp_path):
-    import src.features.chat_context.services as services_module
-    from utils.commands import CommandExecutionContext, command_executor
-    from utils.roles import UserRole
-    from core.storage import ChatHistoryStore, MessageActorRole, StorageManager
+    import src.plugins.library.message_history.services as services_module
+    from src.platform.commands import CommandExecutionContext, command_executor
+    from src.core.auth import UserRole
+    from src.core.storage import ChatHistoryStore, MessageActorRole, StorageManager
 
     store = ChatHistoryStore(StorageManager(tmp_path / "storage"))
     monkeypatch.setattr(services_module, "chat_history_store", store)
@@ -288,11 +288,11 @@ async def test_chat_statistics_service_counts_current_user_only(monkeypatch, loa
 async def test_chat_statistics_service_counts_bound_system_group_only(monkeypatch, loaded_plugins, tmp_path):
     from datetime import datetime, timedelta
 
-    import src.features.chat_context.services as services_module
-    from utils.commands import CommandExecutionContext, command_executor
-    from utils.models import Classes, User
-    from utils.roles import UserRole
-    from core.storage import ChatHistoryStore, StorageManager
+    import src.plugins.library.message_history.services as services_module
+    from src.platform.commands import CommandExecutionContext, command_executor
+    from src.models import Classes, User
+    from src.core.auth import UserRole
+    from src.core.storage import ChatHistoryStore, StorageManager
 
     store = ChatHistoryStore(StorageManager(tmp_path / "storage"))
     monkeypatch.setattr(services_module, "chat_history_store", store)
@@ -331,10 +331,10 @@ async def test_chat_statistics_service_counts_bound_system_group_only(monkeypatc
 
 
 async def test_private_messages_are_recorded_under_user_chat_space(app, onebot, monkeypatch, tmp_path, loaded_plugins):
-    import src.features.chat_context as chat_context_module
-    import src.features.chat_context.collector as collector_module
-    from utils.models import User, UserBind
-    from core.storage import ChatHistoryStore, StorageManager
+    import src.plugins.library.message_history as chat_context_module
+    import src.plugins.library.message_history.collector as collector_module
+    from src.models import User, UserBind
+    from src.core.storage import ChatHistoryStore, StorageManager
 
     manager = StorageManager(tmp_path / "storage")
     store = ChatHistoryStore(manager)
@@ -365,12 +365,12 @@ async def test_private_command_input_and_response_are_recorded(
     tmp_path,
     loaded_plugins,
 ):
-    import src.features.chat_context as chat_context_module
-    import src.features.chat_context.collector as collector_module
-    import src.features.file_manager.services as file_services
-    from src.features.file_manager.commands import pwd_cmd
-    from utils.models import User, UserBind
-    from core.storage import ChatHistoryStore, MessageActorRole, MessageDirection, StorageManager
+    import src.plugins.library.message_history as chat_context_module
+    import src.plugins.library.message_history.collector as collector_module
+    import src.plugins.application.active.file_manager.services as file_services
+    from src.plugins.application.active.file_manager.commands import pwd_cmd
+    from src.models import User, UserBind
+    from src.core.storage import ChatHistoryStore, MessageActorRole, MessageDirection, StorageManager
 
     manager = StorageManager(tmp_path / "storage")
     store = ChatHistoryStore(manager)
@@ -404,10 +404,10 @@ async def test_private_command_input_and_response_are_recorded(
 async def test_private_assistant_messages_are_recorded_under_user_chat_space(
     monkeypatch, onebot, tmp_path, loaded_plugins
 ):
-    import src.features.chat_context.collector as collector_module
-    from utils.models import User, UserBind
-    from utils.session import BaseSession
-    from core.storage import ChatHistoryStore, MessageActorRole, StorageManager
+    import src.plugins.library.message_history.collector as collector_module
+    from src.models import User, UserBind
+    from src.platform.session import BaseSession
+    from src.core.storage import ChatHistoryStore, MessageActorRole, StorageManager
 
     manager = StorageManager(tmp_path / "storage")
     store = ChatHistoryStore(manager)
@@ -443,10 +443,10 @@ async def test_private_assistant_messages_are_recorded_under_user_chat_space(
 
 
 async def test_private_assistant_message_does_not_recreate_deleted_user(monkeypatch, onebot, tmp_path, loaded_plugins):
-    import src.features.chat_context.collector as collector_module
-    from utils.models import User, UserBind
-    from utils.session import BaseSession
-    from core.storage import ChatHistoryStore, StorageManager
+    import src.plugins.library.message_history.collector as collector_module
+    from src.models import User, UserBind
+    from src.platform.session import BaseSession
+    from src.core.storage import ChatHistoryStore, StorageManager
 
     manager = StorageManager(tmp_path / "storage")
     store = ChatHistoryStore(manager)
@@ -487,10 +487,10 @@ async def test_private_assistant_message_does_not_recreate_deleted_user(monkeypa
 async def test_group_assistant_messages_are_recorded_under_group_chat_space(
     monkeypatch, onebot, tmp_path, loaded_plugins
 ):
-    import src.features.chat_context.collector as collector_module
-    from utils.models import Classes, User
-    from utils.session import BaseSession
-    from core.storage import ChatHistoryStore, MessageActorRole, MessageOwnerKind, MessageRecordKind, StorageManager
+    import src.plugins.library.message_history.collector as collector_module
+    from src.models import Classes, User
+    from src.platform.session import BaseSession
+    from src.core.storage import ChatHistoryStore, MessageActorRole, MessageOwnerKind, MessageRecordKind, StorageManager
 
     manager = StorageManager(tmp_path / "storage")
     store = ChatHistoryStore(manager)
@@ -536,10 +536,10 @@ async def test_group_assistant_messages_are_recorded_under_group_chat_space(
 async def test_unbound_platform_group_message_creates_system_group_and_is_persisted(
     app, onebot, monkeypatch, tmp_path, loaded_plugins
 ):
-    import src.features.chat_context as chat_context_module
-    import src.features.chat_context.collector as collector_module
-    from utils.models import GroupBind, UserBind
-    from core.storage import ChatHistoryStore, StorageManager
+    import src.plugins.library.message_history as chat_context_module
+    import src.plugins.library.message_history.collector as collector_module
+    from src.models import GroupBind, UserBind
+    from src.core.storage import ChatHistoryStore, StorageManager
 
     manager = StorageManager(tmp_path / "storage")
     store = ChatHistoryStore(manager)
@@ -564,10 +564,10 @@ async def test_unbound_platform_group_message_creates_system_group_and_is_persis
 
 
 async def test_create_classes_reuses_auto_created_platform_group(app, onebot, monkeypatch, tmp_path, loaded_plugins):
-    import src.features.chat_context as chat_context_module
-    import src.features.chat_context.collector as collector_module
-    from utils.models import Classes, Group, GroupBind, User
-    from core.storage import ChatHistoryStore, StorageManager
+    import src.plugins.library.message_history as chat_context_module
+    import src.plugins.library.message_history.collector as collector_module
+    from src.models import Classes, Group, GroupBind, User
+    from src.core.storage import ChatHistoryStore, StorageManager
 
     manager = StorageManager(tmp_path / "storage")
     store = ChatHistoryStore(manager)

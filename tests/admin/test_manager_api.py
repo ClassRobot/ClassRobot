@@ -64,7 +64,7 @@ def isolate_manager_audit_log(monkeypatch, tmp_path):
 def isolate_manager_command_state(monkeypatch, tmp_path):
     from src.interfaces.http.managers.runtime import command_state
 
-    from utils.commands.availability import command_availability
+    from src.platform.commands.availability import command_availability
 
     monkeypatch.setattr(command_state, "AVAILABILITY_STATE_PATH", tmp_path / "manager_command_availability.json")
     monkeypatch.setattr(command_state, "_STATE_LOADED", False)
@@ -86,7 +86,7 @@ def isolate_manager_database_cache():
 
 @pytest.fixture
 def isolated_agent_designer(monkeypatch, tmp_path):
-    from core.agent.runtime import orchestration_config
+    from src.core.agent.runtime import orchestration_config
     from src.interfaces.http.managers.agent import service as agents
 
     designer_path = tmp_path / "agent_designer.json"
@@ -106,8 +106,8 @@ def manager_storage(monkeypatch, tmp_path):
     from src.interfaces.http.managers.identity import groups as manager_groups
     from src.interfaces.http.managers.storage import chat_history as manager_chat_history
 
-    from core.storage import StorageManager
-    import utils.models.models as model_definitions
+    from src.core.storage import StorageManager
+    import src.models.models as model_definitions
 
     isolated_storage = StorageManager(root=tmp_path / "storage")
     monkeypatch.setattr(manager_files, "storage_manager", isolated_storage)
@@ -134,7 +134,7 @@ async def manager_auth_headers(manager_client):
 async def manager_workflow_tables(loaded_plugins):
     from nonebot_plugin_orm import get_session
 
-    from utils.models import AgentWorkflowRun, AgentWorkflowCheckpoint
+    from src.models import AgentWorkflowRun, AgentWorkflowCheckpoint
 
     async with get_session() as session:
         bind = session.bind
@@ -203,7 +203,7 @@ async def manager_user_orm(loaded_plugins):
 
 @pytest_asyncio.fixture
 async def seeded_manager_checkpoint(manager_workflow_tables):
-    from utils.models import AgentWorkflowCheckpoint
+    from src.models import AgentWorkflowCheckpoint
 
     return await AgentWorkflowCheckpoint(
         user_id=88,
@@ -884,7 +884,7 @@ async def test_manager_user_delete_removes_user_and_binds(
     manager_user_orm,
     manager_storage,
 ):
-    from utils.models import User, UserBind
+    from src.models import User, UserBind
 
     suffix = uuid4().hex[:8]
     user = await User.create_user(nickname="待删用户", username=f"manager_delete_user_{suffix}")
@@ -906,7 +906,7 @@ async def test_manager_users_include_avatar_in_summary_and_detail(
     manager_auth_headers,
     manager_user_orm,
 ):
-    from utils.models import User
+    from src.models import User
 
     suffix = uuid4().hex[:8]
     avatar_url = f"https://example.com/avatar-{suffix}.png"
@@ -935,7 +935,7 @@ async def test_manager_groups_list_and_detail(
     manager_auth_headers,
     manager_user_orm,
 ):
-    from utils.models import User, Classes, Teacher
+    from src.models import User, Classes, Teacher
 
     suffix = uuid4().hex[:8]
     creator = await User.create_user(nickname="群组创建者", username=f"manager_group_creator_{suffix}")
@@ -980,7 +980,7 @@ async def test_manager_group_delete_cleans_related_storage_and_records(
     manager_user_orm,
     manager_storage,
 ):
-    from utils.models import User, Group, Classes, GroupBind
+    from src.models import User, Group, Classes, GroupBind
 
     suffix = uuid4().hex[:8]
     creator = await User.create_user(nickname="群删除创建者", username=f"manager_group_delete_creator_{suffix}")
@@ -1022,7 +1022,7 @@ async def test_manager_user_delete_returns_structured_blockers(
     manager_auth_headers,
     manager_user_orm,
 ):
-    from utils.models import User, Classes, Teacher
+    from src.models import User, Classes, Teacher
 
     suffix = uuid4().hex[:8]
     creator = await User.create_user(nickname="班级创建者", username=f"manager_class_creator_{suffix}")
@@ -1049,7 +1049,7 @@ async def test_manager_user_delete_returns_structured_blockers(
 
 
 async def test_manager_nonebot_runtime_inventory(manager_client, manager_auth_headers):
-    from utils.commands import CommandSpec, command_registry
+    from src.platform.commands import CommandSpec, command_registry
 
     command_registry.register(
         CommandSpec(
@@ -1078,7 +1078,7 @@ async def test_manager_nonebot_runtime_inventory(manager_client, manager_auth_he
     assert {"token", "我的信息"}.issubset(command_names)
     chat_statistics = next(item for item in payload["commands"] if item["command"] == "统计聊天记录")
     assert chat_statistics["matcher_type"] == "agent_command"
-    assert chat_statistics["file"].replace("\\", "/").endswith("src/features/chat_context/commands.py")
+    assert chat_statistics["file"].replace("\\", "/").endswith("src/plugins/library/message_history/commands.py")
     assert chat_statistics["line"] > 0
     assert chat_statistics["service_handler_registered"] is True
     assert chat_statistics["agent_executable"] is True
@@ -1125,7 +1125,7 @@ async def test_manager_nonebot_availability_controls(manager_client, manager_aut
     assert pwd_command["availability_reason"] == "maintenance"
 
     plugin_update = await manager_client.patch(
-        "/api/v1/manager/nonebot/plugins/src.features.file_manager/availability",
+        "/api/v1/manager/nonebot/plugins/src.plugins.application.active.file_manager/availability",
         headers=manager_auth_headers,
         json={"enabled": False, "reason": "plugin-disabled"},
     )
@@ -1135,7 +1135,7 @@ async def test_manager_nonebot_availability_controls(manager_client, manager_aut
     plugin_listing = await manager_client.get("/api/v1/manager/nonebot/plugins", headers=manager_auth_headers)
     assert plugin_listing.status_code == 200, plugin_listing.text
     file_manager_plugin = next(
-        item for item in plugin_listing.json()["items"] if item["module_name"] == "src.features.file_manager"
+        item for item in plugin_listing.json()["items"] if item["module_name"] == "src.plugins.application.active.file_manager"
     )
     assert file_manager_plugin["available"] is False
     assert file_manager_plugin["availability_reason"] == "plugin-disabled"
@@ -1147,7 +1147,7 @@ async def test_manager_file_space_management_api(
     manager_user_orm,
     manager_storage,
 ):
-    from utils.models import User, Classes
+    from src.models import User, Classes
 
     suffix = uuid4().hex[:8]
     user = await User.create_user(nickname="文件用户", username=f"manager_file_user_{suffix}")
@@ -1260,7 +1260,7 @@ async def test_manager_file_space_delete_entire_space(
     manager_user_orm,
     manager_storage,
 ):
-    from utils.models import User
+    from src.models import User
 
     suffix = uuid4().hex[:8]
     user = await User.create_user(nickname="文件删除用户", username=f"manager_file_delete_{suffix}")
@@ -1286,8 +1286,8 @@ async def test_manager_chat_history_management_api(
     manager_user_orm,
     manager_storage,
 ):
-    from utils.models import User, Classes
-    from core.storage import ChatHistoryStore, MessageActorRole
+    from src.models import User, Classes
+    from src.core.storage import ChatHistoryStore, MessageActorRole
 
     suffix = uuid4().hex[:8]
     private_user = await User.create_user(nickname="聊天用户", username=f"manager_chat_user_{suffix}")
@@ -1485,8 +1485,8 @@ async def test_manager_chat_history_delete_space(
     manager_user_orm,
     manager_storage,
 ):
-    from utils.models import User
-    from core.storage import ChatHistoryStore, MessageActorRole
+    from src.models import User
+    from src.core.storage import ChatHistoryStore, MessageActorRole
 
     suffix = uuid4().hex[:8]
     private_user = await User.create_user(nickname="聊天删除用户", username=f"manager_chat_delete_{suffix}")
@@ -1536,7 +1536,7 @@ async def test_manager_agent_overview_inventory(
     manager_workflow_tables,
     isolated_agent_designer,
 ):
-    from utils.models import AgentWorkflowRun, AgentWorkflowCheckpoint
+    from src.models import AgentWorkflowRun, AgentWorkflowCheckpoint
 
     await AgentWorkflowRun(
         user_id=77,
@@ -1633,7 +1633,7 @@ async def test_manager_agent_designer_draft(manager_client, manager_auth_headers
 
 
 async def test_manager_agent_designer_apply_hot_reload(manager_client, manager_auth_headers, isolated_agent_designer):
-    from core.agent.runtime.orchestration_config import get_runtime_orchestration_snapshot
+    from src.core.agent.runtime.orchestration_config import get_runtime_orchestration_snapshot
 
     detail = await manager_client.get("/api/v1/manager/agents/designer", headers=manager_auth_headers)
     assert detail.status_code == 200, detail.text

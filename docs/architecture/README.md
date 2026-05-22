@@ -4,9 +4,9 @@
 
 ## 目标
 
-本专题用于定义 ClassRobot 下一阶段的 AI 原生架构目标态。它不受当前 `NoneBot + 插件 + AutoGPT` 实现边界限制，但会尽量复用仓库里已经存在的 `core/skills/`、`core/agent/`、帮助系统、OCR/文档解析等资产。
+本专题用于定义 ClassRobot 下一阶段的 AI 原生架构目标态。它不受当前 `NoneBot + 插件 + AutoGPT` 实现边界限制，但会尽量复用仓库里已经存在的 `src/core/skills/`、`src/core/agent/`、帮助系统、OCR/文档解析等资产。
 
-说明：如果其他较早文档仍提到 `skills/` 或 `core/skills/`，请分别映射到 `core/skills/builtin/` 与 `core/skills/`。
+说明：如果其他较早文档仍提到 `skills/` 或 `src/core/skills/`，请分别映射到 `src/core/skills/builtin/` 与 `src/core/skills/`。
 
 这套方案追求的是“前沿但可靠”：
 

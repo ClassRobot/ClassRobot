@@ -72,17 +72,17 @@ flowchart LR
 
 - [命令鉴权与 Help/AutoGPT 统一机制](../guides/command-auth-and-help.md)
 - [命令与 Agent 一体化架构设计](../architecture/command-agent-unified-architecture.md)
-- [命令体系说明](../../utils/commands/README.md)
-- [AutoGPT 运行时说明](../../core/agent/runtime/README.md)
+- [命令体系说明](../../src/platform/commands/README.md)
+- [AutoGPT 运行时说明](../../src/core/agent/runtime/README.md)
 
 | 命令 | 状态 | 源码入口 | 说明 |
 | --- | --- | --- | --- |
-| `help` | 已完成 | [helper/__init__.py](../../src/features/helper/__init__.py) | 按身份展示可用命令。 |
-| `我的信息` | 已完成 | [user/commands.py](../../src/features/user/commands.py) | 查看当前账号与身份信息。 |
-| `绑定用户` | 已完成 | [user/commands.py](../../src/features/user/commands.py) | 跨平台绑定同一用户。 |
-| `token` | 已完成（内部链路） | [user/commands.py](../../src/features/user/commands.py) | 绑定流程中的口令继续命令。 |
-| `注销` | 已完成 | [user/commands.py](../../src/features/user/commands.py) | 注销当前账号及关联数据。 |
-| `清空聊天` | 已完成 | [autogpt/__init__.py](../../src/features/autogpt/__init__.py) | 清空当前聊天上下文。 |
+| `help` | 已完成 | [helper/__init__.py](../../src/plugins/application/active/helper/__init__.py) | 按身份展示可用命令。 |
+| `我的信息` | 已完成 | [user/commands.py](../../src/plugins/application/active/user/commands.py) | 查看当前账号与身份信息。 |
+| `绑定用户` | 已完成 | [user/commands.py](../../src/plugins/application/active/user/commands.py) | 跨平台绑定同一用户。 |
+| `token` | 已完成（内部链路） | [user/commands.py](../../src/plugins/application/active/user/commands.py) | 绑定流程中的口令继续命令。 |
+| `注销` | 已完成 | [user/commands.py](../../src/plugins/application/active/user/commands.py) | 注销当前账号及关联数据。 |
+| `清空聊天` | 已完成 | [autogpt/__init__.py](../../src/plugins/application/active/autogpt/__init__.py) | 清空当前聊天上下文。 |
 
 ## 学校、学院、专业、组织管理
 
@@ -91,28 +91,28 @@ flowchart LR
 相关文档：
 
 - [命令使用文档](./command-reference.md)
-- [身份与组织管理命令](../../src/features/README.md)
+- [插件目录规范](../../src/plugins/README.md)
 
 | 命令 | 状态 | 源码入口 | 说明 |
 | --- | --- | --- | --- |
-| `添加学校` | 已完成 | [group/commands.py](../../src/features/group/commands.py) | 创建学校。 |
-| `修改学校` | 已完成 | [group/commands.py](../../src/features/group/commands.py) | 修改学校信息。 |
-| `删除学校` | 已完成 | [group/commands.py](../../src/features/group/commands.py) | 删除学校及下属结构。 |
-| `添加学院` | 已完成 | [group/commands.py](../../src/features/group/commands.py) | 为学校添加学院。 |
-| `修改学院` | 已完成 | [group/commands.py](../../src/features/group/commands.py) | 修改学院信息。 |
-| `删除学院` | 已完成 | [group/commands.py](../../src/features/group/commands.py) | 删除学院及其下属结构。 |
-| `添加专业` | 已完成 | [group/commands.py](../../src/features/group/commands.py) | 为学院添加专业。 |
-| `修改专业` | 已完成 | [group/commands.py](../../src/features/group/commands.py) | 修改专业信息。 |
-| `删除专业` | 已完成 | [group/commands.py](../../src/features/group/commands.py) | 删除专业及关联班级。 |
-| `添加组织` | 已完成 | [group/commands.py](../../src/features/group/commands.py) | 创建组织。 |
-| `修改组织` | 已完成 | [group/commands.py](../../src/features/group/commands.py) | 修改组织信息。 |
-| `删除组织` | 已完成 | [group/commands.py](../../src/features/group/commands.py) | 删除组织。 |
-| `查询组织架构` | 已完成 | [group/commands.py](../../src/features/group/commands.py) | 查询学校组织结构。 |
-| `查询组织` | 已完成 | [group/commands.py](../../src/features/group/commands.py) | 查询组织列表与详情。 |
-| `加入组织` | 已完成 | [group/commands.py](../../src/features/group/commands.py) | 以学生或教师身份加入组织。 |
-| `退出组织` | 已完成 | [group/commands.py](../../src/features/group/commands.py) | 退出组织。 |
-| `设置学院负责人` | 已完成 | [group/commands.py](../../src/features/group/commands.py) | 授予教师学院负责人岗位。 |
-| `取消学院负责人` | 已完成 | [group/commands.py](../../src/features/group/commands.py) | 撤销教师学院负责人岗位。 |
+| `添加学校` | 已完成 | [group/commands.py](../../src/plugins/application/active/group/commands.py) | 创建学校。 |
+| `修改学校` | 已完成 | [group/commands.py](../../src/plugins/application/active/group/commands.py) | 修改学校信息。 |
+| `删除学校` | 已完成 | [group/commands.py](../../src/plugins/application/active/group/commands.py) | 删除学校及下属结构。 |
+| `添加学院` | 已完成 | [group/commands.py](../../src/plugins/application/active/group/commands.py) | 为学校添加学院。 |
+| `修改学院` | 已完成 | [group/commands.py](../../src/plugins/application/active/group/commands.py) | 修改学院信息。 |
+| `删除学院` | 已完成 | [group/commands.py](../../src/plugins/application/active/group/commands.py) | 删除学院及其下属结构。 |
+| `添加专业` | 已完成 | [group/commands.py](../../src/plugins/application/active/group/commands.py) | 为学院添加专业。 |
+| `修改专业` | 已完成 | [group/commands.py](../../src/plugins/application/active/group/commands.py) | 修改专业信息。 |
+| `删除专业` | 已完成 | [group/commands.py](../../src/plugins/application/active/group/commands.py) | 删除专业及关联班级。 |
+| `添加组织` | 已完成 | [group/commands.py](../../src/plugins/application/active/group/commands.py) | 创建组织。 |
+| `修改组织` | 已完成 | [group/commands.py](../../src/plugins/application/active/group/commands.py) | 修改组织信息。 |
+| `删除组织` | 已完成 | [group/commands.py](../../src/plugins/application/active/group/commands.py) | 删除组织。 |
+| `查询组织架构` | 已完成 | [group/commands.py](../../src/plugins/application/active/group/commands.py) | 查询学校组织结构。 |
+| `查询组织` | 已完成 | [group/commands.py](../../src/plugins/application/active/group/commands.py) | 查询组织列表与详情。 |
+| `加入组织` | 已完成 | [group/commands.py](../../src/plugins/application/active/group/commands.py) | 以学生或教师身份加入组织。 |
+| `退出组织` | 已完成 | [group/commands.py](../../src/plugins/application/active/group/commands.py) | 退出组织。 |
+| `设置学院负责人` | 已完成 | [group/commands.py](../../src/plugins/application/active/group/commands.py) | 授予教师学院负责人岗位。 |
+| `取消学院负责人` | 已完成 | [group/commands.py](../../src/plugins/application/active/group/commands.py) | 撤销教师学院负责人岗位。 |
 
 ## 教师管理
 
@@ -121,16 +121,16 @@ flowchart LR
 相关文档：
 
 - [命令使用文档](./command-reference.md#教师与班级命令)
-- [身份与组织管理命令](../../src/features/README.md)
+- [插件目录规范](../../src/plugins/README.md)
 
 | 命令 | 状态 | 源码入口 | 说明 |
 | --- | --- | --- | --- |
-| `查询教师信息` | 已完成 | [teacher/commands.py](../../src/features/teacher/commands.py) | 查询教师资料与管理班级。 |
-| `修改教师信息` | 已完成 | [teacher/commands.py](../../src/features/teacher/commands.py) | 修改教师姓名、学校、学院。 |
-| `查询教师` | 已完成 | [teacher/commands.py](../../src/features/teacher/commands.py) | 按管理范围查询教师档案。 |
-| `添加教师` | 已完成 | [teacher/commands.py](../../src/features/teacher/commands.py) | 按管理范围创建教师档案。 |
-| `修改教师档案` | 已完成 | [teacher/commands.py](../../src/features/teacher/commands.py) | 按管理范围修改教师档案。 |
-| `删除教师` | 已完成 | [teacher/commands.py](../../src/features/teacher/commands.py) | 按管理范围删除教师档案。 |
+| `查询教师信息` | 已完成 | [teacher/commands.py](../../src/plugins/application/active/teacher/commands.py) | 查询教师资料与管理班级。 |
+| `修改教师信息` | 已完成 | [teacher/commands.py](../../src/plugins/application/active/teacher/commands.py) | 修改教师姓名、学校、学院。 |
+| `查询教师` | 已完成 | [teacher/commands.py](../../src/plugins/application/active/teacher/commands.py) | 按管理范围查询教师档案。 |
+| `添加教师` | 已完成 | [teacher/commands.py](../../src/plugins/application/active/teacher/commands.py) | 按管理范围创建教师档案。 |
+| `修改教师档案` | 已完成 | [teacher/commands.py](../../src/plugins/application/active/teacher/commands.py) | 按管理范围修改教师档案。 |
+| `删除教师` | 已完成 | [teacher/commands.py](../../src/plugins/application/active/teacher/commands.py) | 按管理范围删除教师档案。 |
 
 ## 学生管理
 
@@ -139,16 +139,16 @@ flowchart LR
 相关文档：
 
 - [命令使用文档](./command-reference.md#学生命令)
-- [身份与组织管理命令](../../src/features/README.md)
+- [插件目录规范](../../src/plugins/README.md)
 
 | 命令 | 状态 | 源码入口 | 说明 |
 | --- | --- | --- | --- |
-| `查询学生信息` | 已完成 | [student/commands.py](../../src/features/student/commands.py) | 查询学生资料与班级信息。 |
-| `修改学生信息` | 已完成 | [student/commands.py](../../src/features/student/commands.py) | 修改学生附加资料。 |
-| `查询学生档案` | 已完成 | [student/commands.py](../../src/features/student/commands.py) | 按管理范围查询学生档案。 |
-| `添加学生` | 已完成 | [student/commands.py](../../src/features/student/commands.py) | 按管理范围创建学生档案并加入班级。 |
-| `修改学生档案` | 已完成 | [student/commands.py](../../src/features/student/commands.py) | 按管理范围修改学生档案。 |
-| `删除学生` | 已完成 | [student/commands.py](../../src/features/student/commands.py) | 按管理范围删除学生档案。 |
+| `查询学生信息` | 已完成 | [student/commands.py](../../src/plugins/application/active/student/commands.py) | 查询学生资料与班级信息。 |
+| `修改学生信息` | 已完成 | [student/commands.py](../../src/plugins/application/active/student/commands.py) | 修改学生附加资料。 |
+| `查询学生档案` | 已完成 | [student/commands.py](../../src/plugins/application/active/student/commands.py) | 按管理范围查询学生档案。 |
+| `添加学生` | 已完成 | [student/commands.py](../../src/plugins/application/active/student/commands.py) | 按管理范围创建学生档案并加入班级。 |
+| `修改学生档案` | 已完成 | [student/commands.py](../../src/plugins/application/active/student/commands.py) | 按管理范围修改学生档案。 |
+| `删除学生` | 已完成 | [student/commands.py](../../src/plugins/application/active/student/commands.py) | 按管理范围删除学生档案。 |
 
 ## 班级管理
 
@@ -157,23 +157,23 @@ flowchart LR
 相关文档：
 
 - [命令使用文档](./command-reference.md#教师与班级命令)
-- [班级模块说明](../../src/features/classes/README.md)
+- [班级模块说明](../../src/plugins/application/active/classes/README.md)
 
 | 命令 | 状态 | 源码入口 | 说明 |
 | --- | --- | --- | --- |
-| `导入班级` | 已完成 | [classes/commands.py](../../src/features/classes/commands.py) | 批量导入班级与学生。 |
-| `添加班级` | 已完成 | [classes/commands.py](../../src/features/classes/commands.py) | 创建班级或绑定班级。 |
-| `查询班级` | 已完成 | [classes/commands.py](../../src/features/classes/commands.py) | 查询班级列表或详情。 |
-| `删除班级` | 已完成 | [classes/commands.py](../../src/features/classes/commands.py) | 删除班级。 |
-| `查询入班申请` | 已完成 | [classes/commands.py](../../src/features/classes/commands.py) | 查看入班申请。 |
-| `处理入班申请` | 已完成 | [classes/commands.py](../../src/features/classes/commands.py) | 审核入班申请。 |
-| `加入班级` | 已完成 | [classes/commands.py](../../src/features/classes/commands.py) | 学生加入班级。 |
-| `退出班级` | 已完成 | [classes/commands.py](../../src/features/classes/commands.py) | 学生退出班级。 |
-| `修改班级加入方式` | 已完成 | [classes/commands.py](../../src/features/classes/commands.py) | 修改班级加入规则。 |
-| `设置班级教师` | 已完成 | [classes/commands.py](../../src/features/classes/commands.py) | 绑定教师并设置班级岗位。 |
-| `取消班级教师` | 已完成 | [classes/commands.py](../../src/features/classes/commands.py) | 删除教师与班级关系。 |
-| `设置学生岗位` | 已完成 | [classes/commands.py](../../src/features/classes/commands.py) | 设置班干部或班助/助教。 |
-| `取消学生岗位` | 已完成 | [classes/commands.py](../../src/features/classes/commands.py) | 恢复普通学生岗位。 |
+| `导入班级` | 已完成 | [classes/commands.py](../../src/plugins/application/active/classes/commands.py) | 批量导入班级与学生。 |
+| `添加班级` | 已完成 | [classes/commands.py](../../src/plugins/application/active/classes/commands.py) | 创建班级或绑定班级。 |
+| `查询班级` | 已完成 | [classes/commands.py](../../src/plugins/application/active/classes/commands.py) | 查询班级列表或详情。 |
+| `删除班级` | 已完成 | [classes/commands.py](../../src/plugins/application/active/classes/commands.py) | 删除班级。 |
+| `查询入班申请` | 已完成 | [classes/commands.py](../../src/plugins/application/active/classes/commands.py) | 查看入班申请。 |
+| `处理入班申请` | 已完成 | [classes/commands.py](../../src/plugins/application/active/classes/commands.py) | 审核入班申请。 |
+| `加入班级` | 已完成 | [classes/commands.py](../../src/plugins/application/active/classes/commands.py) | 学生加入班级。 |
+| `退出班级` | 已完成 | [classes/commands.py](../../src/plugins/application/active/classes/commands.py) | 学生退出班级。 |
+| `修改班级加入方式` | 已完成 | [classes/commands.py](../../src/plugins/application/active/classes/commands.py) | 修改班级加入规则。 |
+| `设置班级教师` | 已完成 | [classes/commands.py](../../src/plugins/application/active/classes/commands.py) | 绑定教师并设置班级岗位。 |
+| `取消班级教师` | 已完成 | [classes/commands.py](../../src/plugins/application/active/classes/commands.py) | 删除教师与班级关系。 |
+| `设置学生岗位` | 已完成 | [classes/commands.py](../../src/plugins/application/active/classes/commands.py) | 设置班干部或班助/助教。 |
+| `取消学生岗位` | 已完成 | [classes/commands.py](../../src/plugins/application/active/classes/commands.py) | 恢复普通学生岗位。 |
 
 ## 课表管理
 
@@ -182,15 +182,15 @@ flowchart LR
 相关文档：
 
 - [命令使用文档](./command-reference.md#推荐使用顺序)
-- [课表模块源码](../../src/features/curriculum/commands.py)
+- [课表模块源码](../../src/plugins/application/active/curriculum/commands.py)
 
 | 命令 | 状态 | 源码入口 | 说明 |
 | --- | --- | --- | --- |
-| `添加课表` | 已完成 | [curriculum/commands.py](../../src/features/curriculum/commands.py) | 添加个人课表。 |
-| `删除课表` | 已完成 | [curriculum/commands.py](../../src/features/curriculum/commands.py) | 删除个人课表。 |
-| `查询课表` | 已完成 | [curriculum/commands.py](../../src/features/curriculum/commands.py) | 查询个人或班级课表。 |
-| `分享课表` | 已完成 | [curriculum/commands.py](../../src/features/curriculum/commands.py) | 生成或读取课表分享。 |
-| `设置当前周` | 已完成 | [curriculum/commands.py](../../src/features/curriculum/commands.py) | 设置当前周。 |
+| `添加课表` | 已完成 | [curriculum/commands.py](../../src/plugins/application/active/curriculum/commands.py) | 添加个人课表。 |
+| `删除课表` | 已完成 | [curriculum/commands.py](../../src/plugins/application/active/curriculum/commands.py) | 删除个人课表。 |
+| `查询课表` | 已完成 | [curriculum/commands.py](../../src/plugins/application/active/curriculum/commands.py) | 查询个人或班级课表。 |
+| `分享课表` | 已完成 | [curriculum/commands.py](../../src/plugins/application/active/curriculum/commands.py) | 生成或读取课表分享。 |
+| `设置当前周` | 已完成 | [curriculum/commands.py](../../src/plugins/application/active/curriculum/commands.py) | 设置当前周。 |
 
 ## 任务管理
 
@@ -198,16 +198,16 @@ flowchart LR
 
 相关文档：
 
-- [任务模块源码](../../src/features/tasks/commands.py)
-- [AutoGPT 运行时说明](../../core/agent/runtime/README.md)
+- [任务模块源码](../../src/plugins/application/active/tasks/commands.py)
+- [AutoGPT 运行时说明](../../src/core/agent/runtime/README.md)
 
 | 命令 | 状态 | 源码入口 | 说明 |
 | --- | --- | --- | --- |
-| `提交任务` | 已完成 | [tasks/commands.py](../../src/features/tasks/commands.py) | 提交作业或任务附件。 |
-| `创建任务` | 已完成 | [tasks/commands.py](../../src/features/tasks/commands.py) | 创建任务。 |
-| `删除任务` | 已完成 | [tasks/commands.py](../../src/features/tasks/commands.py) | 删除任务。 |
-| `导出任务` | 已完成 | [tasks/commands.py](../../src/features/tasks/commands.py) | 导出任务提交内容。 |
-| `查询任务` | 已完成 | [tasks/commands.py](../../src/features/tasks/commands.py) | 查询任务详情。 |
+| `提交任务` | 已完成 | [tasks/commands.py](../../src/plugins/application/active/tasks/commands.py) | 提交作业或任务附件。 |
+| `创建任务` | 已完成 | [tasks/commands.py](../../src/plugins/application/active/tasks/commands.py) | 创建任务。 |
+| `删除任务` | 已完成 | [tasks/commands.py](../../src/plugins/application/active/tasks/commands.py) | 删除任务。 |
+| `导出任务` | 已完成 | [tasks/commands.py](../../src/plugins/application/active/tasks/commands.py) | 导出任务提交内容。 |
+| `查询任务` | 已完成 | [tasks/commands.py](../../src/plugins/application/active/tasks/commands.py) | 查询任务详情。 |
 
 ## 请假管理
 
@@ -215,14 +215,14 @@ flowchart LR
 
 相关文档：
 
-- [请假模块源码](../../src/features/leave/commands.py)
+- [请假模块源码](../../src/plugins/application/active/leave/commands.py)
 
 | 命令 | 状态 | 源码入口 | 说明 |
 | --- | --- | --- | --- |
-| `请假` | 已完成 | [leave/commands.py](../../src/features/leave/commands.py) | 提交请假。 |
-| `请假列表` / `查询请假` | 已完成 | [leave/commands.py](../../src/features/leave/commands.py) | 查询请假列表。 |
-| `设置请假推送` | 已完成 | [leave/commands.py](../../src/features/leave/commands.py) | 配置请假推送对象。 |
-| `删除请假` | 已完成 | [leave/commands.py](../../src/features/leave/commands.py) | 删除请假记录。 |
+| `请假` | 已完成 | [leave/commands.py](../../src/plugins/application/active/leave/commands.py) | 提交请假。 |
+| `请假列表` / `查询请假` | 已完成 | [leave/commands.py](../../src/plugins/application/active/leave/commands.py) | 查询请假列表。 |
+| `设置请假推送` | 已完成 | [leave/commands.py](../../src/plugins/application/active/leave/commands.py) | 配置请假推送对象。 |
+| `删除请假` | 已完成 | [leave/commands.py](../../src/plugins/application/active/leave/commands.py) | 删除请假记录。 |
 
 ## 文件管理
 
@@ -230,22 +230,22 @@ flowchart LR
 
 相关文档：
 
-- [文件管理插件 README](../../src/features/file_manager/README.md)
-- [文件管理命令源码](../../src/features/file_manager/commands.py)
+- [文件管理插件 README](../../src/plugins/application/active/file_manager/README.md)
+- [文件管理命令源码](../../src/plugins/application/active/file_manager/commands.py)
 
 | 命令 | 状态 | 源码入口 | 说明 |
 | --- | --- | --- | --- |
-| `pwd` | 已完成 | [file_manager/commands.py](../../src/features/file_manager/commands.py) | 查看当前目录。 |
-| `ls` | 已完成 | [file_manager/commands.py](../../src/features/file_manager/commands.py) | 列出目录内容。 |
-| `cd` | 已完成 | [file_manager/commands.py](../../src/features/file_manager/commands.py) | 切换目录。 |
-| `mkdir` | 已完成 | [file_manager/commands.py](../../src/features/file_manager/commands.py) | 创建目录。 |
-| `touch` | 已完成 | [file_manager/commands.py](../../src/features/file_manager/commands.py) | 创建空文件。 |
-| `rm` | 已完成 | [file_manager/commands.py](../../src/features/file_manager/commands.py) | 删除文件或目录。 |
-| `cat` | 已完成 | [file_manager/commands.py](../../src/features/file_manager/commands.py) | 查看文本文件。 |
-| `find` | 已完成 | [file_manager/commands.py](../../src/features/file_manager/commands.py) | 搜索文件名或路径。 |
-| `grep` | 已完成 | [file_manager/commands.py](../../src/features/file_manager/commands.py) | 搜索文本内容。 |
-| `tree` | 已完成 | [file_manager/commands.py](../../src/features/file_manager/commands.py) | 查看文件树。 |
-| `上传文件` | 已完成 | [file_manager/commands.py](../../src/features/file_manager/commands.py) | 保存消息附件。 |
+| `pwd` | 已完成 | [file_manager/commands.py](../../src/plugins/application/active/file_manager/commands.py) | 查看当前目录。 |
+| `ls` | 已完成 | [file_manager/commands.py](../../src/plugins/application/active/file_manager/commands.py) | 列出目录内容。 |
+| `cd` | 已完成 | [file_manager/commands.py](../../src/plugins/application/active/file_manager/commands.py) | 切换目录。 |
+| `mkdir` | 已完成 | [file_manager/commands.py](../../src/plugins/application/active/file_manager/commands.py) | 创建目录。 |
+| `touch` | 已完成 | [file_manager/commands.py](../../src/plugins/application/active/file_manager/commands.py) | 创建空文件。 |
+| `rm` | 已完成 | [file_manager/commands.py](../../src/plugins/application/active/file_manager/commands.py) | 删除文件或目录。 |
+| `cat` | 已完成 | [file_manager/commands.py](../../src/plugins/application/active/file_manager/commands.py) | 查看文本文件。 |
+| `find` | 已完成 | [file_manager/commands.py](../../src/plugins/application/active/file_manager/commands.py) | 搜索文件名或路径。 |
+| `grep` | 已完成 | [file_manager/commands.py](../../src/plugins/application/active/file_manager/commands.py) | 搜索文本内容。 |
+| `tree` | 已完成 | [file_manager/commands.py](../../src/plugins/application/active/file_manager/commands.py) | 查看文件树。 |
+| `上传文件` | 已完成 | [file_manager/commands.py](../../src/plugins/application/active/file_manager/commands.py) | 保存消息附件。 |
 
 ## 群聊历史检索
 
@@ -253,13 +253,13 @@ flowchart LR
 
 相关文档：
 
-- [chat_context README](../../src/features/chat_context/README.md)
+- [message_history README](../../src/plugins/library/message_history/README.md)
 - [消息历史存储与归属说明](../guides/message-history-storage.md)
 
 | 命令 | 状态 | 源码入口 | 说明 |
 | --- | --- | --- | --- |
-| `检索群聊记录` | 已完成 | [chat_context/commands.py](../../src/features/chat_context/commands.py) | 检索当前系统群的采集消息。 |
-| `统计聊天记录` | 已完成 | [chat_context/commands.py](../../src/features/chat_context/commands.py) | 统计当前用户或当前系统群的聊天记录数量。 |
+| `检索群聊记录` | 已完成 | [message_history/commands.py](../../src/plugins/library/message_history/commands.py) | 检索当前系统群的采集消息。 |
+| `统计聊天记录` | 已完成 | [message_history/commands.py](../../src/plugins/library/message_history/commands.py) | 统计当前用户或当前系统群的聊天记录数量。 |
 
 ## 学生检索与群内协作
 
@@ -267,12 +267,12 @@ flowchart LR
 
 相关文档：
 
-- [find_at 源码](../../src/features/find_at/commands.py)
+- [find_at 源码](../../src/plugins/application/active/find_at/commands.py)
 
 | 命令 | 状态 | 源码入口 | 说明 |
 | --- | --- | --- | --- |
-| `查找学生` | 已完成 | [find_at/commands.py](../../src/features/find_at/commands.py) | 按条件检索学生。 |
-| `at` | 已完成 | [find_at/commands.py](../../src/features/find_at/commands.py) | 检索并 at 目标用户。 |
+| `查找学生` | 已完成 | [find_at/commands.py](../../src/plugins/application/active/find_at/commands.py) | 按条件检索学生。 |
+| `at` | 已完成 | [find_at/commands.py](../../src/plugins/application/active/find_at/commands.py) | 检索并 at 目标用户。 |
 
 ## 图片生成
 
@@ -280,11 +280,11 @@ flowchart LR
 
 相关文档：
 
-- [图像生成模块源码](../../src/features/image_generate/commands.py)
+- [图像生成模块源码](../../src/plugins/application/active/image_generate/commands.py)
 
 | 命令 | 状态 | 源码入口 | 说明 |
 | --- | --- | --- | --- |
-| `图片生成` | 已完成 | [image_generate/commands.py](../../src/features/image_generate/commands.py) | 文生图或图生图。 |
+| `图片生成` | 已完成 | [image_generate/commands.py](../../src/plugins/application/active/image_generate/commands.py) | 文生图或图生图。 |
 
 ## 通知与定时提醒
 
@@ -292,14 +292,14 @@ flowchart LR
 
 相关文档：
 
-- [通知模块源码](../../src/features/notice/commands.py)
-- [AutoGPT 运行时说明](../../core/agent/runtime/README.md)
+- [通知模块源码](../../src/plugins/application/active/notice/commands.py)
+- [AutoGPT 运行时说明](../../src/core/agent/runtime/README.md)
 
 | 命令 | 状态 | 源码入口 | 说明 |
 | --- | --- | --- | --- |
-| `创建通知` | 未完成 | [notice/commands.py](../../src/features/notice/commands.py) | 命令定义已存在，但处理逻辑未接通。 |
-| `查询通知` | 未完成 | [notice/commands.py](../../src/features/notice/commands.py) | 命令定义已存在，但处理逻辑未接通。 |
-| `删除通知` | 未完成 | [notice/commands.py](../../src/features/notice/commands.py) | 命令定义已存在，但处理逻辑未接通。 |
+| `创建通知` | 未完成 | [notice/commands.py](../../src/plugins/application/active/notice/commands.py) | 命令定义已存在，但处理逻辑未接通。 |
+| `查询通知` | 未完成 | [notice/commands.py](../../src/plugins/application/active/notice/commands.py) | 命令定义已存在，但处理逻辑未接通。 |
+| `删除通知` | 未完成 | [notice/commands.py](../../src/plugins/application/active/notice/commands.py) | 命令定义已存在，但处理逻辑未接通。 |
 
 ## 维护规则
 

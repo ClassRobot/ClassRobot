@@ -201,7 +201,7 @@ APIRouter(prefix="/api/v1/manager", tags=["Manager"])
 - 测试指定模型。
 - 保存模型配置。
 
-使用 `llm_models.py` 这类显式命名，可以避免和 ORM `utils.models` 混淆。
+使用 `llm_models.py` 这类显式命名，可以避免和 ORM `src.models` 混淆。
 
 ### `agent/service.py`
 
@@ -275,7 +275,7 @@ website/managers/dist
 后台接口读取 ORM 时优先使用当前项目模型：
 
 ```text
-utils.models.models
+src.models.models
 ```
 
 涉及列表接口时要注意：

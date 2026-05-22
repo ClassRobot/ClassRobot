@@ -8,14 +8,16 @@ from typing import Any, Iterable
 
 from nonebot import get_adapters, get_bots, get_driver, get_loaded_plugins
 
-from utils.config import project_root
+from src.platform.config import project_root
 
 from .command_state import load_availability_state
 from ..service import relative_to_project
 
 PYPROJECT_PATH = project_root / "pyproject.toml"
 SOURCE_ROOTS = (
-    project_root / "src" / "features",
+    project_root / "src" / "plugins" / "application" / "active",
+    project_root / "src" / "plugins" / "application" / "passive",
+    project_root / "src" / "plugins" / "library",
 )
 
 
@@ -415,7 +417,7 @@ def _enrich_command(
     loaded_modules: set[str],
 ) -> dict[str, Any]:
     """为源码扫描得到的命令补充帮助文档和加载状态。"""
-    from utils.commands.availability import command_availability
+    from src.platform.commands.availability import command_availability
 
     registry_payload = registry_index.get(item["command"])
     if registry_payload is None:
@@ -481,7 +483,7 @@ def _enrich_command(
 def _registry_command_index() -> dict[str, dict[str, Any]]:
     """读取统一命令注册表索引。"""
     try:
-        from utils.commands.discovery import registered_command_index
+        from src.platform.commands.discovery import registered_command_index
     except Exception:  # noqa: BLE001
         return {}
     return registered_command_index()
@@ -490,7 +492,7 @@ def _registry_command_index() -> dict[str, dict[str, Any]]:
 def _registry_command_payloads() -> list[dict[str, Any]]:
     """读取统一命令注册表条目。"""
     try:
-        from utils.commands.discovery import registered_command_payloads
+        from src.platform.commands.discovery import registered_command_payloads
     except Exception:  # noqa: BLE001
         return []
     return registered_command_payloads()
@@ -529,8 +531,8 @@ def _registry_payload_to_command_item(payload: dict[str, Any], loaded_modules: s
 def _attach_agent_execution_flags(item: dict[str, Any]) -> None:
     """补充管理端区分 Agent 声明可调用与真实可执行的状态。"""
 
-    from utils.commands.executor import command_executor
-    from utils.commands.registry import command_registry
+    from src.platform.commands.executor import command_executor
+    from src.platform.commands.registry import command_registry
 
     spec = command_registry.get(str(item.get("command") or ""))
     if spec is None:
@@ -553,7 +555,7 @@ def _attach_agent_execution_flags(item: dict[str, Any]) -> None:
 def _plugin_availability_payload(plugin_module: str) -> dict[str, Any]:
     """读取插件级软开关状态。"""
 
-    from utils.commands.availability import command_availability
+    from src.platform.commands.availability import command_availability
 
     state = command_availability.plugin_state(plugin_module)
     return {
@@ -592,13 +594,20 @@ def _read_nonebot_config() -> dict[str, Any]:
     config = data.get("tool", {}).get("nonebot", {})
     payload["plugins"] = [str(item) for item in config.get("plugins", [])]
     payload["plugin_dirs"] = [str(item) for item in config.get("plugin_dirs", [])]
+    raw_adapters = config.get("adapters", {})
+    adapter_items: list[dict[str, Any]] = []
+    if isinstance(raw_adapters, dict):
+        for value in raw_adapters.values():
+            if isinstance(value, list):
+                adapter_items.extend(item for item in value if isinstance(item, dict))
+    elif isinstance(raw_adapters, list):
+        adapter_items = [item for item in raw_adapters if isinstance(item, dict)]
     payload["adapters"] = [
         {
             "name": str(item.get("name", "")),
             "module_name": str(item.get("module_name", "")),
         }
-        for item in config.get("adapters", [])
-        if isinstance(item, dict)
+        for item in adapter_items
     ]
     return payload
 
@@ -652,8 +661,8 @@ def _declared_adapter_module(class_module: str, declared_by_module: dict[str, di
 def _helper_index() -> dict[str, dict[str, Any]]:
     """构建帮助菜单命令索引，用于补全文档和参数信息。"""
     try:
-        from utils.helper import ParamMode
-        from utils.helper.config import helper_menu
+        from src.platform.helper import ParamMode
+        from src.platform.helper.config import helper_menu
     except Exception:  # noqa: BLE001
         return {}
 

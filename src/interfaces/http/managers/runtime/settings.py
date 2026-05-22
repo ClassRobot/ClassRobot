@@ -8,12 +8,12 @@ from pathlib import Path
 
 from nonebot import get_driver
 
-from utils.config import project_root
-from core.llm.config import LLMConfig
-from utils.encrypt.config import EncryptConfig
-from core.llm.config import plugin_config as llm_config
-from utils.cache.config import plugin_config as cache_config
-from utils.tools.cos.config import plugin_config as cos_config
+from src.platform.config import project_root
+from src.core.llm.config import LLMConfig
+from src.shared.encrypt.config import EncryptConfig
+from src.core.llm.config import plugin_config as llm_config
+from src.core.cache.config import plugin_config as cache_config
+from src.shared.tools.cos.config import plugin_config as cos_config
 
 from ..service import mask_secret
 

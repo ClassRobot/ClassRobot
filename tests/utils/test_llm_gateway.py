@@ -28,8 +28,8 @@ class FakeOpenAIClient:
 
 @pytest.mark.asyncio
 async def test_client_create_omits_unset_optional_fields(loaded_plugins, monkeypatch):
-    import core.llm as llm_module
-    from core.llm.config import LLMConfig
+    import src.core.llm as llm_module
+    from src.core.llm.config import LLMConfig
 
     config = LLMConfig(
         name="test-gateway-default",
@@ -63,8 +63,8 @@ async def test_client_create_omits_unset_optional_fields(loaded_plugins, monkeyp
 
 @pytest.mark.asyncio
 async def test_client_create_keeps_explicit_tool_request_fields(loaded_plugins, monkeypatch):
-    import core.llm as llm_module
-    from core.llm.config import LLMConfig
+    import src.core.llm as llm_module
+    from src.core.llm.config import LLMConfig
 
     config = LLMConfig(
         name="test-gateway-tools",
@@ -106,8 +106,8 @@ async def test_client_create_keeps_explicit_tool_request_fields(loaded_plugins, 
 
 
 def test_core_llm_modules_import_from_canonical_entry(loaded_plugins):
-    import core.llm.message as core_message_module
-    import core.llm.gateway as core_gateway_module
+    import src.core.llm.message as core_message_module
+    import src.core.llm.gateway as core_gateway_module
 
-    assert core_message_module.__name__ == "core.llm.message"
-    assert core_gateway_module.__name__ == "core.llm.gateway"
+    assert core_message_module.__name__ == "src.core.llm.message"
+    assert core_gateway_module.__name__ == "src.core.llm.gateway"

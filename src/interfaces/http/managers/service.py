@@ -56,7 +56,7 @@ def _runtime_path_map() -> dict[str, Path]:
         dict[str, Path]: 项目根目录及常用运行目录映射。
     """
 
-    from utils.config import cache_dir, config_dir, data_dir, project_root
+    from src.platform.config import cache_dir, config_dir, data_dir, project_root
 
     return {
         "project_root": project_root,

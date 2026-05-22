@@ -8,9 +8,9 @@ from nonebot import get_driver
 from nonebot_plugin_orm import get_session
 from sqlalchemy import select
 
-from core.skills import skill_registry
-from core.agent.runtime.node_registry import RUNTIME_NODE_REGISTRY, list_runtime_node_definitions
-from core.agent.runtime.orchestration_config import (
+from src.core.skills import skill_registry
+from src.core.agent.runtime.node_registry import RUNTIME_NODE_REGISTRY, list_runtime_node_definitions
+from src.core.agent.runtime.orchestration_config import (
     AGENT_ORCHESTRATION_CONFIG_PATH,
     RuntimeGraphConfig,
     build_graph_config_from_designer,
@@ -22,10 +22,10 @@ from core.agent.runtime.orchestration_config import (
     stable_designer_hash,
     write_runtime_orchestration_config,
 )
-from core.agent.runtime.playbooks import playbook_catalog
-from core.llm.config import plugin_config as llm_config
-from utils.config import autogpt_dir, project_root, prompts_dir, skill_runtime_dir, skills_dir, storage_dir
-from utils.models import AgentWorkflowCheckpoint, AgentWorkflowRun
+from src.core.agent.runtime.playbooks import playbook_catalog
+from src.core.llm.config import plugin_config as llm_config
+from src.platform.config import autogpt_dir, project_root, prompts_dir, skill_runtime_dir, skills_dir, storage_dir
+from src.models import AgentWorkflowCheckpoint, AgentWorkflowRun
 from ..runtime import nonebot
 from ..service import manager_config_path, now_iso, relative_to_project
 from .models import (
@@ -71,7 +71,7 @@ AGENT_MODULES: tuple[AgentModuleDefinition, ...] = (
         id="autogpt_entry",
         name="AutoGPT 消息入口",
         category="入口层",
-        source="src/features/autogpt/__init__.py",
+        source="src/plugins/application/active/autogpt/__init__.py",
         description="接收 NoneBot 消息事件，组织会话、发送阶段反馈，并把可执行工作流交给执行器。",
         capabilities=("消息触发", "待确认恢复", "阶段反馈", "命令投递"),
         control_note="随 NoneBot 插件加载，当前没有独立启停接口。",
@@ -80,7 +80,7 @@ AGENT_MODULES: tuple[AgentModuleDefinition, ...] = (
         id="harness_runtime",
         name="AutoGPTHarness",
         category="运行时装配",
-        source="core/agent/runtime/harness/runtime.py",
+        source="src/core/agent/runtime/harness/runtime.py",
         description="把策略、上下文和可观测性三层依赖组装成一次 Agent 会话的统一入口。",
         capabilities=("依赖装配", "上下文注入", "可观测性接线"),
         control_note="运行时容器由会话创建，当前不提供后台修改。",
@@ -89,7 +89,7 @@ AGENT_MODULES: tuple[AgentModuleDefinition, ...] = (
         id="policy_harness",
         name="PolicyHarness",
         category="策略层",
-        source="core/agent/runtime/harness/policy.py",
+        source="src/core/agent/runtime/harness/policy.py",
         description="收敛当前用户可见命令、结构化命令工具目录和 Skill 摘要。",
         capabilities=("命令裁剪", "候选命令解析", "Skill 召回"),
         control_note="命令软关闭由 Plugin 管理维护，Agent 会自动过滤不可用命令。",
@@ -98,7 +98,7 @@ AGENT_MODULES: tuple[AgentModuleDefinition, ...] = (
         id="context_harness",
         name="ContextHarness",
         category="上下文层",
-        source="core/agent/runtime/harness/context.py",
+        source="src/core/agent/runtime/harness/context.py",
         description="管理会话消息、运行时上下文、本地聊天记录和文件空间检索入口。",
         capabilities=("历史序列化", "本地上下文判断", "聊天记录接入"),
         control_note="上下文跟随当前消息和用户空间生成，当前不提供静态配置。",
@@ -107,7 +107,7 @@ AGENT_MODULES: tuple[AgentModuleDefinition, ...] = (
         id="observability_harness",
         name="ProgressFeedbackHarness",
         category="可观测性",
-        source="core/agent/runtime/harness/observability.py",
+        source="src/core/agent/runtime/harness/observability.py",
         description="记录 Prompt 阶段指标、命令召回结果和重复调用等运行数据。",
         capabilities=("阶段指标", "进度反馈", "重复调用检测"),
         control_note="指标自动写入工作流快照，当前不提供关闭开关。",
@@ -116,7 +116,7 @@ AGENT_MODULES: tuple[AgentModuleDefinition, ...] = (
         id="pipeline",
         name="MessageProcessingPipeline",
         category="编排核心",
-        source="core/agent/runtime/pipeline.py",
+        source="src/core/agent/runtime/pipeline.py",
         description="按默认安全节点链完成本地查询、意图路由、上下文抽取、计划、RAG、任务生成和校验。",
         capabilities=("意图路由", "本地 RAG", "计划生成", "任务校验", "Runtime 图热更新"),
         control_note="节点编排可通过 Agent 设计器写入运行时配置；安全关键节点仍由后端校验保护。",
@@ -125,7 +125,7 @@ AGENT_MODULES: tuple[AgentModuleDefinition, ...] = (
         id="workflow",
         name="WorkflowBuilder / WorkflowExecutor",
         category="工作流",
-        source="core/agent/runtime/workflow.py",
+        source="src/core/agent/runtime/workflow.py",
         description="把规划结果转换成显式工作流，并按步骤复用 NoneBot 命令系统执行。",
         capabilities=("显式工作流", "审批语义", "顺序执行", "执行观测"),
         control_note="工作流执行边界来自命令系统，当前不提供模块级启停。",
@@ -134,7 +134,7 @@ AGENT_MODULES: tuple[AgentModuleDefinition, ...] = (
         id="command_tools",
         name="CommandToolCatalog",
         category="命令工具",
-        source="core/agent/runtime/command_tools.py",
+        source="src/core/agent/runtime/command_tools.py",
         description="把 Helper 和统一命令注册表转换为 Agent 可规划的结构化命令工具。",
         capabilities=("命令元数据", "参数 Schema", "风险等级", "Agent 可调用过滤"),
         control_note="单条命令或插件可在 Plugin 管理中软关闭。",
@@ -143,7 +143,7 @@ AGENT_MODULES: tuple[AgentModuleDefinition, ...] = (
         id="local_knowledge",
         name="LocalKnowledgeRetriever",
         category="本地知识",
-        source="core/agent/runtime/knowledge.py",
+        source="src/core/agent/runtime/knowledge.py",
         description="按需检索用户聊天、群聊采集消息和隔离文件空间，并通过本地 RAG 汇总上下文。",
         capabilities=("聊天记录检索", "文件空间检索", "本地 RAG"),
         control_note="检索触发由用户问题和运行时上下文决定，当前不提供后台开关。",
@@ -152,7 +152,7 @@ AGENT_MODULES: tuple[AgentModuleDefinition, ...] = (
         id="skill_registry",
         name="SkillRegistry",
         category="Skill 能力",
-        source="core/skills/registry.py",
+        source="src/core/skills/registry.py",
         description="发现并加载项目内置 Skill，向 Agent 暴露稳定能力摘要。",
         capabilities=("Skill 发现", "运行时加载", "摘要召回"),
         control_note="Skill 文件维护在 Skill 管理中进行，Agent 侧当前只读消费。",
@@ -161,7 +161,7 @@ AGENT_MODULES: tuple[AgentModuleDefinition, ...] = (
         id="checkpoint_store",
         name="WorkflowCheckpointStore",
         category="持久化",
-        source="core/agent/runtime/persistence/checkpoints.py",
+        source="src/core/agent/runtime/persistence/checkpoints.py",
         description="保存每个用户最近一次工作流状态，用于待确认任务恢复。",
         capabilities=("待确认恢复", "工作流快照"),
         control_note="检查点数据可在 Agent 管理中查看和删除。",
@@ -170,7 +170,7 @@ AGENT_MODULES: tuple[AgentModuleDefinition, ...] = (
         id="run_store",
         name="WorkflowRunStore",
         category="持久化",
-        source="core/agent/runtime/persistence/runs.py",
+        source="src/core/agent/runtime/persistence/runs.py",
         description="保存每次 Agent 工作流运行历史，供审计、排障和后台查看。",
         capabilities=("运行历史", "Trace 审计", "失败排查"),
         control_note="运行历史当前只读展示。",
@@ -730,7 +730,7 @@ class AgentManagerService:
                 name="模型配置",
                 value=f"{len(llm_configs)} 个模型，{len(multi_modal_models)} 个支持多模态",
                 description="Agent 路由、规划、任务生成和视觉回复复用统一 LLM 配置。",
-                source="core.llm.config.plugin_config",
+                source="src.core.llm.config.plugin_config",
                 editable=False,
                 toggleable=False,
             ),
@@ -740,7 +740,7 @@ class AgentManagerService:
                 name="模型超时",
                 value=f"{llm_config.llm_timeout:g}s",
                 description="单次模型请求超时时间。",
-                source="core.llm.config.plugin_config.llm_timeout",
+                source="src.core.llm.config.plugin_config.llm_timeout",
                 editable=False,
                 toggleable=False,
             ),
@@ -770,7 +770,7 @@ class AgentManagerService:
                 name="Skill 资源目录",
                 value=relative_to_project(skills_dir),
                 description="Agent Skill 的 SKILL.md 资源由 SkillRegistry 从该目录发现。",
-                source="utils.config.skills_dir",
+                source="src.platform.config.skills_dir",
                 editable=False,
                 toggleable=False,
             ),
@@ -780,7 +780,7 @@ class AgentManagerService:
                 name="Skill 代码目录",
                 value=relative_to_project(skill_runtime_dir),
                 description="Skill 的 runtime.py 代码从该目录加载。",
-                source="utils.config.skill_runtime_dir",
+                source="src.platform.config.skill_runtime_dir",
                 editable=False,
                 toggleable=False,
             ),
@@ -790,7 +790,7 @@ class AgentManagerService:
                 name="Agent 可调用命令",
                 value=f"{agent_executable_commands} 个实际可执行，{available_agent_commands}/{agent_callable_commands} 个声明可用",
                 description="Agent 工具目录只暴露已启用、声明可调用、service 化且已注册 handler 的命令。",
-                source="utils.commands.availability",
+                source="src.platform.commands.availability",
                 editable=False,
                 toggleable=False,
             ),
@@ -810,7 +810,7 @@ class AgentManagerService:
                 name="AutoGPT 数据目录",
                 value=relative_to_project(autogpt_dir),
                 description="用于保存 Agent 相关运行态文件和后续扩展数据。",
-                source="utils.config.autogpt_dir",
+                source="src.platform.config.autogpt_dir",
                 editable=False,
                 toggleable=False,
             ),

@@ -9,9 +9,9 @@ Use this skill for QR generation and parsing instead of hand-writing `qrcode` or
 
 ## Workflow
 
-1. Use `core.skills.qr_code_skill.encode(...)` to generate a QR image from text.
-2. Use `core.skills.qr_code_skill.decode(...)` to parse all QR values in an image.
-3. Use `core.skills.qr_code_skill.decode_one(...)` when only the first QR result is needed.
+1. Use `src.core.skills.qr_code_skill.encode(...)` to generate a QR image from text.
+2. Use `src.core.skills.qr_code_skill.decode(...)` to parse all QR values in an image.
+3. Use `src.core.skills.qr_code_skill.decode_one(...)` when only the first QR result is needed.
 
 ## Notes
 

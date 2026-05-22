@@ -50,7 +50,7 @@
 
 ### 全局配置
 
-来源：`utils/config.py`
+来源：`src/platform/config.py`
 
 | 字段 | 含义 | 设置页分组 |
 | --- | --- | --- |
@@ -63,7 +63,7 @@
 
 ### 模型配置
 
-来源：`core/llm/config.py`
+来源：`src/core/llm/config.py`
 
 | 字段 | 含义 |
 | --- | --- |
@@ -80,7 +80,7 @@
 
 ### 缓存配置
 
-来源：`utils/cache/config.py`
+来源：`src/core/cache/config.py`
 
 | 字段 | 含义 |
 | --- | --- |
@@ -89,7 +89,7 @@
 
 ### COS 配置
 
-来源：`utils/tools/cos/config.py`
+来源：`src/shared/tools/cos/config.py`
 
 | 字段 | 含义 |
 | --- | --- |
@@ -101,7 +101,7 @@
 
 ### 加密配置
 
-来源：`utils/encrypt/config.py`
+来源：`src/shared/encrypt/config.py`
 
 | 字段 | 含义 |
 | --- | --- |
@@ -125,7 +125,7 @@
 
 ### Skill
 
-目录：`core/skills/builtin/`
+目录：`src/core/skills/builtin/`
 
 当前 Skill：
 

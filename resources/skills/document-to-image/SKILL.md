@@ -9,11 +9,11 @@ Use this skill when the input is a `.doc`, `.docx`, `.ppt`, `.pptx`, or `.pdf` f
 
 ## Workflow
 
-1. Prefer `core.skills.document_to_image_skill.convert(...)` when the source may be bytes, local paths, or remote URLs.
-2. Prefer `core.skills.document_to_image_skill.convert_local_file(...)` when the source is already a local file and you need explicit output paths.
-3. Reuse `utils.tools.docs2img` as the low-level converter implementation instead of duplicating Office/PDF conversion logic.
+1. Prefer `src.core.skills.document_to_image_skill.convert(...)` when the source may be bytes, local paths, or remote URLs.
+2. Prefer `src.core.skills.document_to_image_skill.convert_local_file(...)` when the source is already a local file and you need explicit output paths.
+3. Reuse `src.shared.tools.docs2img` as the low-level converter implementation instead of duplicating Office/PDF conversion logic.
 
 ## Notes
 
 - This skill is the canonical entry for document-to-image normalization inside the project.
-- The runtime implementation lives in `core/skills/builtin/document-to-image/runtime.py`.
+- The runtime implementation lives in `src/core/skills/builtin/document-to-image/runtime.py`.

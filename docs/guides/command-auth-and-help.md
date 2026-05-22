@@ -4,7 +4,7 @@
 
 如果你正在看的是”后续应该如何把 `Helper`、命令声明、Agent 工具目录和统一执行器收敛成单一体系”，请继续阅读 [架构视图总览](../architecture/architecture-views.md) 中的”显式命令运行时流程”部分。
 
-实现链路的核心代码分布在 `utils/helper/depends.py`（鉴权依赖）、`utils/helper/runtime.py`（启动时绑定 matcher guard）和 `src/features/helper/__init__.py`（引导入口）中。整条链路是：平台用户绑定 → `User.roles` 派生 → `HelpersDepends` 过滤 → matcher 前置鉴权。
+实现链路的核心代码分布在 `src/platform/helper/depends.py`（鉴权依赖）、`src/platform/helper/runtime.py`（启动时绑定 matcher guard）和 `src/plugins/application/active/helper/__init__.py`（引导入口）中。整条链路是：平台用户绑定 → `User.roles` 派生 → `HelpersDepends` 过滤 → matcher 前置鉴权。
 
 ## 设计目标
 
@@ -28,11 +28,11 @@
 1. 各命令模块在 `__helpers__` 中声明命令说明
 2. 已迁移命令通过 `command_alconna()` / `command_command()` 把 `CommandSpec` 和 `Helper` 绑定到 matcher
    同时也会为非交互命令自动绑定 `command_input_hook`，把用户显式命令输入写入聊天记录
-3. `src/features/helper/__init__.py` 在启动时调用 `bootstrap_helper_runtime(...)`
-4. `utils/helper/runtime.py` 会做两件事
+3. `src/plugins/application/active/helper/__init__.py` 在启动时调用 `bootstrap_helper_runtime(...)`
+4. `src/platform/helper/runtime.py` 会做两件事
    - 优先收集 matcher 上绑定的 helper，再兼容汇总 `__helpers__`
    - 把 `CommandPolicy` / helper 鉴权绑定到 matcher 前置 handler
-5. `utils/helper/depends.py` 根据 `user.roles` 和命令软关闭状态过滤出当前用户可见的 `Helpers`
+5. `src/platform/helper/depends.py` 根据 `user.roles` 和命令软关闭状态过滤出当前用户可见的 `Helpers`
 6. `help` 命令、AutoGPT 命令目录、后续 helper agent 都基于这份“已过滤”的 `Helpers` 工作
 
 可以把它理解成：
@@ -47,16 +47,16 @@
 
 这套机制不是直接读取平台侧身份，而是先通过 `UserBind` 把平台用户映射成项目内的 `User`，再由 `User.roles` 派生出当前有效角色集合。
 
-- `utils/models/depends.py`
+- `src/models/depends.py`
   - 负责 `UserDepends` / `UserOrCreatedDepends`
-- `utils/models/models.py`
+- `src/models/models.py`
   - 负责 `User.roles`
-- `utils/helper/README.md`
+- `src/platform/helper/README.md`
   - 解释整条链路与常见陷阱
 
 ## `Helper` 字段语义
 
-定义位置：`utils/helper/schema.py`
+定义位置：`src/platform/helper/schema.py`
 
 ### `roles`
 
@@ -114,13 +114,13 @@
 
 AutoGPT 不再直接读取全量命令目录，而是依赖当前用户视角下的 `Helpers`：
 
-- `core/agent/runtime/util.py`
+- `src/core/agent/runtime/util.py`
   - 会话与运行时上下文会继续携带当前用户可见的命令集合
-- `core/agent/runtime/pipeline.py`
+- `src/core/agent/runtime/pipeline.py`
   - `MessageProcessingPipeline` 用当前用户 helpers 构建 `CommandToolCatalog`
-- `core/agent/runtime/command_tools.py`
+- `src/core/agent/runtime/command_tools.py`
   - 只把当前用户可见且 `execution_mode="service"` 的 `CommandSpec` 转成 Agent 工具
-- `src/features/autogpt/__init__.py`
+- `src/plugins/application/active/autogpt/__init__.py`
   - 负责把平台消息接入运行时，并在需要时通过 `AgentCommandAdapter -> CommandExecutor` 执行命令
   - 若命令尚未 service 化，返回结构化失败，不回放 NoneBot 事件
 
@@ -160,14 +160,14 @@ AutoGPT 不再直接读取全量命令目录，而是依赖当前用户视角下
 
 ## 关键文件
 
-- `utils/helper/schema.py`
-- `utils/helper/runtime.py`
-- `utils/helper/depends.py`
-- `utils/commands/`
-- `src/features/helper/__init__.py`
-- `core/agent/runtime/command_tools.py`
-- `core/agent/runtime/pipeline.py`
-- `core/agent/runtime/util.py`
+- `src/platform/helper/schema.py`
+- `src/platform/helper/runtime.py`
+- `src/platform/helper/depends.py`
+- `src/platform/commands/`
+- `src/plugins/application/active/helper/__init__.py`
+- `src/core/agent/runtime/command_tools.py`
+- `src/core/agent/runtime/pipeline.py`
+- `src/core/agent/runtime/util.py`
 
 ## 参考资料
 

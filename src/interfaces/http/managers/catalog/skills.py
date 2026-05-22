@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from core.skills.registry import skill_registry
+from src.core.skills.registry import skill_registry
 
 from ..service import relative_to_project
 
@@ -16,7 +16,7 @@ def list_skills() -> dict[str, Any]:
     items = []
     loaded_names = set(skill_registry._classes)  # noqa: SLF001
     for manifest in sorted(skill_registry.manifests.values(), key=lambda item: item.name):
-        runtime_path = manifest.root / "runtime.py"
+        runtime_path = skill_registry.resolve_runtime_dir(manifest.root) / "runtime.py"
         items.append(
             {
                 "name": manifest.name,
@@ -45,7 +45,7 @@ def get_skill(name: str) -> dict[str, Any]:
     manifest = skill_registry.manifests.get(name)
     if manifest is None:
         raise KeyError(f"Skill `{name}` not found")
-    runtime_path = manifest.root / "runtime.py"
+    runtime_path = skill_registry.resolve_runtime_dir(manifest.root) / "runtime.py"
     return {
         "name": manifest.name,
         "description": manifest.description,

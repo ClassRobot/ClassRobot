@@ -1,7 +1,7 @@
 import importlib
 
 BASIC_HELPER_MODULES = {
-    "src.features.group.commands": {
+    "src.plugins.application.active.group.commands": {
         "添加学校",
         "修改学校",
         "删除学校",
@@ -21,7 +21,7 @@ BASIC_HELPER_MODULES = {
         "设置学院负责人",
         "取消学院负责人",
     },
-    "src.features.classes.commands": {
+    "src.plugins.application.active.classes.commands": {
         "添加班级",
         "查询班级",
         "查询入班申请",
@@ -36,14 +36,14 @@ BASIC_HELPER_MODULES = {
         "删除班级",
         "修改班级加入方式",
     },
-    "src.features.student.commands": {"查询学生信息", "查询学生档案", "添加学生", "修改学生档案", "删除学生", "修改学生信息"},
-    "src.features.teacher.commands": {"查询教师信息", "查询教师", "添加教师", "修改教师档案", "删除教师", "修改教师信息"},
-    "src.features.user.commands": {"我的信息", "绑定用户", "注销"},
-    "src.features.curriculum.commands": {"添加课表", "删除课表", "查询课表", "分享课表", "设置当前周"},
-    "src.features.find_at.commands": {"查找学生", "at"},
-    "src.features.leave.commands": {"请假", "请假列表", "设置请假推送", "删除请假"},
-    "src.features.tasks.commands": {"提交任务", "创建任务", "删除任务", "导出任务", "查询任务"},
-    "src.features.file_manager.commands": {
+    "src.plugins.application.active.student.commands": {"查询学生信息", "查询学生档案", "添加学生", "修改学生档案", "删除学生", "修改学生信息"},
+    "src.plugins.application.active.teacher.commands": {"查询教师信息", "查询教师", "添加教师", "修改教师档案", "删除教师", "修改教师信息"},
+    "src.plugins.application.active.user.commands": {"我的信息", "绑定用户", "注销"},
+    "src.plugins.application.active.curriculum.commands": {"添加课表", "删除课表", "查询课表", "分享课表", "设置当前周"},
+    "src.plugins.application.active.find_at.commands": {"查找学生", "at"},
+    "src.plugins.application.active.leave.commands": {"请假", "请假列表", "设置请假推送", "删除请假"},
+    "src.plugins.application.active.tasks.commands": {"提交任务", "创建任务", "删除任务", "导出任务", "查询任务"},
+    "src.plugins.application.active.file_manager.commands": {
         "pwd",
         "ls",
         "cd",
@@ -56,10 +56,10 @@ BASIC_HELPER_MODULES = {
         "tree",
         "上传文件",
     },
-    "src.features.chat_context.commands": {"检索群聊记录", "统计聊天记录"},
-    "src.features.helper.commands": {"help"},
-    "src.features.autogpt.commands": {"清空聊天"},
-    "src.features.image_generate.commands": {"图片生成"},
+    "src.plugins.library.message_history.commands": {"检索群聊记录", "统计聊天记录"},
+    "src.plugins.application.active.helper.commands": {"help"},
+    "src.plugins.application.active.autogpt.commands": {"清空聊天"},
+    "src.plugins.application.active.image_generate.commands": {"图片生成"},
 }
 
 
@@ -82,7 +82,7 @@ def test_basic_command_helpers_are_complete(loaded_plugins):
 
 
 def test_basic_command_helpers_can_be_indexed_by_command_and_alias(loaded_plugins):
-    from utils.helper import Helpers
+    from src.platform.helper import Helpers
 
     helper_menu = Helpers()
     helper_menu.extend(collect_helpers())

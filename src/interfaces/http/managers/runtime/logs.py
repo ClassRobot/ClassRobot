@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from utils.config import data_dir, project_root
+from src.platform.config import data_dir, project_root
 
 from ..service import relative_to_project
 

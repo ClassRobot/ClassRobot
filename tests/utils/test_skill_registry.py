@@ -1,6 +1,6 @@
 def test_skill_registry_reads_manifests_from_resources(loaded_plugins):
-    from core.skills import skill_registry
-    from utils.config import skills_dir
+    from src.core.skills import skill_registry
+    from src.platform.config import skills_dir
 
     manifest = skill_registry.manifests["document-to-image"]
 
@@ -9,8 +9,8 @@ def test_skill_registry_reads_manifests_from_resources(loaded_plugins):
 
 
 def test_skill_registry_loads_runtime_from_core_builtin(loaded_plugins):
-    from core.skills import get_document_to_image_skill, skill_registry
-    from utils.config import skill_runtime_dir
+    from src.core.skills import get_document_to_image_skill, skill_registry
+    from src.platform.config import skill_runtime_dir
 
     skill = get_document_to_image_skill()
     runtime_dir = skill_registry.resolve_runtime_dir(skill.manifest.root)

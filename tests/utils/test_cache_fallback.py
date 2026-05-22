@@ -9,7 +9,7 @@ pytestmark = pytest.mark.asyncio
 
 
 async def test_cache_falls_back_to_local_sqlite_when_redis_unavailable(loaded_plugins, monkeypatch, tmp_path):
-    import utils.cache as cache_module
+    import src.core.cache as cache_module
 
     async def probe_failed() -> bool:
         return False
@@ -34,8 +34,8 @@ async def test_cache_falls_back_to_local_sqlite_when_redis_unavailable(loaded_pl
 
 
 async def test_cache_switches_to_local_when_redis_fails_during_operation(loaded_plugins, monkeypatch, tmp_path):
-    import utils.cache as cache_module
-    from utils.packages.aioredis.exceptions import ConnectionError as RedisConnectionError
+    import src.core.cache as cache_module
+    from src.shared.packages.aioredis.exceptions import ConnectionError as RedisConnectionError
 
     async def probe_ok() -> bool:
         return True
@@ -58,8 +58,8 @@ async def test_cache_switches_to_local_when_redis_fails_during_operation(loaded_
 
 
 async def test_local_cache_honors_ttl_and_delete(loaded_plugins, monkeypatch, tmp_path):
-    import utils.cache as cache_module
-    import utils.cache.local_cache as local_cache_module
+    import src.core.cache as cache_module
+    import src.core.cache.local_cache as local_cache_module
 
     current = {"value": 1000.0}
     monkeypatch.setattr(cache_module.plugin_config, "cache_backend", "local")
@@ -81,7 +81,7 @@ async def test_local_cache_honors_ttl_and_delete(loaded_plugins, monkeypatch, tm
 
 
 async def test_cache_convenience_wrappers_work_with_local_fallback(loaded_plugins, monkeypatch, tmp_path):
-    import utils.cache as cache_module
+    import src.core.cache as cache_module
 
     monkeypatch.setattr(cache_module.plugin_config, "cache_backend", "local")
     monkeypatch.setattr(cache_module.plugin_config, "cache_path", str(tmp_path / "cache.sqlite3"))
@@ -99,7 +99,7 @@ async def test_cache_convenience_wrappers_work_with_local_fallback(loaded_plugin
 
 
 async def test_manager_status_reports_local_cache_backend(loaded_plugins, monkeypatch, tmp_path):
-    import utils.cache as cache_module
+    import src.core.cache as cache_module
     from src.interfaces.http.managers.runtime.status import check_cache
 
     monkeypatch.setattr(cache_module.plugin_config, "cache_backend", "local")
@@ -116,7 +116,7 @@ async def test_manager_status_reports_local_cache_backend(loaded_plugins, monkey
 
 
 async def test_cache_storage_path_keeps_legacy_cache_local_path_compatible(loaded_plugins, monkeypatch, tmp_path):
-    import utils.cache as cache_module
+    import src.core.cache as cache_module
 
     monkeypatch.setattr(cache_module.plugin_config, "cache_backend", "local")
     monkeypatch.setattr(cache_module.plugin_config, "cache_path", None)
@@ -132,7 +132,7 @@ async def test_cache_storage_path_keeps_legacy_cache_local_path_compatible(loade
 
 
 async def test_cache_path_takes_precedence_over_legacy_cache_local_path(loaded_plugins, monkeypatch, tmp_path):
-    import utils.cache as cache_module
+    import src.core.cache as cache_module
 
     primary_path = tmp_path / "primary-cache.sqlite3"
     legacy_path = tmp_path / "legacy-cache.sqlite3"
@@ -152,7 +152,7 @@ async def test_cache_path_takes_precedence_over_legacy_cache_local_path(loaded_p
 
 
 async def test_local_sqlite_cache_survives_runtime_reset(loaded_plugins, monkeypatch, tmp_path):
-    import utils.cache as cache_module
+    import src.core.cache as cache_module
 
     storage_path = tmp_path / "persistent-cache.sqlite3"
     monkeypatch.setattr(cache_module.plugin_config, "cache_backend", "local")

@@ -32,8 +32,8 @@
 - 启动基线配置写在仓库根目录 `.env` 体系中
 - 运行期可热更新、可持久化的本地状态写到 `config` 目录
 - Agent Runtime 工作流编排资源写到 `resources/agent`
-- `config` 目录的真实路径统一从 `utils.config.config_dir` 获取，不在业务模块手写绝对路径或拼接零散目录
-- Agent 编排资源路径统一从 `utils.config.agent_resources_dir` 获取
+- `config` 目录的真实路径统一从 `src.platform.config.config_dir` 获取，不在业务模块手写绝对路径或拼接零散目录
+- Agent 编排资源路径统一从 `src.platform.config.agent_resources_dir` 获取
 
 常见理解方式：
 
@@ -58,12 +58,12 @@
 - 后端路由层：`src/interfaces/http/managers/api/`
 - 后端领域实现：`src/interfaces/http/managers/agent/`、`catalog/`、`database/`、`identity/`、`runtime/`、`storage/`
 - 管理后台前端预留目录：`website/managers/`
-- 用户与绑定数据：`utils/models/models.py`
-- Agent 运行数据：`core/agent/runtime/persistence/runs.py`、`core/agent/runtime/persistence/checkpoints.py`
-- Skill 注册：`core/skills/registry.py`
+- 用户与绑定数据：`src/models/models.py`
+- Agent 运行数据：`src/core/agent/runtime/persistence/runs.py`、`src/core/agent/runtime/persistence/checkpoints.py`
+- Skill 注册：`src/core/skills/registry.py`
 - Prompt 模板：`resources/prompts/`
-- 模型配置：`core/llm/config.py`
-- 全局配置：`utils/config.py`
+- 模型配置：`src/core/llm/config.py`
+- 全局配置：`src/platform/config.py`
 
 ## 文档放置约定
 

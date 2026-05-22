@@ -12,9 +12,9 @@ from tests.autogpt.semantic_helpers import (
 
 @pytest.mark.asyncio
 async def test_self_identity_query_uses_ai_route_and_plans_self_info(loaded_plugins, monkeypatch):
-    from core.llm.message import Content, Messages
-    from core.agent.runtime.pipeline import MessageProcessingPipeline
-    from core.agent.runtime.schema import ChatMessage
+    from src.core.llm.message import Content, Messages
+    from src.core.agent.runtime.pipeline import MessageProcessingPipeline
+    from src.core.agent.runtime.schema import ChatMessage
 
     calls = patch_pipeline_llm(
         monkeypatch,
@@ -42,9 +42,9 @@ async def test_self_identity_query_uses_ai_route_and_plans_self_info(loaded_plug
 
 @pytest.mark.asyncio
 async def test_class_and_schedule_queries_are_planned_by_model_not_local_shortcuts(loaded_plugins, monkeypatch):
-    from core.llm.message import Content, Messages
-    from core.agent.runtime.pipeline import MessageProcessingPipeline
-    from core.agent.runtime.schema import ChatMessage
+    from src.core.llm.message import Content, Messages
+    from src.core.agent.runtime.pipeline import MessageProcessingPipeline
+    from src.core.agent.runtime.schema import ChatMessage
 
     calls = patch_pipeline_llm(
         monkeypatch,
@@ -83,8 +83,8 @@ async def test_class_and_schedule_queries_are_planned_by_model_not_local_shortcu
 
 
 def test_route_and_plan_stage_expose_full_capability_catalog(loaded_plugins):
-    from core.agent.runtime.pipeline import MessageProcessingPipeline
-    from core.llm.message import Content, Context, LLMRole, Messages
+    from src.core.agent.runtime.pipeline import MessageProcessingPipeline
+    from src.core.llm.message import Content, Context, LLMRole, Messages
 
     pipeline = MessageProcessingPipeline(
         build_helpers_with_semantic_commands(),
@@ -102,8 +102,8 @@ def test_route_and_plan_stage_expose_full_capability_catalog(loaded_plugins):
 
 
 def test_default_graph_has_no_keyword_preroute_nodes(loaded_plugins):
-    from core.agent.runtime.node_registry import DEFAULT_RUNTIME_NODE_ORDER, RUNTIME_NODE_REGISTRY
-    from core.agent.runtime.orchestration_config import default_graph_config
+    from src.core.agent.runtime.node_registry import DEFAULT_RUNTIME_NODE_ORDER, RUNTIME_NODE_REGISTRY
+    from src.core.agent.runtime.orchestration_config import default_graph_config
 
     graph = default_graph_config()
 

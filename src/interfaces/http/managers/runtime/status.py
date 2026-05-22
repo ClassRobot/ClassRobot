@@ -10,11 +10,11 @@ from sqlalchemy import text
 from nonebot import get_driver
 from nonebot_plugin_orm import get_session
 
-from utils.config import cache_dir, config_dir, data_dir, prompts_dir, project_root, skill_runtime_dir, skills_dir
-from utils.cache.config import plugin_config as cache_config
-from core.llm.config import plugin_config as llm_config
-from utils.tools.cos.config import plugin_config as cos_config
-from utils.models import User, Files, UserBind, AgentWorkflowRun, AgentWorkflowCheckpoint
+from src.platform.config import cache_dir, config_dir, data_dir, prompts_dir, project_root, skill_runtime_dir, skills_dir
+from src.core.cache.config import plugin_config as cache_config
+from src.core.llm.config import plugin_config as llm_config
+from src.shared.tools.cos.config import plugin_config as cos_config
+from src.models import User, Files, UserBind, AgentWorkflowRun, AgentWorkflowCheckpoint
 
 from ..service import path_payload
 
@@ -56,7 +56,7 @@ async def check_cache() -> dict[str, Any]:
         "configured_backend": cache_config.cache_backend,
     }
     try:
-        from utils.cache import get_cache, get_cache_backend_hint, get_cache_storage_path
+        from src.core.cache import get_cache, get_cache_backend_hint, get_cache_storage_path
 
         async with get_cache() as cache:
             await cache.ping()

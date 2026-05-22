@@ -27,7 +27,7 @@ for module_name in (
 for old_module in (
     "src.routers.path",
     "src.managers",
-    "src.plugins",
+    "src.features",
     "src.others",
     "src.agents",
 ):
@@ -60,7 +60,7 @@ for old_module in (
     assert "imported src.interfaces.http.managers.service" in output
     assert "old_path_missing src.routers.path src.routers" in output
     assert "old_path_missing src.managers src.managers" in output
-    assert "old_path_missing src.plugins src.plugins" in output
+    assert "old_path_missing src.features src.features" in output
     assert "old_path_missing src.others src.others" in output
     assert "old_path_missing src.agents src.agents" in output
     assert not (project_root / "utils" / "storage").exists()

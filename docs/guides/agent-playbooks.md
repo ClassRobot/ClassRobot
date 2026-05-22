@@ -27,7 +27,7 @@
 
 ## 当前内置模板
 
-当前内置在 [playbooks.py](../../core/agent/runtime/playbooks.py) 里的模板包括：
+当前内置在 [playbooks.py](../../src/core/agent/runtime/playbooks.py) 里的模板包括：
 
 - `class_bootstrap_and_notice`
   - `添加班级 -> 修改班级加入方式 -> 创建通知`
@@ -163,7 +163,7 @@ sequenceDiagram
 
 ## 相关代码
 
-- [workflow.py](../../core/agent/runtime/workflow.py)
-- [playbooks.py](../../core/agent/runtime/playbooks.py)
-- [util.py](../../core/agent/runtime/util.py)
-- [__init__.py](../../src/features/autogpt/__init__.py)
+- [workflow.py](../../src/core/agent/runtime/workflow.py)
+- [playbooks.py](../../src/core/agent/runtime/playbooks.py)
+- [util.py](../../src/core/agent/runtime/util.py)
+- [__init__.py](../../src/plugins/application/active/autogpt/__init__.py)

@@ -7,7 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
 from nonebot_plugin_orm import get_session
 
-from utils.models import User, Student, Teacher, UserBind
+from src.models import User, Student, Teacher, UserBind
 
 
 class UserMutationError(RuntimeError):

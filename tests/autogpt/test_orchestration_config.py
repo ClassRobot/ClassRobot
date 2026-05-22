@@ -8,7 +8,7 @@ pytestmark = pytest.mark.usefixtures("loaded_plugins")
 
 
 def _node_registry():
-    from core.agent.runtime.node_registry import (
+    from src.core.agent.runtime.node_registry import (
         DEFAULT_RUNTIME_NODE_ORDER,
         REQUIRED_RUNTIME_NODE_TYPES,
         RUNTIME_NODE_REGISTRY,
@@ -18,7 +18,7 @@ def _node_registry():
 
 
 def _orchestration_config():
-    from core.agent.runtime import orchestration_config
+    from src.core.agent.runtime import orchestration_config
 
     return orchestration_config
 
@@ -86,7 +86,7 @@ def test_build_graph_config_from_default_designer_payload():
 def test_runtime_orchestration_config_path_lives_in_resources():
     orchestration_config = _orchestration_config()
 
-    from utils.config import agent_resources_dir
+    from src.platform.config import agent_resources_dir
 
     assert orchestration_config.AGENT_ORCHESTRATION_CONFIG_PATH == (
         agent_resources_dir / "agent_orchestration_runtime.json"
@@ -209,10 +209,10 @@ def test_runtime_orchestration_store_recomputes_node_order(monkeypatch, tmp_path
 
 
 def test_pipeline_build_nodes_uses_hot_reloaded_runtime_graph(monkeypatch, tmp_path, loaded_plugins):
-    from utils.helper import Helpers
-    from core.llm.message import Messages
-    from core.agent.runtime.harness import AutoGPTHarness
-    from core.agent.runtime.pipeline import MessageProcessingPipeline
+    from src.platform.helper import Helpers
+    from src.core.llm.message import Messages
+    from src.core.agent.runtime.harness import AutoGPTHarness
+    from src.core.agent.runtime.pipeline import MessageProcessingPipeline
 
     default_node_order, required_node_types, _ = _node_registry()
     orchestration_config = _orchestration_config()
@@ -232,10 +232,10 @@ def test_pipeline_build_nodes_uses_hot_reloaded_runtime_graph(monkeypatch, tmp_p
 
 
 def test_pipeline_build_nodes_uses_default_graph_without_config(monkeypatch, tmp_path, loaded_plugins):
-    from utils.helper import Helpers
-    from core.llm.message import Messages
-    from core.agent.runtime.harness import AutoGPTHarness
-    from core.agent.runtime.pipeline import MessageProcessingPipeline
+    from src.platform.helper import Helpers
+    from src.core.llm.message import Messages
+    from src.core.agent.runtime.harness import AutoGPTHarness
+    from src.core.agent.runtime.pipeline import MessageProcessingPipeline
 
     default_node_order, _, _ = _node_registry()
     orchestration_config = _orchestration_config()
@@ -253,10 +253,10 @@ def test_pipeline_build_nodes_uses_default_graph_without_config(monkeypatch, tmp
 
 @pytest.mark.asyncio
 async def test_runtime_graph_executor_takes_conditional_direct_reply_branch(loaded_plugins):
-    from core.agent.runtime.schema import AutoTaskList
-    from core.agent.runtime.coordination import PipelineState
-    from core.agent.runtime.graph_executor import RuntimeGraphExecutor
-    from core.agent.runtime.orchestration_config import default_graph_config
+    from src.core.agent.runtime.schema import AutoTaskList
+    from src.core.agent.runtime.coordination import PipelineState
+    from src.core.agent.runtime.graph_executor import RuntimeGraphExecutor
+    from src.core.agent.runtime.orchestration_config import default_graph_config
 
     visited: list[str] = []
 
@@ -298,10 +298,10 @@ async def test_runtime_graph_executor_takes_conditional_direct_reply_branch(load
 
 @pytest.mark.asyncio
 async def test_runtime_graph_executor_uses_route_knowledge_sources_for_local_rag(loaded_plugins):
-    from core.agent.runtime.schema import IntentRoute, KnowledgeSourceRequest
-    from core.agent.runtime.coordination import PipelineState
-    from core.agent.runtime.graph_executor import RuntimeGraphExecutor
-    from core.agent.runtime.orchestration_config import default_graph_config
+    from src.core.agent.runtime.schema import IntentRoute, KnowledgeSourceRequest
+    from src.core.agent.runtime.coordination import PipelineState
+    from src.core.agent.runtime.graph_executor import RuntimeGraphExecutor
+    from src.core.agent.runtime.orchestration_config import default_graph_config
 
     visited: list[str] = []
 
@@ -353,11 +353,11 @@ async def test_runtime_graph_executor_uses_route_knowledge_sources_for_local_rag
 
 
 def test_pipeline_resolves_configured_model_profile(loaded_plugins):
-    from utils.helper import Helpers
-    from core.llm.message import Messages
-    from core.agent.runtime.harness import AutoGPTHarness
-    from core.agent.runtime.pipeline import MessageProcessingPipeline
-    from core.agent.runtime.orchestration_config import ModelProfileConfig, default_graph_config
+    from src.platform.helper import Helpers
+    from src.core.llm.message import Messages
+    from src.core.agent.runtime.harness import AutoGPTHarness
+    from src.core.agent.runtime.pipeline import MessageProcessingPipeline
+    from src.core.agent.runtime.orchestration_config import ModelProfileConfig, default_graph_config
 
     harness = AutoGPTHarness.build(helpers=Helpers(), messages=Messages(), trace_id="autogpt-model-profile")
     pipeline = MessageProcessingPipeline(harness=harness)
@@ -371,10 +371,10 @@ def test_pipeline_resolves_configured_model_profile(loaded_plugins):
 def test_runtime_modules_are_imported_from_core_runtime():
     """运行时模块应直接从 core 运行时入口导入。"""
 
-    import core.agent.runtime.knowledge as core_knowledge
-    import core.agent.runtime.pipeline as core_pipeline
-    import core.agent.runtime.orchestration_config as core_orchestration
+    import src.core.agent.runtime.knowledge as core_knowledge
+    import src.core.agent.runtime.pipeline as core_pipeline
+    import src.core.agent.runtime.orchestration_config as core_orchestration
 
-    assert core_pipeline.__name__ == "core.agent.runtime.pipeline"
-    assert core_orchestration.__name__ == "core.agent.runtime.orchestration_config"
-    assert core_knowledge.__name__ == "core.agent.runtime.knowledge"
+    assert core_pipeline.__name__ == "src.core.agent.runtime.pipeline"
+    assert core_orchestration.__name__ == "src.core.agent.runtime.orchestration_config"
+    assert core_knowledge.__name__ == "src.core.agent.runtime.knowledge"

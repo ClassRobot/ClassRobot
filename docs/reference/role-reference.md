@@ -217,13 +217,13 @@ flowchart TD
 
 ### `superuser`
 
-- 在 `utils/roles/system.py` 中存在定义
+- 在 `src/core/auth/system.py` 中存在定义
 - 当前更偏向框架或扩展层概念
 - 现阶段项目内真正生效的管理员扩展主要通过 `AdminExtension` + `user.is_admin` 判断
 
 ## 2. 业务身份层角色
 
-这层角色定义在 `utils/roles/__init__.py` 的 `UserRole` 中。
+这层角色定义在 `src/core/auth/__init__.py` 的 `UserRole` 中。
 
 ### `user`
 
@@ -338,14 +338,14 @@ flowchart TD
 - 当前实现是“并集语义 + 排除优先”
 - 也就是说，`roles={teacher, student}` 表示教师或学生都可以通过
 - 如果还写了 `exclude_roles={student}`，那么学生会被显式排除
-- 真实执行前，`utils/helper/runtime.py` 绑定的 matcher 前置 guard 还会再做一次同规则校验
+- 真实执行前，`src/platform/helper/runtime.py` 绑定的 matcher 前置 guard 还会再做一次同规则校验
 
 因此当前应区分两件事：
 
 - `Helper.roles`：帮助系统和 AI 可见性过滤
 - 命令处理函数中的业务校验：真正执行时的限制逻辑
 
-如果你想结合代码理解整条“用户绑定 -> 角色派生 -> help/AutoGPT 可见性 -> matcher 鉴权”链路，建议继续阅读 [utils/helper/README.md](../../utils/helper/README.md)。
+如果你想结合代码理解整条“用户绑定 -> 角色派生 -> help/AutoGPT 可见性 -> matcher 鉴权”链路，建议继续阅读 [src/platform/helper/README.md](../../src/platform/helper/README.md)。
 
 ## 当前代码与目标模型的对应关系
 

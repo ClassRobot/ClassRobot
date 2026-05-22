@@ -20,10 +20,10 @@
 | 管理端 Agent 服务 | `src/interfaces/http/managers/agent/service.py` |
 | 管理端路由 | `src/interfaces/http/managers/router.py` |
 | 管理端请求模型 | `src/interfaces/http/managers/agent/models.py` |
-| Runtime 节点注册表 | `core/agent/runtime/node_registry.py` |
-| Runtime 编排配置读写与校验 | `core/agent/runtime/orchestration_config.py` |
-| Runtime 条件图执行器 | `core/agent/runtime/graph_executor.py` |
-| AutoGPT Pipeline 节点构建 | `core/agent/runtime/pipeline.py` |
+| Runtime 节点注册表 | `src/core/agent/runtime/node_registry.py` |
+| Runtime 编排配置读写与校验 | `src/core/agent/runtime/orchestration_config.py` |
+| Runtime 条件图执行器 | `src/core/agent/runtime/graph_executor.py` |
+| AutoGPT Pipeline 节点构建 | `src/core/agent/runtime/pipeline.py` |
 | 管理端页面 | `website/managers/src/views/AgentsView.vue` |
 | 后端测试 | `tests/admin/test_manager_api.py` |
 | Runtime 编排测试 | `tests/autogpt/test_orchestration_config.py` |
@@ -36,7 +36,7 @@
 resources/agent/agent_orchestration_runtime.json
 ```
 
-实际绝对路径由 `utils.config.agent_resources_dir` 决定。管理端响应中的 `runtime.config_path` 会返回当前进程实际读取的路径。
+实际绝对路径由 `src.platform.config.agent_resources_dir` 决定。管理端响应中的 `runtime.config_path` 会返回当前进程实际读取的路径。
 
 这份文件是 Agent Runtime 的工作流编排资源，不放入 NoneBot/localstore 的默认 `config` 目录。`.env` 仍只放模型密钥、静态地址等启动前配置；用户数据、聊天记录和运行历史仍走各自的存储目录。
 
@@ -146,7 +146,7 @@ flowchart LR
 
 运行时图必须满足以下规则：
 
-- 节点类型必须来自 `core/agent/runtime/node_registry.py`。
+- 节点类型必须来自 `src/core/agent/runtime/node_registry.py`。
 - 同一个 `node_type` 只能出现一次。
 - 必需节点必须存在且启用。
 - 图必须有且只有一个入口节点。

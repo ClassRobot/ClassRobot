@@ -1,5 +1,5 @@
 def test_autogpt_config_accepts_json_string_llm_configs(loaded_plugins):
-    from core.llm.config import AutoGPTConfig
+    from src.core.llm.config import AutoGPTConfig
 
     config = AutoGPTConfig.parse_obj(
         {
@@ -28,13 +28,13 @@ def test_autogpt_config_accepts_json_string_llm_configs(loaded_plugins):
 
 
 def test_core_llm_config_imports_from_canonical_entry(loaded_plugins):
-    import core.llm.config as core_config_module
+    import src.core.llm.config as core_config_module
 
-    assert core_config_module.__name__ == "core.llm.config"
+    assert core_config_module.__name__ == "src.core.llm.config"
 
 
 def test_autogpt_config_accepts_agent_loop_limits(loaded_plugins):
-    from core.llm.config import AutoGPTConfig
+    from src.core.llm.config import AutoGPTConfig
 
     config = AutoGPTConfig.parse_obj(
         {

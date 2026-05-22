@@ -2,7 +2,7 @@ from datetime import datetime
 
 
 def test_normalize_cell_handles_common_import_values(loaded_plugins):
-    from src.features.classes import normalize_cell
+    from src.plugins.application.active.classes import normalize_cell
 
     assert normalize_cell(None) is None
     assert normalize_cell("") is None
@@ -13,7 +13,7 @@ def test_normalize_cell_handles_common_import_values(loaded_plugins):
 
 
 def test_normalize_datetime_accepts_supported_formats(loaded_plugins):
-    from src.features.classes import normalize_datetime
+    from src.plugins.application.active.classes import normalize_datetime
 
     assert normalize_datetime(None) is None
     assert normalize_datetime("2026-05-02") == datetime(2026, 5, 2)
@@ -24,8 +24,8 @@ def test_normalize_datetime_accepts_supported_formats(loaded_plugins):
 
 
 def test_join_method_and_request_action_aliases_are_supported(loaded_plugins):
-    from src.features.classes import JOIN_METHOD_MAPPING, JOIN_REQUEST_ACTION_MAPPING, get_join_method_label
-    from utils.roles import JoinMethod
+    from src.plugins.application.active.classes import JOIN_METHOD_MAPPING, JOIN_REQUEST_ACTION_MAPPING, get_join_method_label
+    from src.core.auth import JoinMethod
 
     assert JOIN_METHOD_MAPPING["直接"] == JoinMethod.direct
     assert JOIN_METHOD_MAPPING["申请加入"] == JoinMethod.apply

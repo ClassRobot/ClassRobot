@@ -18,11 +18,11 @@
 
 - `resources/skills/<skill-name>/SKILL.md`
   - Skill 的资源定义文件。
-- `core/skills/builtin/<skill-name>/runtime.py`
+- `src/core/skills/builtin/<skill-name>/runtime.py`
   - Skill 的运行时代码入口。
 
 ## 维护规则
 
 - 新增 Skill 时，先写 `resources/skills/<name>/SKILL.md`，再决定是否需要 `runtime.py`。
-- Skill 资源和 Skill 代码要分层维护，不要再把 `SKILL.md` 放回 `core/skills/builtin/`。
+- Skill 资源和 Skill 代码要分层维护，不要再把 `SKILL.md` 放回 `src/core/skills/builtin/`。
 - 如果一个 Skill 只有定义、暂时没有运行时代码，也允许只保留 `SKILL.md`。

@@ -399,8 +399,8 @@ AI 专项验证至少包括：
 
 - `src/domain/`
 - `src/interfaces/`
-- `core/llm/`
-- `core/skills/`
+- `src/core/llm/`
+- `src/core/skills/`
 - `docs/architecture/`
 
 ### 自动化检查

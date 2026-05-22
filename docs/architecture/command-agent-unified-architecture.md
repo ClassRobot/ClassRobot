@@ -45,14 +45,14 @@ CommandSpec
 
 已完成：
 
-- 新增 `utils/commands/` 核心包，包含 `CommandSpec`、`CommandRegistry`、`CommandPolicy`、`CommandAvailabilityService`、`CommandExecutor`、`CommandResult` 与适配层。
+- 新增 `src/platform/commands/` 核心包，包含 `CommandSpec`、`CommandRegistry`、`CommandPolicy`、`CommandAvailabilityService`、`CommandExecutor`、`CommandResult` 与适配层。
 - 新增 `command_alconna()` / `command_command()` 包装器，用于从命令声明自动绑定 `CommandSpec` 和 `Helper`。
-- `utils.helper.runtime` 已优先收集 matcher 上绑定的 helper，并在真实执行前优先走 `CommandPolicy`。
-- `utils.helper.depends.HelpersDepends` 已接入软关闭过滤，让 `help` 和 AutoGPT 共享相同可见命令集合。
+- `src.platform.helper.runtime` 已优先收集 matcher 上绑定的 helper，并在真实执行前优先走 `CommandPolicy`。
+- `src.platform.helper.depends.HelpersDepends` 已接入软关闭过滤，让 `help` 和 AutoGPT 共享相同可见命令集合。
 - AutoGPT 的 `CommandToolCatalog` 已优先使用 `CommandRegistry`，并识别 `risk_level`、`agent_callable`、`execution_mode`。
 - AutoGPT 执行命令时只走 `AgentCommandAdapter -> CommandExecutor`，不再回放 NoneBot 事件。
 - 管理端 `nonebot_runtime` 命令清单已合并注册表数据，能暴露风险等级、执行模式、Agent 可见性和软关闭状态。
-- 第一批样例命令已迁移：`src.features.user.commands`、`src.features.curriculum.commands`。
+- 第一批样例命令已迁移：`src.plugins.application.active.user.commands`、`src.plugins.application.active.curriculum.commands`。
 
 仍在迁移中：
 
@@ -378,30 +378,31 @@ flowchart LR
 
 ## 推荐目录结构
 
-为了让后续维护成本可控，建议新增一个不会被 NoneBot 当作插件自动加载的核心命令目录：
+为了让后续维护成本可控，命令统一抽象放在一个不会被 NoneBot 当作业务插件自动加载的平台协议目录：
 
 ```text
-utils/
-└── commands/
-    ├── __init__.py
-    ├── schema.py
-    ├── spec.py
-    ├── binding.py
-    ├── registry.py
-    ├── context.py
-    ├── result.py
-    ├── executor.py
-    ├── policy.py
-    ├── availability.py
-    ├── history.py
-    ├── discovery.py
-    ├── adapters/
-    │   ├── __init__.py
-    │   └── agent.py
-    └── renderers/
+src/
+└── platform/
+    └── commands/
         ├── __init__.py
-        ├── helper.py
-        └── tool.py
+        ├── schema.py
+        ├── spec.py
+        ├── binding.py
+        ├── registry.py
+        ├── context.py
+        ├── result.py
+        ├── executor.py
+        ├── policy.py
+        ├── availability.py
+        ├── history.py
+        ├── discovery.py
+        ├── adapters/
+        │   ├── __init__.py
+        │   └── agent.py
+        └── renderers/
+            ├── __init__.py
+            ├── helper.py
+            └── tool.py
 ```
 
 ### 各模块职责
@@ -430,7 +431,7 @@ utils/
 推荐形态：
 
 ```text
-src/features/user/
+src/plugins/application/active/user/
 ├── __init__.py
 ├── commands.py
 ├── service.py
@@ -460,21 +461,21 @@ src/features/user/
 
 这套架构不是推倒重来，而是围绕当前仓库已有资产做整合。
 
-### 与 `utils/helper/` 的关系
+### 与 `src/platform/helper/` 的关系
 
 后续目标是：
 
 - `Helper` 降级为展示层视图模型
 - `helper_menu` 不再是命令事实来源
-- `utils/helper/runtime.py` 继续负责 matcher guard 和 help 视图收集
+- `src/platform/helper/runtime.py` 继续负责 matcher guard 和 help 视图收集
 
 ### 与 AutoGPT 的关系
 
 当前目标是：
 
-- `core/agent/runtime/command_tools.py`
+- `src/core/agent/runtime/command_tools.py`
   改为从 `CommandRegistry` 和 `CommandSpec` 生成工具目录
-- `src/features/autogpt/__init__.py`
+- `src/plugins/application/active/autogpt/__init__.py`
   只走 `AgentCommandAdapter -> CommandExecutor`，未 service 化命令直接拒绝 Agent 调用
 
 ### 与管理后台的关系
@@ -653,7 +654,7 @@ Agent 就可以基于最近命令结果继续工作。
 
 目标：
 
-- 新增 `utils/commands/`
+- 新增 `src/platform/commands/`
 - 支持 `CommandSpec`
 - 支持 `Helper` 自动派生
 - 旧 `__helpers__` 保持兼容
@@ -668,8 +669,8 @@ Agent 就可以基于最近命令结果继续工作。
 
 推荐先迁移：
 
-- `src/features/user/commands.py`
-- `src/features/curriculum/commands.py`
+- `src/plugins/application/active/user/commands.py`
+- `src/plugins/application/active/curriculum/commands.py`
 
 这两组最能验证：
 
@@ -762,9 +763,9 @@ Agent 就可以基于最近命令结果继续工作。
 
 如果要最小成本开始推进，最推荐的第一批切片是：
 
-1. 新增 `utils/commands/schema.py`、`spec.py`、`registry.py`
+1. 新增 `src/platform/commands/schema.py`、`spec.py`、`registry.py`
 2. 实现 `renderers/helper.py` 和 `renderers/tool.py`
-3. 改造 `utils/helper/runtime.py`，优先读取 matcher 上绑定的 helper
+3. 改造 `src/platform/helper/runtime.py`，优先读取 matcher 上绑定的 helper
 4. 实现 `command_alconna()` 包装器
 5. 迁移 `user` 与 `curriculum` 两组命令
 6. 为“参数自动同步、权限自动同步、Agent 工具自动同步”补测试

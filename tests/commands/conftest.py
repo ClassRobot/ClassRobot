@@ -206,7 +206,7 @@ class CommandModelFactory:
     """通过项目自身模型方法搭建测试业务数据。"""
 
     async def create_user(self, *, account_id: int, nickname: str | None = None, is_admin: bool = False):
-        from utils.models import User, UserBind
+        from src.models import User, UserBind
 
         nickname = nickname or f"user-{account_id}"
         user = await User.create_user(nickname=nickname, username=f"user_{account_id}")
@@ -216,22 +216,22 @@ class CommandModelFactory:
         return await User.filter(id=user.id).first()
 
     async def create_school(self, name: str = "测试大学"):
-        from utils.models import School
+        from src.models import School
 
         return await School(name=name).create()
 
     async def create_college(self, school, name: str = "计算机学院"):
-        from utils.models import College
+        from src.models import College
 
         return await College(name=name, school_id=school.id).create()
 
     async def create_major(self, school, college, name: str = "软件工程"):
-        from utils.models import Major
+        from src.models import Major
 
         return await Major(name=name, school_id=school.id, college_id=college.id).create()
 
     async def create_teacher(self, user, *, name: str | None = None, school=None, college=None):
-        from utils.models import Teacher
+        from src.models import Teacher
 
         teacher = await Teacher.create_teacher(
             name or user.nickname,
@@ -252,8 +252,8 @@ class CommandModelFactory:
         college=None,
         major=None,
     ):
-        from utils.models import Classes
-        from utils.roles import TeacherClassesRole
+        from src.models import Classes
+        from src.core.auth import TeacherClassesRole
 
         classes = await Classes.create_classes(
             name,
@@ -273,7 +273,7 @@ class CommandModelFactory:
         return await Classes.filter(id=classes.id).first()
 
     async def create_student(self, user, *, classes, name: str | None = None, school=None):
-        from utils.models import Student
+        from src.models import Student
 
         student = await Student.create_student(
             name or user.nickname,
@@ -304,7 +304,7 @@ async def _recreate_orm_schema() -> None:
 def helper_runtime(loaded_plugins):
     """在命令交互测试前初始化帮助目录和统一鉴权。"""
 
-    from utils.helper.runtime import bootstrap_helper_runtime
+    from src.platform.helper.runtime import bootstrap_helper_runtime
 
     bootstrap_helper_runtime(loaded_plugins)
     return loaded_plugins
@@ -383,8 +383,8 @@ def patch_onebot_userinfo(monkeypatch, loaded_plugins):
 def fake_cache(monkeypatch) -> MemoryCache:
     """把命令里的缓存调用切到内存实现。"""
 
-    import src.features.user as user_module
-    import utils.cache as cache_module
+    import src.plugins.application.active.user as user_module
+    import src.core.cache as cache_module
 
     cache = MemoryCache()
     monkeypatch.setattr(cache_module, "get_cache", lambda db=0, decode_responses=True: cache)

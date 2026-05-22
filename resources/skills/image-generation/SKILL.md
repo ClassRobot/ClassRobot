@@ -9,7 +9,7 @@ Use this skill when the request is to generate a new image from text, or to gene
 
 ## Workflow
 
-1. Prefer `core.skills.image_generation_skill.generate(...)` as the canonical runtime entry.
+1. Prefer `src.core.skills.image_generation_skill.generate(...)` as the canonical runtime entry.
 2. Let the caller decide whether to upload the returned image to COS, CDN, OSS, or another permanent storage service.
 3. Keep prompt expansion, style planning, and result selection in the Agent layer instead of hard-coding them into the skill itself.
 
@@ -17,4 +17,4 @@ Use this skill when the request is to generate a new image from text, or to gene
 
 - This skill is the canonical image generation entry inside the project.
 - The current runtime implementation calls the configured Gemini image generation API.
-- The runtime implementation lives in `core/skills/builtin/image-generation/runtime.py`.
+- The runtime implementation lives in `src/core/skills/builtin/image-generation/runtime.py`.

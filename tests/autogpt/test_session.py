@@ -3,9 +3,9 @@ import pytest
 
 
 def test_record_observations_writes_traceable_context(loaded_plugins):
-    from utils.helper import Helpers
-    from core.agent.runtime.util import ChatSession
-    from core.agent.runtime.schema import CommandObservation, Param
+    from src.platform.helper import Helpers
+    from src.core.agent.runtime.util import ChatSession
+    from src.core.agent.runtime.schema import CommandObservation, Param
 
     session = ChatSession(user_id=1, helpers=Helpers())
     session.last_trace_id = "autogpt-test"
@@ -41,9 +41,9 @@ def test_record_observations_writes_traceable_context(loaded_plugins):
 
 
 def test_record_observations_prefers_context_outputs_for_agent_context(loaded_plugins):
-    from utils.helper import Helpers
-    from core.agent.runtime.util import ChatSession
-    from core.agent.runtime.schema import CommandObservation
+    from src.platform.helper import Helpers
+    from src.core.agent.runtime.util import ChatSession
+    from src.core.agent.runtime.schema import CommandObservation
 
     session = ChatSession(user_id=1, helpers=Helpers())
     session.last_trace_id = "autogpt-context-output"
@@ -69,9 +69,9 @@ def test_record_observations_prefers_context_outputs_for_agent_context(loaded_pl
 
 @pytest.mark.asyncio
 async def test_record_workflow_writes_traceable_context(loaded_plugins):
-    from utils.helper import Helpers
-    from core.agent.runtime.util import ChatSession
-    from core.agent.runtime.schema import TaskWorkflow, WorkflowStep
+    from src.platform.helper import Helpers
+    from src.core.agent.runtime.util import ChatSession
+    from src.core.agent.runtime.schema import TaskWorkflow, WorkflowStep
 
     session = ChatSession(user_id=1, helpers=Helpers())
     workflow = TaskWorkflow(
@@ -95,9 +95,9 @@ async def test_record_workflow_writes_traceable_context(loaded_plugins):
 
 @pytest.mark.asyncio
 async def test_execute_task_workflow_generates_final_reply_from_observations(monkeypatch, loaded_plugins):
-    from utils.helper import Helpers
-    from core.agent.runtime.util import ChatSession
-    from core.agent.runtime.schema import TaskWorkflow, WorkflowStep, CommandObservation
+    from src.platform.helper import Helpers
+    from src.core.agent.runtime.util import ChatSession
+    from src.core.agent.runtime.schema import TaskWorkflow, WorkflowStep, CommandObservation
 
     session = ChatSession(user_id=1, helpers=Helpers())
     session.last_trace_id = "autogpt-final-reply"

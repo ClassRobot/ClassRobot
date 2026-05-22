@@ -363,7 +363,7 @@ GET /api/v1/manager/skills
     {
       "name": "ocr",
       "description": "OCR 检测与识别",
-      "path": "core/skills/builtin/ocr",
+      "path": "src/core/skills/builtin/ocr",
       "has_runtime": true,
       "loaded": true,
       "updated_at": "2026-05-03T15:02:02+08:00"

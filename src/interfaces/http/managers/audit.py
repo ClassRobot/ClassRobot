@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from .security import ManagerSession
-from utils.config import data_dir
+from src.platform.config import data_dir
 
 AUDIT_LOG_PATH = data_dir / "logs" / "manager_audit.jsonl"
 MAX_DETAIL_TEXT = 2000

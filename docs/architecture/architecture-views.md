@@ -12,11 +12,11 @@
 
 | 层次 | 职责 | 主要目录 |
 |------|------|---------|
-| 接入层 | 接收平台消息、命令、HTTP 请求 | `src/features/` `src/features/` `src/interfaces/http/` |
-| 应用编排层 | 会话管理、Agent 调度、工作流执行 | `src/features/autogpt/` `utils/session/` |
-| 领域层 | 班级、用户、任务、请假等业务规则 | `src/features/` 及业务插件 |
-| 能力层（Skill） | 可复用能力边界与运行时入口 | `core/skills/` |
-| 基础设施层 | 数据库、模型、检索、存储、工具 | `utils/models/` `core/llm/` `utils/tools/` |
+| 接入层 | 接收平台消息、命令、HTTP 请求 | `src/plugins/` `src/platform/` `src/interfaces/http/` |
+| 应用编排层 | 会话管理、Agent 调度、工作流执行 | `src/plugins/application/active/autogpt/` `src/platform/session/` |
+| 领域层 | 班级、用户、任务、请假等业务规则 | `src/plugins/application/active/` 及对应 service |
+| 能力层（Skill） | 可复用能力边界与运行时入口 | `src/core/skills/` |
+| 基础设施层 | 数据库、模型、检索、存储、工具 | `src/models/` `src/core/llm/` `src/shared/tools/` |
 
 ## 视图 1：系统上下文
 
@@ -38,15 +38,15 @@ flowchart LR
 flowchart TB
     subgraph Interface["接入层"]
         Adapters["平台适配器（QQ/OneBot）"]
-        Matchers["命令与消息入口（src/features/*）"]
+        Matchers["命令与消息入口（src/plugins/*）"]
         Routers["HTTP 路由（src/interfaces/http/*）"]
     end
 
     subgraph Orchestrator["应用编排层"]
-        Session["会话管理（utils/session）"]
+        Session["会话管理（src/platform/session）"]
         Pipeline["消息处理流水线（autogpt/pipeline）"]
         Workflow["工作流执行器"]
-        SkillReg["Skill 注册表（core/skills）"]
+        SkillReg["Skill 注册表（src/core/skills）"]
     end
 
     subgraph Domain["领域层"]
@@ -56,10 +56,10 @@ flowchart TB
     end
 
     subgraph Infra["基础设施层"]
-        ORM["数据持久化（utils/models）"]
-        LLMRuntime["模型运行时（core/llm）"]
-        RagClient["知识检索（core/agent/ragflow）"]
-        Tools["底层工具（utils/tools）"]
+        ORM["数据持久化（src/models）"]
+        LLMRuntime["模型运行时（src/core/llm）"]
+        RagClient["知识检索（src/core/agent/ragflow）"]
+        Tools["底层工具（src/shared/tools）"]
     end
 
     Interface --> Orchestrator

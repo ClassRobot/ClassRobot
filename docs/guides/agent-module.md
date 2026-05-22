@@ -1,6 +1,6 @@
 # AutoGPT 智能能力改进方案
 
-本文用于统一 ClassRobot 的 AI Agent 演进方向。当前用户侧智能入口仍然是 `src.features.autogpt`，后续应在这条主链路上增强，而不是再增加平行入口。
+本文用于统一 ClassRobot 的 AI Agent 演进方向。当前用户侧智能入口仍然是 `src.plugins.application.active.autogpt`，后续应在这条主链路上增强，而不是再增加平行入口。
 
 ## 设计目的
 

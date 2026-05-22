@@ -95,8 +95,8 @@ def test_teacher_classes_migration_reports_unknown_duplicate_roles() -> None:
 async def test_bind_teacher_does_not_downgrade_existing_manager_role(models) -> None:
     """`bind_teacher()` 默认只保证绑定存在，不应覆盖已有班级管理岗位。"""
 
-    from utils.models import TeacherClasses
-    from utils.roles import TeacherClassesRole
+    from src.models import TeacherClasses
+    from src.core.auth import TeacherClassesRole
 
     teacher_user = await models.create_user(account_id=10201, nickname="绑定老师")
     teacher = await models.create_teacher(teacher_user, name="绑定老师")

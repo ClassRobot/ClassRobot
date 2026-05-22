@@ -7,8 +7,8 @@ from nonebot_plugin_orm import get_session
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from core.storage import storage_manager
-from utils.models import (
+from src.core.storage import storage_manager
+from src.models import (
     Classes,
     ClassesJoinRequest,
     Group,

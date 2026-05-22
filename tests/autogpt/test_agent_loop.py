@@ -2,7 +2,7 @@ import pytest
 
 
 def test_loop_budget_stops_after_verify_attempt_limit(loaded_plugins):
-    from core.agent.runtime.loop import LoopBudget, AgentLoopConfig, AgentLoopDecision
+    from src.core.agent.runtime.loop import LoopBudget, AgentLoopConfig, AgentLoopDecision
 
     budget = LoopBudget(
         AgentLoopConfig(
@@ -30,8 +30,8 @@ def test_loop_budget_stops_after_verify_attempt_limit(loaded_plugins):
 
 
 def test_observation_interpreter_extracts_generic_facts(loaded_plugins):
-    from core.agent.runtime.loop import ObservationInterpreter
-    from core.agent.runtime.schema import Param, CommandObservation
+    from src.core.agent.runtime.loop import ObservationInterpreter
+    from src.core.agent.runtime.schema import Param, CommandObservation
 
     interpreter = ObservationInterpreter()
 
@@ -70,8 +70,8 @@ def test_observation_interpreter_extracts_generic_facts(loaded_plugins):
 
 @pytest.mark.asyncio
 async def test_cognitive_loop_stops_after_max_steps(loaded_plugins):
-    from core.agent.runtime.loop import CognitiveAgentLoop, AgentLoopConfig
-    from core.agent.runtime.schema import WorkflowStep, TaskWorkflow, CommandObservation
+    from src.core.agent.runtime.loop import CognitiveAgentLoop, AgentLoopConfig
+    from src.core.agent.runtime.schema import WorkflowStep, TaskWorkflow, CommandObservation
 
     calls: list[str] = []
 
@@ -112,8 +112,8 @@ async def test_cognitive_loop_stops_after_max_steps(loaded_plugins):
 
 @pytest.mark.asyncio
 async def test_cognitive_loop_stops_repeated_actions(loaded_plugins):
-    from core.agent.runtime.loop import CognitiveAgentLoop, AgentLoopConfig
-    from core.agent.runtime.schema import WorkflowStep, TaskWorkflow, CommandObservation
+    from src.core.agent.runtime.loop import CognitiveAgentLoop, AgentLoopConfig
+    from src.core.agent.runtime.schema import WorkflowStep, TaskWorkflow, CommandObservation
 
     calls: list[str] = []
 
@@ -155,10 +155,10 @@ async def test_cognitive_loop_stops_repeated_actions(loaded_plugins):
 
 @pytest.mark.asyncio
 async def test_cognitive_loop_can_add_followup_from_observation_without_domain_branch(loaded_plugins):
-    from utils.helper import Helpers
-    from core.agent.runtime.loop import CognitiveAgentLoop, AgentLoopConfig, AgentLoopDecision
-    from core.agent.runtime.schema import Param, WorkflowStep, TaskWorkflow, CommandObservation
-    from core.agent.runtime.command_tools import CommandToolCatalog
+    from src.platform.helper import Helpers
+    from src.core.agent.runtime.loop import CognitiveAgentLoop, AgentLoopConfig, AgentLoopDecision
+    from src.core.agent.runtime.schema import Param, WorkflowStep, TaskWorkflow, CommandObservation
+    from src.core.agent.runtime.command_tools import CommandToolCatalog
     from tests.autogpt.command_tool_helpers import ensure_service_helper
 
     helpers = Helpers()
@@ -233,8 +233,8 @@ async def test_cognitive_loop_can_add_followup_from_observation_without_domain_b
 
 @pytest.mark.asyncio
 async def test_cognitive_loop_supports_confirm_decision_without_command(loaded_plugins):
-    from core.agent.runtime.loop import CognitiveAgentLoop, AgentLoopConfig, AgentLoopDecision
-    from core.agent.runtime.schema import WorkflowStep, TaskWorkflow
+    from src.core.agent.runtime.loop import CognitiveAgentLoop, AgentLoopConfig, AgentLoopDecision
+    from src.core.agent.runtime.schema import WorkflowStep, TaskWorkflow
 
     async def dispatch(task):
         raise AssertionError("confirm decision should not dispatch command")

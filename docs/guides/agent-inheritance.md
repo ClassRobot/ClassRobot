@@ -8,8 +8,8 @@
 
 ClassRobot 中只有两类对象可以称为 Agent：
 
-- 继承 `core.agent.BaseAgent` 的可执行智能体。
-- 继承 `core.agent.BaseFunctionAgent` 的函数型智能体。
+- 继承 `src.core.agent.BaseAgent` 的可执行智能体。
+- 继承 `src.core.agent.BaseFunctionAgent` 的函数型智能体。
 
 其他对象不叫 Agent：
 
@@ -42,7 +42,7 @@ flowchart TD
 
 `BaseAgent` 负责统一元数据、执行入口、工具声明和类型驱动发现。新增 Agent 后不需要再把类手写进多个 list/dict，系统会通过继承树发现。
 
-内置 Agent 的源码按职责放在 `core/agent/builtin/`：
+内置 Agent 的源码按职责放在 `src/core/agent/builtin/`：
 
 - `conversation.py`
   - `LLMAgent`、`SummaryAgent`、`ExtractAgent`
@@ -53,15 +53,15 @@ flowchart TD
 - `planning.py`
   - `AutoTaskAgent`
 
-Agent 实现统一放在 `core/agent/`，其中内置 Agent 放在 `core/agent/builtin/`。
+Agent 实现统一放在 `src/core/agent/`，其中内置 Agent 放在 `src/core/agent/builtin/`。
 
 ## BaseAgent 标准协议
 
 新增 Agent 时优先设置这些类级元数据：
 
 ```python
-from core.agent import BaseAgent
-from core.llm.message import Messages
+from src.core.agent import BaseAgent
+from src.core.llm.message import Messages
 
 
 class ClassSummaryAgent(BaseAgent):
@@ -84,7 +84,7 @@ class ClassSummaryAgent(BaseAgent):
 - `agent_name` 必须全局唯一。
 - `execute()` 必须返回结果，不要只做副作用。
 - 业务读写优先走已有 command、service 或 tool，不在 Agent 中绕过权限。
-- 调 LLM 时统一走 `core.llm.client_create`，不要绕过模型配置。
+- 调 LLM 时统一走 `src.core.llm.client_create`，不要绕过模型配置。
 - 复杂参数用 `Params` 或 Pydantic 模型表达，别把 JSON 解析散落到业务代码里。
 
 ## 自动发现
@@ -92,7 +92,7 @@ class ClassSummaryAgent(BaseAgent):
 `BaseAgent` 提供类型驱动发现：
 
 ```python
-from core.agent import BaseAgent
+from src.core.agent import BaseAgent
 
 
 agent_classes = BaseAgent.iter_agent_classes()
@@ -122,7 +122,7 @@ context -> model -> tool call -> observation -> model -> final reply
 示例：
 
 ```python
-from core.agent import AgentSession, ToolCallingAgent, tool
+from src.core.agent import AgentSession, ToolCallingAgent, tool
 
 
 @tool(name="query_current_class", description="查询当前用户所在班级")
@@ -149,8 +149,8 @@ response = await agent.run("我现在在哪个班级？", session=session)
 ```python
 from pydantic import BaseModel, Field
 
-from core.agent import BaseFunctionAgent
-from core.llm.message import Messages
+from src.core.agent import BaseFunctionAgent
+from src.core.llm.message import Messages
 
 
 class QueryScheduleAgent(BaseFunctionAgent):
@@ -178,9 +178,9 @@ class QueryScheduleAgent(BaseFunctionAgent):
 
 如果要把某个 Agent 接入主流程：
 
-1. 在 `core/agent/runtime/coordination/nodes.py` 编写 `WorkflowNode` 子类。
+1. 在 `src/core/agent/runtime/coordination/nodes.py` 编写 `WorkflowNode` 子类。
 2. 节点内部调用 `BaseAgent.get_agent_class()` 或直接实例化具体 Agent。
-3. 在 `core/agent/runtime/node_registry.py` 新增 `RuntimeNodeDefinition`。
+3. 在 `src/core/agent/runtime/node_registry.py` 新增 `RuntimeNodeDefinition`。
 4. 在 Runtime 节点目录中注册节点类型。
 5. 补 `tests/autogpt` 的图构建、禁用规则和回归测试。
 

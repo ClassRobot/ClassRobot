@@ -29,8 +29,8 @@
 
 ## 关联目录
 
-- 后台专题文档：[docs/managers](../../../docs/managers/README.md)
-- 前端实现：[website/managers](../../../website/managers/README.md)
+- 后台专题文档：[docs/managers](../../../../docs/managers/README.md)
+- 前端实现：[website/managers](../../../../website/managers/README.md)
 - 路由入口：`src/interfaces/http/path.py`
 
 ## 维护建议
@@ -40,4 +40,4 @@
 - 新增后台接口时，优先在对应领域子包里补 service，再在 `api/` 中追加路由边界
 - 新功能应按领域落位，例如用户与群组放 `identity/`，运行时和运维放 `runtime/`，不要再回退成顶层平铺文件
 - 新代码应直接使用 `src.interfaces.http.managers...` 路径；旧路由兼容层已经移除
-- 后台专用接口不要混入通用外部 API 文档目录，统一在 [接口设计](../../../docs/managers/api-design.md) 中维护
+- 后台专用接口不要混入通用外部 API 文档目录，统一在 [接口设计](../../../../docs/managers/api-design.md) 中维护

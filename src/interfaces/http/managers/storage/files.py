@@ -9,9 +9,9 @@ from nonebot_plugin_orm import get_session
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from utils.models import Classes, College, Group, GroupBind, School, User
-from core.storage import DEFAULT_HOME_DIRS, FileSpace, FileSpaceError, PathEscapeError, StorageManager, storage_manager
-from core.storage.files import SPACE_ROOT_DIRS, normalize_file_space_kind, sanitize_owner_id
+from src.models import Classes, College, Group, GroupBind, School, User
+from src.core.storage import DEFAULT_HOME_DIRS, FileSpace, FileSpaceError, PathEscapeError, StorageManager, storage_manager
+from src.core.storage.files import SPACE_ROOT_DIRS, normalize_file_space_kind, sanitize_owner_id
 
 
 def _space_root(kind: str, manager: StorageManager | None = None) -> Path:

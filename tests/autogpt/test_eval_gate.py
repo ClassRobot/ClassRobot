@@ -33,9 +33,9 @@ def assert_eval_report(report: EvalGateReport) -> None:
 
 @pytest.mark.asyncio
 async def test_route_eval_gate(loaded_plugins, monkeypatch):
-    from core.llm.message import Content, Messages
-    from core.agent.runtime.pipeline import MessageProcessingPipeline
-    from core.agent.runtime.schema import ChatMessage
+    from src.core.llm.message import Content, Messages
+    from src.core.agent.runtime.pipeline import MessageProcessingPipeline
+    from src.core.agent.runtime.schema import ChatMessage
 
     report = EvalGateReport(category="route")
 
@@ -76,8 +76,8 @@ async def test_route_eval_gate(loaded_plugins, monkeypatch):
 
 
 def test_tool_eval_gate(loaded_plugins):
-    from core.agent.runtime.pipeline import MessageProcessingPipeline
-    from core.llm.message import Content, Messages
+    from src.core.agent.runtime.pipeline import MessageProcessingPipeline
+    from src.core.llm.message import Content, Messages
 
     pipeline = MessageProcessingPipeline(
         build_eval_helpers(),
@@ -97,9 +97,9 @@ def test_tool_eval_gate(loaded_plugins):
 
 @pytest.mark.asyncio
 async def test_arg_eval_gate(loaded_plugins, monkeypatch):
-    from core.llm.message import Content, Messages
-    from core.agent.runtime.pipeline import MessageProcessingPipeline
-    from core.agent.runtime.schema import ChatMessage
+    from src.core.llm.message import Content, Messages
+    from src.core.agent.runtime.pipeline import MessageProcessingPipeline
+    from src.core.agent.runtime.schema import ChatMessage
 
     report = EvalGateReport(category="arg")
 

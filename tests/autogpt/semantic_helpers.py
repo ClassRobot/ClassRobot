@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from utils.helper import HelperScope, Helpers, UserRole
+from src.platform.helper import HelperScope, Helpers, UserRole
 
 from tests.autogpt.command_tool_helpers import ensure_service_helper
 
@@ -58,9 +58,9 @@ def llm_response(content: str) -> SimpleNamespace:
 def patch_pipeline_llm(monkeypatch: pytest.MonkeyPatch, responses: list[str]) -> list[str]:
     """让 Pipeline、ExtractAgent 和 AutoTaskAgent 共用同一组模拟响应。"""
 
-    from core.agent.runtime import pipeline as pipeline_module
-    import core.agent.builtin.planning as planning_module
-    import core.agent.builtin.conversation as conversation_module
+    from src.core.agent.runtime import pipeline as pipeline_module
+    import src.core.agent.builtin.planning as planning_module
+    import src.core.agent.builtin.conversation as conversation_module
 
     calls: list[str] = []
 

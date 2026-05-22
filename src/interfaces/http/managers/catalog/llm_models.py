@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from core.llm.config import plugin_config
+from src.core.llm.config import plugin_config
 
 from ..service import mask_secret
 from ..runtime.settings import update_settings

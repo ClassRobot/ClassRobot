@@ -20,12 +20,12 @@
 2. 运行过程中可热更新、可持久化的动态配置默认写到 `config` 目录
 - 这类数据不应继续直接回写到源码目录中的业务文件
 - 例如后台保存的运行时 JSON 配置、某些本地管理状态快照等
-- `config` 目录的真实路径不要在业务代码里手写，统一从 `utils.config` 中提供的 `config_dir` 获取
+- `config` 目录的真实路径不要在业务代码里手写，统一从 `src.platform.config` 中提供的 `config_dir` 获取
 
 3. Agent 工作流编排配置写到 `resources/agent`
 - Agent Runtime 编排图属于项目工作流资源，需要随仓库结构和文档一起维护
 - 热更新后的运行时图文件为 `resources/agent/agent_orchestration_runtime.json`
-- 路径由 `utils.config.agent_resources_dir` 提供，不放入 NoneBot/localstore 的默认 `config` 目录
+- 路径由 `src.platform.config.agent_resources_dir` 提供，不放入 NoneBot/localstore 的默认 `config` 目录
 
 推荐理解方式：
 
@@ -60,7 +60,7 @@
 - 不要把真实密钥、Token、Secret 提交到公开仓库
 - 文档中的示例值全部应该替换成你自己的真实配置
 - 涉及 JSON、数组、列表的配置项，建议直接按 JSON 字符串填写
-- 不要把普通热更新运行态数据直接写回文档、Prompt、源码目录或随意新建的 JSON 文件；这类数据统一写到 `utils.config.config_dir` 对应的本地配置目录
+- 不要把普通热更新运行态数据直接写回文档、Prompt、源码目录或随意新建的 JSON 文件；这类数据统一写到 `src.platform.config.config_dir` 对应的本地配置目录
 - Agent Runtime 工作流编排是例外，固定写入 `resources/agent/agent_orchestration_runtime.json`
 - 当前仓库历史上同时存在大写和小写配置名写法
   - 例如 `.env` 中有 `CACHE_HOST`
@@ -82,7 +82,7 @@
 
 ## 路径来源约定
 
-项目内部和“本地持久化目录”相关的路径统一从 `utils/config.py` 提供，不建议在业务模块重复手写。
+项目内部和“本地持久化目录”相关的路径统一从 `src/platform/config.py` 提供，不建议在业务模块重复手写。
 
 当前至少包括这些公共路径：
 
@@ -185,7 +185,7 @@ SQLALCHEMY_DATABASE_URL=postgresql+asyncpg://user:password@127.0.0.1:5432/classb
 
 ### 3.2 Redis / 缓存配置
 
-这部分来自 `utils/cache/config.py`。
+这部分来自 `src/core/cache/config.py`。
 
 | 变量名 | 是否必填 | 默认值 | 示例值 | 作用 |
 | --- | --- | --- | --- | --- |
@@ -205,7 +205,7 @@ SQLALCHEMY_DATABASE_URL=postgresql+asyncpg://user:password@127.0.0.1:5432/classb
 
 ### 4.1 通用全局 AI 配置
 
-这部分来自 `utils/config.py`。
+这部分来自 `src/platform/config.py`。
 
 | 变量名 | 是否必填 | 示例值 | 作用 |
 | --- | --- | --- | --- |
@@ -224,7 +224,7 @@ SQLALCHEMY_DATABASE_URL=postgresql+asyncpg://user:password@127.0.0.1:5432/classb
 
 ### 4.2 LLM 模型路由配置
 
-这部分来自 `core/llm/config.py`。
+这部分来自 `src/core/llm/config.py`。
 
 | 变量名 | 是否必填 | 示例值 | 作用 |
 | --- | --- | --- | --- |
@@ -293,7 +293,7 @@ llm_timeout=60
 
 ### 5.1 COS 对象存储配置
 
-这部分来自 `utils/tools/cos/config.py`。
+这部分来自 `src/shared/tools/cos/config.py`。
 
 | 变量名 | 是否必填 | 示例值 | 作用 |
 | --- | --- | --- | --- |
@@ -310,7 +310,7 @@ llm_timeout=60
 
 ### 5.2 加密盐配置
 
-这部分来自 `utils/encrypt/config.py`。
+这部分来自 `src/shared/encrypt/config.py`。
 
 | 变量名 | 是否必填 | 示例值 | 作用 |
 | --- | --- | --- | --- |

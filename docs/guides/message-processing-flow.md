@@ -52,7 +52,7 @@ sequenceDiagram
 对应位置：
 
 - `pyproject.toml`
-- `src/features/autogpt/__init__.py`
+- `src/plugins/application/active/autogpt/__init__.py`
 
 如果以后接飞书，飞书服务器回调可以被视为这里的另一种“平台入口”。
 
@@ -60,7 +60,7 @@ sequenceDiagram
 
 当前没有单独命名为 `Gateway` 的目录，但这层职责已经存在：
 
-- `src/features/autogpt/__init__.py`
+- `src/plugins/application/active/autogpt/__init__.py`
   - 负责接收消息事件
   - 负责兜底异常
   - 负责把 AI 处理结果重新发送给平台
@@ -75,11 +75,11 @@ sequenceDiagram
 
 当前已经有比较完整的权限和上下文层：
 
-- `utils/session/__init__.py`
+- `src/platform/session/__init__.py`
   - 负责构建平台会话信息
-- `utils/models/depends.py`
+- `src/models/depends.py`
   - 负责用户绑定、用户创建、班级/教师/学生身份解析
-- `utils/helper/depends.py`
+- `src/platform/helper/depends.py`
   - 负责根据用户角色筛选可见命令帮助
 
 这层对应你流程图里的 `Auth`。
@@ -88,7 +88,7 @@ sequenceDiagram
 
 当前已抽出标准流水线实现：
 
-- `core/agent/runtime/pipeline.py`
+- `src/core/agent/runtime/pipeline.py`
 
 它把原先写在 `ChatSession.send_message(...)` 里的主流程拆成了更清晰的几个阶段：
 
@@ -106,7 +106,7 @@ sequenceDiagram
 
 当前 Agent 能力集中在：
 
-- `core/agent/tool.py`
+- `src/core/agent/tool.py`
 
 其中包括：
 
@@ -124,11 +124,11 @@ sequenceDiagram
 当前项目的数据访问有两类：
 
 - 业务数据库
-  - `utils/models/`
+  - `src/models/`
   - 班级、用户、任务、请假等 ORM 数据
 - 知识检索
   - `RagAgent`
-  - `core/agent/ragflow/`
+  - `src/core/agent/ragflow/`
 
 因此你图中的 `DB`，在本项目里实际上是“业务数据库 + 外部知识检索服务”的组合。
 
@@ -183,22 +183,22 @@ sequenceDiagram
 ### 当前项目中的 RAG 模块映射
 
 - 平台入口 / Server
-  - `src/features/autogpt/__init__.py`
+  - `src/plugins/application/active/autogpt/__init__.py`
   - 负责接收平台消息、调用会话处理并回发结果
 - 权限与身份
-  - `utils/models/depends.py`
-  - `utils/helper/depends.py`
+  - `src/models/depends.py`
+  - `src/platform/helper/depends.py`
   - 负责用户绑定、角色解析、能力边界筛选
 - 消息流水线
-  - `core/agent/runtime/pipeline.py`
+  - `src/core/agent/runtime/pipeline.py`
   - 负责在标准流程中调度 `ExtractAgent` 和 `RagAgent`
 - RAG 编排层
-  - `core/agent/tool.py`
+  - `src/core/agent/tool.py`
   - `RagAgent.execute(...)` 负责发起检索问答
 - RagFlow 接入层
-  - `core/agent/ragflow/client.py`
-  - `core/agent/ragflow/ragflow.py`
-  - `core/agent/ragflow/schema.py`
+  - `src/core/agent/ragflow/client.py`
+  - `src/core/agent/ragflow/ragflow.py`
+  - `src/core/agent/ragflow/schema.py`
   - 负责调用外部 RagFlow 服务、创建会话、提交问题、解析引用结果
 - 向量数据库 / 检索引擎
   - 当前没有直接在仓库里操作 Milvus、Chroma 或 LangChain
@@ -207,7 +207,7 @@ sequenceDiagram
 ### 当前实现与通用 RAG 图的对应关系
 
 - 你图里的 `Server`，在当前项目里对应“NoneBot 入口 + ChatSession + MessageProcessingPipeline”
-- 你图里的 `RAG`，在当前项目里主要对应 `RagAgent` 和 `core/agent/ragflow/`
+- 你图里的 `RAG`，在当前项目里主要对应 `RagAgent` 和 `src/core/agent/ragflow/`
 - 你图里的 `VectorDB` 和 `LLM`，当前项目没有直接内嵌实现，而是通过 RagFlow 服务间接调用
 - 当前回复结果不仅能返回答案，还会把 RagFlow 返回的引用标记替换成“相关材料图片”，便于直接在聊天平台发送
 
@@ -216,7 +216,7 @@ sequenceDiagram
 如果以后要把这条 RAG 流程接入飞书，推荐仍然只新增平台适配层：
 
 1. 飞书 Webhook 负责验签、解析 `open_id` 和消息体
-2. 继续复用 `utils/models/depends.py` 做用户绑定和权限解析
+2. 继续复用 `src/models/depends.py` 做用户绑定和权限解析
 3. 继续复用 `ChatSessionManager` 和 `MessageProcessingPipeline`
 4. 让 `RagAgent` 继续作为统一的知识检索入口
 5. 最后把 Markdown、图片、引用材料适配回飞书消息格式
@@ -258,11 +258,11 @@ sequenceDiagram
 这一条链路在当前项目中的真实映射是：
 
 - 文件入口仍然走平台消息处理层
-- `core/agent/runtime/pipeline.py`
+- `src/core/agent/runtime/pipeline.py`
   - 负责把消息送入统一流水线
-- `core/agent/tool.py`
+- `src/core/agent/tool.py`
   - `FileAgent` 负责下载文件、转图片并交给多模态模型理解
-- `core/skills/builtin/document-to-image/`
+- `src/core/skills/builtin/document-to-image/`
   - 负责把 Word、PPT、PDF 转成统一图片中间结果
 
 这意味着当前项目已经适合处理：
@@ -290,10 +290,10 @@ sequenceDiagram
 
 这部分当前仓库里还没有现成运行时实现，因此更适合作为未来新增的两类 skill，而不是继续堆进现有 `document-to-image` skill：
 
-- `core/skills/builtin/document-reader/`
+- `src/core/skills/builtin/document-reader/`
   - 负责读取 `.docx`、`.pptx`、`.pdf` 的结构化内容
   - 例如标题、段落、表格、页眉页脚、图片占位
-- `core/skills/builtin/document-formatter/`
+- `src/core/skills/builtin/document-formatter/`
   - 负责按规则修改文档样式并导出新文件
   - 例如字体、字号、段落、页边距、标题层级、表格样式
 
@@ -337,9 +337,9 @@ sequenceDiagram
 - 文件“理解”继续复用 `FileAgent` + `document-to-image` skill
 - 文件“编辑/排版”不要塞进 `FileAgent`
 - 如果新增文档排版能力，优先新增专门的 Agent 和 skill：
-  - Agent 放在 `core/agent/`
-  - skill 放在 `core/skills/builtin/document-reader/`、`core/skills/builtin/document-formatter/`
-  - 运行时实现继续挂到 `core/skills/runtime.py` 或独立模块
+  - Agent 放在 `src/core/agent/`
+  - skill 放在 `src/core/skills/builtin/document-reader/`、`src/core/skills/builtin/document-formatter/`
+  - 运行时实现继续挂到 `src/core/skills/runtime.py` 或独立模块
 - 平台层只负责：
   - 下载文件
   - 保存临时路径
@@ -383,17 +383,17 @@ sequenceDiagram
 这一条链路在当前项目中的真实映射是：
 
 - 命令定义
-  - `src/features/image_generate/commands.py`
+  - `src/plugins/application/active/image_generate/commands.py`
   - 提供 `图片生成`、`生成图片`、`图生图`、`图生成`
 - 命令处理
-  - `src/features/image_generate/__init__.py`
+  - `src/plugins/application/active/image_generate/__init__.py`
   - 负责接收参数、调用 skill、上传图片并回发消息
 - 生图 skill
-  - `core/skills/builtin/image-generation/`
-  - `core/skills/runtime.py`
+  - `src/core/skills/builtin/image-generation/`
+  - `src/core/skills/runtime.py`
   - 负责把文本和图片输入提交给底层绘图接口
 - 云存储
-  - `utils/tools/cos/__init__.py`
+  - `src/shared/tools/cos/__init__.py`
   - 负责将返回的图片字节上传并换成平台可发送的链接
 
 这意味着当前项目已经适合处理：
@@ -471,7 +471,7 @@ sequenceDiagram
 
 - 把 AI 会话主流程抽成了 `MessageProcessingPipeline`
 - 把“摘要 -> 抽取 -> 检索/规划 -> 回复”做成显式阶段
-- 把技能型能力收敛到了 `core/skills/builtin/` + `core/skills/`
+- 把技能型能力收敛到了 `src/core/skills/builtin/` + `src/core/skills/`
 - 把角色筛选后的 `helpers` 作为 Agent 编排时的能力边界
 
 这意味着以后即使换成飞书 Webhook，也可以复用同一套：
@@ -490,8 +490,8 @@ sequenceDiagram
 
 1. 飞书 Webhook 进入 HTTP 路由
 2. 把飞书消息体转换成统一内部消息结构
-3. 复用 `utils/session` 的平台会话抽象
-4. 复用 `utils/models/depends` 的用户绑定与角色解析
+3. 复用 `src/platform/session` 的平台会话抽象
+4. 复用 `src/models/depends` 的用户绑定与角色解析
 5. 复用 `ChatSessionManager` + `MessageProcessingPipeline`
 6. 将结果再适配回飞书消息接口
 
@@ -510,15 +510,15 @@ sequenceDiagram
 - 中间处理层统一走：
   - `ChatSessionManager`
   - `MessageProcessingPipeline`
-  - `core.agent.*`
+  - `src.core.agent.*`
 
 ## 相关代码位置
 
-- 平台会话：`utils/session/__init__.py`
-- 用户/权限依赖：`utils/models/depends.py`
-- 帮助与角色能力边界：`utils/helper/depends.py`
-- AI 入口：`src/features/autogpt/__init__.py`
-- AI 流水线：`core/agent/runtime/pipeline.py`
-- 会话管理：`core/agent/runtime/util.py`
-- Agent：`core/agent/tool.py`
-- 技能：`core/skills/builtin/`、`core/skills/`
+- 平台会话：`src/platform/session/__init__.py`
+- 用户/权限依赖：`src/models/depends.py`
+- 帮助与角色能力边界：`src/platform/helper/depends.py`
+- AI 入口：`src/plugins/application/active/autogpt/__init__.py`
+- AI 流水线：`src/core/agent/runtime/pipeline.py`
+- 会话管理：`src/core/agent/runtime/util.py`
+- Agent：`src/core/agent/tool.py`
+- 技能：`src/core/skills/builtin/`、`src/core/skills/`

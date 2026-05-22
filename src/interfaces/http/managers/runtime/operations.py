@@ -14,8 +14,8 @@ from uuid import uuid4
 from sqlalchemy.schema import CreateTable
 from nonebot_plugin_orm import Model
 
-from core.llm.config import plugin_config
-from utils.config import config_dir, project_root
+from src.core.llm.config import plugin_config
+from src.platform.config import config_dir, project_root
 
 from .. import audit
 from ..catalog import prompts, skills
@@ -65,7 +65,7 @@ async def _test_models() -> dict[str, Any]:
 
 async def _generate_sql() -> dict[str, Any]:
     """根据 ORM 元数据生成建表 SQL 预览文件。"""
-    import utils.models  # noqa: F401
+    import src.models  # noqa: F401
 
     output_path = config_dir / "generated_sql_statements.sql"
     output_path.parent.mkdir(parents=True, exist_ok=True)

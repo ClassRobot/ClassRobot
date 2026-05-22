@@ -4,7 +4,7 @@ import re
 from nonebot.internal.matcher.matcher import MatcherMeta
 
 EXPECTED_COMMAND_OBJECTS = {
-    "src.features.classes.commands": {
+    "src.plugins.application.active.classes.commands": {
         "import_classes_cmd": "导入班级",
         "create_classes_cmd": "添加班级",
         "delete_classes_cmd": "删除班级",
@@ -19,7 +19,7 @@ EXPECTED_COMMAND_OBJECTS = {
         "set_join_classes_cmd": "修改班级加入方式",
         "exit_classes_cmd": "退出班级",
     },
-    "src.features.group.commands": {
+    "src.plugins.application.active.group.commands": {
         "add_school": "添加学校",
         "set_school": "修改学校",
         "delete_school": "删除学校",
@@ -39,7 +39,7 @@ EXPECTED_COMMAND_OBJECTS = {
         "set_college_manager": "设置学院负责人",
         "unset_college_manager": "取消学院负责人",
     },
-    "src.features.student.commands": {
+    "src.plugins.application.active.student.commands": {
         "query_cmd": "查询学生信息",
         "query_student_profile_cmd": "查询学生档案",
         "add_student_profile_cmd": "添加学生",
@@ -47,7 +47,7 @@ EXPECTED_COMMAND_OBJECTS = {
         "delete_student_profile_cmd": "删除学生",
         "set_cmd": "修改学生信息",
     },
-    "src.features.teacher.commands": {
+    "src.plugins.application.active.teacher.commands": {
         "query_teacher_cmd": "查询教师信息",
         "query_teacher_profile_cmd": "查询教师",
         "add_teacher_profile_cmd": "添加教师",
@@ -55,42 +55,42 @@ EXPECTED_COMMAND_OBJECTS = {
         "delete_teacher_profile_cmd": "删除教师",
         "set_teacher_cmd": "修改教师信息",
     },
-    "src.features.user.commands": {
+    "src.plugins.application.active.user.commands": {
         "self_info_cmd": "我的信息",
         "bind_user_cmd": "绑定用户",
         "logout_cmd": "注销",
         "token_cmd": "token",
     },
-    "src.features.curriculum.commands": {
+    "src.plugins.application.active.curriculum.commands": {
         "add_curricula": "添加课表",
         "del_curricula": "删除课表",
         "query_curricula": "查询课表",
         "share_curricula": "分享课表",
         "set_week_cmd": "设置当前周",
     },
-    "src.features.find_at.commands": {
+    "src.plugins.application.active.find_at.commands": {
         "find_student_cmd": "查找学生",
         "at_cmd": "at",
     },
-    "src.features.leave.commands": {
+    "src.plugins.application.active.leave.commands": {
         "add_leave_cmd": "请假",
         "query_leave_cmd": "请假列表",
         "set_leave_push_cmd": "设置请假推送",
         "delete_leave_cmd": "删除请假",
     },
-    "src.features.notice.commands": {
+    "src.plugins.application.active.notice.commands": {
         "notice_cmd": "创建通知",
         "query_notice_cmd": "查询通知",
         "delete_notice_cmd": "删除通知",
     },
-    "src.features.tasks.commands": {
+    "src.plugins.application.active.tasks.commands": {
         "push_task_cmd": "提交任务",
         "create_task_cmd": "创建任务",
         "delete_task_cmd": "删除任务",
         "export_task_cmd": "导出任务",
         "query_task_cmd": "查询任务",
     },
-    "src.features.file_manager.commands": {
+    "src.plugins.application.active.file_manager.commands": {
         "pwd_cmd": "pwd",
         "ls_cmd": "ls",
         "cd_cmd": "cd",
@@ -103,17 +103,17 @@ EXPECTED_COMMAND_OBJECTS = {
         "tree_cmd": "tree",
         "upload_file_cmd": "上传文件",
     },
-    "src.features.chat_context.commands": {
+    "src.plugins.library.message_history.commands": {
         "query_group_history_cmd": "检索群聊记录",
         "chat_statistics_cmd": "统计聊天记录",
     },
-    "src.features.helper.commands": {"help_cmd": "help"},
-    "src.features.autogpt.commands": {"clear_chat": "清空聊天"},
+    "src.plugins.application.active.helper.commands": {"help_cmd": "help"},
+    "src.plugins.application.active.autogpt.commands": {"clear_chat": "清空聊天"},
 }
 
 EXPECTED_RULE_ALIASES = {
-    ("src.features.notice.commands", "notice_cmd"): {"创建通知", "定时", "转发"},
-    ("src.features.user.commands", "token_cmd"): {"token"},
+    ("src.plugins.application.active.notice.commands", "notice_cmd"): {"创建通知", "定时", "转发"},
+    ("src.plugins.application.active.user.commands", "token_cmd"): {"token"},
 }
 
 
@@ -165,8 +165,8 @@ def test_command_rules_keep_expected_literals(loaded_plugins):
 
 
 def test_command_param_required_can_be_explicit_or_inferred():
-    from utils.helper import ParamMode
-    from utils.commands import CommandParam
+    from src.platform.helper import ParamMode
+    from src.platform.commands import CommandParam
 
     assert CommandParam(name="必填参数").required is True
     assert CommandParam(name="可选参数", mode=ParamMode.OPTIONAL).required is False

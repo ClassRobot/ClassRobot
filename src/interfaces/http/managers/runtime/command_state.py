@@ -5,7 +5,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from utils.commands.availability import AvailabilityState, command_availability
+from src.platform.commands.availability import AvailabilityState, command_availability
 
 from ..service import manager_config_path
 

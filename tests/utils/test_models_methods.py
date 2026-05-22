@@ -34,7 +34,7 @@ async def model_orm(loaded_plugins):
 async def test_leave_workflow_order_users_returns_real_users_in_order():
     """审批顺序应返回真实用户对象，并保持配置中的先后顺序。"""
 
-    from utils.models import Classes, Group, LeaveWorkflow, School, User
+    from src.models import Classes, Group, LeaveWorkflow, School, User
 
     creator = await User.create_user(nickname="创建者", username="leave_creator")
     approver_a = await User.create_user(nickname="审批人甲", username="leave_approver_a")
