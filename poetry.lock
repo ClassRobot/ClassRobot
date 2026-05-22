@@ -2930,8 +2930,8 @@ nonebot2 = ">=2.5.0"
 
 [package.source]
 type = "legacy"
-url = "https://pypi.python.org/simple"
-reference = "pypi-official"
+url = "https://mirrors.cloud.tencent.com/pypi/simple"
+reference = "tencent"
 
 [[package]]
 name = "nonebot-plugin-alconna"
