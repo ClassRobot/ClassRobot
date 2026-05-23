@@ -3,9 +3,9 @@ from nonebot import logger
 from pydantic import Field
 
 from src.platform.helper.schema import Helpers
-from src.shared.template.prompts import Prompt
+from src.core.agent.prompts import Prompt
 from src.core.llm import LLMTaskType, client_create
-from src.shared.schemas.auto_task import AutoTaskList
+from src.core.agent.runtime.auto_task import AutoTaskList
 from src.core.llm.message import Context, LLMRole, Messages
 
 from ..base import BaseAgent, BaseAgentConfig

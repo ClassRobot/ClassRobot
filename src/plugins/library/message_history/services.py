@@ -7,7 +7,7 @@ from src.platform.commands import CommandExecutionContext, CommandResult, comman
 from src.core.storage import ChatHistoryRecord, ChatHistorySummary, chat_history_store, normalize_message_text
 
 from .presenters import render_group_history_card
-from .resolvers import resolve_bound_group_id
+from src.platform.session.resolvers import resolve_bound_group_id
 from src.platform.session import BaseSession
 
 DEFAULT_RESULT_LIMIT = 12

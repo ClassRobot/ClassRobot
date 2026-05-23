@@ -2,13 +2,12 @@ import itertools
 from typing import TypeVar, Callable
 
 from strenum import StrEnum
-from nonebot_plugin_alconna import File, Other
 
 T = TypeVar("T")
 
 
 def check_punctuation(text: str, ignore: list[str] | None = None) -> bool:
-    """延迟导入标点检查实现，避免包级导入触发 NoneBot 依赖。"""
+    """延迟导入标点检查实现，保持包级入口足够轻量。"""
 
     from .tools import check_punctuation as _check_punctuation
 
@@ -54,21 +53,6 @@ class Emoji(StrEnum):
 def tip(msg: T) -> Callable[..., T]:
     """返回固定提示内容。"""
     return lambda *_: msg
-
-
-def file_or_other_file(file: File | Other) -> File:
-    """将文件消息转换为统一的文件对象。"""
-    if isinstance(file, File):
-        return file
-    elif isinstance(file, Other):
-        return File(
-            name=file.origin.data["file_name"],
-            url=file.origin.data["url"],
-            id=file.origin.data["file_id"],
-        )
-
-
-FileOrOtherFile = lambda file: file_or_other_file(file)  # noqa: E731
 
 
 def alias_product(*args: list[str]):

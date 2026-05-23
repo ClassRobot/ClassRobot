@@ -11,7 +11,7 @@ from src.platform.session import EventSession
 from .commands import query_group_history_cmd
 from .collector import collect_message, record_command_message
 from .outbound import install_outbound_message_recorder
-from .resolvers import resolve_bound_group_id, resolve_session_from_event
+from src.platform.session.resolvers import resolve_bound_group_id, resolve_session_from_event
 from .services import normalize_query_values, query_group_history
 from . import services as _
 

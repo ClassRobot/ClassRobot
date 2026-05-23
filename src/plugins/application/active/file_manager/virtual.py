@@ -9,7 +9,7 @@ from nonebot.adapters import Event
 from pydantic import BaseModel, Field
 
 from src.platform.commands import CommandExecutionContext
-from src.plugins.library.message_history.resolvers import resolve_bound_group_id, resolve_or_create_bound_group
+from src.platform.session.resolvers import resolve_bound_group_id, resolve_or_create_bound_group
 from src.models import Classes, College, Group, School, TeacherClasses, User
 from src.core.auth import StudentRole
 from src.platform.session import BaseSession

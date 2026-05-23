@@ -10,10 +10,10 @@ from nonebot import get_driver
 
 from src.platform.config import project_root
 from src.core.llm.config import LLMConfig
-from src.shared.encrypt.config import EncryptConfig
+from src.core.auth.crypto import EncryptConfig
 from src.core.llm.config import plugin_config as llm_config
 from src.core.cache.config import plugin_config as cache_config
-from src.shared.tools.cos.config import plugin_config as cos_config
+from src.core.storage.object_store import plugin_config as cos_config
 
 from ..service import mask_secret
 

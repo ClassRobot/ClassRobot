@@ -2,7 +2,7 @@ from typing import Iterable
 
 from pandas import DataFrame
 from src.models import Student
-from src.models.params.student import columns
+from src.plugins.application.active.student.field_aliases import columns
 
 default_display_columns = [
     "user_id",

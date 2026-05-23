@@ -458,7 +458,7 @@ Workflow 是“复杂请求的骨架”，Agent 是“骨架中的智能节点�
   - `src/plugins/library/`
 - 上下文与策略层
   - `src/platform/session/`
-  - `src/models/depends.py`
+  - `src/platform/session/depends.py`
   - `src/platform/helper/depends.py`
 - 编排层
   - `src/plugins/application/active/autogpt/`

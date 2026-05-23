@@ -1,11 +1,8 @@
 import re
 import base64
-from pathlib import Path
 from string import punctuation
-from typing import Any, overload
 
 from filetype import guess_extension
-from nonebot_plugin_htmlrender import get_new_page
 
 
 class StringCard:
@@ -97,48 +94,6 @@ class StringCard:
         return bool(self.card)
 
 
-@overload
-async def download_file(
-    uri: bytes,
-    *,
-    headers: dict[str, str] | None = None,
-    params: dict[str, Any] | None = None,
-    to_path: str | Path,
-) -> bytes:
-    """下载文件"""
-
-
-@overload
-async def download_file(
-    uri: str,
-    *,
-    headers: dict[str, str] | None = None,
-    params: dict[str, Any] | None = None,
-    to_path: str | Path | None = None,
-) -> bytes:
-    """下载文件"""
-
-
-async def download_file(
-    uri: str | bytes,
-    *,
-    headers: dict[str, str] | None = None,
-    params: dict[str, Any] | None = None,
-    to_path: str | Path | None = None,
-) -> bytes:
-    """下载文件"""
-    if not isinstance(uri, str):
-        assert to_path, "to_path is required when uri is bytes"
-        Path(to_path).write_bytes(uri)
-        return uri
-    async with get_new_page() as page:
-        response = await page.request.get(uri, headers=headers, params=params)
-        body = await response.body()
-        if to_path:
-            Path(to_path).write_bytes(body)
-        return body
-
-
 def get_file_suffix(file: bytes) -> str | None:
     """获取文件类型"""
     if kind := guess_extension(file):
@@ -150,41 +105,6 @@ def get_url_suffix(url: str) -> str | None:
     url_split = url.split(".")
     if len(url_split) > 2 and re.match("^[a-zA-Z]+$", url_split[-1]):
         return url_split[-1]
-
-
-async def md_to_html(md: str) -> str:
-    """将 Markdown 转换为 HTML。"""
-    from src.core.skills import markdown_to_image_skill
-
-    return await markdown_to_image_skill.to_html(md)
-
-
-def text_to_qrcode(text: str) -> bytes:
-    """文字转二维码
-
-    参数:
-        text (str): 文字内容或url
-
-    返回:
-        bytes: 二维码图片
-    """
-    from src.core.skills import qr_code_skill
-
-    return qr_code_skill.encode(text)
-
-
-def decode_qrcode(image: bytes | str | Path) -> list[str]:
-    """解析二维码图片中的文本。
-
-    参数:
-        image (bytes | str | Path): 图片字节内容或本地图片路径。
-
-    返回:
-        list[str]: 识别得到的二维码文本列表。
-    """
-    from src.core.skills import qr_code_skill
-
-    return qr_code_skill.decode(image)
 
 
 def bytes_to_base64(data: bytes) -> str:

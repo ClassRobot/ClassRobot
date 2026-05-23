@@ -3,7 +3,7 @@ import json
 from nonebot import logger
 
 from src.core.llm.util import json_loads
-from src.shared.template.prompts import Prompt
+from src.core.agent.prompts import Prompt
 from src.core.llm import LLMTaskType, client_create
 from src.core.llm.message import Context, LLMRole, Messages
 

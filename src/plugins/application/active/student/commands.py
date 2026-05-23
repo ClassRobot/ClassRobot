@@ -4,7 +4,7 @@ from src.shared import tip
 from src.core.auth import StudentRoleLang
 from src.platform.config import priority, comp_config
 from src.platform.commands import CommandBinding, on_agent_command
-from src.models.params.student import get_columns_chinese
+from src.plugins.application.active.student.field_aliases import get_columns_chinese
 from src.platform.helper import HelperScope, UserRole
 from nonebot_plugin_alconna import Args, Field, Alconna, CommandMeta, MultiVar
 

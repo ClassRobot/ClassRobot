@@ -2,7 +2,7 @@ from typing import Any
 
 from nonebot.adapters import Message
 from nonebot_plugin_alconna import UniMessage
-from nonebot.params import Arg, Depends, CommandArg, EventMessage
+from nonebot.params import Depends, CommandArg, EventMessage
 
 
 def _command_arg_str(message: UniMessage = CommandArg()) -> str | None:
@@ -20,9 +20,8 @@ def ArgUniMessage(key: str):
     """构建统一消息参数依赖。"""
     async def _arg(msg: Message | UniMessage = EventMessage()) -> UniMessage:
         """构造命令参数解析依赖。"""
-        print([i for i in msg])
         if isinstance(msg, Message):
-            return await UniMessage.generate(message=msg)
+            return UniMessage.of(message=msg)
         return msg
 
     return Depends(_arg)

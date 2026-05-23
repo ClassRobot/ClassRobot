@@ -9,7 +9,7 @@ from typing import Any, Literal
 from nonebot import logger
 from pydantic import BaseModel, Extra, Field, validator
 
-from src.shared.template import Prompt
+from src.core.agent.prompts import Prompt
 from src.core.llm import LLMTaskType, client_create
 from src.core.llm.message import Messages
 from src.core.llm.util import json_loads

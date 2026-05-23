@@ -1,7 +1,7 @@
 from src.shared import Emoji
 from nonebot_plugin_alconna import AlconnaMatcher
 from src.models import School, College, Teacher, User
-from src.models.depends import TeacherDepends, UserOrCreatedDepends
+from src.platform.session.depends import TeacherDepends, UserOrCreatedDepends
 
 from .presenters import render_teacher_card
 from .services import (

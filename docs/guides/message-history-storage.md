@@ -179,7 +179,7 @@ Agent 如果需要回顾系统群上下文，应优先调用 `检索群聊记录
 - 插件入口：[../../src/plugins/library/message_history/__init__.py](../../src/plugins/library/message_history/__init__.py)
 - 采集逻辑：[../../src/plugins/library/message_history/collector.py](../../src/plugins/library/message_history/collector.py)
 - 出站记录：[../../src/plugins/library/message_history/outbound.py](../../src/plugins/library/message_history/outbound.py)
-- 归属解析：[../../src/plugins/library/message_history/resolvers.py](../../src/plugins/library/message_history/resolvers.py)
+- 归属解析：[../../src/platform/session/resolvers.py](../../src/platform/session/resolvers.py)
 - 群历史命令服务：[../../src/plugins/library/message_history/services.py](../../src/plugins/library/message_history/services.py)
 
 ## 扩展原则

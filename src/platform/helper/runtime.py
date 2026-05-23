@@ -54,7 +54,7 @@ def bind_helper_access_guard(matcher: type[Matcher], helper: Helper) -> None:
     if getattr(matcher, "__helper_access_bound__", False):
         return
 
-    from src.models.depends import UserOrCreatedDepends
+    from src.platform.session.depends import UserOrCreatedDepends
     from src.platform.commands.availability import command_availability
     from src.platform.commands.context import CommandExecutionContext
     from src.platform.commands.policy import command_policy

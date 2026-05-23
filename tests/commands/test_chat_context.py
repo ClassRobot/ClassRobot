@@ -42,7 +42,7 @@ async def test_session_resolver_does_not_fallback_on_unexpected_alconna_error(
     loaded_plugins,
 ):
     import src.plugins.library.message_history as chat_context_module
-    import src.plugins.library.message_history.resolvers as resolver_module
+    import src.platform.session.resolvers as resolver_module
 
     def raise_unexpected_error(event, bot):
         raise RuntimeError("alconna target 内部异常")

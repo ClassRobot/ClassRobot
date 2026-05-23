@@ -1,13 +1,4 @@
-import cv2 as cv
-import numpy as np
-from PIL import Image
+"""OCR 底层模型与工具包。
 
-def read_code(image):
-    """识别图片中的验证码文本。"""
-    from src.core.skills import ocr_skill
-
-    if isinstance(image, Image.Image):
-        image = cv.cvtColor(np.asarray(image.convert("RGB")), cv.COLOR_RGB2BGR)
-    textimg_uint8 = np.clip(image, 0, 255).astype(np.uint8)
-    pil_img = Image.fromarray(cv.cvtColor(textimg_uint8, cv.COLOR_BGR2RGB))
-    return ocr_skill.read_code(pil_img)
+该包只保留模型推理所需的底层实现，不向上依赖 core skill。
+"""

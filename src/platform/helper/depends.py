@@ -2,7 +2,7 @@ from typing import Annotated
 
 from src.platform.helper import Helpers
 from nonebot.params import Depends
-from src.models.depends import UserOrCreatedDepends
+from src.platform.session.depends import UserOrCreatedDepends
 
 from .config import helper_menu
 

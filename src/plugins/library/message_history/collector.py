@@ -11,7 +11,7 @@ from pydantic import BaseModel, Extra
 from src.platform.session import BaseSession
 from src.core.storage import MessageActorRole, chat_history_store, normalize_message_text, normalize_raw_message
 
-from .resolvers import (
+from src.platform.session.resolvers import (
     resolve_or_create_bound_group,
     resolve_or_create_private_user,
     resolve_private_user,

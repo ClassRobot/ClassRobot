@@ -13,7 +13,7 @@ from nonebot_plugin_orm import get_session
 from src.platform.config import cache_dir, config_dir, data_dir, prompts_dir, project_root, skill_runtime_dir, skills_dir
 from src.core.cache.config import plugin_config as cache_config
 from src.core.llm.config import plugin_config as llm_config
-from src.shared.tools.cos.config import plugin_config as cos_config
+from src.core.storage.object_store import plugin_config as cos_config
 from src.models import User, Files, UserBind, AgentWorkflowRun, AgentWorkflowCheckpoint
 
 from ..service import path_payload

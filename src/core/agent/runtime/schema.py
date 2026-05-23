@@ -7,9 +7,9 @@ from nonebot_plugin_alconna import UniMessage
 
 from src.core.llm.message import Content
 from src.core.llm.util import uni_message_to_contents
-from src.shared.schemas.auto_task import Param as Param  # noqa
-from src.shared.schemas.auto_task import AutoTask as AutoTask  # noqa
-from src.shared.schemas.auto_task import AutoTaskList as AutoTaskList  # noqa
+from src.core.agent.runtime.auto_task import Param as Param  # noqa
+from src.core.agent.runtime.auto_task import AutoTask as AutoTask  # noqa
+from src.core.agent.runtime.auto_task import AutoTaskList as AutoTaskList  # noqa
 
 
 KnowledgeSource = Literal[

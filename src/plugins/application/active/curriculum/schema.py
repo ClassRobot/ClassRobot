@@ -1,7 +1,7 @@
 from itertools import repeat, product
 from datetime import datetime, timedelta
 
-from src.shared.template import template_to_pic
+from src.platform.rendering import template_to_pic
 from pydantic import Extra, Field, BaseModel
 from src.models import Curricula, CurriculaConfig
 

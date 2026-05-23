@@ -2,7 +2,7 @@ from base64 import b64decode
 
 from src.shared import Emoji
 from nonebot import logger
-from src.shared.tools.cos import upload_file
+from src.core.storage.object_store import upload_file
 from src.core.llm.util import uni_message_to_contents
 from src.core.agent.runtime.util import ChatSessionDepends
 from nonebot_plugin_alconna import Text, Image, UniMessage, AlconnaMatcher

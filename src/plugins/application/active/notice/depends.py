@@ -2,7 +2,7 @@ from typing import Annotated
 
 from nonebot.params import Depends
 from nonebot.matcher import Matcher
-from src.models.depends import UserOrCreatedDepends
+from src.platform.session.depends import UserOrCreatedDepends
 
 from .util import NoticeSession
 from .manage import QueryNotice, DeleteNotice

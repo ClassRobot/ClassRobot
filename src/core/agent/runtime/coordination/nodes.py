@@ -8,7 +8,7 @@ from nonebot_plugin_alconna import UniMessage
 
 from src.core.llm import LLMTaskType
 from src.core.llm.util import json_loads
-from src.shared.template.prompts import Prompt
+from src.core.agent.prompts import Prompt
 from src.core.llm.message import LLMRole, Messages
 
 from .state import PipelineState

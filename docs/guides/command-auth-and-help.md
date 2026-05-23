@@ -47,7 +47,7 @@
 
 这套机制不是直接读取平台侧身份，而是先通过 `UserBind` 把平台用户映射成项目内的 `User`，再由 `User.roles` 派生出当前有效角色集合。
 
-- `src/models/depends.py`
+- `src/platform/session/depends.py`
   - 负责 `UserDepends` / `UserOrCreatedDepends`
 - `src/models/models.py`
   - 负责 `User.roles`

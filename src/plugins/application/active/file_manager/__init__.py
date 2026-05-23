@@ -2,7 +2,7 @@ from nonebot.adapters import Bot, Event
 from nonebot_plugin_alconna import AlconnaMatcher
 
 from src.shared import Emoji
-from src.models.depends import UserOrCreatedDepends
+from src.platform.session.depends import UserOrCreatedDepends
 from src.platform.session import EventSession
 
 from .commands import (

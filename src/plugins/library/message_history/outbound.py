@@ -8,7 +8,7 @@ from nonebot import logger
 from nonebot.adapters import Bot, Event
 
 from .collector import record_assistant_message
-from .resolvers import resolve_session_from_event
+from src.platform.session.resolvers import resolve_session_from_event
 
 SEND_RECORDER_FLAG = "_classrobot_message_history_send_recorder"
 ORIGINAL_SEND_ATTR = "_classrobot_message_history_original_send"

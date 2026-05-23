@@ -2,7 +2,7 @@ from typing import Annotated
 
 from nonebot.params import Depends
 from nonebot_plugin_alconna import AlconnaMatcher
-from src.models.depends import UserOrCreatedDepends
+from src.platform.session.depends import UserOrCreatedDepends
 
 from .manage import AddCurricula, BaseCurricula, QueryCurricula, ShareCurricula, DeleteCurricula, SetCurriculaWeek
 

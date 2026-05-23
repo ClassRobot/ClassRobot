@@ -1,6 +1,7 @@
 from typing import Optional
 
-from src.shared import ValidateName, FileOrOtherFile, tip
+from src.shared import ValidateName, tip
+from src.platform.files import FileOrOtherFile
 from src.platform.commands import CommandBinding, on_agent_command
 from src.platform.helper import HelperScope, UserRole
 from src.platform.config import priority, comp_config, alcoona_kwargs

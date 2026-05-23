@@ -7,7 +7,9 @@
 ```text
 platform/
 ├── commands/     # 命令注册、元数据、执行器、Agent 适配
+├── files.py      # 平台文件消息下载与 Alconna 文件段转换
 ├── helper/       # 帮助目录和展示元数据
+├── rendering/    # 依赖 htmlrender 的模板图片渲染
 ├── session/      # 平台会话和事件上下文
 └── messaging/    # 跨平台统一发送
 ```
@@ -17,6 +19,8 @@ platform/
 - 命令协议：`CommandSpec`、`on_agent_command`、命令注册表、执行器。
 - 帮助协议：help 展示、命令目录、角色过滤。
 - 会话协议：平台、频道、用户、群组上下文。
+- 文件协议：平台文件消息下载、上传前落盘、消息段转换。
+- 渲染协议：依赖 NoneBot/htmlrender 的模板图片渲染。
 - 发送协议：统一向系统用户或系统群组发送消息。
 
 ## 不放什么

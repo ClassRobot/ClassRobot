@@ -3,7 +3,7 @@ from src.shared.tools import StringCard
 from src.models import School, College, Major, Teacher, Classes, CollegeTeacher, Organization, OrganizationMember
 from src.core.auth import CollegeTeacherRole
 from nonebot_plugin_alconna import AlconnaMatcher
-from src.models.depends import UserOrCreatedDepends
+from src.platform.session.depends import UserOrCreatedDepends
 
 from .constants import (
     MAJOR_UPDATE_FIELDS,

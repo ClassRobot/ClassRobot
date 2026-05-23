@@ -9,7 +9,7 @@ from .base import BaseProjectSkill, SkillManifest
 ImageInput: TypeAlias = Any
 
 if TYPE_CHECKING:
-    from src.shared.tools.docs2img import File2Image
+    from src.core.skills.document_image import File2Image
 
 
 def _load_pil_image(image: ImageInput):
@@ -58,7 +58,7 @@ class DocumentToImageSkill(BaseProjectSkill):
         返回:
             File2Image: 转换完成后的文件对象。
         """
-        from src.shared.tools.docs2img import File2Image
+        from src.core.skills.document_image import File2Image
 
         return await File2Image(file, save_path=save_path)
 

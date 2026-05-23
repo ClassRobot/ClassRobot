@@ -77,7 +77,7 @@ sequenceDiagram
 
 - `src/platform/session/__init__.py`
   - 负责构建平台会话信息
-- `src/models/depends.py`
+- `src/platform/session/depends.py`
   - 负责用户绑定、用户创建、班级/教师/学生身份解析
 - `src/platform/helper/depends.py`
   - 负责根据用户角色筛选可见命令帮助
@@ -186,7 +186,7 @@ sequenceDiagram
   - `src/plugins/application/active/autogpt/__init__.py`
   - 负责接收平台消息、调用会话处理并回发结果
 - 权限与身份
-  - `src/models/depends.py`
+  - `src/platform/session/depends.py`
   - `src/platform/helper/depends.py`
   - 负责用户绑定、角色解析、能力边界筛选
 - 消息流水线
@@ -216,7 +216,7 @@ sequenceDiagram
 如果以后要把这条 RAG 流程接入飞书，推荐仍然只新增平台适配层：
 
 1. 飞书 Webhook 负责验签、解析 `open_id` 和消息体
-2. 继续复用 `src/models/depends.py` 做用户绑定和权限解析
+2. 继续复用 `src/platform/session/depends.py` 做用户绑定和权限解析
 3. 继续复用 `ChatSessionManager` 和 `MessageProcessingPipeline`
 4. 让 `RagAgent` 继续作为统一的知识检索入口
 5. 最后把 Markdown、图片、引用材料适配回飞书消息格式
@@ -393,7 +393,7 @@ sequenceDiagram
   - `src/core/skills/runtime.py`
   - 负责把文本和图片输入提交给底层绘图接口
 - 云存储
-  - `src/shared/tools/cos/__init__.py`
+  - `src/core/storage/object_store.py`
   - 负责将返回的图片字节上传并换成平台可发送的链接
 
 这意味着当前项目已经适合处理：
@@ -491,7 +491,7 @@ sequenceDiagram
 1. 飞书 Webhook 进入 HTTP 路由
 2. 把飞书消息体转换成统一内部消息结构
 3. 复用 `src/platform/session` 的平台会话抽象
-4. 复用 `src/models/depends` 的用户绑定与角色解析
+4. 复用 `src/platform/session/depends.py` 的用户绑定与角色解析
 5. 复用 `ChatSessionManager` + `MessageProcessingPipeline`
 6. 将结果再适配回飞书消息接口
 
@@ -515,7 +515,7 @@ sequenceDiagram
 ## 相关代码位置
 
 - 平台会话：`src/platform/session/__init__.py`
-- 用户/权限依赖：`src/models/depends.py`
+- 用户/权限依赖：`src/platform/session/depends.py`
 - 帮助与角色能力边界：`src/platform/helper/depends.py`
 - AI 入口：`src/plugins/application/active/autogpt/__init__.py`
 - AI 流水线：`src/core/agent/runtime/pipeline.py`

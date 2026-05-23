@@ -293,7 +293,7 @@ llm_timeout=60
 
 ### 5.1 COS 对象存储配置
 
-这部分来自 `src/shared/tools/cos/config.py`。
+这部分来自 `src/core/storage/object_store.py`。
 
 | 变量名 | 是否必填 | 示例值 | 作用 |
 | --- | --- | --- | --- |
@@ -310,7 +310,7 @@ llm_timeout=60
 
 ### 5.2 加密盐配置
 
-这部分来自 `src/shared/encrypt/config.py`。
+这部分来自 `src/core/auth/crypto.py`。
 
 | 变量名 | 是否必填 | 示例值 | 作用 |
 | --- | --- | --- | --- |

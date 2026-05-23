@@ -1,5 +1,5 @@
 from src.shared import Emoji
-from src.models.params import ArgUniMessage
+from src.platform.commands.params import ArgUniMessage
 from nonebot_plugin_alconna import Image, UniMessage, AlconnaMatcher
 
 from .depends import AddLeaveDepends, QueryLeaveDepends

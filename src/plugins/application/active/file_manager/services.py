@@ -16,7 +16,8 @@ from src.platform.config import global_config
 from src.models import User
 from src.platform.session import BaseSession
 from src.core.storage import FileEntry, FileSpace, FileSpaceError, PathEscapeError, StorageManager, storage_manager
-from src.shared.tools import StringCard, download_file
+from src.platform.files import download_file
+from src.shared.tools import StringCard
 
 from .virtual import (
     VirtualFileWorkspace,

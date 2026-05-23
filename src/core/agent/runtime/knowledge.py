@@ -8,7 +8,7 @@ from collections.abc import Iterable
 
 from nonebot import logger
 from src.core.skills import skill_registry
-from src.plugins.library.message_history.resolvers import resolve_bound_group_id
+from src.platform.session.resolvers import resolve_bound_group_id
 
 from src.platform.session import BaseSession
 from src.core.storage import (

@@ -23,7 +23,7 @@ from src.models import (
     TeacherClasses,
     ClassesJoinRequest,
 )
-from src.models.depends import StudentDepends, TeacherDepends, UserOrCreatedDepends
+from src.platform.session.depends import StudentDepends, TeacherDepends, UserOrCreatedDepends
 
 from .depends import ImportDataFrame
 from .util import student_column_renames, student_column_required

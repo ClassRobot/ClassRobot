@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from src.platform.commands import CommandExecutionContext, CommandResult, command_executor
 from src.models import User, Student
-from src.models.params.student import is_user_key, get_column_key, is_student_key, is_student_extra_key
+from src.plugins.application.active.student.field_aliases import is_user_key, get_column_key, is_student_key, is_student_extra_key
 
 from .presenters import render_student_card
 

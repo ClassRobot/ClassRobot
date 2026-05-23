@@ -6,7 +6,7 @@ from nonebot_plugin_waiter import waiter
 
 from src.shared import Emoji
 from src.models import Classes, College, Major, Organization, School
-from src.models.depends import UserOrCreatedDepends
+from src.platform.session.depends import UserOrCreatedDepends
 
 from .constants import IDENTITY_MAPPING, ORGANIZATION_TYPE_LABELS
 

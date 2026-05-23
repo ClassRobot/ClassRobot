@@ -1,8 +1,10 @@
 from pathlib import Path
+import logging
 
 import pdf2image
-from nonebot import logger
 from src.shared.tools.sync import run_sync
+
+logger = logging.getLogger(__name__)
 
 powerpoint = None
 word = None

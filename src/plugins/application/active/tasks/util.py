@@ -9,10 +9,11 @@ from nonebot.matcher import Matcher
 from nonebot.adapters import Message
 from src.shared.tools.sync import run_sync
 from nonebot.params import Arg, Depends
-from src.shared.tools.cos import upload_file
+from src.core.storage.object_store import upload_file
 from nonebot.adapters import Bot as BaseBot
-from src.models.depends import UserDepends
-from src.shared.tools import StringCard, download_file
+from src.platform.session.depends import UserDepends
+from src.platform.files import download_file
+from src.shared.tools import StringCard
 from src.models import User, Files, Tasks, Student
 from nonebot.adapters.onebot.v11 import Bot as V11Bot
 from src.platform.config import task_dir, cache_dir, global_config

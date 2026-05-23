@@ -8,7 +8,7 @@ from src.models import User, UserBind
 from src.core.auth import UserRole, UserRoleLang
 from nonebot.params import ArgPlainText, EventPlainText
 from nonebot_plugin_alconna import UniMessage, AlconnaMatcher
-from src.models.depends import UserDepends, UserOrCreatedDepends
+from src.platform.session.depends import UserDepends, UserOrCreatedDepends
 
 from .commands import token_cmd, logout_cmd, bind_user_cmd, self_info_cmd
 from .presenters import render_user_card

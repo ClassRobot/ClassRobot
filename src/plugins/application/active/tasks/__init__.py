@@ -7,7 +7,7 @@ from nonebot.params import Arg, ArgPlainText
 from src.shared.tools import StringCard
 from nonebot.adapters import Bot, Event, MessageTemplate
 from nonebot_plugin_alconna import UniMessage, AlconnaMatcher
-from src.models.depends import UserDepends, StudentDepends, UserOrCreatedDepends
+from src.platform.session.depends import UserDepends, StudentDepends, UserOrCreatedDepends
 
 from .commands import push_task_cmd, query_task_cmd, create_task_cmd, delete_task_cmd, export_task_cmd
 from .util import TaskFile, TaskManager, FileDataDepends, PushTaskManager, TaskManagerDepends, task_manager_depends

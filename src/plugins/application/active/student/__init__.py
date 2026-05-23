@@ -1,8 +1,8 @@
 from src.shared import Emoji
 from src.models import User, Classes, Student
-from src.models.depends import StudentDepends, UserOrCreatedDepends
+from src.platform.session.depends import StudentDepends, UserOrCreatedDepends
 from nonebot_plugin_alconna import AlconnaMatcher
-from src.models.params.student import is_user_key, get_column_key, is_student_key, is_student_extra_key
+from src.plugins.application.active.student.field_aliases import is_user_key, get_column_key, is_student_key, is_student_extra_key
 
 from .commands import (
     query_cmd,

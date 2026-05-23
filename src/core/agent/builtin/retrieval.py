@@ -6,7 +6,7 @@ from nonebot import logger
 from pydantic import Field
 
 from src.core.llm.message import Context
-from src.shared.tools.cos import upload_file
+from src.core.storage.object_store import upload_file
 
 from ..base import BaseAgent, BaseAgentConfig
 from ..ragflow import AsyncRagFlow

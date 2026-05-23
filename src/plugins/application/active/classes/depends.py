@@ -6,7 +6,8 @@ from src.platform.config import temp_dir
 from nonebot.params import Depends
 from nonebot_plugin_alconna import File
 from pandas import DataFrame, read_excel
-from src.shared.tools import download_file, get_url_suffix, get_file_suffix
+from src.platform.files import download_file
+from src.shared.tools import get_url_suffix, get_file_suffix
 
 from .util import rename
 

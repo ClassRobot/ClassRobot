@@ -10,13 +10,13 @@ from nonebot.params import Depends
 from nonebot_plugin_alconna import UniMessage
 
 from src.platform.helper import Helpers
-from src.shared.template import Prompt
+from src.core.agent.prompts import Prompt
 from src.platform.helper.depends import HelpersDepends
 from src.core.agent.builtin import ExecutionReplyAgent
 from src.core.agent.builtin.conversation import ExecutionReplyAgentConfig
 from src.core.llm.message import Content, Context, LLMRole, Messages
 from src.core.llm.util import uni_message_to_contents
-from src.models.depends import UserOrCreatedDepends
+from src.platform.session.depends import UserOrCreatedDepends
 
 from .harness import AutoGPTHarness
 from .knowledge import RuntimeContext

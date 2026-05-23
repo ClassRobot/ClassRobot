@@ -3,7 +3,7 @@ from typing import Annotated
 from src.shared import Emoji
 from nonebot.params import Depends
 from nonebot.matcher import Matcher
-from src.models.depends import UserDepends, StudentDepends
+from src.platform.session.depends import UserDepends, StudentDepends
 
 from .manage import AddLeave, QueryLeave
 

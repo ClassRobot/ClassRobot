@@ -19,7 +19,7 @@
 
 ## 相关文件
 
-- `src/models/depends.py`
+- `src/platform/session/depends.py`
   - 把平台事件映射为本地 `User`
   - 提供 `UserDepends`、`UserOrCreatedDepends`、`StudentDepends`、`TeacherDepends`
 - `src/models/models.py`
@@ -69,7 +69,7 @@ flowchart TD
 
 ### 第一步：平台用户绑定到本地用户
 
-`src/models/depends.py` 里有两条基础依赖：
+`src/platform/session/depends.py` 里有两条基础依赖：
 
 - `UserDepends`
   - 只查，不创建
@@ -246,7 +246,7 @@ flowchart TD
 ## 建议阅读顺序
 
 1. 先看本文，理解整体链路
-2. 再看 `src/models/depends.py`
+2. 再看 `src/platform/session/depends.py`
 3. 再看 `src/models/models.py` 的 `User.roles`
 4. 再看 `src/platform/helper/schema.py`
 5. 最后看 `src/platform/helper/runtime.py` 和 `src/plugins/application/active/helper/__init__.py`

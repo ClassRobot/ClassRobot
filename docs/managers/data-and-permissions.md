@@ -89,7 +89,7 @@
 
 ### COS 配置
 
-来源：`src/shared/tools/cos/config.py`
+来源：`src/core/storage/object_store.py`
 
 | 字段 | 含义 |
 | --- | --- |
@@ -101,7 +101,7 @@
 
 ### 加密配置
 
-来源：`src/shared/encrypt/config.py`
+来源：`src/core/auth/crypto.py`
 
 | 字段 | 含义 |
 | --- | --- |

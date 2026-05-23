@@ -9,7 +9,8 @@ from src.core.llm.message import Content
 from src.core.llm.util import json_loads
 from src.core.llm import Messages, client_create
 from nonebot_plugin_alconna import Image, UniMessage
-from src.shared.tools import download_file, get_url_suffix
+from src.platform.files import download_file
+from src.shared.tools import get_url_suffix
 from src.models import User, Files, Classes, Student, StudentLeave
 
 from .schema import Leave
