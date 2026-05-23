@@ -12,7 +12,7 @@ self_info_cmd = on_agent_command(
     ),
     aliases={"个人信息", "用户信息"},
     binding=CommandBinding(
-        ai_description="当用户询问“我是谁”“我的身份是什么”“我是不是管理员/教师/学生/班干部”“我有哪些权限/角色”时，优先调用该命令查询当前账号信息，不要要求用户补充QQ群身份。",
+        description="查看当前账号、绑定身份、角色和权限信息。",
         roles={UserRole.user},
         scopes={HelperScope.user},
     ),
@@ -23,7 +23,7 @@ self_info_cmd = on_agent_command(
 bind_user_cmd = on_agent_command(
     Alconna(
         "绑定用户",
-        meta=CommandMeta(description="用于在不同平台之间绑定同一个用户信息"),
+        meta=CommandMeta(description="把不同平台账号绑定到同一个系统用户。"),
     ),
     aliases={"绑定平台", "绑定", "换绑平台", "关联平台"},
     binding=CommandBinding(
@@ -57,6 +57,7 @@ logout_cmd = on_agent_command(
     ),
     aliases={"删除账号", "账号注销"},
     binding=CommandBinding(
+        description="注销当前用户、教师或学生身份；相关数据会被删除。",
         roles={UserRole.user},
         scopes={HelperScope.user},
         risk_level="high",

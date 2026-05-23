@@ -41,8 +41,6 @@ class CommandTool(BaseModel):
     """项目中的真实命令名。"""
     description: str
     """命令描述。"""
-    ai_description: str = ""
-    """给模型看的额外约束。"""
     aliases: list[str] = Field(default_factory=list)
     """命令别名。"""
     params: list[CommandToolParam] = Field(default_factory=list)
@@ -58,7 +56,6 @@ class CommandTool(BaseModel):
             name=safe_tool_name(spec.name),
             command=spec.name,
             description=spec.description,
-            ai_description=spec.ai_description or "",
             aliases=sorted(spec.aliases),
             params=[
                 CommandToolParam(
@@ -89,8 +86,6 @@ class CommandTool(BaseModel):
             sections.append(f"别名={aliases}")
         sections.append(f"风险={self.risk_level}")
         sections.append(f"参数={params}")
-        if self.ai_description:
-            sections.append(f"提示={self.ai_description}")
         return " | ".join(sections)
 
     def __str__(self) -> str:

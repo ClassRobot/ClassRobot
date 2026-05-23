@@ -273,8 +273,7 @@ join_organization = on_agent_command(
         Args["position?", Optional[str], Field(default=None, completion=tip("可选：组织岗位"))],
     ),
     binding=CommandBinding(
-        description="当前用户以学生或教师身份加入指定组织；当同时具备学生和教师身份时建议显式指定身份。",
-        ai_description="执行时必须已经绑定学生或教师身份；普通用户不能直接成为组织成员。",
+        description="以学生或教师身份加入指定组织；双身份用户建议指定身份。",
         roles={UserRole.student, UserRole.teacher},
         scopes={HelperScope.student, HelperScope.teacher},
         risk_level="medium",
@@ -297,8 +296,7 @@ exit_organization = on_agent_command(
         Args["identity?", Optional[str], Field(default=None, completion=tip("可选：学生 或 教师"))],
     ),
     binding=CommandBinding(
-        description="当前用户以学生或教师身份退出指定组织。",
-        ai_description="执行时必须已经绑定学生或教师身份；若同时具备学生和教师身份，建议显式指定身份。",
+        description="以学生或教师身份退出指定组织；双身份用户可指定身份。",
         roles={UserRole.student, UserRole.teacher},
         scopes={HelperScope.student, HelperScope.teacher},
         risk_level="medium",

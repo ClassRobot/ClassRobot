@@ -12,7 +12,6 @@ def command_spec_to_helper(spec: CommandSpec) -> Helper:
         command=spec.name,
         aliases=set(spec.aliases),
         description=spec.description,
-        ai_description=spec.ai_description or None,
         tags=set(spec.tags),
         roles=set(spec.roles),
         exclude_roles=set(spec.exclude_roles),

@@ -33,7 +33,7 @@ def command_spec_to_tool_schema(spec: CommandSpec) -> dict | None:
         "type": "function",
         "function": {
             "name": safe_tool_name(spec.name),
-            "description": spec.ai_description or spec.description,
+            "description": spec.description,
             "parameters": {
                 "type": "object",
                 "properties": properties,

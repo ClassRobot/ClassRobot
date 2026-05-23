@@ -22,7 +22,6 @@ class CommandBinding(BaseModel):
     """补充 Alconna 无法完整表达的项目级命令元数据。"""
 
     description: str | None = None
-    ai_description: str = ""
     roles: set[UserRole] = Field(default_factory=set)
     exclude_roles: set[UserRole] = Field(default_factory=set)
     scopes: set[HelperScope] = Field(default_factory=set)
@@ -164,7 +163,6 @@ def spec_from_alconna(
         name=str(alconna.command),
         aliases=set(aliases or ()),
         description=description,
-        ai_description=binding.ai_description,
         params=list(binding.params) if binding.params is not None else _params_from_alconna(alconna, binding),
         roles=set(binding.roles),
         exclude_roles=set(binding.exclude_roles),
@@ -201,7 +199,6 @@ def spec_from_command(
         name=command,
         aliases=set(aliases or ()),
         description=binding.description or command,
-        ai_description=binding.ai_description,
         params=list(binding.params or []),
         roles=set(binding.roles),
         exclude_roles=set(binding.exclude_roles),

@@ -239,7 +239,6 @@ flowchart LR
 - `name`
 - `aliases`
 - `description`
-- `ai_description`
 - `params`
 - `roles`
 - `exclude_roles`

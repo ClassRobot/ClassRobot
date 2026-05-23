@@ -392,7 +392,6 @@ def _command_payload_from_call(node: ast.Call) -> dict[str, Any] | None:
         "signature": signature,
         "documented": False,
         "description": "",
-        "ai_description": "",
         "roles": [],
         "exclude_roles": [],
         "scopes": [],
@@ -452,7 +451,6 @@ def _enrich_command(
     if helper and not registry_payload:
         item["documented"] = True
         item["description"] = helper.get("description", "")
-        item["ai_description"] = helper.get("ai_description", "")
         item["roles"] = helper.get("roles", [])
         item["exclude_roles"] = helper.get("exclude_roles", [])
         item["scopes"] = helper.get("scopes", [])
@@ -671,7 +669,6 @@ def _helper_index() -> dict[str, dict[str, Any]]:
         payload = {
             "command": helper.command,
             "description": helper.description,
-            "ai_description": helper.ai_description or "",
             "aliases": sorted(map(str, helper.aliases)),
             "roles": sorted(map(str, helper.roles)),
             "exclude_roles": sorted(map(str, helper.exclude_roles)),

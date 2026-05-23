@@ -34,10 +34,9 @@ add_curricula = on_agent_command(
             MultiVar(str, flag="+"),
             Field(completion=tip("课表内容不能为空" + input_help)),
         ],
-        meta=CommandMeta(description="添加学生自己的的课表,一条命令只能写入一次课表" + input_help),
+        meta=CommandMeta(description="添加自己的课表；一次命令只录入一条课程。" + input_help),
     ),
     binding=CommandBinding(
-        ai_description="添加学生自己的的课表,一条命令只能写入一次课表,如果机器人要加两次课表请分开两次命令执行.",
         roles={UserRole.user},
         scopes={HelperScope.user},
         risk_level="medium",
@@ -56,7 +55,7 @@ del_curricula = on_agent_command(
             MultiVar(str, flag="+"),
             Field(completion=tip("请输入课表ID")),
         ],
-        meta=CommandMeta(description="删除自己的课表,一次可以删除多个课表,只需要输入课表ID即可"),
+        meta=CommandMeta(description="按课表 ID 删除自己的课程，可一次删除多个。"),
     ),
     binding=CommandBinding(
         roles={UserRole.user},
@@ -76,7 +75,7 @@ query_curricula = on_agent_command(
         Args["day?", int, Field(default=0)],
         meta=CommandMeta(
             description=(
-                "可以通过班级名称日期来查询课表,在不写班级名称的情况下查询的是本人课表,班级名称后面携带数字，如果是正数表示后面几天，如果是复数表示前面几天。"
+                "查询本人或指定班级课表；可带天数，正数看未来，负数看过去。"
             )
         ),
     ),
@@ -93,7 +92,7 @@ share_curricula = on_agent_command(
     Alconna(
         "分享课表",
         Args["share_id?", str | None],
-        meta=CommandMeta(description="分享自己的课表给其他人,如果没有参数则生成自己的share_id,如果有参数则获取指定的课表"),
+        meta=CommandMeta(description="分享自己的课表；不带参数生成分享 ID，带参数读取指定分享。"),
     ),
     aliases={"分享课程表", "分享课程", "共享课程", "共享课表", "绑定课表"},
     binding=CommandBinding(

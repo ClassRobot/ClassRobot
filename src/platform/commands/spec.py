@@ -18,7 +18,6 @@ class CommandSpec(BaseModel):
     name: str
     aliases: set[str] = Field(default_factory=set)
     description: str
-    ai_description: str = ""
     params: list[CommandParam] = Field(default_factory=list)
     roles: set[UserRole] = Field(default_factory=set)
     exclude_roles: set[UserRole] = Field(default_factory=set)

@@ -20,13 +20,12 @@ query_group_history_cmd = on_agent_command(
         "检索群聊记录",
         Args["query", MultiVar(str, "*"), Field(default=(), completion="可选：输入关键词，例如 迟到、调课、值日")],
         meta=CommandMeta(
-            description="检索当前已绑定系统群组的近期采集消息，用于回顾争议点、谁说过什么、刚才聊了什么。"
+            description="检索当前系统群组的历史消息，用于回顾讨论内容。"
         ),
     ),
     aliases={"查询群聊记录", "回顾群聊", "群聊记录", "总结群聊"},
     binding=CommandBinding(
-        description="检索当前已绑定系统群组的近期采集消息，用于回顾争议点、谁说过什么、刚才聊了什么。",
-        ai_description="当用户询问当前已绑定系统群组里刚才、之前、最近讨论过什么，或谁说过什么时，优先调用该命令检索群环境采集消息。该命令依赖系统内 Group 绑定，而不是直接读取平台群 ID；如果没有明显关键词，可以直接使用用户原话或留空回顾最近消息。",
+        description="检索当前系统群组的历史消息，可按关键词回顾刚才聊了什么。",
         scopes={HelperScope.public},
         tags={"chat", "group", "history"},
         execution_mode="service",
@@ -47,15 +46,11 @@ chat_statistics_cmd = on_agent_command(
         "统计聊天记录",
         Args["scope?", Optional[str], Field(default=None, completion="可选：user 或 group")],
         Args["window?", Optional[str], Field(default=None, completion="可选：all、today、yesterday 或 week")],
-        meta=CommandMeta(description="统计当前用户私聊或当前系统群的消息数量。"),
+        meta=CommandMeta(description="统计当前用户或当前系统群的消息数量。"),
     ),
     aliases={"聊天统计", "消息统计", "统计群聊", "统计私聊"},
     binding=CommandBinding(
-        description="统计当前用户私聊或当前系统群的消息数量。",
-        ai_description=(
-            "当用户询问自己和机器人聊了多少条消息、当前群聊了多少条消息、今天/昨天/本周消息数量时，"
-            "调用该命令。范围 scope 只能填 user 或 group；时间 window 只能填 all、today、yesterday 或 week。"
-        ),
+        description="统计当前私聊或系统群的消息数量，可按今天、昨天、本周筛选。",
         scopes={HelperScope.public},
         tags={"chat", "statistics", "history"},
         execution_mode="service",

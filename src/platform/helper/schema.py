@@ -116,8 +116,6 @@ class Helper(BaseModel):
     """命令名称"""
     description: str
     """命令描述"""
-    ai_description: str | None = None
-    """描述给AI的提示"""
     tags: set[str] = Field(default_factory=set)
     """命令标签"""
     roles: set[UserRole] = Field(default_factory=set)
@@ -248,8 +246,6 @@ class Helper(BaseModel):
             f"别名 | {', '.join(sorted(self.aliases)) or '无'}\n"
             f"描述 | {self.description}\n"
         )
-        if self.ai_description:
-            text += f"重点提示 | {self.ai_description}\n"
         return text
 
 

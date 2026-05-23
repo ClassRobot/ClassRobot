@@ -11,8 +11,7 @@ image_generate_cmd = on_agent_command(
     ),
     aliases={"生成图片", "图生图", "图生成"},
     binding=CommandBinding(
-        description="使用 AI 来图生图或者根据文字生成图片。",
-        ai_description="该命令适合处理图生图、文生图、图片加文字修改等需求。例如：图生成 一只猫咪；图生成 [图片] 给这个猫咪穿衣服。",
+        description="根据文字或图片生成新图片，适合文生图、图生图和简单改图。",
         roles={UserRole.user},
         scopes={HelperScope.user},
         risk_level="medium",
