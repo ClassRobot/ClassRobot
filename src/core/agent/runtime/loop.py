@@ -9,6 +9,8 @@ from typing import Any, Literal
 from nonebot import logger
 from pydantic import BaseModel, Extra, Field, validator
 
+from src.core.mcp import MCPClient, MCPToolCatalog
+from src.core.mcp.observation import params_to_arguments, mcp_result_to_observation
 from src.core.agent.prompts import Prompt
 from src.core.llm import LLMTaskType, client_create
 from src.core.llm.message import Messages
@@ -31,7 +33,7 @@ from .workflow import (
     collect_unsent_observation_outputs,
 )
 
-LoopActionType = Literal["command", "verify", "skill", "confirm", "respond", "schedule", "finish", "stop"]
+LoopActionType = Literal["command", "mcp_tool", "verify", "skill", "confirm", "respond", "schedule", "finish", "stop"]
 LoopStopReason = Literal[
     "max_steps",
     "max_verify_attempts",
@@ -127,7 +129,7 @@ class AgentLoopDecision(BaseModel):
         """把已有 TaskWorkflow 步骤提升成循环动作。"""
 
         return cls(
-            action_type="command",
+            action_type="mcp_tool" if step.step_type == "mcp_tool" else "command",
             capability_name=step.command,
             params=list(step.params),
             reason=step.description or step.title,
@@ -161,12 +163,17 @@ class CapabilityCatalog(BaseModel):
     """
 
     command_tools: CommandToolCatalog = Field(default_factory=CommandToolCatalog)
+    mcp_tools: MCPToolCatalog = Field(default_factory=MCPToolCatalog)
 
     @classmethod
-    def from_commands(cls, command_tools: CommandToolCatalog) -> "CapabilityCatalog":
+    def from_commands(
+        cls,
+        command_tools: CommandToolCatalog,
+        mcp_tools: MCPToolCatalog | None = None,
+    ) -> "CapabilityCatalog":
         """从当前用户可见的命令工具目录构造能力目录。"""
 
-        return cls(command_tools=command_tools)
+        return cls(command_tools=command_tools, mcp_tools=mcp_tools or MCPToolCatalog())
 
     def get_command_risk(self, command: str) -> RiskLevel:
         """返回命令风险等级，未知命令默认中风险。"""
@@ -179,10 +186,20 @@ class CapabilityCatalog(BaseModel):
 
         return self.command_tools.get(command) is not None
 
+    def has_mcp_tool(self, tool_name: str) -> bool:
+        """判断 MCP tool 是否在当前可见且可执行的能力目录中。"""
+
+        return self.mcp_tools.get(tool_name) is not None
+
     def to_prompt(self) -> str:
         """渲染给决策 Prompt 的能力目录。"""
 
-        return self.command_tools.to_prompt()
+        return "\n\n".join(
+            [
+                "# 项目命令\n" + self.command_tools.to_prompt(),
+                "# MCP 工具\n" + self.mcp_tools.to_prompt(),
+            ]
+        )
 
 
 class LoopBudget:
@@ -352,7 +369,9 @@ class ObservationInterpreter:
         lowered = text.lower()
         exists = self.infer_exists(observation, lowered)
         changed = observation.success and self.command_contains(observation.command, self.write_words)
-        verified = observation.success and self.command_contains(observation.command, self.read_words) and exists is not False
+        verified = (
+            observation.success and self.command_contains(observation.command, self.read_words) and exists is not False
+        )
         actions = self.suggest_next_actions(
             success=observation.success,
             exists=exists,
@@ -463,13 +482,16 @@ class CognitiveAgentLoop:
         *,
         messages: Messages | None = None,
         command_tools: CommandToolCatalog | None = None,
+        mcp_tools: MCPToolCatalog | None = None,
+        mcp_client: MCPClient | None = None,
         config: AgentLoopConfig | None = None,
         decision_provider: DecisionProvider | None = None,
         observation_interpreter: ObservationInterpreter | None = None,
     ) -> None:
         self.dispatcher = dispatcher
+        self.mcp_client = mcp_client or MCPClient()
         self.messages = messages or Messages()
-        self.capabilities = CapabilityCatalog.from_commands(command_tools or CommandToolCatalog())
+        self.capabilities = CapabilityCatalog.from_commands(command_tools or CommandToolCatalog(), mcp_tools)
         self.config = config or AgentLoopConfig.from_runtime()
         self.decision_provider = decision_provider
         self.observation_interpreter = observation_interpreter or ObservationInterpreter()
@@ -520,6 +542,13 @@ class CognitiveAgentLoop:
             if self.requires_confirmation(step, decision):
                 self.apply_confirmation_stop(workflow, result, step)
                 break
+            if step.step_type == "mcp_tool" and decision.action_type == "mcp_tool":
+                observations = await self.execute_mcp_step(workflow, step, decision)
+                result.observations.extend(observations)
+                facts.extend(self.observation_interpreter.interpret_many(observations))
+                if self.has_failed_observation(workflow, result, step, observations):
+                    break
+                continue
             if step.step_type != "command" or decision.action_type not in {"command", "verify"}:
                 self.apply_unsupported_step_stop(workflow, result, step, decision)
                 break
@@ -585,7 +614,9 @@ class CognitiveAgentLoop:
             prompt = await Prompt("agent_loop_decision").render(
                 {
                     "workflow": json.dumps(workflow.dict(), ensure_ascii=False, default=str),
-                    "pending_steps": json.dumps([step.dict() for step in pending_steps], ensure_ascii=False, default=str),
+                    "pending_steps": json.dumps(
+                        [step.dict() for step in pending_steps], ensure_ascii=False, default=str
+                    ),
                     "observations": json.dumps(
                         [observation.dict() for observation in observations[-6:]],
                         ensure_ascii=False,
@@ -625,9 +656,16 @@ class CognitiveAgentLoop:
     def normalize_model_decision(self, decision: AgentLoopDecision) -> AgentLoopDecision:
         """校验模型动作不越过当前能力目录。"""
 
-        if decision.action_type in {"command", "verify"} and not self.capabilities.has_command(decision.capability_name):
+        if decision.action_type in {"command", "verify"} and not self.capabilities.has_command(
+            decision.capability_name
+        ):
             return AgentLoopDecision.stop(
                 f"模型选择的能力 `{decision.capability_name}` 不在当前可执行目录中。",
+                stop_condition="invalid_capability",
+            )
+        if decision.action_type == "mcp_tool" and not self.capabilities.has_mcp_tool(decision.capability_name):
+            return AgentLoopDecision.stop(
+                f"模型选择的 MCP 工具 `{decision.capability_name}` 不在当前可执行目录中。",
                 stop_condition="invalid_capability",
             )
         return decision
@@ -647,17 +685,25 @@ class CognitiveAgentLoop:
             pending_steps.insert(0, step)
         if not decision.capability_name:
             return None
-        if decision.action_type in {"command", "verify"} and not self.capabilities.has_command(decision.capability_name):
+        if decision.action_type in {"command", "verify"} and not self.capabilities.has_command(
+            decision.capability_name
+        ):
+            return None
+        if decision.action_type == "mcp_tool" and not self.capabilities.has_mcp_tool(decision.capability_name):
             return None
 
         step = WorkflowStep(
             step_id=f"loop-step-{len(workflow.steps) + 1}",
-            step_type="command",
+            step_type="mcp_tool" if decision.action_type == "mcp_tool" else "command",
             title=f"循环调用：{decision.capability_name}",
             command=decision.capability_name,
             params=list(decision.params),
             description=decision.reason,
-            risk_level=self.capabilities.get_command_risk(decision.capability_name),
+            risk_level=(
+                "medium"
+                if decision.action_type == "mcp_tool"
+                else self.capabilities.get_command_risk(decision.capability_name)
+            ),
         )
         workflow.steps.append(step)
         return step
@@ -754,6 +800,47 @@ class CognitiveAgentLoop:
             status="completed",
         )
         return observations
+
+    async def execute_mcp_step(
+        self,
+        workflow: TaskWorkflow,
+        step: WorkflowStep,
+        decision: AgentLoopDecision,
+    ) -> list[CommandObservation]:
+        """执行单个 MCP tool 步骤并写入生命周期事件。"""
+
+        step.status = "running"
+        step.started_at = datetime.now()
+        workflow.add_event(
+            "step_started",
+            f"步骤「{step.title}」开始执行。",
+            step_id=step.step_id,
+            command=step.command,
+            status="running",
+        )
+        tool_name = decision.capability_name or step.command
+        logger.info(
+            'AutoGPT trace "{}" loop step "{}" calling MCP tool "{}"'.format(
+                workflow.trace_id,
+                step.step_id,
+                tool_name,
+            )
+        )
+        params = list(decision.params or step.params)
+        call_result = await self.mcp_client.call_tool(tool_name, params_to_arguments(params))
+        observation = mcp_result_to_observation(workflow.trace_id, params, call_result)
+        if observation.success:
+            step.status = "completed"
+            step.observation_message = "MCP 工具已通过观察驱动循环执行完成。"
+            step.finished_at = datetime.now()
+            workflow.add_event(
+                "step_completed",
+                step.observation_message,
+                step_id=step.step_id,
+                command=step.command,
+                status="completed",
+            )
+        return [observation]
 
     def has_failed_observation(
         self,

@@ -56,6 +56,7 @@ class IntentRouteNode(WorkflowNode):
     async def run(self, pipeline: "MessageProcessingPipeline", state: PipelineState) -> None:
         if state.auto_tasks is not None:
             return
+        await pipeline.ensure_mcp_tools()
         route_tools = pipeline.select_route_command_tools(state.user_content)
         route_skills = pipeline.select_route_skill_summaries(state.user_content)
         route_prompt = await Prompt("intent_route").render(
@@ -63,6 +64,7 @@ class IntentRouteNode(WorkflowNode):
                 "helpers": pipeline.helpers,
                 "command_tools": pipeline.render_command_tools_prompt_from_tools(route_tools),
                 "skill_catalog": pipeline.render_skill_catalog_prompt_from_summaries(route_skills),
+                "mcp_tools": pipeline.render_mcp_tools_prompt(),
                 "history": pipeline.serialize_recent_history(),
             }
         )
@@ -82,7 +84,11 @@ class IntentRouteNode(WorkflowNode):
         try:
             state.intent_route = IntentRoute.parse_obj(json_loads(text))
         except Exception as error:
-            logger.exception(f'AutoGPT trace "{state.trace_id}" intent route parse failed: {error}')
+            preview = text.strip().replace("\n", "\\n")[:240]
+            logger.warning(
+                f'AutoGPT trace "{state.trace_id}" intent route parse failed: {error}; '
+                f'fallback to complex_task; raw="{preview}"'
+            )
             state.intent_route = IntentRoute(
                 intent="complex_task",
                 requires_command=True,
@@ -200,6 +206,7 @@ class PlannerNode(WorkflowNode):
         if state.auto_tasks is not None or state.extracted_context is None:
             return
         await pipeline.report_progress("我正在把目标拆成可执行步骤，并确认需要哪些命令或技能。", stage="plan")
+        await pipeline.ensure_mcp_tools()
         plan_tools = pipeline.select_plan_command_tools(state.extracted_context)
         plan_skills = pipeline.select_plan_skill_summaries(state.extracted_context)
         plan_prompt = await Prompt("agent_plan").render(
@@ -207,6 +214,7 @@ class PlannerNode(WorkflowNode):
                 "helpers": pipeline.helpers,
                 "command_tools": pipeline.render_command_tools_prompt_from_tools(plan_tools),
                 "skill_catalog": pipeline.render_skill_catalog_prompt_from_summaries(plan_skills),
+                "mcp_tools": pipeline.render_mcp_tools_prompt(),
                 "route": state.intent_route.json(ensure_ascii=False) if state.intent_route else "{}",
                 "context": state.extracted_context.single_modal(),
                 "local_knowledge": state.local_knowledge,
@@ -217,6 +225,12 @@ class PlannerNode(WorkflowNode):
         plan_messages = Messages()
         plan_messages.extend(pipeline.messages.get(LLMRole.system))
         plan_messages.system_message(plan_prompt)
+        plan_input = (
+            state.extracted_context.single_modal().strip()
+            or pipeline.text_query_from_contents(state.user_content)
+            or "请基于当前上下文生成结构化计划。"
+        )
+        plan_messages.user_message(plan_input)
         response = await pipeline.create_llm_completion(
             plan_messages,
             multi_modal=False,
@@ -289,6 +303,13 @@ class ExecutionPolicyNode(WorkflowNode):
                 reply="我还不能确定要调用哪个项目命令，请再说明一下要执行的具体功能。",
                 need_confirm=True,
             )
+            return
+
+        if plan.candidate_mcp_tools and not pipeline.resolve_candidate_mcp_tools(plan):
+            state.auto_tasks = AutoTaskList(
+                reply="我还不能确定要调用哪个 MCP 工具，请再说明一下要使用的外部能力。",
+                need_confirm=True,
+            )
 
 
 class RetrieveKnowledgeNode(WorkflowNode):
@@ -317,6 +338,7 @@ class PlanTasksNode(WorkflowNode):
         if state.extracted_context is None:
             return
         combined_knowledge = pipeline.combine_knowledge(state.local_knowledge, state.retrieved_knowledge)
+        await pipeline.ensure_mcp_tools()
         task_tools = pipeline.select_task_command_tools(state.extracted_context, plan=state.agent_plan)
         task_skills = pipeline.select_task_skill_summaries(state.extracted_context, plan=state.agent_plan)
         task_prompt = await Prompt("auto_task").render(
@@ -327,6 +349,9 @@ class PlanTasksNode(WorkflowNode):
                 "plan": state.agent_plan.json(ensure_ascii=False) if state.agent_plan else None,
                 "command_tools": pipeline.render_command_tools_prompt_from_tools(task_tools),
                 "skill_catalog": pipeline.render_skill_catalog_prompt_from_summaries(task_skills),
+                "mcp_tools": pipeline.render_mcp_tools_prompt(
+                    tool_names=state.agent_plan.candidate_mcp_tools if state.agent_plan else None
+                ),
             }
         )
         task_messages = Messages()
@@ -338,6 +363,9 @@ class PlanTasksNode(WorkflowNode):
             messages=pipeline.messages,
             command_tools_prompt=pipeline.render_command_tools_prompt_from_tools(task_tools),
             skill_catalog_prompt=pipeline.render_skill_catalog_prompt_from_summaries(task_skills),
+            mcp_tools_prompt=pipeline.render_mcp_tools_prompt(
+                tool_names=state.agent_plan.candidate_mcp_tools if state.agent_plan else None
+            ),
         ).execute(
             state.extracted_context,
             combined_knowledge,
@@ -360,9 +388,19 @@ class ValidateAutoTasksNode(WorkflowNode):
             return
 
         allowed_commands = pipeline.resolve_candidate_commands(state.agent_plan)
+        allowed_mcp_tools = pipeline.resolve_candidate_mcp_tools(state.agent_plan)
         valid_tasks = []
         invalid_commands = []
         for task in state.auto_tasks.tasks:
+            if task.task_type == "mcp_tool":
+                if pipeline.mcp_tools.get(task.command) is None:
+                    invalid_commands.append(task.command)
+                    continue
+                if allowed_mcp_tools and task.command not in allowed_mcp_tools:
+                    invalid_commands.append(task.command)
+                    continue
+                valid_tasks.append(task)
+                continue
             helper = pipeline.helpers.get_helper(task.command)
             if helper is None:
                 invalid_commands.append(task.command)

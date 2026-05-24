@@ -4,6 +4,9 @@ from typing import Callable, Awaitable
 
 from nonebot import logger
 
+from src.core.mcp import MCPClient
+from src.core.mcp.observation import params_to_arguments, mcp_result_to_observation
+
 from .command_tools import CommandToolCatalog
 from .playbooks import WorkflowPlaybook, WorkflowPlaybookStep, playbook_catalog
 from .schema import (
@@ -131,16 +134,27 @@ class WorkflowStepBuilder:
         for index, task in enumerate(auto_tasks.tasks, start=1):
             tool = command_tools.get(task.command)
             matched_playbook_step = cls.match_playbook_step(task.command, playbook_steps)
+            step_type = task.task_type
             steps.append(
                 WorkflowStep(
                     step_id=f"step-{index}",
-                    title=matched_playbook_step.title if matched_playbook_step else f"执行命令：{task.command}",
+                    step_type=step_type,
+                    title=(
+                        matched_playbook_step.title
+                        if matched_playbook_step
+                        else ("调用 MCP 工具：" if step_type == "mcp_tool" else "执行命令：") + task.command
+                    ),
                     command=task.command,
                     params=list(task.params),
                     description=(
                         matched_playbook_step.description
                         if matched_playbook_step
-                        else (tool.description if tool else "") or "通过统一 service 命令执行项目能力。"
+                        else (tool.description if tool else "")
+                        or (
+                            "通过 MCP Client 调用远端工具。"
+                            if step_type == "mcp_tool"
+                            else "通过统一 service 命令执行项目能力。"
+                        )
                     ),
                     risk_level=tool.risk_level if tool else "medium",
                 )
@@ -342,8 +356,9 @@ class WorkflowBuilder:
 class WorkflowExecutor:
     """顺序执行显式工作流，复用统一 service 命令链路。"""
 
-    def __init__(self, dispatcher: WorkflowDispatcher) -> None:
+    def __init__(self, dispatcher: WorkflowDispatcher, mcp_client: MCPClient | None = None) -> None:
         self.dispatcher = dispatcher
+        self.mcp_client = mcp_client or MCPClient()
 
     async def execute(self, workflow: TaskWorkflow) -> WorkflowExecutionResult:
         """执行工作流中的命令步骤。"""
@@ -367,6 +382,13 @@ class WorkflowExecutor:
         result = WorkflowExecutionResult(workflow=workflow, observability=workflow.observability)
 
         for step in workflow.steps:
+            if step.step_type == "mcp_tool":
+                await self.execute_mcp_step(workflow, step, result)
+                if workflow.status == "failed":
+                    update_execution_metrics(workflow, result.observations)
+                    result.observability = workflow.observability
+                    return result
+                continue
             if step.step_type != "command":
                 result = self.handle_non_command_step(workflow, step, result)
                 if workflow.status in {"needs_confirm", "failed"}:
@@ -443,6 +465,61 @@ class WorkflowExecutor:
         result.observability = workflow.observability
         return result
 
+    async def execute_mcp_step(
+        self,
+        workflow: TaskWorkflow,
+        step: WorkflowStep,
+        result: WorkflowExecutionResult,
+    ) -> None:
+        """执行 MCP tool 步骤并写入 observation。"""
+
+        step.status = "running"
+        step.started_at = datetime.now()
+        workflow.add_event(
+            "step_started",
+            f"步骤「{step.title}」开始执行。",
+            step_id=step.step_id,
+            command=step.command,
+            status="running",
+        )
+        logger.info(
+            'AutoGPT trace "{}" workflow step "{}" calling MCP tool "{}"'.format(
+                workflow.trace_id,
+                step.step_id,
+                step.command,
+            )
+        )
+        call_result = await self.mcp_client.call_tool(step.command, params_to_arguments(step.params))
+        observation = mcp_result_to_observation(workflow.trace_id, list(step.params), call_result)
+        result.observations.append(observation)
+        if not observation.success:
+            step.status = "failed"
+            step.observation_message = observation.message
+            step.finished_at = datetime.now()
+            workflow.status = "failed"
+            workflow.finished_at = datetime.now()
+            workflow.add_event(
+                "step_failed",
+                observation.message,
+                step_id=step.step_id,
+                command=step.command,
+                status="failed",
+            )
+            workflow.add_event("workflow_failed", observation.message, status="failed")
+            result.user_message = observation.message
+            return
+
+        step.status = "completed"
+        step.observation_message = "MCP 工具已通过 MCP Client 执行完成。"
+        step.finished_at = datetime.now()
+        workflow.add_event(
+            "step_completed",
+            step.observation_message,
+            step_id=step.step_id,
+            command=step.command,
+            status="completed",
+        )
+
     def handle_non_command_step(
         self,
         workflow: TaskWorkflow,
@@ -510,7 +587,14 @@ def workflow_to_auto_tasks(workflow: TaskWorkflow, reply: str | None = None) -> 
 
     return AutoTaskList(
         reply=reply,
-        tasks=[AutoTask(command=step.command, params=list(step.params)) for step in workflow.steps],
+        tasks=[
+            AutoTask(
+                task_type=step.step_type if step.step_type in {"command", "mcp_tool"} else "command",
+                command=step.command,
+                params=list(step.params),
+            )
+            for step in workflow.steps
+        ],
         need_confirm=workflow.need_confirm,
     )
 
@@ -565,7 +649,9 @@ def collect_unsent_observation_outputs(observations: list[CommandObservation]) -
 def update_execution_metrics(workflow: TaskWorkflow, observations: list[CommandObservation]) -> None:
     """根据命令执行观察结果回填重复调用等执行指标。"""
 
-    executed_commands = [observation.command for observation in observations if observation.dispatch_type == "command"]
+    executed_commands = [
+        observation.command for observation in observations if observation.dispatch_type in {"command", "mcp_tool"}
+    ]
     repeated_commands = [command for command, count in Counter(executed_commands).items() if count > 1]
     workflow.observability.trace_id = workflow.trace_id
     workflow.observability.execution.executed_commands = executed_commands

@@ -4,6 +4,7 @@ from typing import Iterable
 from dataclasses import field, dataclass
 
 from src.platform.helper import Helpers
+from src.core.mcp import MCPClient, MCPToolCatalog
 
 from ..knowledge import SkillCatalog
 from ..command_tools import CommandTool, CommandToolCatalog
@@ -22,6 +23,8 @@ class PolicyHarness:
 
     helpers: Helpers
     skill_catalog: SkillCatalog = field(default_factory=SkillCatalog)
+    mcp_client: MCPClient = field(default_factory=MCPClient)
+    mcp_tools: MCPToolCatalog = field(default_factory=MCPToolCatalog)
     command_tools: CommandToolCatalog = field(init=False)
 
     def __post_init__(self) -> None:
@@ -32,6 +35,11 @@ class PolicyHarness:
         """把 Skill 注册表转换成 Prompt 可直接消费的摘要。"""
 
         return self.skill_catalog.to_prompt()
+
+    async def refresh_mcp_tools(self) -> None:
+        """按需刷新 MCP tool 目录；失败时保留空目录和错误说明。"""
+
+        self.mcp_tools = await MCPToolCatalog.from_client(self.mcp_client)
 
     def render_command_tools_prompt(
         self,
@@ -61,12 +69,27 @@ class PolicyHarness:
         )
         return self.render_skill_catalog_prompt_from_summaries(summaries)
 
+    def render_mcp_tools_prompt(
+        self,
+        *,
+        limit: int | None = None,
+        tool_names: Iterable[str] | None = None,
+    ) -> str:
+        """渲染 MCP tool 目录；只有 Planner 明确候选时才收窄。"""
+
+        return self.mcp_tools.to_prompt(limit=limit, tool_names=tool_names)
+
     def resolve_candidate_commands(self, candidate_commands: Iterable[str] | None) -> set[str]:
         """把 Planner 产出的候选命令解析为当前真实存在的命令名。"""
 
         if not candidate_commands:
             return set()
         return self.command_tools.resolve_commands(candidate_commands)
+
+    def resolve_candidate_mcp_tools(self, candidate_tools: Iterable[str] | None) -> set[str]:
+        """把 Planner 产出的 MCP 候选解析为当前真实存在的 tool 名称。"""
+
+        return self.mcp_tools.resolve_tools(candidate_tools)
 
     def select_command_tools(
         self,

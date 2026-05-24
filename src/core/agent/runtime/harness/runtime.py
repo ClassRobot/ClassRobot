@@ -57,6 +57,10 @@ class AutoGPTHarness:
         return self.policy.command_tools
 
     @property
+    def mcp_tools(self):
+        return self.policy.mcp_tools
+
+    @property
     def skill_catalog_prompt(self) -> str:
         return self.policy.skill_catalog_prompt
 

@@ -253,6 +253,9 @@ async def test_manager_settings_masks_secrets_and_rejects_invalid_keys(manager_c
     assert payload["cos"]["cos_secret_key"] != os.environ["COS_SECRET_KEY"]
     assert payload["cos"]["cos_secret_id"].startswith("test")
     assert payload["cos"]["cos_secret_key"].endswith("-key")
+    assert "mcp_enabled" in payload["ai"]
+    assert payload["ai"]["mcp_server_url"].endswith("/mcp")
+    assert payload["ai"]["mcp_transport"] in {"streamable_http", "sse"}
 
     invalid = await manager_client.patch(
         "/api/v1/manager/settings",
@@ -302,6 +305,33 @@ async def test_manager_settings_update_writes_temp_env(manager_client, manager_a
     assert saved_env["CACHE_HOST"] == "127.0.0.1"
     assert saved_env["CACHE_PORT"] == "6380"
     assert env_path.with_suffix(".env.manager-backup").exists()
+
+
+async def test_manager_integrations_returns_mcp_status(manager_client, manager_auth_headers, monkeypatch):
+    from src.core.mcp.schema import MCPHealthStatus
+    from src.interfaces.http.managers.runtime import status as status_store
+
+    class FakeMCPClient:
+        async def health_check(self):
+            return MCPHealthStatus(
+                status="ok",
+                enabled=True,
+                server_url="http://127.0.0.1:8000/mcp",
+                transport="streamable_http",
+                tool_count=1,
+                tools=["search_docs"],
+                message="MCP Client 已连接。",
+            )
+
+    monkeypatch.setattr(status_store, "MCPClient", FakeMCPClient)
+
+    response = await manager_client.get("/api/v1/manager/integrations", headers=manager_auth_headers)
+
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["mcp"]["status"] == "ok"
+    assert payload["mcp"]["tool_count"] == 1
+    assert payload["mcp"]["tools"] == ["search_docs"]
 
 
 async def test_manager_runtime_config_snapshot_reads_driver_config(manager_client, manager_auth_headers, monkeypatch):
@@ -1135,7 +1165,9 @@ async def test_manager_nonebot_availability_controls(manager_client, manager_aut
     plugin_listing = await manager_client.get("/api/v1/manager/nonebot/plugins", headers=manager_auth_headers)
     assert plugin_listing.status_code == 200, plugin_listing.text
     file_manager_plugin = next(
-        item for item in plugin_listing.json()["items"] if item["module_name"] == "src.plugins.application.active.file_manager"
+        item
+        for item in plugin_listing.json()["items"]
+        if item["module_name"] == "src.plugins.application.active.file_manager"
     )
     assert file_manager_plugin["available"] is False
     assert file_manager_plugin["availability_reason"] == "plugin-disabled"

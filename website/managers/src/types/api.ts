@@ -1121,6 +1121,11 @@ export interface AgentCheckpointDetail extends AgentCheckpointSummary {
 export interface IntegrationStatusItem {
   status: StatusLevel
   message?: string
+  enabled?: boolean
+  server_url?: string
+  transport?: string
+  tool_count?: number
+  tools?: string[]
 }
 
 export interface IntegrationsResponse {

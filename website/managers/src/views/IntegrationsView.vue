@@ -13,8 +13,12 @@
           <StatusChip :status="integrations?.mcp?.status || 'not_configured'" />
         </div>
         <p class="font-body-sm text-body-sm text-on-surface-variant dark:text-zinc-500">{{ integrations?.mcp?.message || '加载中...' }}</p>
+        <div class="space-y-2 font-body-sm text-body-sm">
+          <div class="flex justify-between"><span class="text-on-surface-variant dark:text-zinc-500">URL</span><span class="text-on-surface dark:text-zinc-200 font-code-inline text-right max-w-[240px] truncate">{{ integrations?.mcp?.server_url || '-' }}</span></div>
+          <div class="flex justify-between"><span class="text-on-surface-variant dark:text-zinc-500">工具数</span><span class="text-on-surface dark:text-zinc-200 font-code-inline">{{ integrations?.mcp?.tool_count ?? 0 }}</span></div>
+        </div>
         <div class="mt-auto pt-3 border-t border-outline-variant dark:border-zinc-800 flex justify-between items-center">
-          <span class="font-body-sm text-on-surface-variant dark:text-zinc-500">当前仓库尚未接入 MCP 注册表</span>
+          <span class="font-body-sm text-on-surface-variant dark:text-zinc-500">已接入 MCP Client，Agent 可按能力目录调用远端工具</span>
           <a href="#" class="text-primary dark:text-primary-dark font-body-sm hover:underline">架构文档</a>
         </div>
       </div>

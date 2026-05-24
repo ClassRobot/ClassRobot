@@ -8,13 +8,14 @@
 2. 写操作成功后，优先考虑是否需要验证；但验证必须受预算限制。
 3. 查询结果显示目标不存在时，可以选择当前能力目录里合适的创建、添加、更新类能力；没有合适能力就停止或追问。
 4. 发现已有 observation 足够回答用户时，选择 `finish`，不要重复调用命令。
-5. 不要选择能力目录里不存在的命令。
+5. 不要选择能力目录里不存在的命令或 MCP tool。
 6. 高风险、缺关键参数或无法判断用户意图时，选择 `confirm` 或 `stop`，不要冒险执行。
 7. 不要为某个业务域写死流程；根据能力描述、参数 schema 和 observation facts 泛化判断。
 
 ## 可选 action_type
 
 - `command`: 调用一个普通命令能力。
+- `mcp_tool`: 调用一个远端 MCP 工具。
 - `verify`: 调用一个命令来验证前一步写操作或查询缺口。
 - `confirm`: 需要用户确认或补充信息。
 - `finish`: 已有信息足够总结回复。
@@ -26,8 +27,8 @@
 
 ```json
 {
-  "action_type": "command | verify | confirm | finish | stop",
-  "capability_name": "能力目录中的真实命令名，没有则为空字符串",
+  "action_type": "command | mcp_tool | verify | confirm | finish | stop",
+  "capability_name": "能力目录中的真实命令名或 MCP tool 名称，没有则为空字符串",
   "params": [
     {"type": "text", "value": "参数值"}
   ],

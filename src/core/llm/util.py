@@ -62,6 +62,90 @@ def escape_backslashes(content: str) -> str:
     return re.sub(r"\\(?![nrtbfv](?![a-zA-Z]))", r"\\\\", content)
 
 
+def strip_json_code_fence(content: str) -> str:
+    """移除模型常见的 Markdown JSON 代码块包装。"""
+
+    stripped = content.strip()
+    if not stripped.startswith("```"):
+        return stripped
+
+    lines = stripped.splitlines()
+    if len(lines) < 3 or lines[-1].strip() != "```":
+        return stripped
+    return "\n".join(lines[1:-1]).strip()
+
+
+def extract_first_json_object(content: str) -> str | None:
+    """从混杂文本中提取首个括号平衡的 JSON 对象。"""
+
+    start = content.find("{")
+    if start < 0:
+        return None
+
+    depth = 0
+    in_string = False
+    escaped = False
+    for index, char in enumerate(content[start:], start=start):
+        if in_string:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+            continue
+
+        if char == '"':
+            in_string = True
+        elif char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth == 0:
+                return content[start : index + 1]
+
+    return None
+
+
+def repair_truncated_json_object(content: str) -> str | None:
+    """尝试修复末尾截断的 JSON 对象。"""
+
+    start = content.find("{")
+    if start < 0:
+        return None
+
+    candidate = content[start:].strip()
+    if not candidate:
+        return None
+
+    depth = 0
+    in_string = False
+    escaped = False
+    for char in candidate:
+        if in_string:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+            continue
+
+        if char == '"':
+            in_string = True
+        elif char == "{":
+            depth += 1
+        elif char == "}":
+            depth = max(depth - 1, 0)
+
+    if in_string:
+        candidate += '"'
+    candidate = re.sub(r",\s*$", "", candidate)
+    candidate = re.sub(r",\s*}", "}", candidate)
+    candidate += "}" * depth
+    return candidate
+
+
 def load_json_object(content: str) -> dict:
     """解析 JSON 字符串，必要时补做反斜杠兼容处理。"""
 
@@ -74,12 +158,15 @@ def load_json_object(content: str) -> dict:
 def json_loads(content: str) -> dict:
     """解析大语言模型返回的 JSON 数据。"""
 
+    normalized = strip_json_code_fence(content)
     try:
-        return load_json_object(content)
+        return load_json_object(normalized)
     except json.decoder.JSONDecodeError as error:
-        contents = content[content.find("{") :].split("}")
-        for index in range(len(contents), 0, -1):
-            candidate = "}".join(contents[:index]).strip() + "}"
+        candidates = [
+            extract_first_json_object(normalized),
+            repair_truncated_json_object(normalized),
+        ]
+        for candidate in candidates:
             if not candidate:
                 continue
             try:

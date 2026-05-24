@@ -10,6 +10,7 @@ from nonebot import get_driver
 
 from src.platform.config import project_root
 from src.core.llm.config import LLMConfig
+from src.core.mcp.config import load_mcp_config
 from src.core.auth.crypto import EncryptConfig
 from src.core.llm.config import plugin_config as llm_config
 from src.core.cache.config import plugin_config as cache_config
@@ -45,6 +46,12 @@ FIELD_TO_ENV = {
         "googleapis_key": "GOOGLEAPIS_KEY",
         "ragflow_url": "RAGFLOW_URL",
         "ragflow_key": "RAGFLOW_KEY",
+        "mcp_enabled": "MCP_ENABLED",
+        "mcp_server_url": "MCP_SERVER_URL",
+        "mcp_transport": "MCP_TRANSPORT",
+        "mcp_timeout": "MCP_TIMEOUT",
+        "mcp_auth_token": "MCP_AUTH_TOKEN",
+        "mcp_tool_allowlist": "MCP_TOOL_ALLOWLIST",
     },
     "cache": {
         "cache_host": "CACHE_HOST",
@@ -112,6 +119,7 @@ def get_settings() -> dict[str, Any]:
     """
     driver_config = _get_manager_driver().config
     encrypt_config = _encrypt_config()
+    mcp_config = load_mcp_config()
     return {
         "base": {
             "global_proxy": getattr(driver_config, "global_proxy", None),
@@ -122,6 +130,12 @@ def get_settings() -> dict[str, Any]:
             "googleapis_key": mask_secret(getattr(driver_config, "googleapis_key", None)),
             "ragflow_url": getattr(driver_config, "ragflow_url", None),
             "ragflow_key": mask_secret(getattr(driver_config, "ragflow_key", None)),
+            "mcp_enabled": mcp_config.enabled,
+            "mcp_server_url": mcp_config.server_url,
+            "mcp_transport": mcp_config.transport,
+            "mcp_timeout": mcp_config.timeout,
+            "mcp_auth_token": mask_secret(mcp_config.auth_token),
+            "mcp_tool_allowlist": mcp_config.tool_allowlist,
         },
         "cache": {
             "cache_host": cache_config.cache_host,
@@ -173,7 +187,7 @@ def _config_group_label(key: str) -> str:
         return "NoneBot 核心"
     if upper_key.startswith(("COS_", "BUCKET", "REGION", "SCHEME")):
         return "对象存储"
-    if upper_key.startswith(("RAGFLOW", "GOOGLE", "LLM", "MODEL")) or "OPENAI" in upper_key:
+    if upper_key.startswith(("RAGFLOW", "GOOGLE", "LLM", "MODEL", "MCP")) or "OPENAI" in upper_key:
         return "AI 服务"
     if upper_key.startswith(("CACHE", "REDIS")):
         return "缓存"
@@ -468,8 +482,28 @@ def _validate_value(group: str, key: str, value: Any) -> Any:
         if key == "teacher_max_classes":
             return _validate_int(value, field, minimum=1)
     if group == "ai":
-        if key in {"googleapis_key", "ragflow_url", "ragflow_key"}:
+        if key in {"googleapis_key", "ragflow_url", "ragflow_key", "mcp_auth_token"}:
             return _validate_string(value, field)
+        if key == "mcp_enabled":
+            if not isinstance(value, bool):
+                raise ValueError(f"Setting `{field}` must be a boolean")
+            return value
+        if key == "mcp_server_url":
+            url = _validate_string(value, field, allow_blank=False).strip()
+            if not url.startswith(("http://", "https://")):
+                raise ValueError(f"Setting `{field}` must start with http:// or https://")
+            return url
+        if key == "mcp_transport":
+            transport = _validate_string(value, field, allow_blank=False).strip()
+            if transport not in {"streamable_http", "sse"}:
+                raise ValueError("Setting `ai.mcp_transport` must be one of: streamable_http, sse")
+            return transport
+        if key == "mcp_timeout":
+            return _validate_float(value, field, minimum=0.1)
+        if key == "mcp_tool_allowlist":
+            if not isinstance(value, list):
+                raise ValueError(f"Setting `{field}` must be a list")
+            return [str(item).strip() for item in value if str(item).strip()]
     if group == "cache":
         if key == "cache_host":
             return _validate_string(value, field, allow_blank=False)

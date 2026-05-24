@@ -203,6 +203,89 @@ async def test_workflow_executor_surfaces_unsent_service_outputs(loaded_plugins)
     assert execution.user_message == "用户信息：你是教师用户。"
 
 
+@pytest.mark.asyncio
+async def test_workflow_executor_runs_mcp_tool_step(loaded_plugins):
+    from src.core.mcp.schema import MCPCallResult
+    from src.core.agent.runtime.workflow import WorkflowExecutor
+    from src.core.agent.runtime.schema import Param, WorkflowStep, TaskWorkflow
+
+    class FakeMCPClient:
+        async def call_tool(self, tool_name, arguments):
+            assert tool_name == "search_docs"
+            assert arguments == {"query": "作业"}
+            return MCPCallResult(
+                tool_name=tool_name,
+                success=True,
+                display_text="检索到外部资料。",
+                context_summary="外部资料显示需要收作业。",
+            )
+
+    async def dispatch(task):
+        raise AssertionError("mcp_tool step should not dispatch project command")
+
+    workflow = TaskWorkflow(
+        trace_id="autogpt-mcp-step",
+        kind="command",
+        goal="查询外部资料",
+        steps=[
+            WorkflowStep(
+                step_id="step-1",
+                step_type="mcp_tool",
+                title="调用 MCP 工具：search_docs",
+                command="search_docs",
+                params=[Param(type="text", value='{"query":"作业"}')],
+            )
+        ],
+    )
+
+    execution = await WorkflowExecutor(dispatch, mcp_client=FakeMCPClient()).execute(workflow)
+
+    assert execution.workflow.status == "completed"
+    assert execution.observations[0].dispatch_type == "mcp_tool"
+    assert execution.observations[0].context_outputs == ["外部资料显示需要收作业。"]
+    assert execution.user_message == "检索到外部资料。"
+
+
+@pytest.mark.asyncio
+async def test_workflow_executor_surfaces_mcp_failure(loaded_plugins):
+    from src.core.mcp.schema import MCPCallResult
+    from src.core.agent.runtime.workflow import WorkflowExecutor
+    from src.core.agent.runtime.schema import WorkflowStep, TaskWorkflow
+
+    class FakeMCPClient:
+        async def call_tool(self, tool_name, arguments):
+            return MCPCallResult(
+                tool_name=tool_name,
+                success=False,
+                display_text="MCP 工具调用失败：server offline",
+                context_summary="MCP tool 调用失败。",
+                error_code="RuntimeError",
+            )
+
+    async def dispatch(task):
+        raise AssertionError("mcp_tool step should not dispatch project command")
+
+    workflow = TaskWorkflow(
+        trace_id="autogpt-mcp-failed",
+        kind="command",
+        goal="查询外部资料",
+        steps=[
+            WorkflowStep(
+                step_id="step-1",
+                step_type="mcp_tool",
+                title="调用 MCP 工具：search_docs",
+                command="search_docs",
+            )
+        ],
+    )
+
+    execution = await WorkflowExecutor(dispatch, mcp_client=FakeMCPClient()).execute(workflow)
+
+    assert execution.workflow.status == "failed"
+    assert execution.observations[0].success is False
+    assert "server offline" in (execution.user_message or "")
+
+
 def test_format_execution_status_counts_completed_commands(loaded_plugins):
     from src.core.agent.runtime.workflow import format_execution_status
     from src.core.agent.runtime.schema import WorkflowStep, TaskWorkflow, WorkflowExecutionResult

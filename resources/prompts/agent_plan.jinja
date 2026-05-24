@@ -14,6 +14,7 @@
   "should_execute": false,
   "candidate_commands": [],
   "candidate_skills": [],
+  "candidate_mcp_tools": [],
   "steps": ["下一步计划"],
   "confirmation_question": null,
   "reason": "简短理由"
@@ -21,8 +22,8 @@
 
 ## 规划规则
 
-1. 命令调用只允许使用当前可用命令，不是 Windows/Linux shell 命令；不要编造命令、别名或 Skill。
-2. 命令和 Skill 选择必须基于用户目标、上下文、能力描述和 observation 做语义判断，不要按关键词机械匹配。
+1. 命令调用只允许使用当前可用命令，不是 Windows/Linux shell 命令；不要编造命令、别名、Skill 或 MCP tool。
+2. 命令、Skill 和 MCP tool 选择必须基于用户目标、上下文、能力描述和 observation 做语义判断，不要按关键词机械匹配。
 3. `goal` 用一句话说明用户最终目标；`facts` 只写已确认事实；`missing_info` 写仍缺失的关键参数。
 4. 如果班级、教师、学生、任务、时间、地点等关键参数缺失，不要编造，必须写入 `missing_info`。
 5. `requires_rag=true` 只用于确实需要校规、制度、资料或知识库的情况。
@@ -37,6 +38,7 @@
 14. 用户询问自己在哪个班级或班级身份时，优先候选“我的信息”；询问自己创建 / 管理班级或班级列表时，优先候选“查询班级”；询问本人课表或今天 / 明天 / 后天 / 昨天有没有课时，优先候选“查询课表”。
 15. 用户询问当前用户私聊或当前群聊的消息数量、聊天统计时，优先候选“统计聊天记录”；统计范围和时间必须来自上下文语义，不能越权统计他人。
 16. 如果用户目标需要图片、文件、二维码、Markdown 渲染、图片生成或文档理解能力，可在 `candidate_skills` 中写入当前可用 Skill 名称。
+17. 如果用户目标需要外部系统能力，并且“当前可用 MCP 工具”中存在匹配工具，可在 `candidate_mcp_tools` 中写入真实 MCP tool 名称；不要把内部命令和 MCP tool 混用。
 
 ## 入口路由
 
@@ -71,3 +73,7 @@
 ## 当前可用 Skill
 
 {{ skill_catalog }}
+
+## 当前可用 MCP 工具
+
+{{ mcp_tools }}

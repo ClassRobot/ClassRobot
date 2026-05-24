@@ -10,15 +10,19 @@ class Param(BaseModel):
     """命令参数"""
 
     type: Literal["text", "image"]
-    separate: bool = Field(default=False, description="命令和参数是否需要分开发送,例如`帮助`命令和`查询班级`参数需要分两次发送时候为True")
+    separate: bool = Field(
+        default=False, description="命令和参数是否需要分开发送,例如`帮助`命令和`查询班级`参数需要分两次发送时候为True"
+    )
     value: str = Field(description="如果是image则为url")
 
 
 class AutoTask(BaseModel):
     "AI帮助用户自动执行任务"
 
+    task_type: Literal["command", "mcp_tool"] = Field(default="command", description="任务类型")
+    "command 表示项目内部命令；mcp_tool 表示远端 MCP 工具。"
     command: str = Field(description="命令名称")
-    "用户的话语中可能想要执行的命令(重点:该命令必须是机器人所具备的命令)"
+    "用户的话语中可能想要执行的命令或 MCP 工具名称"
     params: list[Param] = Field(description="命令参数")
     "命令的参数"
 

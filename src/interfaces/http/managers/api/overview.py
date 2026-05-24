@@ -64,12 +64,9 @@ async def system_metrics(_=Depends(manager_auth)):
 async def integrations(_=Depends(manager_auth)):
     """返回集成页所需的第三方能力状态。"""
 
-    status_payload = await get_status(["models", "cos", "ragflow"])
+    status_payload = await get_status(["models", "cos", "ragflow", "mcp"])
     return {
-        "mcp": {
-            "status": "planned",
-            "message": "MCP registry is not implemented in the current repository.",
-        },
+        "mcp": status_payload.get("mcp", {}),
         "ragflow": status_payload.get("ragflow", {}),
         "cos": status_payload.get("cos", {}),
         "models": status_payload.get("models", {}),

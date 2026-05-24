@@ -16,6 +16,7 @@ class AutoTaskAgentConfig(BaseAgentConfig):
 
     command_tools_prompt: str = ""
     skill_catalog_prompt: str = ""
+    mcp_tools_prompt: str = ""
     llm_name: str | None = None
 
 
@@ -39,6 +40,12 @@ class AutoTaskAgent(BaseAgent):
         """返回 Skill 摘要目录。"""
 
         return self.config.skill_catalog_prompt
+
+    @property
+    def mcp_tools_prompt(self) -> str:
+        """返回 MCP tool 摘要目录。"""
+
+        return self.config.mcp_tools_prompt
 
     async def execute(
         self,
@@ -67,6 +74,7 @@ class AutoTaskAgent(BaseAgent):
                     "plan": plan,
                     "command_tools": self.command_tools_prompt,
                     "skill_catalog": self.skill_catalog_prompt,
+                    "mcp_tools": self.mcp_tools_prompt,
                 }
             )
         )

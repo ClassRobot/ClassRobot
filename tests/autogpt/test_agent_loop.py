@@ -267,3 +267,57 @@ async def test_cognitive_loop_supports_confirm_decision_without_command(loaded_p
     assert execution.workflow.need_confirm is True
     assert execution.workflow.approval.status == "pending"
     assert "班级范围" in (execution.user_message or "")
+
+
+@pytest.mark.asyncio
+async def test_cognitive_loop_runs_mcp_tool_with_budget(loaded_plugins):
+    from src.core.mcp.catalog import MCPToolCatalog
+    from src.core.mcp.schema import MCPTool, MCPCallResult
+    from src.core.agent.runtime.loop import CognitiveAgentLoop, AgentLoopConfig
+    from src.core.agent.runtime.schema import Param, WorkflowStep, TaskWorkflow
+
+    class FakeMCPClient:
+        async def call_tool(self, tool_name, arguments):
+            assert tool_name == "search_docs"
+            assert arguments == {"query": "作业"}
+            return MCPCallResult(
+                tool_name=tool_name,
+                success=True,
+                display_text="检索完成。",
+                context_summary="外部文档中有作业要求。",
+            )
+
+    async def dispatch(task):
+        raise AssertionError("mcp_tool action should not dispatch command")
+
+    catalog = MCPToolCatalog()
+    catalog.append(MCPTool(name="search_docs", description="检索外部文档"))
+    workflow = TaskWorkflow(
+        trace_id="autogpt-loop-mcp",
+        kind="command",
+        steps=[
+            WorkflowStep(
+                step_id="step-1",
+                step_type="mcp_tool",
+                title="调用 MCP 工具",
+                command="search_docs",
+                params=[Param(type="text", value='{"query":"作业"}')],
+            )
+        ],
+    )
+
+    execution = await CognitiveAgentLoop(
+        dispatch,
+        mcp_tools=catalog,
+        mcp_client=FakeMCPClient(),
+        config=AgentLoopConfig(
+            max_steps=1,
+            max_verify_attempts=3,
+            max_repeat_actions=2,
+            max_runtime_seconds=120,
+        ),
+    ).execute(workflow)
+
+    assert execution.workflow.status == "completed"
+    assert execution.observations[0].dispatch_type == "mcp_tool"
+    assert execution.observations[0].context_outputs == ["外部文档中有作业要求。"]

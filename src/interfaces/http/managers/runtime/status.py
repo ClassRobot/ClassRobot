@@ -10,9 +10,18 @@ from sqlalchemy import text
 from nonebot import get_driver
 from nonebot_plugin_orm import get_session
 
-from src.platform.config import cache_dir, config_dir, data_dir, prompts_dir, project_root, skill_runtime_dir, skills_dir
+from src.platform.config import (
+    cache_dir,
+    config_dir,
+    data_dir,
+    prompts_dir,
+    project_root,
+    skill_runtime_dir,
+    skills_dir,
+)
 from src.core.cache.config import plugin_config as cache_config
 from src.core.llm.config import plugin_config as llm_config
+from src.core.mcp import MCPClient
 from src.core.storage.object_store import plugin_config as cos_config
 from src.models import User, Files, UserBind, AgentWorkflowRun, AgentWorkflowCheckpoint
 
@@ -131,6 +140,13 @@ def check_ragflow() -> dict[str, Any]:
         "url": ragflow_url,
         "has_key": bool(ragflow_key),
     }
+
+
+async def check_mcp() -> dict[str, Any]:
+    """检查 MCP Client 配置和远端工具目录状态。"""
+
+    status = await MCPClient().health_check()
+    return status.dict()
 
 
 def check_runtime() -> dict[str, Any]:
@@ -306,6 +322,8 @@ async def get_status(targets: list[str] | None = None) -> dict[str, Any]:
         payload["cos"] = check_cos()
     if all_targets or "ragflow" in selected:
         payload["ragflow"] = check_ragflow()
+    if all_targets or "mcp" in selected:
+        payload["mcp"] = await check_mcp()
     if all_targets or "system" in selected:
         payload["system"] = check_system_metrics()
 

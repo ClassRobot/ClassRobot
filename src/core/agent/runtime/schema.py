@@ -11,7 +11,6 @@ from src.core.agent.runtime.auto_task import Param as Param  # noqa
 from src.core.agent.runtime.auto_task import AutoTask as AutoTask  # noqa
 from src.core.agent.runtime.auto_task import AutoTaskList as AutoTaskList  # noqa
 
-
 KnowledgeSource = Literal[
     "user_chat_history",
     "group_chat_history",
@@ -95,6 +94,8 @@ class AgentPlan(BaseModel):
     """可能要调用的项目命令名称。"""
     candidate_skills: list[str] = []
     """可能要使用的项目内 Skill 名称。"""
+    candidate_mcp_tools: list[str] = []
+    """可能要调用的远端 MCP tool 名称。"""
     steps: list[str] = []
     """面向系统的执行步骤。"""
     confirmation_question: str | None = None
@@ -104,7 +105,7 @@ class AgentPlan(BaseModel):
 
 
 RuntimeScene = Literal["chat", "command", "knowledge", "vision", "task", "violation"]
-TaskWorkflowStepType = Literal["command", "skill", "confirm", "respond", "schedule"]
+TaskWorkflowStepType = Literal["command", "mcp_tool", "skill", "confirm", "respond", "schedule"]
 ObservabilityStage = Literal["route", "extract", "plan", "task"]
 WorkflowKind = Literal["chat", "knowledge", "command", "command_sequence", "clarification", "violation"]
 WorkflowStatus = Literal["planned", "running", "completed", "failed", "needs_confirm", "cancelled"]
@@ -218,7 +219,7 @@ class CommandObservation(BaseModel):
     """被投递的项目命令名称。"""
     params: list[Param] = Field(default_factory=list)
     """本次随命令一起投递的参数。"""
-    dispatch_type: Literal["command", "missing_command", "unsupported_command"] = "command"
+    dispatch_type: Literal["command", "mcp_tool", "missing_command", "unsupported_command"] = "command"
     """投递类型：service 命令、缺失命令或尚未 service 化的命令。"""
     success: bool = True
     """是否成功通过统一命令执行器完成。"""
@@ -244,7 +245,7 @@ class WorkflowStep(BaseModel):
     title: str
     """面向日志和文档的步骤标题。"""
     command: str
-    """步骤最终会调用的项目命令。"""
+    """步骤最终会调用的项目命令或 MCP tool 名称。"""
     params: list[Param] = Field(default_factory=list)
     """本步骤使用的命令参数。"""
     description: str = ""

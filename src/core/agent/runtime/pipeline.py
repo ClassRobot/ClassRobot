@@ -26,7 +26,12 @@ from .schema import (
 )
 from .graph_executor import RuntimeGraphExecutor
 from .harness import ProgressStage, AutoGPTHarness, ProgressReporter, ProgressFeedbackHarness
-from .orchestration_config import RuntimeGraphConfig, RuntimeNodeConfig, default_graph_config, get_runtime_orchestration_snapshot
+from .orchestration_config import (
+    RuntimeGraphConfig,
+    RuntimeNodeConfig,
+    default_graph_config,
+    get_runtime_orchestration_snapshot,
+)
 from .node_registry import RUNTIME_NODE_REGISTRY
 from .coordination import (
     RUNTIME_NODE_CLASS_REGISTRY,
@@ -89,6 +94,7 @@ class MessageProcessingPipeline:
         self.observability = harness.observability
         self.helpers = harness.helpers
         self.command_tools = harness.command_tools
+        self.mcp_tools = harness.mcp_tools
         self.skill_catalog_prompt = harness.skill_catalog_prompt
         self.messages = harness.messages
         self.trace_id = harness.trace_id
@@ -414,6 +420,17 @@ class MessageProcessingPipeline:
 
         return self.policy.render_skill_catalog_prompt_from_summaries(summaries)
 
+    async def ensure_mcp_tools(self) -> None:
+        """刷新 MCP 工具目录，并同步到 Pipeline facade。"""
+
+        await self.policy.refresh_mcp_tools()
+        self.mcp_tools = self.policy.mcp_tools
+
+    def render_mcp_tools_prompt(self, *, tool_names=None) -> str:
+        """把 MCP tool 目录渲染为 Prompt 片段。"""
+
+        return self.policy.render_mcp_tools_prompt(tool_names=tool_names)
+
     def select_route_command_tools(self, contents: list[Content]):
         """入口路由阶段暴露完整 service 命令目录，避免关键词召回隐藏能力。"""
 
@@ -453,6 +470,13 @@ class MessageProcessingPipeline:
         return self.policy.select_skill_summaries(
             skill_names=plan.candidate_skills if plan is not None else None,
         )
+
+    def resolve_candidate_mcp_tools(self, plan: AgentPlan | None) -> set[str]:
+        """将 Planner 候选 MCP tool 解析成当前真实存在的工具名。"""
+
+        if plan is None or not plan.candidate_mcp_tools:
+            return set()
+        return self.policy.resolve_candidate_mcp_tools(plan.candidate_mcp_tools)
 
     def render_route_command_tools_prompt(self, contents: list[Content]) -> str:
         """为入口路由阶段生成命令目录。"""
