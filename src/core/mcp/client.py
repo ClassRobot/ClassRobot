@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import json
-from datetime import timedelta
+import time
 from typing import Any
+from datetime import timedelta
 
 import httpx
+from nonebot import logger
 
 from .config import MCPConfig, load_mcp_config
 from .schema import MCPTool, MCPCallResult, MCPHealthStatus
@@ -28,15 +30,25 @@ class MCPClient:
         """读取远端 MCP server 暴露的 tools。"""
 
         if not self.config.enabled:
+            logger.info("MCP list_tools skipped because MCP is disabled")
             return []
 
+        started = time.perf_counter()
         try:
             async with self.open_session() as session:
                 response = await session.list_tools()
+            transport = self.config.transport
         except MCPClientError:
+            logger.info("MCP list_tools falling back to JSON-RPC transport")
             response = await self.fallback_list_tools()
+            transport = "fallback_rpc"
         tools = getattr(response, "tools", response)
-        return [tool for tool in (self.normalize_tool(item) for item in tools or []) if tool.enabled]
+        normalized_tools = [tool for tool in (self.normalize_tool(item) for item in tools or []) if tool.enabled]
+        logger.info(
+            f"MCP list_tools completed in {time.perf_counter() - started:.3f}s "
+            f"transport={transport} tool_count={len(normalized_tools)}"
+        )
+        return normalized_tools
 
     async def call_tool(self, tool_name: str, arguments: dict[str, Any] | None = None) -> MCPCallResult:
         """调用远端 MCP tool，并转换为项目内部标准结果。"""
@@ -58,32 +70,51 @@ class MCPClient:
                 error_code="mcp_tool_not_allowed",
             )
 
+        started = time.perf_counter()
+        payload = arguments or {}
+        logger.info(
+            f'MCP call_tool started tool="{tool_name}" transport={self.config.transport} '
+            f"timeout={self.config.timeout}s args_keys={sorted(payload.keys())}"
+        )
         try:
             try:
                 async with self.open_session() as session:
-                    response = await session.call_tool(tool_name, arguments or {})
+                    response = await session.call_tool(tool_name, payload)
+                transport = self.config.transport
             except MCPClientError:
-                response = await self.fallback_call_tool(tool_name, arguments or {})
+                logger.info(f'MCP call_tool "{tool_name}" falling back to JSON-RPC transport')
+                response = await self.fallback_call_tool(tool_name, payload)
+                transport = "fallback_rpc"
         except Exception as error:  # noqa: BLE001
+            error_text = str(error).strip() or type(error).__name__
+            logger.warning(
+                f'MCP call_tool failed tool="{tool_name}" in {time.perf_counter() - started:.3f}s '
+                f'error="{error_text}"'
+            )
             return MCPCallResult(
                 tool_name=tool_name,
                 success=False,
-                display_text=f"MCP 工具 `{tool_name}` 调用失败：{error}",
-                context_summary=f"MCP tool `{tool_name}` 调用失败：{error}",
+                display_text=f"外部工具调用失败：{error_text}",
+                context_summary=f"外部工具调用失败：{error_text}",
                 error_code=type(error).__name__,
             )
 
         text = self.extract_response_text(response)
+        summary = self.extract_response_summary(response)
         is_error = bool(
             getattr(response, "isError", False)
             or getattr(response, "is_error", False)
             or (isinstance(response, dict) and (response.get("isError") or response.get("is_error")))
         )
+        logger.info(
+            f'MCP call_tool completed tool="{tool_name}" in {time.perf_counter() - started:.3f}s '
+            f"transport={transport} success={not is_error} summary_len={len(summary)} text_len={len(text)}"
+        )
         return MCPCallResult(
             tool_name=tool_name,
             success=not is_error,
-            display_text=text or ("MCP 工具执行完成。" if not is_error else "MCP 工具返回错误。"),
-            context_summary=text[:500] if text else ("MCP 工具执行完成。" if not is_error else "MCP 工具返回错误。"),
+            display_text=summary or text or ("MCP 工具执行完成。" if not is_error else "MCP 工具返回错误。"),
+            context_summary=(summary or text[:500] or ("MCP 工具执行完成。" if not is_error else "MCP 工具返回错误。")),
             raw_result=self.dump_model(response),
             error_code="mcp_tool_error" if is_error else None,
         )
@@ -91,6 +122,7 @@ class MCPClient:
     async def fallback_list_tools(self) -> list[dict[str, Any]]:
         """在官方 SDK 不可用时，以 Streamable HTTP JSON-RPC 方式读取 tools。"""
 
+        logger.info("MCP fallback_list_tools issuing JSON-RPC tools/list request")
         result = await self.rpc_request("tools/list", {})
         tools = result.get("tools", []) if isinstance(result, dict) else []
         return tools if isinstance(tools, list) else []
@@ -98,6 +130,7 @@ class MCPClient:
     async def fallback_call_tool(self, tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         """在官方 SDK 不可用时，以 Streamable HTTP JSON-RPC 方式调用 tool。"""
 
+        logger.info(f'MCP fallback_call_tool issuing JSON-RPC tools/call request for "{tool_name}"')
         return await self.rpc_request(
             "tools/call",
             {"name": tool_name, "arguments": arguments},
@@ -123,6 +156,10 @@ class MCPClient:
         }
         async with httpx.AsyncClient(timeout=self.config.timeout) as client:
             request_headers = await self.prepare_rpc_headers(client, headers)
+            logger.info(
+                f'MCP rpc_request sending method="{method}" url="{self.config.server_url}" '
+                f'headers_session={"Mcp-Session-Id" in request_headers}'
+            )
             response = await client.post(self.config.server_url, json=request_payload, headers=request_headers)
         response.raise_for_status()
         payload = self.parse_rpc_response(response)
@@ -239,6 +276,7 @@ class MCPClient:
         payload = self.dump_model(tool)
         name = str(payload.get("name") or getattr(tool, "name", "")).strip()
         description = str(payload.get("description") or getattr(tool, "description", "") or "").strip()
+        annotations = payload.get("annotations") if isinstance(payload.get("annotations"), dict) else {}
         input_schema = (
             payload.get("inputSchema")
             or payload.get("input_schema")
@@ -246,6 +284,23 @@ class MCPClient:
             or getattr(tool, "input_schema", None)
             or {}
         )
+        domain_tags = self.normalize_domain_tags(
+            payload.get("domain_tags")
+            or payload.get("domainTags")
+            or annotations.get("domain_tags")
+            or annotations.get("domainTags")
+            or payload.get("tags")
+            or annotations.get("tags")
+        )
+        if not domain_tags:
+            domain_tags = self.infer_domain_tags(name, description)
+        freshness = str(
+            payload.get("freshness")
+            or annotations.get("freshness")
+            or ("realtime" if self.is_realtime_tool(name, description, domain_tags) else "static")
+        ).strip()
+        if freshness not in {"static", "recent", "realtime"}:
+            freshness = "static"
         enabled = bool(name and self.config.is_tool_allowed(name))
         return MCPTool(
             name=name,
@@ -253,6 +308,68 @@ class MCPClient:
             input_schema=input_schema if isinstance(input_schema, dict) else {},
             server_url=self.config.server_url,
             enabled=enabled,
+            domain_tags=domain_tags,
+            freshness=freshness,
+            public_description=str(
+                payload.get("public_description")
+                or payload.get("publicDescription")
+                or annotations.get("public_description")
+                or annotations.get("publicDescription")
+                or ""
+            ).strip(),
+            when_to_use=str(
+                payload.get("when_to_use")
+                or payload.get("whenToUse")
+                or annotations.get("when_to_use")
+                or annotations.get("whenToUse")
+                or ""
+            ).strip(),
+        )
+
+    @staticmethod
+    def normalize_domain_tags(value: Any) -> list[str]:
+        """标准化 MCP metadata 中的领域标签。"""
+
+        if value is None:
+            return []
+        if isinstance(value, str):
+            raw_items = value.replace("，", ",").split(",")
+        elif isinstance(value, list):
+            raw_items = value
+        else:
+            raw_items = [value]
+        tags: list[str] = []
+        seen: set[str] = set()
+        for item in raw_items:
+            tag = str(item).strip().lower().replace("-", "_")
+            if not tag or tag in seen:
+                continue
+            tags.append(tag)
+            seen.add(tag)
+        return tags
+
+    @classmethod
+    def infer_domain_tags(cls, name: str, description: str) -> list[str]:
+        """从工具自描述中补足通用领域标签。"""
+
+        text = f"{name} {description}".lower()
+        tags: list[str] = []
+        if any(token in text for token in ("web", "search", "browser", "internet", "联网", "搜索", "网页")):
+            tags.append("web_search")
+        if any(token in text for token in ("news", "hot", "trend", "新闻", "热点", "热搜")):
+            tags.append("news")
+        if any(token in text for token in ("doc", "docs", "document", "文档", "资料")):
+            tags.append("docs")
+        return tags
+
+    @staticmethod
+    def is_realtime_tool(name: str, description: str, domain_tags: list[str]) -> bool:
+        """判断 MCP tool 是否适合实时公共外部检索。"""
+
+        text = f"{name} {description}".lower()
+        return bool(
+            {"web_search", "news", "browser"} & set(domain_tags)
+            or any(token in text for token in ("realtime", "latest", "current", "实时", "最新", "新闻", "热点"))
         )
 
     @staticmethod
@@ -271,15 +388,31 @@ class MCPClient:
     def extract_response_text(cls, response: Any) -> str:
         """从 MCP call result 中提取适合写入 observation 的文本。"""
 
+        payload = cls.dump_model(response)
+        if isinstance(payload, dict):
+            direct_text = payload.get("text")
+            if isinstance(direct_text, str) and direct_text.strip():
+                return direct_text.strip()
+
         content = getattr(response, "content", None)
         if not content and isinstance(response, dict):
             content = response.get("content")
         if not content:
-            payload = cls.dump_model(response)
             return json.dumps(payload, ensure_ascii=False, default=str)[:1000]
 
         parts: list[str] = []
         for item in content:
+            if isinstance(item, dict):
+                text = item.get("text")
+                if text is not None:
+                    parts.append(str(text))
+                    continue
+                data = item.get("data")
+                if data is not None:
+                    parts.append(json.dumps(data, ensure_ascii=False, default=str))
+                    continue
+                parts.append(json.dumps(item, ensure_ascii=False, default=str))
+                continue
             text = getattr(item, "text", None)
             if text is not None:
                 parts.append(str(text))
@@ -290,6 +423,76 @@ class MCPClient:
                 continue
             parts.append(json.dumps(cls.dump_model(item), ensure_ascii=False, default=str))
         return "\n".join(part for part in parts if part).strip()
+
+    @classmethod
+    def extract_response_summary(cls, response: Any) -> str:
+        """尽量从结构化 MCP 结果中提取面向用户的简洁摘要。"""
+
+        payload = cls.dump_model(response)
+        if not isinstance(payload, dict):
+            return ""
+
+        structured = payload.get("structuredContent") or payload.get("structured_content")
+        if isinstance(structured, dict):
+            summary = cls.summarize_structured_content(structured)
+            if summary:
+                return summary
+
+        content = payload.get("content")
+        if isinstance(content, list):
+            for item in content:
+                if not isinstance(item, dict):
+                    continue
+                text = str(item.get("text") or "").strip()
+                if not text:
+                    continue
+                parsed = cls.try_load_json_text(text)
+                if isinstance(parsed, dict):
+                    summary = cls.summarize_structured_content(parsed)
+                    if summary:
+                        return summary
+        return ""
+
+    @staticmethod
+    def try_load_json_text(text: str) -> dict[str, Any] | None:
+        """尝试把文本解析成 JSON 对象。"""
+
+        if not text.startswith("{"):
+            return None
+        try:
+            parsed = json.loads(text)
+        except json.JSONDecodeError:
+            return None
+        return parsed if isinstance(parsed, dict) else None
+
+    @staticmethod
+    def summarize_structured_content(structured: dict[str, Any]) -> str:
+        """把搜索类结构化结果压缩成短摘要。"""
+
+        summary = str(structured.get("summary") or "").strip()
+        if summary:
+            return summary[:1200]
+
+        results = structured.get("results")
+        if not isinstance(results, list) or not results:
+            return ""
+
+        lines: list[str] = []
+        for index, item in enumerate(results[:3], start=1):
+            if not isinstance(item, dict):
+                continue
+            title = str(item.get("title") or "").strip()
+            snippet = str(item.get("snippet") or "").strip()
+            source = str(item.get("source") or "").strip()
+            if not title and not snippet:
+                continue
+            line = f"{index}. {title}"
+            if source:
+                line += f" ({source})"
+            if snippet:
+                line += f": {snippet}"
+            lines.append(line[:400])
+        return "\n".join(lines)
 
 
 class StreamableHTTPSessionContext:
@@ -303,8 +506,8 @@ class StreamableHTTPSessionContext:
 
     async def __aenter__(self):
         try:
-            from mcp import ClientSession
-            from mcp.client.streamable_http import streamablehttp_client
+            from mcp import ClientSession  # type: ignore[import-not-found]
+            from mcp.client.streamable_http import streamablehttp_client  # type: ignore[import-not-found]
         except ImportError as error:
             raise MCPClientError("缺少官方 MCP Python SDK，已回退到轻量 Streamable HTTP 客户端。") from error
 
@@ -338,8 +541,8 @@ class SSESessionContext:
 
     async def __aenter__(self):
         try:
-            from mcp import ClientSession
-            from mcp.client.sse import sse_client
+            from mcp import ClientSession  # type: ignore[import-not-found]
+            from mcp.client.sse import sse_client  # type: ignore[import-not-found]
         except ImportError as error:
             raise MCPClientError("缺少官方 MCP Python SDK，已回退到轻量 SSE/HTTP 客户端。") from error
 

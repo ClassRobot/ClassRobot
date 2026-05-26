@@ -7,6 +7,7 @@ from pydantic import Field, BaseModel
 RiskLevel = Literal["low", "medium", "high"]
 MCPTransport = Literal["streamable_http", "sse"]
 MCPStatus = Literal["disabled", "configured", "ok", "error"]
+MCPFreshness = Literal["static", "recent", "realtime"]
 
 
 class MCPTool(BaseModel):
@@ -18,6 +19,10 @@ class MCPTool(BaseModel):
     risk_level: RiskLevel = "medium"
     server_url: str = ""
     enabled: bool = True
+    domain_tags: list[str] = Field(default_factory=list)
+    freshness: MCPFreshness = "static"
+    public_description: str = ""
+    when_to_use: str = ""
 
     def to_prompt(self) -> str:
         """转换成 Planner 和 Loop 可消费的紧凑能力说明。"""
@@ -30,9 +35,16 @@ class MCPTool(BaseModel):
             names = [f"{name}{'*' if name in required_set else ''}" for name in params]
             param_names = "、".join(names)
         return (
-            f"- {self.name}: {self.description or '远端 MCP 工具'}"
-            f" | 风险={self.risk_level} | 参数={param_names} | server={self.server_url}"
+            f"- {self.name}: {self.public_description or self.description or '远端 MCP 工具'}"
+            f" | freshness={self.freshness} | tags={self.render_domain_tags()} "
+            f"| 风险={self.risk_level} | 参数={param_names} | server={self.server_url}"
+            f" | 适用={self.when_to_use or self.description or '外部系统能力'}"
         )
+
+    def render_domain_tags(self) -> str:
+        """渲染领域标签。"""
+
+        return "、".join(self.domain_tags) if self.domain_tags else "无"
 
 
 class MCPCallResult(BaseModel):

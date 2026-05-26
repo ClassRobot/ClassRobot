@@ -1,23 +1,27 @@
+import json
 from datetime import datetime
+from time import perf_counter
 from collections import Counter
 from typing import Callable, Awaitable
 
 from nonebot import logger
-
-from src.core.mcp import MCPClient
+from src.core.mcp import MCPClient, MCPToolCatalog
 from src.core.mcp.observation import params_to_arguments, mcp_result_to_observation
 
 from .command_tools import CommandToolCatalog
+from .live_trace import agent_live_trace_registry
 from .playbooks import WorkflowPlaybook, WorkflowPlaybookStep, playbook_catalog
+from .observation_quality import ObservationQualityGate, observation_safe_display, build_safe_execution_fallback
 from .schema import (
+    Param,
     AutoTask,
     AgentPlan,
     RiskLevel,
     IntentRoute,
     AutoTaskList,
+    TaskWorkflow,
     WorkflowKind,
     WorkflowStep,
-    TaskWorkflow,
     WorkflowStatus,
     AgentTurnResult,
     WorkflowApproval,
@@ -150,11 +154,7 @@ class WorkflowStepBuilder:
                         matched_playbook_step.description
                         if matched_playbook_step
                         else (tool.description if tool else "")
-                        or (
-                            "通过 MCP Client 调用远端工具。"
-                            if step_type == "mcp_tool"
-                            else "通过统一 service 命令执行项目能力。"
-                        )
+                        or ("通过 MCP Client 调用远端工具。" if step_type == "mcp_tool" else "通过统一 service 命令执行项目能力。")
                     ),
                     risk_level=tool.risk_level if tool else "medium",
                 )
@@ -213,11 +213,7 @@ class WorkflowApprovalBuilder:
         has_high_risk_step = any(step.risk_level == "high" for step in steps)
         if needs_confirm or (plan and plan.confirmation_question):
             approval_type = "high_risk" if risk_level == "high" or has_high_risk_step else "user_confirm"
-            reason = (
-                "该任务包含高风险步骤，执行前需要用户确认。"
-                if approval_type == "high_risk"
-                else "当前任务在执行前需要用户确认。"
-            )
+            reason = "该任务包含高风险步骤，执行前需要用户确认。" if approval_type == "high_risk" else "当前任务在执行前需要用户确认。"
             return WorkflowApproval(
                 required=True,
                 type=approval_type,
@@ -356,9 +352,16 @@ class WorkflowBuilder:
 class WorkflowExecutor:
     """顺序执行显式工作流，复用统一 service 命令链路。"""
 
-    def __init__(self, dispatcher: WorkflowDispatcher, mcp_client: MCPClient | None = None) -> None:
+    def __init__(
+        self,
+        dispatcher: WorkflowDispatcher,
+        mcp_client: MCPClient | None = None,
+        mcp_tools: MCPToolCatalog | None = None,
+    ) -> None:
         self.dispatcher = dispatcher
         self.mcp_client = mcp_client or MCPClient()
+        self.mcp_tools = mcp_tools or MCPToolCatalog()
+        self.quality_gate = ObservationQualityGate()
 
     async def execute(self, workflow: TaskWorkflow) -> WorkflowExecutionResult:
         """执行工作流中的命令步骤。"""
@@ -380,11 +383,20 @@ class WorkflowExecutor:
         workflow.started_at = datetime.now()
         workflow.add_event("workflow_started", "工作流开始执行。", status="running")
         result = WorkflowExecutionResult(workflow=workflow, observability=workflow.observability)
+        started = perf_counter()
+        logger.info(
+            f'AutoGPT trace "{workflow.trace_id}" workflow executor started '
+            f"steps={len(workflow.steps)} kind={workflow.kind}"
+        )
 
         for step in workflow.steps:
             if step.step_type == "mcp_tool":
                 await self.execute_mcp_step(workflow, step, result)
                 if workflow.status == "failed":
+                    logger.info(
+                        f'AutoGPT trace "{workflow.trace_id}" workflow executor failed during MCP step '
+                        f"in {perf_counter() - started:.3f}s"
+                    )
                     update_execution_metrics(workflow, result.observations)
                     result.observability = workflow.observability
                     return result
@@ -392,6 +404,10 @@ class WorkflowExecutor:
             if step.step_type != "command":
                 result = self.handle_non_command_step(workflow, step, result)
                 if workflow.status in {"needs_confirm", "failed"}:
+                    logger.info(
+                        f'AutoGPT trace "{workflow.trace_id}" workflow executor stopped on non-command step '
+                        f"status={workflow.status} in {perf_counter() - started:.3f}s"
+                    )
                     update_execution_metrics(workflow, result.observations)
                     result.observability = workflow.observability
                     return result
@@ -414,7 +430,65 @@ class WorkflowExecutor:
                     step.command,
                 )
             )
-            observations = await self.dispatcher(task)
+            command_started = perf_counter()
+            agent_live_trace_registry.emit(
+                workflow.trace_id,
+                event_type="command_dispatch_started",
+                stage="tool_call",
+                status="running",
+                workflow_kind=workflow.kind,
+                step_id=step.step_id,
+                tool_name=step.command,
+                params_preview={"params": [param.dict() for param in step.params]},
+            )
+            try:
+                observations = await self.dispatcher(task)
+            except Exception as error:
+                agent_live_trace_registry.emit(
+                    workflow.trace_id,
+                    event_type="command_dispatch_completed",
+                    stage="tool_call",
+                    status="failed",
+                    workflow_kind=workflow.kind,
+                    step_id=step.step_id,
+                    tool_name=step.command,
+                    error=error,
+                    duration_ms=(perf_counter() - command_started) * 1000,
+                )
+                raise
+            observations = [
+                self.quality_gate.evaluate(observation, user_goal=workflow.goal) for observation in observations
+            ]
+            for observation in observations:
+                agent_live_trace_registry.emit(
+                    workflow.trace_id,
+                    event_type="quality_gate_evaluated",
+                    stage="loop",
+                    status="completed" if observation.success else "failed",
+                    workflow_kind=workflow.kind,
+                    step_id=step.step_id,
+                    tool_name=observation.tool_name or observation.command,
+                    params_preview={
+                        "relevance": observation.relevance,
+                        "answer_quality": observation.answer_quality,
+                        "next_actions": observation.next_actions,
+                    },
+                    observation_summary=observation.display_summary
+                    or observation.context_summary
+                    or observation.message,
+                )
+            agent_live_trace_registry.emit(
+                workflow.trace_id,
+                event_type="command_dispatch_completed",
+                stage="tool_call",
+                status="completed" if all(observation.success for observation in observations) else "failed",
+                workflow_kind=workflow.kind,
+                step_id=step.step_id,
+                tool_name=step.command,
+                params_preview={"observations": len(observations)},
+                observation_summary=observations[0].message if observations else "",
+                duration_ms=(perf_counter() - command_started) * 1000,
+            )
             result.observations.extend(observations)
 
             failed_observation = next((observation for observation in observations if not observation.success), None)
@@ -434,13 +508,13 @@ class WorkflowExecutor:
                 workflow.add_event("workflow_failed", failed_observation.message, status="failed")
                 unsent_outputs = collect_unsent_observation_outputs(observations)
                 result.raw_outputs = unsent_outputs
-                result.user_message = (
-                    "\n\n".join(unsent_outputs)
-                    if unsent_outputs
-                    else "我执行到一半出现了问题，有些步骤可能没有完成，请稍后重试或分步执行。"
-                )
+                result.user_message = build_safe_execution_fallback(observations)
                 update_execution_metrics(workflow, result.observations)
                 result.observability = workflow.observability
+                logger.info(
+                    f'AutoGPT trace "{workflow.trace_id}" workflow executor failed during command step '
+                    f"in {perf_counter() - started:.3f}s"
+                )
                 return result
 
             step.status = "completed"
@@ -460,9 +534,13 @@ class WorkflowExecutor:
         unsent_outputs = collect_unsent_observation_outputs(result.observations)
         result.raw_outputs = unsent_outputs
         if unsent_outputs:
-            result.user_message = "\n\n".join(unsent_outputs)
+            result.user_message = build_safe_execution_fallback(result.observations)
         update_execution_metrics(workflow, result.observations)
         result.observability = workflow.observability
+        logger.info(
+            f'AutoGPT trace "{workflow.trace_id}" workflow executor finished '
+            f"in {perf_counter() - started:.3f}s observations={len(result.observations)}"
+        )
         return result
 
     async def execute_mcp_step(
@@ -489,8 +567,73 @@ class WorkflowExecutor:
                 step.command,
             )
         )
-        call_result = await self.mcp_client.call_tool(step.command, params_to_arguments(step.params))
-        observation = mcp_result_to_observation(workflow.trace_id, list(step.params), call_result)
+        started = perf_counter()
+        tool = self.mcp_tools.get(step.command)
+        arguments = params_to_arguments(
+            list(step.params),
+            input_schema=tool.input_schema if tool else None,
+            prior_observations=result.observations,
+        )
+        observation_params = (
+            [Param(type="text", value=json.dumps(arguments, ensure_ascii=False))] if arguments else list(step.params)
+        )
+        agent_live_trace_registry.emit(
+            workflow.trace_id,
+            event_type="mcp_call_started",
+            stage="tool_call",
+            status="running",
+            workflow_kind=workflow.kind,
+            step_id=step.step_id,
+            tool_name=step.command,
+            params_preview={"arguments": arguments},
+        )
+        try:
+            call_result = await self.mcp_client.call_tool(step.command, arguments)
+        except Exception as error:
+            agent_live_trace_registry.emit(
+                workflow.trace_id,
+                event_type="mcp_call_completed",
+                stage="tool_call",
+                status="failed",
+                workflow_kind=workflow.kind,
+                step_id=step.step_id,
+                tool_name=step.command,
+                error=error,
+                duration_ms=(perf_counter() - started) * 1000,
+            )
+            raise
+        observation = mcp_result_to_observation(workflow.trace_id, observation_params, call_result)
+        observation = self.quality_gate.evaluate(observation, user_goal=workflow.goal)
+        agent_live_trace_registry.emit(
+            workflow.trace_id,
+            event_type="quality_gate_evaluated",
+            stage="loop",
+            status="completed" if observation.success else "failed",
+            workflow_kind=workflow.kind,
+            step_id=step.step_id,
+            tool_name=observation.tool_name or step.command,
+            params_preview={
+                "relevance": observation.relevance,
+                "answer_quality": observation.answer_quality,
+                "next_actions": observation.next_actions,
+            },
+            observation_summary=observation.display_summary or observation.context_summary or observation.message,
+        )
+        logger.info(
+            f'AutoGPT trace "{workflow.trace_id}" workflow step "{step.step_id}" MCP "{step.command}" '
+            f"completed in {perf_counter() - started:.3f}s success={observation.success}"
+        )
+        agent_live_trace_registry.emit(
+            workflow.trace_id,
+            event_type="mcp_call_completed",
+            stage="tool_call",
+            status="completed" if observation.success else "failed",
+            workflow_kind=workflow.kind,
+            step_id=step.step_id,
+            tool_name=step.command,
+            observation_summary=observation.display_summary or observation.context_summary or observation.message,
+            duration_ms=(perf_counter() - started) * 1000,
+        )
         result.observations.append(observation)
         if not observation.success:
             step.status = "failed"
@@ -506,7 +649,7 @@ class WorkflowExecutor:
                 status="failed",
             )
             workflow.add_event("workflow_failed", observation.message, status="failed")
-            result.user_message = observation.message
+            result.user_message = observation_safe_display(observation) or observation.message
             return
 
         step.status = "completed"
@@ -573,6 +716,29 @@ def build_turn_result(
         observability=observability,
     )
     metrics = workflow.observability if workflow is not None else AgentObservabilityMetrics(trace_id=trace_id)
+    if workflow is not None:
+        agent_live_trace_registry.emit(
+            trace_id,
+            event_type="workflow_built",
+            stage="workflow",
+            status=workflow.status,
+            workflow_kind=workflow.kind,
+            params_preview={
+                "kind": workflow.kind,
+                "status": workflow.status,
+                "goal": workflow.goal,
+                "steps": [
+                    {
+                        "step_id": step.step_id,
+                        "step_type": step.step_type,
+                        "command": step.command,
+                        "params": [param.dict() for param in step.params],
+                    }
+                    for step in workflow.steps
+                ],
+                "need_confirm": workflow.need_confirm,
+            },
+        )
     return AgentTurnResult(
         route=route,
         plan=plan,
@@ -643,6 +809,20 @@ def collect_unsent_observation_outputs(observations: list[CommandObservation]) -
                 continue
             outputs.append(text)
             seen.add(text)
+    return outputs
+
+
+def collect_observation_display_summaries(observations: list[CommandObservation]) -> list[str]:
+    """收集可安全面向用户的 observation 摘要。"""
+
+    outputs: list[str] = []
+    seen: set[str] = set()
+    for observation in observations:
+        text = observation_safe_display(observation).strip()
+        if not text or text in seen:
+            continue
+        outputs.append(text)
+        seen.add(text)
     return outputs
 
 

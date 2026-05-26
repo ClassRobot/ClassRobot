@@ -2,11 +2,11 @@ import pytest
 
 
 def test_build_turn_result_promotes_tasks_to_explicit_workflow(loaded_plugins):
+    from src.platform.helper import Helpers
     from src.core.agent.runtime.workflow import build_turn_result
     from src.core.agent.runtime.command_tools import CommandToolCatalog
     from src.core.agent.runtime.schema import Param, AutoTask, AgentPlan, IntentRoute, AutoTaskList
 
-    from src.platform.helper import Helpers
     from tests.autogpt.command_tool_helpers import ensure_service_helper
 
     helpers = Helpers()
@@ -47,11 +47,11 @@ def test_build_turn_result_promotes_tasks_to_explicit_workflow(loaded_plugins):
 
 
 def test_build_turn_result_marks_high_risk_workflow_for_approval(loaded_plugins):
+    from src.platform.helper import Helpers
     from src.core.agent.runtime.workflow import build_turn_result
     from src.core.agent.runtime.command_tools import CommandToolCatalog
     from src.core.agent.runtime.schema import Param, AutoTask, AgentPlan, IntentRoute, AutoTaskList
 
-    from src.platform.helper import Helpers
     from tests.autogpt.command_tool_helpers import ensure_service_helper
 
     helpers = Helpers()
@@ -88,11 +88,10 @@ def test_build_turn_result_marks_high_risk_workflow_for_approval(loaded_plugins)
 
 
 def test_build_turn_result_marks_missing_info_approval(loaded_plugins):
+    from src.platform.helper import Helpers
     from src.core.agent.runtime.workflow import build_turn_result
     from src.core.agent.runtime.command_tools import CommandToolCatalog
     from src.core.agent.runtime.schema import AgentPlan, IntentRoute, AutoTaskList
-
-    from src.platform.helper import Helpers
 
     result = build_turn_result(
         trace_id="autogpt-missing-info",
@@ -120,7 +119,7 @@ def test_build_turn_result_marks_missing_info_approval(loaded_plugins):
 @pytest.mark.asyncio
 async def test_workflow_executor_runs_steps_in_order(loaded_plugins):
     from src.core.agent.runtime.workflow import WorkflowExecutor
-    from src.core.agent.runtime.schema import Param, WorkflowStep, TaskWorkflow, CommandObservation
+    from src.core.agent.runtime.schema import Param, TaskWorkflow, WorkflowStep, CommandObservation
 
     calls: list[str] = []
 
@@ -175,7 +174,7 @@ async def test_workflow_executor_runs_steps_in_order(loaded_plugins):
 @pytest.mark.asyncio
 async def test_workflow_executor_surfaces_unsent_service_outputs(loaded_plugins):
     from src.core.agent.runtime.workflow import WorkflowExecutor
-    from src.core.agent.runtime.schema import WorkflowStep, TaskWorkflow, CommandObservation
+    from src.core.agent.runtime.schema import TaskWorkflow, WorkflowStep, CommandObservation
 
     async def dispatch(task):
         return [
@@ -200,14 +199,14 @@ async def test_workflow_executor_surfaces_unsent_service_outputs(loaded_plugins)
     execution = await WorkflowExecutor(dispatch).execute(workflow)
 
     assert execution.workflow.status == "completed"
-    assert execution.user_message == "用户信息：你是教师用户。"
+    assert execution.user_message == "当前用户已绑定教师身份。"
 
 
 @pytest.mark.asyncio
 async def test_workflow_executor_runs_mcp_tool_step(loaded_plugins):
     from src.core.mcp.schema import MCPCallResult
     from src.core.agent.runtime.workflow import WorkflowExecutor
-    from src.core.agent.runtime.schema import Param, WorkflowStep, TaskWorkflow
+    from src.core.agent.runtime.schema import Param, TaskWorkflow, WorkflowStep
 
     class FakeMCPClient:
         async def call_tool(self, tool_name, arguments):
@@ -243,14 +242,14 @@ async def test_workflow_executor_runs_mcp_tool_step(loaded_plugins):
     assert execution.workflow.status == "completed"
     assert execution.observations[0].dispatch_type == "mcp_tool"
     assert execution.observations[0].context_outputs == ["外部资料显示需要收作业。"]
-    assert execution.user_message == "检索到外部资料。"
+    assert execution.user_message == "外部资料显示需要收作业。"
 
 
 @pytest.mark.asyncio
 async def test_workflow_executor_surfaces_mcp_failure(loaded_plugins):
     from src.core.mcp.schema import MCPCallResult
     from src.core.agent.runtime.workflow import WorkflowExecutor
-    from src.core.agent.runtime.schema import WorkflowStep, TaskWorkflow
+    from src.core.agent.runtime.schema import TaskWorkflow, WorkflowStep
 
     class FakeMCPClient:
         async def call_tool(self, tool_name, arguments):
@@ -288,7 +287,7 @@ async def test_workflow_executor_surfaces_mcp_failure(loaded_plugins):
 
 def test_format_execution_status_counts_completed_commands(loaded_plugins):
     from src.core.agent.runtime.workflow import format_execution_status
-    from src.core.agent.runtime.schema import WorkflowStep, TaskWorkflow, WorkflowExecutionResult
+    from src.core.agent.runtime.schema import TaskWorkflow, WorkflowStep, WorkflowExecutionResult
 
     workflow = TaskWorkflow(
         trace_id="autogpt-status",
@@ -304,7 +303,7 @@ def test_format_execution_status_counts_completed_commands(loaded_plugins):
 
 def test_format_execution_status_marks_failed_command(loaded_plugins):
     from src.core.agent.runtime.workflow import format_execution_status
-    from src.core.agent.runtime.schema import WorkflowStep, TaskWorkflow, WorkflowExecutionResult
+    from src.core.agent.runtime.schema import TaskWorkflow, WorkflowStep, WorkflowExecutionResult
 
     workflow = TaskWorkflow(
         trace_id="autogpt-status-failed",
@@ -315,16 +314,13 @@ def test_format_execution_status_marks_failed_command(loaded_plugins):
         ],
     )
 
-    assert (
-        format_execution_status(WorkflowExecutionResult(workflow=workflow))
-        == "已运行 2 条命令，其中 `查询班级` 没有完成。"
-    )
+    assert format_execution_status(WorkflowExecutionResult(workflow=workflow)) == "已运行 2 条命令，其中 `查询班级` 没有完成。"
 
 
 @pytest.mark.asyncio
 async def test_workflow_executor_stops_on_failed_step(loaded_plugins):
     from src.core.agent.runtime.workflow import WorkflowExecutor
-    from src.core.agent.runtime.schema import Param, WorkflowStep, TaskWorkflow, CommandObservation
+    from src.core.agent.runtime.schema import Param, TaskWorkflow, WorkflowStep, CommandObservation
 
     calls: list[str] = []
 

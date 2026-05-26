@@ -147,6 +147,27 @@ Agent 问题不要先假设是代码问题。先判断：
 
 只有这些都没问题，且能力、权限、状态机、隐私边界真的缺失时，才优先改代码。
 
+## 能力自知
+
+Agent 不能把所有未知目标都推进命令规划。运行时会通过 `RuntimeCapabilityCatalog` 把当前可用能力统一暴露给路由器和 Planner：
+
+- `direct_chat`
+  - 直接回答、解释或闲聊。
+- `internal_command`
+  - 项目内部 service-style 命令。
+- `local_knowledge`
+  - 当前用户或当前绑定群的聊天记录、文件空间。
+- `external_rag`
+  - 已配置的外部知识库、校规、制度和资料。
+- `mcp_tool`
+  - 外部系统工具，例如联网搜索、浏览器、第三方 API。
+
+每个能力都要说明 `freshness`、`scope`、`execution_mode` 和 `fallback_behavior`。模型负责根据用户目标选择能力；代码负责校验真实可用性、权限和失败收束。
+
+当用户询问最新新闻、网上热点、热搜、当前动态或其它实时公共外部信息时，Agent 应优先寻找 `freshness=realtime` 且 `scope=public_external` 的能力。没有这类能力时，要自然说明当前缺少实时检索工具，不能把问题伪装成项目命令，也不能让用户补无关参数。
+
+路由器只负责判断路径，不负责生成普通聊天的最终答案。`chat` 场景的自然回复应由 `resources/prompts/direct_chat_reply.jinja` 生成，这样直答回复器可以再次读取能力目录，避免把路由示例或空泛待命文本直接发给用户。
+
 ## 测试入口
 
 - `tests/autogpt/test_agent_standard.py`

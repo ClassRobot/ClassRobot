@@ -4,11 +4,10 @@ from typing import TYPE_CHECKING
 from abc import ABC, abstractmethod
 
 from nonebot import logger
-from nonebot_plugin_alconna import UniMessage
-
 from src.core.llm import LLMTaskType
 from src.core.llm.util import json_loads
 from src.core.agent.prompts import Prompt
+from nonebot_plugin_alconna import UniMessage
 from src.core.llm.message import LLMRole, Messages
 
 from .state import PipelineState
@@ -53,6 +52,49 @@ class AppendUserMessageNode(WorkflowNode):
 class IntentRouteNode(WorkflowNode):
     """先判断消息类型，避免所有请求都进入重型规划链路。"""
 
+    async def build_direct_chat_reply(
+        self,
+        pipeline: "MessageProcessingPipeline",
+        state: PipelineState,
+    ) -> str:
+        """为普通 chat 场景生成最终直答，避免路由器示例回复直接外泄。"""
+
+        if state.intent_route and state.intent_route.unavailable_reason == "realtime_source_missing":
+            return pipeline.unavailable_realtime_reply()
+
+        reply_prompt = await Prompt("direct_chat_reply").render(
+            {
+                "capability_catalog": pipeline.render_capability_catalog_prompt(),
+                "route": state.intent_route.json(ensure_ascii=False) if state.intent_route else "{}",
+                "history": pipeline.serialize_recent_history(),
+                "user_message": pipeline.text_query_from_contents(state.user_content),
+            }
+        )
+        reply_messages = Messages()
+        reply_messages.extend(pipeline.messages.get(LLMRole.system))
+        reply_messages.system_message(reply_prompt)
+        reply_messages.user_message(state.user_content)
+        try:
+            response = await pipeline.create_llm_completion(
+                reply_messages,
+                multi_modal=False,
+                max_tokens=1024,
+                task_type=LLMTaskType.reply,
+                model_role="supervisor",
+            )
+        except Exception as error:
+            logger.warning(f'AutoGPT trace "{state.trace_id}" direct chat reply failed: {error}')
+            return (state.intent_route.reply or "").strip() if state.intent_route else ""
+        reply = (response.choices[0].message.content or "").strip()
+        if reply.startswith("{"):
+            try:
+                payload = json_loads(reply)
+            except Exception:
+                return reply
+            if isinstance(payload, dict) and isinstance(payload.get("reply"), str):
+                return payload["reply"].strip()
+        return reply
+
     async def run(self, pipeline: "MessageProcessingPipeline", state: PipelineState) -> None:
         if state.auto_tasks is not None:
             return
@@ -65,6 +107,7 @@ class IntentRouteNode(WorkflowNode):
                 "command_tools": pipeline.render_command_tools_prompt_from_tools(route_tools),
                 "skill_catalog": pipeline.render_skill_catalog_prompt_from_summaries(route_skills),
                 "mcp_tools": pipeline.render_mcp_tools_prompt(),
+                "capability_catalog": pipeline.render_capability_catalog_prompt(),
                 "history": pipeline.serialize_recent_history(),
             }
         )
@@ -94,6 +137,12 @@ class IntentRouteNode(WorkflowNode):
                 requires_command=True,
                 reason="意图路由解析失败，降级到自动任务规划。",
             )
+        if pipeline.route_requires_unavailable_realtime_lookup(state.intent_route):
+            state.intent_route.intent = "chat"
+            state.intent_route.requires_command = False
+            state.intent_route.requires_rag = False
+            state.intent_route.unavailable_reason = "realtime_source_missing"
+            state.intent_route.reply = pipeline.unavailable_realtime_reply()
         logger.info(
             'AutoGPT trace "{}" routed intent="{}" requires_command={} requires_rag={}'.format(
                 state.trace_id,
@@ -122,14 +171,10 @@ class IntentRouteNode(WorkflowNode):
                 reply=state.intent_route.reply or "用户发送的消息包含违规内容，已被屏蔽！",
                 is_violation=True,
             )
-        elif (
-            not state.intent_route.requires_command
-            and not pipeline.needs_external_knowledge(state.intent_route)
-            and not pipeline.has_visual_input(state.user_content)
-            and not pipeline.needs_local_knowledge(state.intent_route)
-        ):
+        elif pipeline.should_generate_direct_chat_reply(state.intent_route, state.user_content):
+            reply = await self.build_direct_chat_reply(pipeline, state)
             state.auto_tasks = AutoTaskList(
-                reply=state.intent_route.reply or "我在，有什么需要我帮你处理的吗？",
+                reply=reply or state.intent_route.reply or "我在，有什么需要我帮你处理的吗？",
                 need_confirm=state.intent_route.need_confirm,
             )
 
@@ -157,8 +202,7 @@ class DirectVisionReplyNode(WorkflowNode):
         reply = (response.choices[0].message.content or "").strip()
         state.runtime_scene = "vision"
         state.auto_tasks = AutoTaskList(
-            reply=reply
-            or "我看到了这张图片，但还不能可靠判断具体内容，你可以发更清晰一点的图片或补一句你想让我看什么。",
+            reply=reply or "我看到了这张图片，但还不能可靠判断具体内容，你可以发更清晰一点的图片或补一句你想让我看什么。",
             need_confirm=False,
         )
 
@@ -202,6 +246,53 @@ class ExtractContextNode(WorkflowNode):
 class PlannerNode(WorkflowNode):
     """把上下文转换成显式计划，再交给后续节点执行。"""
 
+    @staticmethod
+    def build_plan_goal(pipeline: "MessageProcessingPipeline", state: PipelineState) -> str:
+        """生成 Planner 降级时可复用的目标描述。"""
+
+        if state.extracted_context is not None:
+            context_text = state.extracted_context.single_modal().strip()
+            if context_text:
+                return context_text
+        return pipeline.text_query_from_contents(state.user_content) or "处理当前用户请求"
+
+    def normalize_plan_payload(
+        self,
+        pipeline: "MessageProcessingPipeline",
+        state: PipelineState,
+        payload: object,
+    ) -> dict:
+        """将 Planner 返回值标准化为可安全解析的 AgentPlan 载荷。"""
+
+        if not isinstance(payload, dict):
+            raise TypeError("planner payload must be a JSON object")
+        normalized = dict(payload)
+        route_requirements = state.intent_route.capability_requirements if state.intent_route else []
+        normalized["capability_requirements"] = [
+            requirement.dict()
+            for requirement in pipeline.normalize_capability_requirements(
+                normalized.get("capability_requirements"),
+                route_requirements,
+            )
+        ]
+        if pipeline.route_requires_realtime_external_lookup(state.intent_route):
+            raw_candidate_mcp_tools = normalized.get("candidate_mcp_tools")
+            candidate_mcp_tools = (
+                pipeline.normalize_candidate_mcp_tool_names(raw_candidate_mcp_tools)
+                if isinstance(raw_candidate_mcp_tools, list)
+                else []
+            )
+            normalized["candidate_mcp_tools"] = candidate_mcp_tools or pipeline.realtime_mcp_candidate_names()
+            normalized.setdefault("requires_command", False)
+            normalized.setdefault("requires_rag", False)
+            if (
+                normalized.get("candidate_mcp_tools")
+                and not normalized.get("missing_info")
+                and not normalized.get("confirmation_question")
+            ):
+                normalized["should_execute"] = bool(normalized.get("should_execute", True))
+        return normalized
+
     async def run(self, pipeline: "MessageProcessingPipeline", state: PipelineState) -> None:
         if state.auto_tasks is not None or state.extracted_context is None:
             return
@@ -215,6 +306,7 @@ class PlannerNode(WorkflowNode):
                 "command_tools": pipeline.render_command_tools_prompt_from_tools(plan_tools),
                 "skill_catalog": pipeline.render_skill_catalog_prompt_from_summaries(plan_skills),
                 "mcp_tools": pipeline.render_mcp_tools_prompt(),
+                "capability_catalog": pipeline.render_capability_catalog_prompt(),
                 "route": state.intent_route.json(ensure_ascii=False) if state.intent_route else "{}",
                 "context": state.extracted_context.single_modal(),
                 "local_knowledge": state.local_knowledge,
@@ -239,22 +331,41 @@ class PlannerNode(WorkflowNode):
         )
         text = response.choices[0].message.content or "{}"
         try:
-            state.agent_plan = AgentPlan.parse_obj(json_loads(text))
+            payload = self.normalize_plan_payload(pipeline, state, json_loads(text))
+            state.agent_plan = pipeline.ensure_realtime_mcp_plan_defaults(
+                AgentPlan.parse_obj(payload),
+                state.intent_route,
+            )
         except Exception as error:
             logger.exception(f'AutoGPT trace "{state.trace_id}" planner parse failed: {error}')
-            state.agent_plan = AgentPlan(
-                goal=state.extracted_context.single_modal(),
-                requires_command=bool(state.intent_route and state.intent_route.requires_command),
-                requires_rag=bool(state.intent_route and state.intent_route.requires_rag),
-                reason="计划解析失败，使用上下文和入口路由降级。",
-            )
+            if (
+                pipeline.route_requires_realtime_external_lookup(state.intent_route)
+                and pipeline.realtime_mcp_candidate_names()
+            ):
+                state.agent_plan = pipeline.build_realtime_mcp_fallback_plan(
+                    state.intent_route,
+                    self.build_plan_goal(pipeline, state),
+                    reason="计划解析失败，已按实时外部检索需求降级为最小 MCP 执行计划。",
+                )
+            else:
+                state.agent_plan = AgentPlan(
+                    goal=self.build_plan_goal(pipeline, state),
+                    capability_requirements=pipeline.normalize_capability_requirements(
+                        state.intent_route.capability_requirements if state.intent_route else [],
+                        state.intent_route.capability_requirements if state.intent_route else [],
+                    ),
+                    requires_command=bool(state.intent_route and state.intent_route.requires_command),
+                    requires_rag=bool(state.intent_route and state.intent_route.requires_rag),
+                    reason="计划解析失败，使用上下文和入口路由降级。",
+                )
         logger.info(
-            'AutoGPT trace "{}" planned requires_command={} should_execute={} risk_level="{}" candidates={}'.format(
+            'AutoGPT trace "{}" planned requires_command={} should_execute={} risk_level="{}" candidates={} mcp_candidates={}'.format(
                 state.trace_id,
                 state.agent_plan.requires_command,
                 state.agent_plan.should_execute,
                 state.agent_plan.risk_level,
                 state.agent_plan.candidate_commands,
+                state.agent_plan.candidate_mcp_tools,
             )
         )
         pipeline.record_prompt_stage(
@@ -282,6 +393,13 @@ class ExecutionPolicyNode(WorkflowNode):
             return
 
         plan = state.agent_plan
+        if plan.unavailable_reason == "realtime_source_missing":
+            state.auto_tasks = AutoTaskList(
+                reply=pipeline.unavailable_realtime_reply(),
+                need_confirm=False,
+            )
+            return
+
         if plan.risk_level == "high" and plan.requires_command:
             state.auto_tasks = AutoTaskList(
                 reply=plan.confirmation_question or "这个操作风险较高，请确认是否继续执行。",
@@ -292,8 +410,7 @@ class ExecutionPolicyNode(WorkflowNode):
         if plan.requires_command and not plan.should_execute:
             state.auto_tasks = AutoTaskList(
                 reply=plan.confirmation_question
-                or "我还需要你确认执行条件后才能调用系统命令。"
-                + (f" 缺少信息：{'、'.join(plan.missing_info)}" if plan.missing_info else ""),
+                or "我还需要你确认执行条件后才能调用系统命令。" + (f" 缺少信息：{'、'.join(plan.missing_info)}" if plan.missing_info else ""),
                 need_confirm=True,
             )
             return
@@ -301,6 +418,13 @@ class ExecutionPolicyNode(WorkflowNode):
         if plan.requires_command and not pipeline.resolve_candidate_commands(plan):
             state.auto_tasks = AutoTaskList(
                 reply="我还不能确定要调用哪个项目命令，请再说明一下要执行的具体功能。",
+                need_confirm=True,
+            )
+            return
+
+        if pipeline.route_requires_realtime_external_lookup(state.intent_route) and not plan.candidate_mcp_tools:
+            state.auto_tasks = AutoTaskList(
+                reply="这次还没有生成可执行的外部检索步骤，所以我不会假装已经开始联网查询。请稍后再试一次。",
                 need_confirm=True,
             )
             return
@@ -358,7 +482,7 @@ class PlanTasksNode(WorkflowNode):
         task_messages.extend(pipeline.messages.get(LLMRole.system))
         task_messages.system_message(task_prompt)
         task_messages.user_message(state.extracted_context.content)
-        state.auto_tasks = await pipeline.create_auto_task_agent(
+        task_agent = pipeline.create_auto_task_agent(
             helpers=pipeline.helpers,
             messages=pipeline.messages,
             command_tools_prompt=pipeline.render_command_tools_prompt_from_tools(task_tools),
@@ -366,11 +490,31 @@ class PlanTasksNode(WorkflowNode):
             mcp_tools_prompt=pipeline.render_mcp_tools_prompt(
                 tool_names=state.agent_plan.candidate_mcp_tools if state.agent_plan else None
             ),
-        ).execute(
-            state.extracted_context,
-            combined_knowledge,
-            plan=state.agent_plan.json(ensure_ascii=False) if state.agent_plan else None,
         )
+        try:
+            state.auto_tasks = await task_agent.execute(
+                state.extracted_context,
+                combined_knowledge,
+                plan=state.agent_plan.json(ensure_ascii=False) if state.agent_plan else None,
+            )
+        except Exception as error:
+            logger.exception(f'AutoGPT trace "{state.trace_id}" auto task parse failed: {error}')
+            state.auto_tasks = AutoTaskList()
+
+        if pipeline.should_force_realtime_mcp_task(state.intent_route, state.agent_plan, state.auto_tasks):
+            state.auto_tasks = pipeline.build_realtime_mcp_auto_tasks(
+                route=state.intent_route,
+                plan=state.agent_plan,
+                query_text=state.extracted_context.single_modal()
+                or pipeline.text_query_from_contents(state.user_content),
+                existing_reply=state.auto_tasks.reply if state.auto_tasks is not None else None,
+            )
+            logger.info(
+                'AutoGPT trace "{}" synthesized fallback realtime MCP task tool="{}"'.format(
+                    state.trace_id,
+                    state.auto_tasks.tasks[0].command if state.auto_tasks.tasks else "",
+                )
+            )
         pipeline.record_prompt_stage(
             "task",
             prompt_char_length=task_messages.char_length(),
@@ -384,11 +528,25 @@ class ValidateAutoTasksNode(WorkflowNode):
     """校验 AutoTask 输出，确保任务仍在 Planner 和 Helper 允许范围内。"""
 
     async def run(self, pipeline: "MessageProcessingPipeline", state: PipelineState) -> None:
-        if state.auto_tasks is None or not state.auto_tasks.tasks:
+        if state.auto_tasks is None:
+            return
+        if not state.auto_tasks.tasks:
+            if (
+                state.agent_plan is not None
+                and state.agent_plan.should_execute
+                and state.agent_plan.candidate_mcp_tools
+            ):
+                state.auto_tasks.reply = "这次还没有生成可执行的外部查询步骤，所以我不会假装已经开始联网查询。请稍后重试。"
+                state.auto_tasks.need_confirm = True
             return
 
         allowed_commands = pipeline.resolve_candidate_commands(state.agent_plan)
         allowed_mcp_tools = pipeline.resolve_candidate_mcp_tools(state.agent_plan)
+        fallback_mcp_query = (
+            state.extracted_context.single_modal()
+            if state.extracted_context is not None
+            else pipeline.text_query_from_contents(state.user_content)
+        )
         valid_tasks = []
         invalid_commands = []
         for task in state.auto_tasks.tasks:
@@ -399,6 +557,11 @@ class ValidateAutoTasksNode(WorkflowNode):
                 if allowed_mcp_tools and task.command not in allowed_mcp_tools:
                     invalid_commands.append(task.command)
                     continue
+                task.params = pipeline.normalize_mcp_task_params(
+                    task.command,
+                    list(task.params),
+                    fallback_query=fallback_mcp_query,
+                )
                 valid_tasks.append(task)
                 continue
             helper = pipeline.helpers.get_helper(task.command)
@@ -416,6 +579,14 @@ class ValidateAutoTasksNode(WorkflowNode):
             state.auto_tasks.need_confirm = True
         elif invalid_commands:
             state.auto_tasks.reply = (state.auto_tasks.reply or "") + "\n部分命令因不在当前计划或权限范围内，已跳过。"
+        elif (
+            state.agent_plan is not None
+            and state.agent_plan.should_execute
+            and state.agent_plan.candidate_mcp_tools
+            and not valid_tasks
+        ):
+            state.auto_tasks.reply = "这次还没有生成可执行的外部查询步骤，所以我不会假装已经开始联网查询。请稍后重试。"
+            state.auto_tasks.need_confirm = True
 
         pipeline.record_final_hit_commands([task.command for task in valid_tasks])
         state.auto_tasks.reply = pipeline.normalize_auto_task_reply(
@@ -430,6 +601,9 @@ class PersistAssistantReplyNode(WorkflowNode):
 
     async def run(self, pipeline: "MessageProcessingPipeline", state: PipelineState) -> None:
         if state.auto_tasks is None:
+            return
+        if not state.auto_tasks.tasks and not state.auto_tasks.need_confirm and not state.auto_tasks.is_violation:
+            pipeline.messages.assistant_message(state.auto_tasks.reply or "")
             return
         pipeline.messages.assistant_message(pipeline.serialize_auto_task_result(state.auto_tasks))
 

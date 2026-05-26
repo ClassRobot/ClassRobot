@@ -25,31 +25,18 @@ def test_build_user_progress_message(loaded_plugins, intent, requires_rag, requi
     assert MessageProcessingPipeline.build_user_progress_message(route) == expected
 
 
-def test_format_progress_message_adds_stage_prefix(loaded_plugins):
+def test_format_progress_message_hides_internal_stage_tags(loaded_plugins):
     from src.core.agent.runtime.pipeline import MessageProcessingPipeline
 
-    assert (
-        MessageProcessingPipeline.format_progress_message(
-            "我正在提取这轮对话里的目标、约束和关键信息。",
-            stage="extract",
-        )
-        == "extract: 我正在提取这轮对话里的目标、约束和关键信息。"
-    )
-    assert (
-        MessageProcessingPipeline.format_progress_message(
-            "extract: 我正在提取这轮对话里的目标、约束和关键信息。",
-            stage="extract",
-        )
-        == "extract: 我正在提取这轮对话里的目标、约束和关键信息。"
-    )
+    assert MessageProcessingPipeline.format_progress_message("我正在提取这轮对话里的目标。", stage="extract") == ""
+    assert MessageProcessingPipeline.format_progress_message("rag: 我正在检索相关资料。", stage="rag") == "我正在检索相关资料。"
 
 
 @pytest.mark.asyncio
 async def test_report_progress_deduplicates_messages(loaded_plugins):
-    from src.core.agent.runtime.pipeline import MessageProcessingPipeline
-
     from src.platform.helper import Helpers
     from src.core.llm.message import Messages
+    from src.core.agent.runtime.pipeline import MessageProcessingPipeline
 
     reports: list[str] = []
 
@@ -68,14 +55,11 @@ async def test_report_progress_deduplicates_messages(loaded_plugins):
     await pipeline.report_progress("", stage="extract")
     await pipeline.report_progress("我会先检索相关资料，把命中的内容压缩成可用上下文后再回答。", stage="rag")
 
-    assert reports == [
-        "route: 我会把你的需求转换成系统内命令，确认参数后调用现有功能返回结果。",
-        "rag: 我会先检索相关资料，把命中的内容压缩成可用上下文后再回答。",
-    ]
+    assert reports == ["我会先检索相关资料，把命中的内容压缩成可用上下文后再回答。"]
 
 
 @pytest.mark.asyncio
-async def test_extract_node_reports_stage_tagged_progress(loaded_plugins, monkeypatch):
+async def test_extract_node_keeps_internal_progress_hidden(loaded_plugins, monkeypatch):
     from src.platform.helper import Helpers
     from src.core.llm.message import Context, LLMRole, Messages
     from src.core.agent.runtime import pipeline as pipeline_module
@@ -101,7 +85,7 @@ async def test_extract_node_reports_stage_tagged_progress(loaded_plugins, monkey
     await pipeline_module.ExtractContextNode().run(pipeline, state)
 
     assert state.extracted_context is not None
-    assert reports == ["extract: 我正在提取这轮对话里的目标、约束和关键信息。"]
+    assert reports == []
 
 
 def test_normalize_auto_task_reply_builds_fallback_for_commands(loaded_plugins):

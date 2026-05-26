@@ -7,6 +7,7 @@ from src.platform.helper import Helpers
 from src.core.mcp import MCPClient, MCPToolCatalog
 
 from ..knowledge import SkillCatalog
+from ..capabilities import RuntimeCapabilityCatalog
 from ..command_tools import CommandTool, CommandToolCatalog
 
 
@@ -26,6 +27,7 @@ class PolicyHarness:
     mcp_client: MCPClient = field(default_factory=MCPClient)
     mcp_tools: MCPToolCatalog = field(default_factory=MCPToolCatalog)
     command_tools: CommandToolCatalog = field(init=False)
+    _mcp_tools_loaded: bool = field(default=False, init=False, repr=False)
 
     def __post_init__(self) -> None:
         self.command_tools = CommandToolCatalog.from_helpers(self.helpers)
@@ -36,10 +38,20 @@ class PolicyHarness:
 
         return self.skill_catalog.to_prompt()
 
-    async def refresh_mcp_tools(self) -> None:
+    @property
+    def mcp_tools_loaded(self) -> bool:
+        """返回当前轮次是否已经尝试加载 MCP tool 目录。"""
+
+        return self._mcp_tools_loaded
+
+    async def refresh_mcp_tools(self, *, force: bool = False) -> MCPToolCatalog:
         """按需刷新 MCP tool 目录；失败时保留空目录和错误说明。"""
 
+        if self._mcp_tools_loaded and not force:
+            return self.mcp_tools
         self.mcp_tools = await MCPToolCatalog.from_client(self.mcp_client)
+        self._mcp_tools_loaded = True
+        return self.mcp_tools
 
     def render_command_tools_prompt(
         self,
@@ -78,6 +90,21 @@ class PolicyHarness:
         """渲染 MCP tool 目录；只有 Planner 明确候选时才收窄。"""
 
         return self.mcp_tools.to_prompt(limit=limit, tool_names=tool_names)
+
+    def capability_catalog(self) -> RuntimeCapabilityCatalog:
+        """构建当前轮次的统一能力目录。"""
+
+        return RuntimeCapabilityCatalog.build(command_tools=self.command_tools, mcp_tools=self.mcp_tools)
+
+    def render_capability_catalog_prompt(self) -> str:
+        """渲染 Agent 能力自知目录。"""
+
+        return self.capability_catalog().to_prompt()
+
+    def has_realtime_external_lookup(self) -> bool:
+        """判断当前是否存在实时公共外部检索能力。"""
+
+        return self.capability_catalog().has_realtime_external_lookup()
 
     def resolve_candidate_commands(self, candidate_commands: Iterable[str] | None) -> set[str]:
         """把 Planner 产出的候选命令解析为当前真实存在的命令名。"""

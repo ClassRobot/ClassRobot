@@ -63,7 +63,6 @@ def isolate_manager_audit_log(monkeypatch, tmp_path):
 @pytest.fixture(autouse=True)
 def isolate_manager_command_state(monkeypatch, tmp_path):
     from src.interfaces.http.managers.runtime import command_state
-
     from src.platform.commands.availability import command_availability
 
     monkeypatch.setattr(command_state, "AVAILABILITY_STATE_PATH", tmp_path / "manager_command_availability.json")
@@ -102,12 +101,11 @@ def isolated_agent_designer(monkeypatch, tmp_path):
 
 @pytest.fixture
 def manager_storage(monkeypatch, tmp_path):
+    from src.core.storage import StorageManager
+    import src.models.models as model_definitions
     from src.interfaces.http.managers.storage import files as manager_files
     from src.interfaces.http.managers.identity import groups as manager_groups
     from src.interfaces.http.managers.storage import chat_history as manager_chat_history
-
-    from src.core.storage import StorageManager
-    import src.models.models as model_definitions
 
     isolated_storage = StorageManager(root=tmp_path / "storage")
     monkeypatch.setattr(manager_files, "storage_manager", isolated_storage)
@@ -133,7 +131,6 @@ async def manager_auth_headers(manager_client):
 @pytest_asyncio.fixture
 async def manager_workflow_tables(loaded_plugins):
     from nonebot_plugin_orm import get_session
-
     from src.models import AgentWorkflowRun, AgentWorkflowCheckpoint
 
     async with get_session() as session:
@@ -1614,6 +1611,45 @@ async def test_manager_agent_overview_inventory(
     assert any(
         item["id"] == "command_soft_switch" and item["route"] == "/nonebot/plugins" for item in payload["controls"]
     )
+
+
+async def test_manager_agent_live_trace_api(manager_client, manager_auth_headers):
+    from src.core.agent.runtime.live_trace import AgentLiveTraceConfig, agent_live_trace_registry
+
+    original_config = agent_live_trace_registry.config
+    agent_live_trace_registry.clear()
+    agent_live_trace_registry.config = AgentLiveTraceConfig(enabled=True, max_traces=5, max_events_per_trace=20)
+    try:
+        agent_live_trace_registry.start_trace("trace-live-manager", user_id=9, message_preview="查一下天气")
+        agent_live_trace_registry.emit(
+            "trace-live-manager",
+            event_type="mcp_call_started",
+            stage="tool_call",
+            status="running",
+            tool_name="weather",
+            params_preview={"authorization": "secret", "query": "北京天气"},
+        )
+
+        status_response = await manager_client.get("/api/v1/manager/agents/live/status", headers=manager_auth_headers)
+        assert status_response.status_code == 200, status_response.text
+        assert status_response.json()["enabled"] is True
+        assert status_response.json()["active_count"] == 1
+
+        list_response = await manager_client.get("/api/v1/manager/agents/live/traces", headers=manager_auth_headers)
+        assert list_response.status_code == 200, list_response.text
+        assert list_response.json()["items"][0]["trace_id"] == "trace-live-manager"
+
+        detail_response = await manager_client.get(
+            "/api/v1/manager/agents/live/traces/trace-live-manager",
+            headers=manager_auth_headers,
+        )
+        assert detail_response.status_code == 200, detail_response.text
+        payload = detail_response.json()
+        assert payload["events"][1]["event_type"] == "mcp_call_started"
+        assert payload["events"][1]["params_preview"]["authorization"] == "***"
+    finally:
+        agent_live_trace_registry.clear()
+        agent_live_trace_registry.config = original_config
 
 
 async def test_manager_agent_designer_draft(manager_client, manager_auth_headers, isolated_agent_designer):

@@ -5,8 +5,9 @@ from typing import TYPE_CHECKING
 
 from nonebot import logger
 
-from .coordination import PipelineState, WorkflowNode
-from .orchestration_config import RuntimeGraphEdge, RuntimeGraphConfig, RuntimeNodeConfig
+from .live_trace import agent_live_trace_registry
+from .coordination import WorkflowNode, PipelineState
+from .orchestration_config import RuntimeGraphEdge, RuntimeNodeConfig, RuntimeGraphConfig
 
 if TYPE_CHECKING:
     from .pipeline import MessageProcessingPipeline
@@ -43,9 +44,8 @@ class RuntimeEdgeConditionEvaluator:
                 and pipeline.should_retrieve(state.intent_route, state.agent_plan)
             )
         if condition == "direct_vision_reply":
-            return (
-                state.auto_tasks is None
-                and pipeline.should_direct_reply_from_vision(state.intent_route, state.user_content)
+            return state.auto_tasks is None and pipeline.should_direct_reply_from_vision(
+                state.intent_route, state.user_content
             )
         if condition.startswith("scene_"):
             return scene == condition.removeprefix("scene_")
@@ -137,6 +137,25 @@ class RuntimeGraphExecutor:
         node_name = node.__class__.__name__
         started_at = perf_counter()
         logger.debug(f'AutoGPT trace "{pipeline.trace_id}" node "{node_name}" started')
+        stage_resolver = getattr(pipeline, "stage_from_node_type", None)
+        stage = (
+            stage_resolver(node_config.node_type)
+            if callable(stage_resolver)
+            else self.stage_from_node_type(node_config.node_type)
+        )
+        agent_live_trace_registry.emit(
+            pipeline.trace_id,
+            event_type="node_entered",
+            stage=stage,
+            node_type=node_config.node_type,
+            node_label=node_name,
+            status="running",
+            params_preview={
+                "node_id": node_config.id,
+                "node_type": node_config.node_type,
+                "config": node_config.config,
+            },
+        )
         previous_node_config = pipeline.current_node_config
         previous_node_type = pipeline.current_node_type
         pipeline.current_node_config = node_config.config
@@ -145,6 +164,16 @@ class RuntimeGraphExecutor:
             await node.run(pipeline, state)
         except Exception as error:
             duration_ms = (perf_counter() - started_at) * 1000
+            agent_live_trace_registry.emit(
+                pipeline.trace_id,
+                event_type="node_failed",
+                stage=stage,
+                node_type=node_config.node_type,
+                node_label=node_name,
+                status="failed",
+                error=error,
+                duration_ms=duration_ms,
+            )
             logger.exception(
                 f'AutoGPT trace "{pipeline.trace_id}" node "{node_name}" failed in {duration_ms:.2f}ms: {error}'
             )
@@ -153,4 +182,40 @@ class RuntimeGraphExecutor:
             pipeline.current_node_config = previous_node_config
             pipeline.current_node_type = previous_node_type
         duration_ms = (perf_counter() - started_at) * 1000
+        agent_live_trace_registry.emit(
+            pipeline.trace_id,
+            event_type="node_completed",
+            stage=stage,
+            node_type=node_config.node_type,
+            node_label=node_name,
+            status="completed",
+            params_preview={
+                "scene": pipeline.resolve_runtime_scene(state),
+                "has_route": state.intent_route is not None,
+                "has_plan": state.agent_plan is not None,
+                "tasks": len(state.auto_tasks.tasks) if state.auto_tasks else 0,
+            },
+            duration_ms=duration_ms,
+        )
         logger.debug(f'AutoGPT trace "{pipeline.trace_id}" node "{node_name}" finished in {duration_ms:.2f}ms')
+
+    @staticmethod
+    def stage_from_node_type(node_type: str) -> str:
+        """测试桩没有完整 Pipeline 时使用的节点阶段映射。"""
+
+        mapping = {
+            "normalize_input": "session",
+            "append_user_message": "session",
+            "intent_route": "route",
+            "retrieve_local_knowledge": "knowledge",
+            "retrieve_knowledge": "knowledge",
+            "extract_context": "extract",
+            "summary_history": "extract",
+            "planner": "plan",
+            "plan_tasks": "task_generation",
+            "execution_policy": "workflow",
+            "validate_auto_tasks": "task_generation",
+            "direct_vision_reply": "reply",
+            "persist_assistant_reply": "persist",
+        }
+        return mapping.get(node_type, "")

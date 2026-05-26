@@ -40,15 +40,18 @@ class ProgressFeedbackHarness:
 
     @staticmethod
     def format_progress_message(message: str, stage: ProgressStage = "thinking") -> str:
-        """为思考型反馈补上阶段前缀。"""
+        """把内部阶段提示转换成用户可见的自然语言。"""
 
         text = message.strip()
         if not text:
             return ""
-        prefix = f"{stage}: "
-        if text.startswith(prefix):
-            return text
-        return prefix + text
+        if stage in {"route", "extract", "plan"}:
+            return ""
+        prefixes = ("route: ", "extract: ", "plan: ", "rag: ", "memory: ", "thinking: ")
+        for prefix in prefixes:
+            if text.startswith(prefix):
+                return text.removeprefix(prefix).strip()
+        return text
 
     def record_prompt_stage(
         self,

@@ -15,6 +15,17 @@
   "candidate_commands": [],
   "candidate_skills": [],
   "candidate_mcp_tools": [],
+  "capability_requirements": [
+    {
+      "kind": "mcp_tool",
+      "freshness": "realtime",
+      "scope": "public_external",
+      "execution_mode": "retrieve",
+      "required": true,
+      "reason": "需要查询最新公开信息"
+    }
+  ],
+  "unavailable_reason": null,
   "steps": ["下一步计划"],
   "confirmation_question": null,
   "reason": "简短理由"
@@ -39,6 +50,14 @@
 15. 用户询问当前用户私聊或当前群聊的消息数量、聊天统计时，优先候选“统计聊天记录”；统计范围和时间必须来自上下文语义，不能越权统计他人。
 16. 如果用户目标需要图片、文件、二维码、Markdown 渲染、图片生成或文档理解能力，可在 `candidate_skills` 中写入当前可用 Skill 名称。
 17. 如果用户目标需要外部系统能力，并且“当前可用 MCP 工具”中存在匹配工具，可在 `candidate_mcp_tools` 中写入真实 MCP tool 名称；不要把内部命令和 MCP tool 混用。
+18. 先判断能力需求，再选择具体命令或 MCP。需要最新公共外部信息时，在 `capability_requirements` 中声明 realtime/public_external/retrieve。
+19. 如果当前能力目录显示没有 `has_realtime_external_lookup`，不要把新闻、热点、热搜、当前动态类问题转成项目命令；`requires_command=false`，`should_execute=false`，`unavailable_reason="realtime_source_missing"`，并在 `reason` 中说明缺少实时外部检索能力。
+20. 如果存在支持 realtime/public_external 的 MCP 工具，优先把真实工具名写入 `candidate_mcp_tools`，不要编造工具名。
+21. `capability_requirements` 必须是对象数组，数组中的每一项都必须是合法 JSON 对象；不要输出字符串数组、自然语言数组或半结构化片段。
+
+## 当前能力目录
+
+{{ capability_catalog }}
 
 ## 入口路由
 

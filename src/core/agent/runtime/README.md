@@ -34,6 +34,27 @@ AutoGPT Runtime 里现在固定区分两层工作流，后续开发不要再混�
 
 运行时编排图是系统控制面，AI 不能修改。AI 只能在运行时图约束下生成 `TaskWorkflow`，再由执行器校验、执行、记录 observation，最后交给回复 Agent 汇总给用户。
 
+## Agent Host 与多 Agent 委派
+
+运行时现在增加 `AgentHost` 作为一轮用户消息的控制面封装。它不替代现有 `MessageProcessingPipeline` 和 `CognitiveAgentLoop`，而是先把每轮消息统一包成 `TurnEnvelope`，再生成分层 `ContextPack`、专长 Agent handoff 记录和 `TurnOutputBundle`。
+
+第一版专长 Agent 目录由 `AgentCatalog` 声明，包含：
+
+- `workflow_supervisor`
+- `conversation_agent`
+- `knowledge_agent`
+- `realtime_lookup_agent`
+- `execution_agent`
+- `reply_synthesis_agent`
+
+这些 Agent 目前由 Host 统一委派和审计，不允许自由递归调用。子 Agent 只能看到自己声明的 context layer，例如 `turn_context`、`workflow_context` 或 `tool_state_context`，后续长期记忆、token budget 和权限切片都应挂到 `ContextEngine`。
+
+执行层新增 `ActionRequest` / `ActionResult` / `ActionExecutorRegistry` 协议，用来逐步把 command、MCP、Skill、RAG、schedule 和 delegate 收敛到同一条 `ToolObservation` 后处理链。当前 command 与 MCP 执行前已经会构造 `ActionRequest` 并写入 live trace，后续替换具体执行器时不要绕过这个契约。
+
+回复层新增 `ReplyEnvelope` / `ReplyPolicy`，用于统一 progress、确认、最终回复和失败回复的用户可见输出边界。平台入口应优先发送 Host 产出的 `ReplyEnvelope`，不能直接信任旧的 `auto_tasks.reply`。如果回复文案声明“我去查/调用工具”，但本轮没有 workflow step，Host 会改写成“未实际执行”的诚实说明，避免空 workflow 假装成功。
+
+`ContextPack` 会携带最近的最终回复记录和工具 observation 摘要，供“第五条是什么”“用中文说”“继续刚才的”这类追问优先承接上轮结果。完整 raw output 仍只属于审计或日志，不进入普通上下文切片。
+
 ```mermaid
 flowchart TD
     User["用户消息"] --> RuntimeGraph["RuntimeGraphConfig\n开发者热更新图"]
@@ -137,12 +158,52 @@ flowchart TD
 - 聊天统计作为“统计聊天记录” service-style command 暴露给 Agent，而不是在路由前用字符串规则拦截。
 - RAG、文件搜索、后台筛选中的关键词检索属于工具内部实现，不参与 Agent 路径决策。
 
+## 外部实时信息
+
+新闻、热点、热搜、当前动态和其它最新公共信息不属于项目内部命令。运行时通过 `RuntimeCapabilityCatalog` 告诉模型当前是否存在实时公共外部能力：
+
+- 如果存在 `freshness=realtime`、`scope=public_external` 的 MCP tool，Planner 可以把真实工具名写入 `candidate_mcp_tools`，后续任务流生成 `mcp_tool` 步骤。
+- 如果不存在实时外部能力，路由或规划阶段应设置 `unavailable_reason="realtime_source_missing"`，最终回复自然说明当前没有可用实时检索工具。
+- 不允许把实时新闻问题降级成“请说明要执行哪个项目命令”，也不允许编造不存在的 MCP 工具。
+
+这层不是关键词预路由。模型仍根据语义判断用户目标，代码只根据模型声明的能力需求和真实能力目录做可用性校验。
+
+普通 `chat` 分支也不能直接信任 `IntentRoute.reply`。路由器只输出分流判断；最终直答由 `direct_chat_reply` prompt 生成，并再次看到能力目录。如果路由器误把“最近热点”当成普通聊天，直答回复器仍应说明缺少实时检索能力，而不是发送“我在，有什么需要……”这类空泛回复。
+
+## 用户可见进度
+
+内部阶段标签如 `route`、`extract`、`plan` 只用于日志和 observability，默认不发给用户。普通问答应尽快给最终回复；只有本地记忆检索、外部 RAG、MCP 调用、多步执行或明显耗时任务才发送 1 到 2 条自然语言进度。
+
+用户可见进度不要包含 `route:`、`extract:`、`plan:` 等内部术语。需要展示时，说清楚用户关心的动作，例如“我正在检索相关资料”或“我正在整理工具返回的结果”。
+
+## 开发态 Live Trace
+
+运行时提供开发态实时观测层，用于后台管理页通过 WebSocket 查看一条消息当前走到哪里。它与持久化的 `AgentWorkflowRun` / `AgentWorkflowCheckpoint` 分层：
+
+- live trace 保存在进程内 `AgentLiveTraceRegistry`，用于正在运行和刚完成的 trace。
+- 历史审计仍写入数据库的 workflow run/checkpoint，避免把高频调试事件长期塞进 `workflow_data`。
+- 参数预览由 `AgentTraceRedactor` 脱敏并截断，token、cookie、authorization、api key 等字段不会直出。
+- 后台接口位于 `/api/v1/manager/agents/live/status`、`/api/v1/manager/agents/live/traces`、`/api/v1/manager/agents/live/traces/{trace_id}`。
+
+默认配置关闭：
+
+```dotenv
+AGENT_LIVE_TRACE_ENABLED=false
+AGENT_LIVE_TRACE_MAX_TRACES=50
+AGENT_LIVE_TRACE_MAX_EVENTS_PER_TRACE=400
+AGENT_LIVE_TRACE_RETENTION_SECONDS=1800
+AGENT_LIVE_TRACE_INCLUDE_DEBUG_PREVIEW=true
+```
+
+启用后，Host turn、ContextPack、Agent handoff、Runtime 节点、LLM 请求、MCP `tools/list`、MCP `tools/call`、command dispatch、quality gate、observation、reply 和 persist 都会产生结构化事件。这个能力只用于开发排障，不改变用户消息主链路，也不替代普通日志。
+
 ## 调用链
 
 ```mermaid
 flowchart TD
     A["src/plugins/application/active/autogpt/__init__.py<br/>NoneBot 入口"] --> B["ChatSession"]
-    B --> C["MessageProcessingPipeline"]
+    B --> H["AgentHost<br/>TurnEnvelope / ContextPack / Handoff / ReplyEnvelope"]
+    H --> C["MessageProcessingPipeline"]
     C --> X["RuntimeGraphExecutor<br/>条件边执行器"]
     X --> D["WorkflowNode"]
     D --> E["BaseAgent 子类"]
@@ -205,8 +266,27 @@ AI 代替用户执行命令后，不能只把命令原始输出丢给用户。�
 2. 每个命令返回 `CommandObservation`。
 3. `ChatSession.record_observations()` 把紧凑结果写回会话上下文。
 4. `ExecutionReplyAgent` 基于 workflow、observation 和短原始输出生成最终自然语言回复。
+5. `ChatSession.record_final_reply()` 把用户最终真正看到的回复写回会话，供下一轮“第五条是什么”“用中文说”继续复用。
 
 这让行为更接近 Claude Code / Codex 的“执行工具后总结结果”体验，同时保留命令输出作为可审计 observation。
+
+## 观察质量门
+
+`ObservationQualityGate` 会在 command / MCP / RAG observation 进入最终回复前补齐质量字段：
+
+- `relevance`
+- `answer_quality`
+- `display_summary`
+- `context_summary`
+- `next_actions`
+
+它的目标不是做复杂语义裁决，而是拦住几个确定性错误：
+
+- 工具成功但结果明显跑偏。
+- 空结果被当成答案。
+- raw output 直接被兜底发送给用户。
+
+当最终回复器失败或超时，运行时必须回退到安全摘要，而不是原始输出。
 
 ## 如何增加一个新节点
 

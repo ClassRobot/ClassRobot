@@ -1117,6 +1117,64 @@ export interface AgentCheckpointDetail extends AgentCheckpointSummary {
   workflow_data: unknown
 }
 
+export interface AgentLiveTraceEvent {
+  sequence: number
+  trace_id: string
+  user_id: number | null
+  session_id: string
+  message_preview: string
+  event_type: string
+  stage: string
+  node_type: string
+  node_label: string
+  status: string
+  workflow_kind: string
+  step_id: string
+  tool_name: string
+  model_name: string
+  params_preview: unknown
+  observation_summary: string
+  error: string
+  duration_ms: number | null
+  created_at: string
+}
+
+export interface AgentLiveTraceSummary {
+  trace_id: string
+  user_id: number | null
+  session_id: string
+  message_preview: string
+  status: string
+  current_stage: string
+  current_node: string
+  workflow_kind: string
+  current_tool: string
+  event_count: number
+  started_at: string
+  updated_at: string
+  finished_at: string | null
+}
+
+export interface AgentLiveTraceDetail extends AgentLiveTraceSummary {
+  events: AgentLiveTraceEvent[]
+  history_run?: AgentRunDetail | null
+}
+
+export interface AgentLiveTraceStatus {
+  enabled: boolean
+  max_traces: number
+  max_events_per_trace: number
+  retention_seconds: number
+  include_debug_preview: boolean
+  active_count: number
+  trace_count: number
+}
+
+export interface AgentLiveTraceListResponse {
+  items: AgentLiveTraceSummary[]
+  total: number
+}
+
 // ─── Integrations ───────────────────────────────────────────
 export interface IntegrationStatusItem {
   status: StatusLevel

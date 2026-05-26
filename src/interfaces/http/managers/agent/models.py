@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Any, Literal
+from dataclasses import dataclass
 
-from pydantic import BaseModel, Field, root_validator, validator
+from pydantic import Field, BaseModel, validator, root_validator
 
 
 class AgentPayloadModel(BaseModel):
@@ -465,3 +465,64 @@ class AgentCheckpointSummaryPayload(AgentPayloadModel):
     created_at: str | None = None
     updated_at: str | None = None
     workflow_data: dict[str, Any] | None = None
+
+
+class AgentLiveTraceEventPayload(AgentPayloadModel):
+    """Agent 开发态实时事件。"""
+
+    sequence: int
+    trace_id: str
+    user_id: int | None = None
+    session_id: str = ""
+    message_preview: str = ""
+    event_type: str
+    stage: str = ""
+    node_type: str = ""
+    node_label: str = ""
+    status: str = ""
+    workflow_kind: str = ""
+    step_id: str = ""
+    tool_name: str = ""
+    model_name: str = ""
+    params_preview: Any = None
+    observation_summary: str = ""
+    error: str = ""
+    duration_ms: float | None = None
+    created_at: str
+
+
+class AgentLiveTraceSummaryPayload(AgentPayloadModel):
+    """Agent live trace 列表摘要。"""
+
+    trace_id: str
+    user_id: int | None = None
+    session_id: str = ""
+    message_preview: str = ""
+    status: str
+    current_stage: str
+    current_node: str = ""
+    workflow_kind: str = ""
+    current_tool: str = ""
+    event_count: int
+    started_at: str
+    updated_at: str
+    finished_at: str | None = None
+
+
+class AgentLiveTraceDetailPayload(AgentLiveTraceSummaryPayload):
+    """Agent live trace 详情。"""
+
+    events: list[AgentLiveTraceEventPayload] = Field(default_factory=list)
+    history_run: dict[str, Any] | None = None
+
+
+class AgentLiveTraceStatusPayload(AgentPayloadModel):
+    """Agent live trace 注册表状态。"""
+
+    enabled: bool
+    max_traces: int
+    max_events_per_trace: int
+    retention_seconds: int
+    include_debug_preview: bool
+    active_count: int
+    trace_count: int

@@ -68,10 +68,32 @@ def test_observation_interpreter_extracts_generic_facts(loaded_plugins):
     assert verified_fact.exists is True
 
 
+def test_loop_stop_reply_hides_mcp_internal_tool_names(loaded_plugins):
+    from src.core.agent.runtime.loop import CognitiveAgentLoop
+    from src.core.agent.runtime.schema import CommandObservation
+
+    reply = CognitiveAgentLoop.build_stop_reply(
+        "执行过程中有一步没有完成。",
+        attempted_observations=[],
+        all_observations=[
+            CommandObservation(
+                command="browser_open",
+                source_type="mcp_tool",
+                dispatch_type="mcp_tool",
+                success=False,
+                message="外部工具调用失败。",
+            )
+        ],
+    )
+
+    assert "外部查询工具" in reply
+    assert "browser_open" not in reply
+
+
 @pytest.mark.asyncio
 async def test_cognitive_loop_stops_after_max_steps(loaded_plugins):
-    from src.core.agent.runtime.loop import CognitiveAgentLoop, AgentLoopConfig
-    from src.core.agent.runtime.schema import WorkflowStep, TaskWorkflow, CommandObservation
+    from src.core.agent.runtime.loop import AgentLoopConfig, CognitiveAgentLoop
+    from src.core.agent.runtime.schema import TaskWorkflow, WorkflowStep, CommandObservation
 
     calls: list[str] = []
 
@@ -112,8 +134,8 @@ async def test_cognitive_loop_stops_after_max_steps(loaded_plugins):
 
 @pytest.mark.asyncio
 async def test_cognitive_loop_stops_repeated_actions(loaded_plugins):
-    from src.core.agent.runtime.loop import CognitiveAgentLoop, AgentLoopConfig
-    from src.core.agent.runtime.schema import WorkflowStep, TaskWorkflow, CommandObservation
+    from src.core.agent.runtime.loop import AgentLoopConfig, CognitiveAgentLoop
+    from src.core.agent.runtime.schema import TaskWorkflow, WorkflowStep, CommandObservation
 
     calls: list[str] = []
 
@@ -156,9 +178,10 @@ async def test_cognitive_loop_stops_repeated_actions(loaded_plugins):
 @pytest.mark.asyncio
 async def test_cognitive_loop_can_add_followup_from_observation_without_domain_branch(loaded_plugins):
     from src.platform.helper import Helpers
-    from src.core.agent.runtime.loop import CognitiveAgentLoop, AgentLoopConfig, AgentLoopDecision
-    from src.core.agent.runtime.schema import Param, WorkflowStep, TaskWorkflow, CommandObservation
     from src.core.agent.runtime.command_tools import CommandToolCatalog
+    from src.core.agent.runtime.loop import AgentLoopConfig, AgentLoopDecision, CognitiveAgentLoop
+    from src.core.agent.runtime.schema import Param, TaskWorkflow, WorkflowStep, CommandObservation
+
     from tests.autogpt.command_tool_helpers import ensure_service_helper
 
     helpers = Helpers()
@@ -233,8 +256,8 @@ async def test_cognitive_loop_can_add_followup_from_observation_without_domain_b
 
 @pytest.mark.asyncio
 async def test_cognitive_loop_supports_confirm_decision_without_command(loaded_plugins):
-    from src.core.agent.runtime.loop import CognitiveAgentLoop, AgentLoopConfig, AgentLoopDecision
-    from src.core.agent.runtime.schema import WorkflowStep, TaskWorkflow
+    from src.core.agent.runtime.schema import TaskWorkflow, WorkflowStep
+    from src.core.agent.runtime.loop import AgentLoopConfig, AgentLoopDecision, CognitiveAgentLoop
 
     async def dispatch(task):
         raise AssertionError("confirm decision should not dispatch command")
@@ -273,8 +296,8 @@ async def test_cognitive_loop_supports_confirm_decision_without_command(loaded_p
 async def test_cognitive_loop_runs_mcp_tool_with_budget(loaded_plugins):
     from src.core.mcp.catalog import MCPToolCatalog
     from src.core.mcp.schema import MCPTool, MCPCallResult
-    from src.core.agent.runtime.loop import CognitiveAgentLoop, AgentLoopConfig
-    from src.core.agent.runtime.schema import Param, WorkflowStep, TaskWorkflow
+    from src.core.agent.runtime.loop import AgentLoopConfig, CognitiveAgentLoop
+    from src.core.agent.runtime.schema import Param, TaskWorkflow, WorkflowStep
 
     class FakeMCPClient:
         async def call_tool(self, tool_name, arguments):
@@ -321,3 +344,215 @@ async def test_cognitive_loop_runs_mcp_tool_with_budget(loaded_plugins):
     assert execution.workflow.status == "completed"
     assert execution.observations[0].dispatch_type == "mcp_tool"
     assert execution.observations[0].context_outputs == ["外部文档中有作业要求。"]
+
+
+@pytest.mark.asyncio
+async def test_cognitive_loop_injects_mcp_session_from_previous_observation(loaded_plugins):
+    from src.core.mcp.catalog import MCPToolCatalog
+    from src.core.mcp.schema import MCPTool, MCPCallResult
+    from src.core.agent.runtime.loop import AgentLoopConfig, CognitiveAgentLoop
+    from src.core.agent.runtime.schema import Param, TaskWorkflow, WorkflowStep
+
+    calls: list[tuple[str, dict]] = []
+
+    class FakeMCPClient:
+        async def call_tool(self, tool_name, arguments):
+            calls.append((tool_name, arguments))
+            if tool_name == "browser_create_session":
+                return MCPCallResult(
+                    tool_name=tool_name,
+                    success=True,
+                    display_text='{"session_id":"session-123"}',
+                    context_summary="浏览会话已创建。",
+                    raw_result={"content": [{"text": '{"session_id":"session-123"}'}]},
+                )
+            return MCPCallResult(
+                tool_name=tool_name,
+                success=True,
+                display_text="网页已打开。",
+                context_summary="GitHub 项目页已打开。",
+            )
+
+    async def dispatch(task):
+        raise AssertionError("mcp_tool action should not dispatch command")
+
+    catalog = MCPToolCatalog()
+    catalog.append(MCPTool(name="browser_create_session", description="创建浏览器会话"))
+    catalog.append(
+        MCPTool(
+            name="browser_open",
+            description="打开网页",
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "session_id": {"type": "string"},
+                    "url": {"type": "string"},
+                },
+                "required": ["session_id", "url"],
+            },
+        )
+    )
+    workflow = TaskWorkflow(
+        trace_id="autogpt-loop-mcp-session",
+        kind="command_sequence",
+        goal="打开 GitHub 项目页",
+        steps=[
+            WorkflowStep(
+                step_id="step-1",
+                step_type="mcp_tool",
+                title="创建浏览器会话",
+                command="browser_create_session",
+            ),
+            WorkflowStep(
+                step_id="step-2",
+                step_type="mcp_tool",
+                title="打开项目页",
+                command="browser_open",
+                params=[Param(type="text", value="https://github.com/ClassRobot/ClassRobot")],
+            ),
+        ],
+    )
+
+    execution = await CognitiveAgentLoop(
+        dispatch,
+        mcp_tools=catalog,
+        mcp_client=FakeMCPClient(),
+        config=AgentLoopConfig(
+            max_steps=3,
+            max_verify_attempts=3,
+            max_repeat_actions=2,
+            max_runtime_seconds=120,
+        ),
+    ).execute(workflow)
+
+    assert execution.workflow.status == "completed"
+    assert calls[0] == ("browser_create_session", {})
+    assert calls[1] == (
+        "browser_open",
+        {
+            "session_id": "session-123",
+            "url": "https://github.com/ClassRobot/ClassRobot",
+        },
+    )
+
+
+@pytest.mark.asyncio
+async def test_cognitive_loop_reports_progress_before_mcp_call(loaded_plugins):
+    from src.core.mcp.catalog import MCPToolCatalog
+    from src.core.mcp.schema import MCPTool, MCPCallResult
+    from src.core.agent.runtime.loop import AgentLoopConfig, CognitiveAgentLoop
+    from src.core.agent.runtime.schema import Param, TaskWorkflow, WorkflowStep
+
+    class FakeMCPClient:
+        async def call_tool(self, tool_name, arguments):
+            return MCPCallResult(
+                tool_name=tool_name,
+                success=True,
+                display_text="检索完成。",
+                context_summary="外部文档中有作业要求。",
+            )
+
+    async def dispatch(task):
+        raise AssertionError("mcp_tool action should not dispatch command")
+
+    reports: list[str] = []
+
+    async def report(message: str) -> None:
+        reports.append(message)
+
+    catalog = MCPToolCatalog()
+    catalog.append(MCPTool(name="search_docs", description="检索外部文档"))
+    workflow = TaskWorkflow(
+        trace_id="autogpt-loop-mcp-progress",
+        kind="command",
+        steps=[
+            WorkflowStep(
+                step_id="step-1",
+                step_type="mcp_tool",
+                title="调用 MCP 工具",
+                command="search_docs",
+                params=[Param(type="text", value='{"query":"作业"}')],
+            )
+        ],
+    )
+
+    execution = await CognitiveAgentLoop(
+        dispatch,
+        mcp_tools=catalog,
+        mcp_client=FakeMCPClient(),
+        progress_reporter=report,
+        config=AgentLoopConfig(
+            max_steps=1,
+            max_verify_attempts=3,
+            max_repeat_actions=2,
+            max_runtime_seconds=120,
+        ),
+    ).execute(workflow)
+
+    assert execution.workflow.status == "completed"
+    assert reports == ["我正在调用联网检索工具查询公开信息，请稍等。"]
+
+
+@pytest.mark.asyncio
+async def test_cognitive_loop_rewrites_low_relevance_mcp_query_once(loaded_plugins):
+    from src.core.mcp.catalog import MCPToolCatalog
+    from src.core.mcp.schema import MCPTool, MCPCallResult
+    from src.core.agent.runtime.loop import AgentLoopConfig, CognitiveAgentLoop
+    from src.core.agent.runtime.schema import Param, TaskWorkflow, WorkflowStep
+
+    calls: list[dict] = []
+
+    class FakeMCPClient:
+        async def call_tool(self, tool_name, arguments):
+            calls.append(arguments)
+            if len(calls) == 1:
+                return MCPCallResult(
+                    tool_name=tool_name,
+                    success=True,
+                    display_text="1. 20 best parks in London - visitlondon.com",
+                    context_summary="London parks travel pages.",
+                )
+            return MCPCallResult(
+                tool_name=tool_name,
+                success=True,
+                display_text="中文互联网热点：科技产品发布、校园新闻、文娱热搜。",
+                context_summary="检索到中文热点摘要。",
+            )
+
+    async def dispatch(task):
+        raise AssertionError("mcp_tool action should not dispatch command")
+
+    catalog = MCPToolCatalog()
+    catalog.append(MCPTool(name="browser_search", description="联网搜索公开热点"))
+    workflow = TaskWorkflow(
+        trace_id="autogpt-loop-mcp-low-relevance",
+        kind="command",
+        goal="最近网上有什么热点",
+        steps=[
+            WorkflowStep(
+                step_id="step-1",
+                step_type="mcp_tool",
+                title="调用 MCP 工具",
+                command="browser_search",
+                params=[Param(type="text", value='{"query":"最近网上有什么热点"}')],
+            )
+        ],
+    )
+
+    execution = await CognitiveAgentLoop(
+        dispatch,
+        mcp_tools=catalog,
+        mcp_client=FakeMCPClient(),
+        config=AgentLoopConfig(
+            max_steps=3,
+            max_verify_attempts=3,
+            max_repeat_actions=2,
+            max_runtime_seconds=120,
+        ),
+    ).execute(workflow)
+
+    assert len(calls) == 2
+    assert calls[0] == {"query": "最近网上有什么热点"}
+    assert "中文互联网" in calls[1]["query"]
+    assert execution.observations[0].relevance == "low"
+    assert execution.observations[-1].relevance in {"medium", "high"}

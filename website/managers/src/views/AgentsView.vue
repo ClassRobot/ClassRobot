@@ -117,7 +117,7 @@
             </div>
             <p class="mt-1 truncate text-body-sm text-on-surface-variant dark:text-zinc-500">{{ activeSubtitle }}</p>
           </div>
-          <div class="grid shrink-0 grid-cols-4 gap-1 rounded-lg border border-outline-variant bg-surface-container p-0.5 dark:border-zinc-700 dark:bg-zinc-800">
+          <div class="grid shrink-0 grid-cols-5 gap-1 rounded-lg border border-outline-variant bg-surface-container p-0.5 dark:border-zinc-700 dark:bg-zinc-800">
             <button
               v-for="tab in mainTabs"
               :key="tab.key"
@@ -470,6 +470,120 @@
             </aside>
           </div>
 
+          <div v-else-if="activeTab === 'live'" class="grid h-full min-h-0 grid-cols-1 gap-4 overflow-hidden p-4 xl:grid-cols-[340px_minmax(0,1fr)_360px]">
+            <section class="flex min-h-0 flex-col overflow-hidden rounded-xl border border-outline-variant bg-surface-container-lowest dark:border-zinc-800 dark:bg-zinc-900">
+              <div class="shrink-0 border-b border-outline-variant bg-surface-bright p-3 dark:border-zinc-800 dark:bg-zinc-900/60">
+                <div class="flex items-center justify-between gap-2">
+                  <div>
+                    <div class="text-body-sm font-semibold text-on-surface dark:text-zinc-100">实时 Trace</div>
+                    <p class="mt-1 text-[12px] text-on-surface-variant dark:text-zinc-500">
+                      {{ liveStatus?.enabled ? `${liveStatus.active_count} 条运行中 · ${liveSocketState === 'connected' ? 'WebSocket 已连接' : '等待连接'}` : '未启用 AGENT_LIVE_TRACE_ENABLED' }}
+                    </p>
+                  </div>
+                  <span class="rounded-full px-2 py-0.5 text-[11px]" :class="liveStatus?.enabled ? okChipClass : mutedChipClass">
+                  {{ liveStatus?.enabled ? (liveSocketState === 'connected' ? 'WS Live' : 'Dev Trace On') : 'Off' }}
+                  </span>
+                </div>
+              </div>
+              <div class="min-h-0 flex-1 overflow-y-auto p-2">
+                <button
+                  v-for="trace in liveTraces"
+                  :key="trace.trace_id"
+                  type="button"
+                  class="module-row"
+                  :class="selectedLiveTraceId === trace.trace_id ? selectedModuleClass : idleModuleClass"
+                  @click="selectLiveTrace(trace.trace_id)"
+                >
+                  <div class="flex items-start justify-between gap-2">
+                    <div class="min-w-0">
+                      <div class="truncate font-code-inline text-code-inline">{{ trace.trace_id }}</div>
+                      <div class="mt-1 line-clamp-2 text-[12px] leading-5 opacity-75">{{ trace.message_preview || '-' }}</div>
+                    </div>
+                    <StatusChip :status="trace.status" />
+                  </div>
+                  <div class="mt-2 flex flex-wrap gap-1.5">
+                    <span :class="infoChipClass">{{ trace.current_stage || 'session' }}</span>
+                    <span v-if="trace.current_tool" :class="chipBaseClass + ' ' + mutedChipClass">{{ trace.current_tool }}</span>
+                  </div>
+                </button>
+                <EmptyState v-if="liveTraces.length === 0" text="暂无实时 trace；开启配置后发送一条消息即可看到链路。" />
+              </div>
+            </section>
+
+            <section class="flex min-h-0 flex-col overflow-hidden rounded-xl border border-outline-variant bg-surface-container-lowest dark:border-zinc-800 dark:bg-zinc-900">
+              <div class="flex shrink-0 items-center justify-between gap-3 border-b border-outline-variant bg-surface-bright px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900/60">
+                <div class="min-w-0">
+                  <h3 class="truncate font-body-sm text-body-sm font-semibold text-on-surface dark:text-zinc-100">
+                    {{ liveDetail?.trace_id || '选择一条 Trace' }}
+                  </h3>
+                  <p class="mt-1 truncate text-[12px] text-on-surface-variant dark:text-zinc-500">
+                    {{ liveDetail ? `${liveDetail.current_stage} / ${liveDetail.current_node || '-'}` : '事件时间线会按执行顺序实时刷新' }}
+                  </p>
+                </div>
+                <button type="button" class="rounded-lg border border-outline-variant px-2 py-1 text-[12px] transition-colors hover:bg-surface-container dark:border-zinc-700 dark:hover:bg-zinc-800" @click="refreshLiveTraceConnection">
+                  刷新
+                </button>
+              </div>
+              <div class="min-h-0 flex-1 overflow-y-auto p-3">
+                <div v-if="liveDetail?.events.length" class="space-y-2">
+                  <button
+                    v-for="event in liveDetail.events"
+                    :key="event.sequence"
+                    type="button"
+                    class="w-full rounded-xl border border-outline-variant bg-surface-container-low p-3 text-left transition-colors hover:border-primary/40 dark:border-zinc-800 dark:bg-zinc-800/45 dark:hover:border-primary-dark/40"
+                    :class="selectedLiveEvent?.sequence === event.sequence ? 'border-primary/60 dark:border-primary-dark/60' : ''"
+                    @click="selectedLiveEvent = event"
+                  >
+                    <div class="flex items-center justify-between gap-2">
+                      <div class="flex min-w-0 items-center gap-2">
+                        <span class="rounded-full bg-surface-container-lowest px-2 py-0.5 text-[11px] text-on-surface-variant dark:bg-zinc-900 dark:text-zinc-400">#{{ event.sequence }}</span>
+                        <span class="truncate font-code-inline text-code-inline text-on-surface dark:text-zinc-100">{{ event.event_type }}</span>
+                      </div>
+                      <span class="shrink-0 rounded-full px-2 py-0.5 text-[11px]" :class="event.status === 'failed' ? dangerChipClass : event.status === 'completed' ? okChipClass : mutedChipClass">
+                        {{ event.status || 'event' }}
+                      </span>
+                    </div>
+                    <div class="mt-2 flex flex-wrap gap-1.5">
+                      <span :class="infoChipClass">{{ event.stage || '-' }}</span>
+                      <span v-if="event.node_label || event.node_type" :class="chipBaseClass + ' ' + mutedChipClass">{{ event.node_label || event.node_type }}</span>
+                      <span v-if="event.tool_name" :class="chipBaseClass + ' ' + mutedChipClass">{{ event.tool_name }}</span>
+                      <span v-if="event.duration_ms !== null" :class="chipBaseClass + ' ' + mutedChipClass">{{ Math.round(event.duration_ms || 0) }}ms</span>
+                    </div>
+                    <p v-if="event.observation_summary || event.error" class="mt-2 line-clamp-2 text-[12px] leading-5 text-on-surface-variant dark:text-zinc-500">
+                      {{ event.error || event.observation_summary }}
+                    </p>
+                  </button>
+                </div>
+                <EmptyState v-else text="暂无事件。发送消息后可看到 turn、route、plan、tool call、reply 等阶段。" />
+              </div>
+            </section>
+
+            <aside class="flex min-h-0 flex-col overflow-hidden rounded-xl border border-outline-variant bg-surface-container-lowest dark:border-zinc-800 dark:bg-zinc-900">
+              <div class="shrink-0 border-b border-outline-variant bg-surface-bright px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900/60">
+                <h3 class="font-body-sm text-body-sm font-semibold text-on-surface dark:text-zinc-100">事件详情</h3>
+                <p class="mt-1 text-[12px] text-on-surface-variant dark:text-zinc-500">参数已脱敏并截断，只用于开发态排障。</p>
+              </div>
+              <div class="min-h-0 flex-1 overflow-y-auto p-4">
+                <template v-if="selectedLiveEvent">
+                  <div class="grid gap-3">
+                    <InfoTile label="阶段" :value="selectedLiveEvent.stage || '-'" />
+                    <InfoTile label="节点" :value="selectedLiveEvent.node_label || selectedLiveEvent.node_type || '-'" />
+                    <InfoTile label="工具 / 模型" :value="selectedLiveEvent.tool_name || selectedLiveEvent.model_name || '-'" />
+                    <InfoTile label="时间" :value="formatTime(selectedLiveEvent.created_at)" />
+                  </div>
+                  <div v-if="selectedLiveEvent.observation_summary" class="mt-4 rounded-lg bg-surface-container p-3 text-body-sm leading-6 text-on-surface dark:bg-zinc-800 dark:text-zinc-200">
+                    {{ selectedLiveEvent.observation_summary }}
+                  </div>
+                  <div v-if="selectedLiveEvent.error" class="mt-4 rounded-lg bg-red-500/10 p-3 text-body-sm leading-6 text-red-700 dark:text-red-300">
+                    {{ selectedLiveEvent.error }}
+                  </div>
+                  <pre class="mt-4 max-h-[360px] overflow-auto rounded-lg bg-surface-container p-3 font-code-inline text-[11px] leading-5 text-on-surface dark:bg-zinc-800 dark:text-zinc-200">{{ formatJson(selectedLiveEvent.params_preview) }}</pre>
+                </template>
+                <EmptyState v-else text="点击时间线事件查看参数预览、工具名、耗时和错误。" />
+              </div>
+            </aside>
+          </div>
+
           <div v-else-if="activeTab === 'config'" class="h-full min-h-0 overflow-y-auto p-4">
             <DetailCard title="Agent 参数预设">
               <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -743,7 +857,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineComponent, h, onMounted, ref } from 'vue'
+import { computed, defineComponent, h, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
   Activity,
   AlertTriangle,
@@ -769,6 +883,9 @@ import {
   fetchAgentCheckpoints,
   fetchAgentCheckpoint,
   fetchAgentDesigner,
+  fetchAgentLiveTrace,
+  fetchAgentLiveTraces,
+  fetchAgentLiveTraceStatus,
   fetchAgentOverview,
   fetchAgentRun,
   fetchAgentRuns,
@@ -782,6 +899,10 @@ import type {
   AgentDesignerEdge,
   AgentDesignerNode,
   AgentDesignerResponse,
+  AgentLiveTraceDetail,
+  AgentLiveTraceEvent,
+  AgentLiveTraceStatus,
+  AgentLiveTraceSummary,
   AgentModuleInfo,
   AgentOverviewResponse,
   AgentRunDetail,
@@ -791,10 +912,23 @@ import AppSelect from '@/components/AppSelect.vue'
 import ChartPanel from '@/components/ChartPanel.vue'
 import StatusChip from '@/components/StatusChip.vue'
 import { useTheme } from '@/composables/useTheme'
+import { useAuthStore } from '@/composables/useAuth'
 
-type MainTab = 'overview' | 'flow' | 'config' | 'records'
+type MainTab = 'overview' | 'flow' | 'live' | 'config' | 'records'
 type SegmentKey = 'runs' | 'checkpoints' | 'pending' | 'failed'
 type RecordItem = AgentRunSummary | AgentCheckpointSummary
+type LiveSocketState = 'idle' | 'connecting' | 'connected' | 'closed' | 'fallback'
+
+interface LiveTraceSnapshotMessage {
+  type: 'snapshot'
+  status: AgentLiveTraceStatus
+  traces: {
+    items: AgentLiveTraceSummary[]
+    total: number
+  }
+  selected_trace_id: string
+  detail: AgentLiveTraceDetail | null
+}
 
 const StatCard = defineComponent({
   props: {
@@ -852,6 +986,7 @@ const InfoTile = defineComponent({
 })
 
 const { isDark } = useTheme()
+const authStore = useAuthStore()
 const overview = ref<AgentOverviewResponse | null>(null)
 const designer = ref<AgentDesignerResponse | null>(null)
 const loading = ref(false)
@@ -878,10 +1013,19 @@ const selectedItem = ref<RecordItem | null>(null)
 const selectedItemIsCheckpoint = ref(false)
 const detailData = ref<AgentRunDetail | AgentCheckpointDetail | null>(null)
 const detailLoading = ref(false)
+const liveStatus = ref<AgentLiveTraceStatus | null>(null)
+const liveTraces = ref<AgentLiveTraceSummary[]>([])
+const liveDetail = ref<AgentLiveTraceDetail | null>(null)
+const selectedLiveTraceId = ref('')
+const selectedLiveEvent = ref<AgentLiveTraceEvent | null>(null)
+const liveSocket = ref<WebSocket | null>(null)
+const liveSocketState = ref<LiveSocketState>('idle')
+const liveReconnectTimer = ref<ReturnType<typeof setTimeout> | null>(null)
 
 const mainTabs = [
   { key: 'overview' as const, label: '概览', icon: BrainCircuit },
   { key: 'flow' as const, label: '编排', icon: Network },
+  { key: 'live' as const, label: '实时', icon: Activity },
   { key: 'config' as const, label: '配置', icon: Settings2 },
   { key: 'records' as const, label: '运行', icon: Activity },
 ]
@@ -981,12 +1125,14 @@ const statCards = computed(() => [
 const activeTabIcon = computed(() => mainTabs.find((tab) => tab.key === activeTab.value)?.icon || BrainCircuit)
 const activeTitle = computed(() => {
   if (activeTab.value === 'flow') return 'Agent 编排设计器'
+  if (activeTab.value === 'live') return 'Live Trace'
   if (activeTab.value === 'config') return 'Agent 配置'
   if (activeTab.value === 'records') return '运行数据'
   return selectedModule.value?.name || 'Agent 概览'
 })
 const activeSubtitle = computed(() => {
   if (activeTab.value === 'flow') return '拖动 Runtime 节点到画布，合法图可以保存并热更新到后续 Agent 轮次'
+  if (activeTab.value === 'live') return '开发模式下实时查看消息、节点、工具调用、参数预览和 observation'
   if (activeTab.value === 'config') return '展示真实运行配置，并管理 Agent 节点参数预设'
   if (activeTab.value === 'records') return '运行记录、检查点、待确认和失败轨迹'
   return selectedModule.value?.description || '选择左侧模块查看职责和能力'
@@ -1039,14 +1185,202 @@ const kindChartOption = computed<Record<string, unknown>>(() => {
 
 let searchTimer: ReturnType<typeof setTimeout> | undefined
 
-onMounted(() => reload())
+onMounted(() => {
+  reload()
+  if (activeTab.value === 'live') connectLiveSocket()
+})
+
+onBeforeUnmount(() => closeLiveSocket())
+
+watch(activeTab, (tab) => {
+  if (tab === 'live') connectLiveSocket()
+  else closeLiveSocket()
+})
+
+watch(selectedLiveTraceId, () => {
+  if (activeTab.value === 'live') sendLiveTraceSelection()
+})
 
 async function reload() {
   loading.value = true
   try {
-    await Promise.all([loadOverview(), loadDesigner(), fetchData()])
+    await Promise.all([loadOverview(), loadDesigner(), fetchData(), loadLiveTraceStatus()])
+    if (activeTab.value === 'live' && liveSocketState.value !== 'connected') await loadLiveTraceSnapshotFallback()
   } finally {
     loading.value = false
+  }
+}
+
+async function loadLiveTraceStatus() {
+  try {
+    liveStatus.value = await fetchAgentLiveTraceStatus()
+  } catch {
+    liveStatus.value = null
+  }
+}
+
+async function loadLiveTraces() {
+  try {
+    const res = await fetchAgentLiveTraces()
+    liveTraces.value = res.items
+    if (!selectedLiveTraceId.value && liveTraces.value.length) {
+      selectedLiveTraceId.value = liveTraces.value[0].trace_id
+      await loadSelectedLiveTrace()
+    }
+  } catch {
+    liveTraces.value = []
+  }
+}
+
+async function loadLiveTraceSnapshotFallback() {
+  await Promise.all([loadLiveTraceStatus(), loadLiveTraces()])
+  if (selectedLiveTraceId.value) await loadSelectedLiveTrace()
+}
+
+async function loadSelectedLiveTrace() {
+  if (!selectedLiveTraceId.value) {
+    liveDetail.value = null
+    selectedLiveEvent.value = null
+    return
+  }
+  try {
+    const detail = await fetchAgentLiveTrace(selectedLiveTraceId.value)
+    liveDetail.value = detail
+    if (!selectedLiveEvent.value && detail.events.length) {
+      selectedLiveEvent.value = detail.events[detail.events.length - 1]
+    } else if (selectedLiveEvent.value) {
+      selectedLiveEvent.value = detail.events.find((event) => event.sequence === selectedLiveEvent.value?.sequence) || detail.events[detail.events.length - 1] || null
+    }
+  } catch {
+    liveDetail.value = null
+    selectedLiveEvent.value = null
+  }
+}
+
+function selectLiveTrace(traceId: string) {
+  selectedLiveTraceId.value = traceId
+  selectedLiveEvent.value = null
+  sendLiveTraceSelection()
+  if (liveSocketState.value !== 'connected') loadSelectedLiveTrace()
+}
+
+function liveTraceWsUrl() {
+  const token = authStore.sessionToken
+  if (!token) return ''
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  const traceParam = selectedLiveTraceId.value ? `&trace_id=${encodeURIComponent(selectedLiveTraceId.value)}` : ''
+  return `${protocol}//${window.location.host}/api/v1/manager/agents/live/ws?token=${encodeURIComponent(token)}${traceParam}`
+}
+
+function connectLiveSocket() {
+  clearLiveReconnectTimer()
+  closeLiveSocket({ keepState: true })
+  if (activeTab.value !== 'live') return
+  const url = liveTraceWsUrl()
+  if (!url) {
+    liveSocketState.value = 'fallback'
+    loadLiveTraceSnapshotFallback()
+    return
+  }
+  liveSocketState.value = 'connecting'
+  const socket = new WebSocket(url)
+  liveSocket.value = socket
+
+  socket.onopen = () => {
+    if (liveSocket.value !== socket) return
+    liveSocketState.value = 'connected'
+    sendLiveTraceSelection()
+  }
+  socket.onmessage = (event) => {
+    try {
+      const payload = JSON.parse(String(event.data)) as LiveTraceSnapshotMessage
+      if (payload.type === 'snapshot') applyLiveTraceSnapshot(payload)
+    } catch {
+      // Ignore malformed dev-trace frames; the next valid snapshot will repair UI state.
+    }
+  }
+  socket.onerror = () => {
+    if (liveSocket.value === socket) liveSocketState.value = 'fallback'
+  }
+  socket.onclose = () => {
+    if (liveSocket.value === socket) liveSocket.value = null
+    if (activeTab.value === 'live') scheduleLiveReconnect()
+    else liveSocketState.value = 'closed'
+  }
+}
+
+function closeLiveSocket(options: { keepState?: boolean } = {}) {
+  clearLiveReconnectTimer()
+  const socket = liveSocket.value
+  if (socket) {
+    socket.onopen = null
+    socket.onmessage = null
+    socket.onerror = null
+    socket.onclose = null
+    if (socket.readyState === WebSocket.CONNECTING || socket.readyState === WebSocket.OPEN) socket.close()
+    liveSocket.value = null
+  }
+  if (!options.keepState) liveSocketState.value = 'idle'
+}
+
+function clearLiveReconnectTimer() {
+  if (liveReconnectTimer.value) {
+    clearTimeout(liveReconnectTimer.value)
+    liveReconnectTimer.value = null
+  }
+}
+
+function scheduleLiveReconnect() {
+  clearLiveReconnectTimer()
+  liveSocketState.value = 'closed'
+  liveReconnectTimer.value = setTimeout(() => {
+    if (activeTab.value === 'live') connectLiveSocket()
+  }, 2500)
+}
+
+function sendLiveTraceSelection() {
+  const socket = liveSocket.value
+  if (!socket || socket.readyState !== WebSocket.OPEN) return
+  socket.send(JSON.stringify({ type: 'select_trace', trace_id: selectedLiveTraceId.value }))
+}
+
+function refreshLiveTraceConnection() {
+  if (activeTab.value !== 'live') return
+  if (liveSocketState.value === 'connected') {
+    sendLiveTraceSelection()
+    return
+  }
+  connectLiveSocket()
+  if (liveSocketState.value === 'fallback') loadLiveTraceSnapshotFallback()
+}
+
+function applyLiveTraceSnapshot(payload: LiveTraceSnapshotMessage) {
+  liveStatus.value = payload.status
+  liveTraces.value = payload.traces.items
+
+  const currentTraceExists = selectedLiveTraceId.value
+    ? liveTraces.value.some((trace) => trace.trace_id === selectedLiveTraceId.value)
+    : false
+  if (!selectedLiveTraceId.value && liveTraces.value.length) {
+    selectedLiveTraceId.value = liveTraces.value[0].trace_id
+  } else if (!currentTraceExists && payload.selected_trace_id) {
+    selectedLiveTraceId.value = payload.selected_trace_id
+  }
+
+  if (payload.detail) {
+    liveDetail.value = payload.detail
+    selectedLiveTraceId.value = payload.detail.trace_id
+    if (selectedLiveEvent.value) {
+      selectedLiveEvent.value =
+        payload.detail.events.find((event) => event.sequence === selectedLiveEvent.value?.sequence) ||
+        payload.detail.events[payload.detail.events.length - 1] ||
+        null
+    } else {
+      selectedLiveEvent.value = payload.detail.events[payload.detail.events.length - 1] || null
+    }
+  } else if (selectedLiveTraceId.value && selectedLiveTraceId.value === payload.selected_trace_id) {
+    liveDetail.value = null
+    selectedLiveEvent.value = null
   }
 }
 
@@ -1437,6 +1771,15 @@ function readField(record: Record<string, unknown>, key: string) {
   if (Array.isArray(value)) return value.map((item) => String(item)).join('、')
   if (typeof value === 'object' && value !== null) return ''
   return value === null || value === undefined ? '' : String(value)
+}
+
+function formatJson(value: unknown) {
+  if (value === null || value === undefined || value === '') return '{}'
+  try {
+    return JSON.stringify(value, null, 2)
+  } catch {
+    return String(value)
+  }
 }
 
 function formatTime(value: string | null | undefined) {

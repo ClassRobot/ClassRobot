@@ -1,18 +1,19 @@
-from dataclasses import dataclass
 from typing import Any
 from enum import StrEnum
+from dataclasses import dataclass
+from contextvars import ContextVar
 
 from nonebot import logger
-from openai import APIError, NOT_GIVEN, AsyncOpenAI, NotGiven
+from openai import NOT_GIVEN, APIError, NotGiven, AsyncOpenAI
 
-from .config import LLMConfig, plugin_config
-from .exceptions import LLMRequestException
 from .message import LLMRole, Messages
+from .exceptions import LLMRequestException
+from .config import LLMConfig, plugin_config
 from .typings import (
     ChatCompletion,
+    ChatCompletionToolParam,
     ChatCompletionMessageParam,
     ChatCompletionToolChoiceOptionParam,
-    ChatCompletionToolParam,
 )
 
 
@@ -40,6 +41,7 @@ class LLMRequest:
     multi_modal: bool | None = None
     temperature: float | NotGiven | None = 0.1
     task_type: LLMTaskType = LLMTaskType.chat
+    exclude_llm_names: tuple[str, ...] = ()
 
 
 @dataclass(slots=True)
@@ -62,7 +64,10 @@ class ModelRouter:
         """根据请求约束筛选并排序候选模型。"""
 
         candidates: list[tuple[int, int, LLMConfig]] = []
+        excluded_names = set(request.exclude_llm_names)
         for index, llm_config in enumerate(self.configs):
+            if llm_config.name in excluded_names:
+                continue
             if request.llm_name and llm_config.name != request.llm_name:
                 continue
 
@@ -110,6 +115,10 @@ class LLMGateway:
         self.timeout = timeout
         self.router = ModelRouter(configs)
         self.clients: dict[str, AsyncOpenAI] = {}
+        self._attempt_errors_var: ContextVar[list[tuple[str, str]]] = ContextVar(
+            "llm_gateway_attempt_errors",
+            default=[],
+        )
 
         for llm_config in configs:
             if llm_config.name in self.clients:
@@ -122,6 +131,8 @@ class LLMGateway:
         """执行一次大模型请求，必要时自动回退到候选模型。"""
 
         last_error: Exception | None = None
+        attempt_errors: list[tuple[str, str]] = []
+        self._attempt_errors_var.set([])
         for llm_config in self.router.select(request):
             try:
                 payload_messages = await self.build_messages(request.messages, llm_config, request.multi_modal)
@@ -138,14 +149,28 @@ class LLMGateway:
                 )
             except APIError as error:
                 last_error = error
+                attempt_errors.append((llm_config.name, str(error)))
+                self._attempt_errors_var.set(list(attempt_errors))
                 logger.opt(colors=True).error(f'LLM "<y>{llm_config.name}</y>" error {error}')
             except Exception as error:  # noqa: BLE001
                 last_error = error
+                attempt_errors.append((llm_config.name, str(error)))
+                self._attempt_errors_var.set(list(attempt_errors))
                 logger.exception(error)
 
         if last_error is not None:
             raise LLMRequestException(f"LLM request failed: {last_error}") from last_error
         raise LLMRequestException("LLM request failed")
+
+    def get_last_attempt_errors(self) -> list[tuple[str, str]]:
+        """返回当前异步上下文中最近一次模型请求的候选失败列表。"""
+
+        return list(self._attempt_errors_var.get([]))
+
+    def clear_last_attempt_errors(self) -> None:
+        """清空当前异步上下文中最近一次模型请求的候选失败列表。"""
+
+        self._attempt_errors_var.set([])
 
     def build_request_kwargs(
         self,

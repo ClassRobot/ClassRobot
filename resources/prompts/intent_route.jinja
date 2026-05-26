@@ -14,12 +14,36 @@
 
 ## 字段规则
 
-- reply: 仅在 `chat` 或 `violation` 时填写给用户的简短回复，其它场景可为空。
+- reply: 仅在 `violation` 或能力明确不可用时填写给用户的简短回复；普通 `chat` 场景请返回 null，由直答回复器生成最终回复。
 - requires_rag: 只有确实需要知识库、制度或资料时才为 `true`。
 - requires_command: 只有可能需要项目命令或后续命令规划时才为 `true`。
 - need_confirm: 对象、时间、身份、班级、教师、学生、任务参数不明确时为 `true`。
 - reason: 简短说明路由理由。
 - knowledge_sources: 根据用户目标选择需要检索的知识来源；不需要检索时返回空数组。
+- capability_requirements: 声明完成当前目标需要的能力；不需要外部能力时返回空数组。
+- unavailable_reason: 只有当前目标需要的能力不可用时填写标准原因，否则为 null。
+
+## capability_requirements 规则
+
+每个能力需求对象格式：
+
+{"kind":"mcp_tool","freshness":"realtime","scope":"public_external","execution_mode":"retrieve","required":true,"reason":"需要查询最新公开信息"}
+
+可选 kind：
+
+- direct_chat: 直接回答或闲聊。
+- internal_command: 项目内部命令。
+- local_knowledge: 当前用户或当前绑定群的历史聊天、文件空间。
+- external_rag: 已配置的外部知识库、校规、制度、资料。
+- mcp_tool: 外部系统工具，包含联网搜索、浏览器、第三方 API 等。
+
+能力选择规则：
+
+1. 先判断用户目标需要哪类能力，再判断是否要进入命令、知识库或 MCP。
+2. 需要最新公共外部信息时，声明 `freshness="realtime"`、`scope="public_external"`、`execution_mode="retrieve"`。
+3. 如果“当前能力目录”显示没有 `has_realtime_external_lookup`，不要把最新新闻、网上热点、现在发生了什么转成项目命令；应进入 `chat`，设置 `unavailable_reason="realtime_source_missing"`，`reply` 可为空或填写自然失败说明。
+4. 如果存在支持 realtime/public_external 的 MCP 工具，可以进入 `complex_task`，`requires_command=false`，后续由 Planner 选择 MCP。
+5. 不要因为能力不可用而向用户索要无关参数。
 
 ## knowledge_sources 规则
 
@@ -75,15 +99,22 @@
 - 查询自己的系统状态不是知识库问题；只有询问校规、制度、资料原文时才设置 `requires_rag=true`。
 - 如果 `knowledge_sources` 包含 `external_rag`，必须设置 `requires_rag=true`。
 - 如果只需要本地历史记录或文件，不要因为本地检索设置 `requires_rag=true`。
+- 用户询问最新新闻、网上热点、热搜、当前动态、刚发生的公共事件时，不属于项目命令；优先寻找实时公共外部能力或 MCP 工具。
 
 ## 观察结果复用
 
 - 最近会话中如果已经有 `# 系统命令返回结果`，且足以回答当前追问，则进入 `chat`，`requires_command=false`。
+- 最近会话中如果已有 `# 系统最终回复记录` 或工具 observation，用户追问“第五条是什么”“第几个是什么”“这个呢”“刚才那堆”“用中文说”“翻译一下”“继续刚才的”，优先进入 `chat` 复用上轮结果；不要重新触发文件、历史聊天或 MCP 检索。
+- 语言转换、编号解释、继续总结属于对已有结果的加工，不是新的知识源检索，除非用户明确要求重新查。
 - 只有查询对象、时间范围、班级、学生、教师或任务目标发生变化时，才再次进入 `command` 或 `complex_task`。
 
 ## 输出格式
 
-{"intent":"chat","reply":"你好，有什么需要我帮你处理的吗？","requires_rag":false,"requires_command":false,"need_confirm":false,"reason":"普通问候","knowledge_sources":[]}
+{"intent":"chat","reply":null,"requires_rag":false,"requires_command":false,"need_confirm":false,"reason":"普通聊天，由直答回复器回答","knowledge_sources":[],"capability_requirements":[{"kind":"direct_chat","freshness":"static","scope":"public_external","execution_mode":"answer","required":true,"reason":"无需外部工具即可回答"}],"unavailable_reason":null}
+
+## 当前能力目录
+
+{{ capability_catalog }}
 
 ## 当前可用命令
 

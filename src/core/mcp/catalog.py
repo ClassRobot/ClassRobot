@@ -4,8 +4,8 @@ from collections.abc import Iterable
 
 from pydantic import Field, BaseModel
 
-from .client import MCPClient
 from .schema import MCPTool
+from .client import MCPClient
 
 
 class MCPToolCatalog(BaseModel):
@@ -47,6 +47,22 @@ class MCPToolCatalog(BaseModel):
         if not tool_names:
             return set()
         return {name for name in tool_names if name in self.tool_index}
+
+    def realtime_public_tools(self) -> list[MCPTool]:
+        """返回可用于实时公共外部信息检索的 MCP tool。"""
+
+        return [
+            tool
+            for tool in self.tools
+            if tool.enabled
+            and tool.freshness == "realtime"
+            and bool({"web_search", "news", "browser"} & set(tool.domain_tags))
+        ]
+
+    def has_realtime_public_lookup(self) -> bool:
+        """判断当前 MCP 目录是否存在实时公共外部查询能力。"""
+
+        return bool(self.realtime_public_tools())
 
     def select_tools(
         self,

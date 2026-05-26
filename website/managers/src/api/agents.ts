@@ -8,6 +8,9 @@ import type {
   AgentRunDetail,
   AgentCheckpointSummary,
   AgentCheckpointDetail,
+  AgentLiveTraceDetail,
+  AgentLiveTraceListResponse,
+  AgentLiveTraceStatus,
 } from '@/types/api'
 
 export interface AgentListParams {
@@ -61,4 +64,16 @@ export function deleteAgentCheckpoint(
   userId: number,
 ): Promise<{ deleted: boolean; user_id: number }> {
   return client.delete(`/agents/checkpoints/${userId}`).then((r) => r.data)
+}
+
+export function fetchAgentLiveTraceStatus(): Promise<AgentLiveTraceStatus> {
+  return client.get('/agents/live/status').then((r) => r.data)
+}
+
+export function fetchAgentLiveTraces(): Promise<AgentLiveTraceListResponse> {
+  return client.get('/agents/live/traces').then((r) => r.data)
+}
+
+export function fetchAgentLiveTrace(traceId: string): Promise<AgentLiveTraceDetail> {
+  return client.get(`/agents/live/traces/${encodeURIComponent(traceId)}`).then((r) => r.data)
 }

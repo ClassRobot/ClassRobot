@@ -2,14 +2,14 @@
 
 from openai import NOT_GIVEN, NotGiven
 
-from .config import AutoGPTConfig, LLMConfig
-from .gateway import LLMRequest, LLMResult, LLMTaskType, llm_gateway
 from .message import Messages
+from .config import LLMConfig, AutoGPTConfig
+from .gateway import LLMResult, LLMRequest, LLMTaskType, llm_gateway
 from .typings import (
     ChatCompletion,
+    ChatCompletionToolParam,
     ChatCompletionMessageParam,
     ChatCompletionToolChoiceOptionParam,
-    ChatCompletionToolParam,
 )
 
 
@@ -20,6 +20,7 @@ async def client_create(
     *,
     max_tokens: int = 2048,
     llm_name: str | None = None,
+    exclude_llm_names: tuple[str, ...] | list[str] | None = None,
     multi_modal: bool | None = None,
     temperature: float | NotGiven | None = 0.1,
     task_type: LLMTaskType = LLMTaskType.chat,
@@ -32,6 +33,7 @@ async def client_create(
         tool_choice=tool_choice if tool_choice is not None else NOT_GIVEN,
         max_tokens=max_tokens,
         llm_name=llm_name,
+        exclude_llm_names=tuple(exclude_llm_names or ()),
         multi_modal=multi_modal,
         temperature=temperature if temperature is not None else NOT_GIVEN,
         task_type=task_type,

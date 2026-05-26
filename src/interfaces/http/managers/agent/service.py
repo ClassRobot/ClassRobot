@@ -1,63 +1,68 @@
 from __future__ import annotations
 
 import json
-from collections import Counter
 from typing import Any
+from collections import Counter
 
+from sqlalchemy import select
 from nonebot import get_driver
 from nonebot_plugin_orm import get_session
-from sqlalchemy import select
-
 from src.core.skills import skill_registry
+from src.core.llm.config import plugin_config as llm_config
+from src.core.agent.runtime.playbooks import playbook_catalog
+from src.models import AgentWorkflowRun, AgentWorkflowCheckpoint
+from src.core.agent.runtime.live_trace import agent_live_trace_registry
 from src.core.agent.runtime.node_registry import RUNTIME_NODE_REGISTRY, list_runtime_node_definitions
+from src.platform.config import skills_dir, autogpt_dir, prompts_dir, storage_dir, project_root, skill_runtime_dir
 from src.core.agent.runtime.orchestration_config import (
     AGENT_ORCHESTRATION_CONFIG_PATH,
     RuntimeGraphConfig,
-    build_graph_config_from_designer,
+    stable_designer_hash,
+    normalize_runtime_edge_scene,
     default_graph_designer_payload,
     is_designer_applied_to_runtime,
+    build_graph_config_from_designer,
     normalize_runtime_edge_condition,
-    normalize_runtime_edge_scene,
-    reload_runtime_orchestration_config,
-    stable_designer_hash,
     write_runtime_orchestration_config,
+    reload_runtime_orchestration_config,
 )
-from src.core.agent.runtime.playbooks import playbook_catalog
-from src.core.llm.config import plugin_config as llm_config
-from src.platform.config import autogpt_dir, project_root, prompts_dir, skill_runtime_dir, skills_dir, storage_dir
-from src.models import AgentWorkflowCheckpoint, AgentWorkflowRun
+
 from ..runtime import nonebot
-from ..service import manager_config_path, now_iso, relative_to_project
+from ..service import now_iso, manager_config_path, relative_to_project
 from .models import (
-    AgentCheckpointSummaryPayload,
+    AgentSkillItem,
     AgentConfigItem,
-    AgentControlItem,
-    AgentDesignerApplyResult,
-    AgentDesignerCapabilities,
-    AgentDesignerDraft,
-    AgentDesignerEdge,
-    AgentDesignerLimits,
-    AgentDesignerNode,
-    AgentDesignerPayload,
-    AgentDesignerRuntimeStatus,
-    AgentDesignerSaveResult,
     AgentModuleCard,
-    AgentModuleDefinition,
-    AgentNodeConfigField,
-    AgentNodeDraftConfig,
-    AgentOrchestrationEdge,
-    AgentOrchestrationNode,
-    AgentOverviewMetrics,
-    AgentOverviewOrchestration,
-    AgentOverviewPayload,
-    AgentOverviewStats,
-    AgentOverviewDesignerSummary,
+    AgentControlItem,
+    AgentDesignerEdge,
+    AgentDesignerNode,
     AgentPlaybookItem,
     AgentPlaybookStep,
-    AgentRunSummaryPayload,
     AgentSelectOption,
-    AgentSkillItem,
+    AgentDesignerDraft,
+    AgentOverviewStats,
+    AgentDesignerLimits,
+    AgentDesignerPayload,
+    AgentNodeConfigField,
+    AgentNodeDraftConfig,
+    AgentOverviewMetrics,
+    AgentOverviewPayload,
+    AgentModuleDefinition,
+    AgentOrchestrationEdge,
+    AgentOrchestrationNode,
+    AgentRunSummaryPayload,
     RuntimeNodePaletteItem,
+    AgentDesignerSaveResult,
+    AgentDesignerApplyResult,
+    AgentDesignerCapabilities,
+    AgentDesignerRuntimeStatus,
+    AgentLiveTraceEventPayload,
+    AgentOverviewOrchestration,
+    AgentLiveTraceDetailPayload,
+    AgentLiveTraceStatusPayload,
+    AgentLiveTraceSummaryPayload,
+    AgentOverviewDesignerSummary,
+    AgentCheckpointSummaryPayload,
 )
 
 driver: Any | None = None
@@ -77,6 +82,15 @@ AGENT_MODULES: tuple[AgentModuleDefinition, ...] = (
         control_note="随 NoneBot 插件加载，当前没有独立启停接口。",
     ),
     AgentModuleDefinition(
+        id="agent_host",
+        name="AgentHost",
+        category="Host 控制面",
+        source="src/core/agent/runtime/host",
+        description="统一封装用户 turn、上下文包、专长 Agent 委派记录和用户可见输出策略。",
+        capabilities=("TurnEnvelope", "ContextPack", "Agent handoff", "Reply envelope"),
+        control_note="当前作为 ChatSession 的主控封装接入，后续逐步收口插件和 workflow 的输出路径。",
+    ),
+    AgentModuleDefinition(
         id="harness_runtime",
         name="AutoGPTHarness",
         category="运行时装配",
@@ -93,6 +107,24 @@ AGENT_MODULES: tuple[AgentModuleDefinition, ...] = (
         description="收敛当前用户可见命令、结构化命令工具目录和 Skill 摘要。",
         capabilities=("命令裁剪", "候选命令解析", "Skill 召回"),
         control_note="命令软关闭由 Plugin 管理维护，Agent 会自动过滤不可用命令。",
+    ),
+    AgentModuleDefinition(
+        id="agent_catalog",
+        name="AgentCatalog",
+        category="多 Agent 委派",
+        source="src/core/agent/runtime/delegation",
+        description="声明 WorkflowSupervisor、Conversation、Knowledge、RealtimeLookup、Execution 和 ReplySynthesis 等专长 Agent。",
+        capabilities=("专长 Agent 目录", "上下文切片", "Handoff 审计", "委派边界"),
+        control_note="委派由 AgentHost 统一控制，子 Agent 默认不允许自由递归委派。",
+    ),
+    AgentModuleDefinition(
+        id="context_engine",
+        name="ContextEngine",
+        category="上下文层",
+        source="src/core/agent/runtime/context",
+        description="把当前消息、会话、工作流、知识和工具状态组织成分层 ContextPack。",
+        capabilities=("Turn context", "Session context", "Workflow context", "Tool state context"),
+        control_note="第一版提供最小上下文切片，后续承接长期记忆和 token budget 管理。",
     ),
     AgentModuleDefinition(
         id="context_harness",
@@ -129,6 +161,24 @@ AGENT_MODULES: tuple[AgentModuleDefinition, ...] = (
         description="把规划结果转换成显式工作流，并按步骤复用 NoneBot 命令系统执行。",
         capabilities=("显式工作流", "审批语义", "顺序执行", "执行观测"),
         control_note="工作流执行边界来自命令系统，当前不提供模块级启停。",
+    ),
+    AgentModuleDefinition(
+        id="action_executor",
+        name="ActionExecutor",
+        category="统一执行总线",
+        source="src/core/agent/runtime/execution",
+        description="定义 command、MCP、Skill、RAG、schedule 和 delegate 行为共用的 ActionRequest / ActionResult 协议。",
+        capabilities=("ActionRequest", "ActionResult", "ToolObservation 转换", "Executor registry"),
+        control_note="第一版先提供统一协议和缺失执行器降级，后续逐步替换命令中心化执行分支。",
+    ),
+    AgentModuleDefinition(
+        id="reply_policy",
+        name="ReplyPolicy",
+        category="回复层",
+        source="src/core/agent/runtime/reply",
+        description="统一 progress、确认、最终回复和失败回复的用户可见消息协议。",
+        capabilities=("ReplyEnvelope", "UserVisibleMessage", "最终回复写回", "动作声明检查"),
+        control_note="最终回复仍由现有 ExecutionReplyAgent 生成，ReplyPolicy 负责 Host 层输出约束。",
     ),
     AgentModuleDefinition(
         id="command_tools",
@@ -632,7 +682,9 @@ class AgentManagerService:
 
         draft = self.validate_designer_state(state or self.read_designer_state())
         compact_draft = draft.to_payload(compact=True)
-        runtime_config_to_apply = runtime_config or build_graph_config_from_designer(compact_draft, applied_at=now_iso())
+        runtime_config_to_apply = runtime_config or build_graph_config_from_designer(
+            compact_draft, applied_at=now_iso()
+        )
         write_runtime_orchestration_config(runtime_config_to_apply)
         snapshot = reload_runtime_orchestration_config(force=True)
         if not snapshot.valid or not snapshot.graph_enabled:
@@ -1035,6 +1087,59 @@ class AgentManagerService:
             await session.commit()
         return {"deleted": True, "user_id": user_id}
 
+    def get_live_trace_status(self) -> dict[str, Any]:
+        """读取开发态 live trace 注册表状态。"""
+
+        return AgentLiveTraceStatusPayload.parse_obj(agent_live_trace_registry.status()).to_payload()
+
+    def list_live_traces(self) -> dict[str, Any]:
+        """列出正在执行和最近完成的 live traces。"""
+
+        items = [
+            AgentLiveTraceSummaryPayload.parse_obj(item).to_payload()
+            for item in agent_live_trace_registry.list_traces()
+        ]
+        return {"items": items, "total": len(items)}
+
+    async def get_live_trace(self, trace_id: str) -> dict[str, Any]:
+        """读取单条 live trace 详情，内存过期后回落到历史 run。"""
+
+        trace = agent_live_trace_registry.get_trace(trace_id)
+        if trace is not None:
+            payload = AgentLiveTraceDetailPayload.parse_obj(
+                {
+                    **trace.summary(),
+                    "events": [
+                        AgentLiveTraceEventPayload.parse_obj(event.dict()).to_payload() for event in trace.events
+                    ],
+                }
+            )
+            return payload.to_payload()
+
+        run = await AgentWorkflowRun.filter(trace_id=trace_id).first()
+        if run is None:
+            raise KeyError(trace_id)
+        history_run = self.build_run_summary(run).to_payload()
+        history_run["workflow_data"] = run.workflow_data
+        payload = AgentLiveTraceDetailPayload(
+            trace_id=run.trace_id,
+            user_id=run.user_id,
+            session_id=str(run.user_id),
+            message_preview=run.goal or run.summary or "",
+            status=run.status,
+            current_stage="history",
+            current_node="AgentWorkflowRun",
+            workflow_kind=run.kind,
+            current_tool="",
+            event_count=len((run.workflow_data or {}).get("events") or []),
+            started_at=run.started_at.isoformat() if run.started_at else run.created_at.isoformat(),
+            updated_at=run.updated_at.isoformat() if run.updated_at else run.created_at.isoformat(),
+            finished_at=run.finished_at.isoformat() if run.finished_at else None,
+            events=[],
+            history_run=history_run,
+        )
+        return payload.to_payload()
+
 
 agent_manager_service = AgentManagerService()
 
@@ -1107,3 +1212,21 @@ async def delete_checkpoint(user_id: int) -> dict[str, Any]:
     """删除指定用户的检查点。"""
 
     return await agent_manager_service.delete_checkpoint(user_id)
+
+
+def get_live_trace_status() -> dict[str, Any]:
+    """读取开发态 live trace 注册表状态。"""
+
+    return agent_manager_service.get_live_trace_status()
+
+
+def list_live_traces() -> dict[str, Any]:
+    """列出正在执行和最近完成的 live traces。"""
+
+    return agent_manager_service.list_live_traces()
+
+
+async def get_live_trace(trace_id: str) -> dict[str, Any]:
+    """读取单条 live trace 详情。"""
+
+    return await agent_manager_service.get_live_trace(trace_id)

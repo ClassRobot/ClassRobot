@@ -1,36 +1,34 @@
-import json
 import os
+import json
 import time
 from datetime import datetime
-from collections import defaultdict
-from collections.abc import Awaitable, Callable
 from typing import Any, Literal
+from collections import defaultdict
+from collections.abc import Callable, Awaitable
 
 from nonebot import logger
-from pydantic import BaseModel, Extra, Field, validator
-
-from src.core.mcp import MCPClient, MCPToolCatalog
-from src.core.mcp.observation import params_to_arguments, mcp_result_to_observation
-from src.core.agent.prompts import Prompt
-from src.core.llm import LLMTaskType, client_create
-from src.core.llm.message import Messages
 from src.core.llm.util import json_loads
+from src.core.agent.prompts import Prompt
+from src.core.llm.message import Messages
+from src.core.mcp import MCPClient, MCPToolCatalog
+from src.core.llm import LLMTaskType, client_create
+from pydantic import Extra, Field, BaseModel, validator
+from src.core.mcp.observation import params_to_arguments, mcp_result_to_observation
 
+from .execution import ActionRequest
 from .command_tools import CommandToolCatalog
+from .live_trace import agent_live_trace_registry
+from .observation_quality import ObservationQualityGate, build_safe_execution_fallback
+from .workflow import WorkflowDispatcher, update_execution_metrics, collect_unsent_observation_outputs
 from .schema import (
     Param,
     AutoTask,
     RiskLevel,
-    WorkflowStep,
     TaskWorkflow,
+    WorkflowStep,
     WorkflowApproval,
     CommandObservation,
     WorkflowExecutionResult,
-)
-from .workflow import (
-    WorkflowDispatcher,
-    update_execution_metrics,
-    collect_unsent_observation_outputs,
 )
 
 LoopActionType = Literal["command", "mcp_tool", "verify", "skill", "confirm", "respond", "schedule", "finish", "stop"]
@@ -65,7 +63,12 @@ class AgentLoopConfig(BaseModel):
         """把环境变量里的字符串转成正整数，非法值回退到字段默认值。"""
 
         try:
-            parsed = int(value)  # type: ignore[arg-type]
+            if isinstance(value, bool):
+                parsed = int(value)
+            elif isinstance(value, int):
+                parsed = value
+            else:
+                parsed = int(str(value))
         except (TypeError, ValueError):
             return 0
         return max(parsed, 0)
@@ -467,6 +470,18 @@ DecisionProvider = Callable[
     [TaskWorkflow, list[WorkflowStep], list[CommandObservation], list[ObservationFact], LoopBudget],
     Awaitable[AgentLoopDecision],
 ]
+ProgressReporter = Callable[[str], Awaitable[None]]
+
+
+def preview_text(text: str | None, limit: int = 180) -> str:
+    """生成适合日志输出的短文本预览。"""
+
+    if not text:
+        return ""
+    compact = " ".join(text.split())
+    if len(compact) <= limit:
+        return compact
+    return compact[: limit - 3] + "..."
 
 
 class CognitiveAgentLoop:
@@ -487,6 +502,7 @@ class CognitiveAgentLoop:
         config: AgentLoopConfig | None = None,
         decision_provider: DecisionProvider | None = None,
         observation_interpreter: ObservationInterpreter | None = None,
+        progress_reporter: ProgressReporter | None = None,
     ) -> None:
         self.dispatcher = dispatcher
         self.mcp_client = mcp_client or MCPClient()
@@ -495,6 +511,21 @@ class CognitiveAgentLoop:
         self.config = config or AgentLoopConfig.from_runtime()
         self.decision_provider = decision_provider
         self.observation_interpreter = observation_interpreter or ObservationInterpreter()
+        self.progress_reporter = progress_reporter
+        self.quality_gate = ObservationQualityGate()
+
+    async def report_progress(self, message: str) -> None:
+        """向入口层报告少量自然语言进度。"""
+
+        if not self.progress_reporter:
+            return
+        text = message.strip()
+        if not text:
+            return
+        try:
+            await self.progress_reporter(text)
+        except Exception as error:  # noqa: BLE001
+            logger.warning(f"AutoGPT progress report failed: {error}")
 
     async def execute(self, workflow: TaskWorkflow) -> WorkflowExecutionResult:
         """按观察驱动循环执行任务流。"""
@@ -514,9 +545,45 @@ class CognitiveAgentLoop:
         budget = LoopBudget(self.config)
         pending_steps = list(workflow.steps)
         facts: list[ObservationFact] = []
+        loop_started = time.perf_counter()
+        logger.info(
+            f'AutoGPT trace "{workflow.trace_id}" cognitive loop started '
+            f"steps={len(workflow.steps)} budget={budget.snapshot()}"
+        )
 
         while True:
+            agent_live_trace_registry.emit(
+                workflow.trace_id,
+                event_type="loop_iteration_started",
+                stage="loop",
+                status="running",
+                workflow_kind=workflow.kind,
+                params_preview={
+                    "pending_steps": len(pending_steps),
+                    "observations": len(result.observations),
+                    "budget": budget.snapshot(),
+                },
+            )
             decision = await self.decide_next_action(workflow, pending_steps, result.observations, facts, budget)
+            agent_live_trace_registry.emit(
+                workflow.trace_id,
+                event_type="loop_action_selected",
+                stage="loop",
+                status="running",
+                workflow_kind=workflow.kind,
+                tool_name=decision.capability_name,
+                params_preview={
+                    "action_type": decision.action_type,
+                    "params": [param.dict() for param in decision.params],
+                    "verify_target": decision.verify_target,
+                    "reason": decision.reason,
+                },
+            )
+            logger.info(
+                f'AutoGPT trace "{workflow.trace_id}" loop decision action={decision.action_type} '
+                f'capability="{decision.capability_name}" verify_target="{decision.verify_target}" '
+                f'reason="{preview_text(decision.reason, limit=120)}" steps_used={budget.steps_used}'
+            )
             if decision.action_type in {"finish", "respond"}:
                 workflow.status = "completed"
                 workflow.finished_at = datetime.now()
@@ -531,21 +598,40 @@ class CognitiveAgentLoop:
 
             blocked_reason = budget.check(decision)
             if blocked_reason:
+                logger.warning(
+                    f'AutoGPT trace "{workflow.trace_id}" loop blocked by budget '
+                    f'reason="{blocked_reason}" snapshot={budget.snapshot()}'
+                )
                 self.apply_budget_stop(workflow, result, budget, blocked_reason)
                 break
             budget.consume(decision)
 
             step = self.resolve_step_for_decision(workflow, pending_steps, decision)
             if step is None:
+                logger.warning(
+                    f'AutoGPT trace "{workflow.trace_id}" loop could not resolve step '
+                    f'for action={decision.action_type} capability="{decision.capability_name}"'
+                )
                 self.apply_invalid_decision_stop(workflow, result, decision)
                 break
             if self.requires_confirmation(step, decision):
+                logger.info(
+                    f'AutoGPT trace "{workflow.trace_id}" loop paused for confirmation '
+                    f'step_id={step.step_id} command="{step.command}" risk={step.risk_level}'
+                )
                 self.apply_confirmation_stop(workflow, result, step)
                 break
             if step.step_type == "mcp_tool" and decision.action_type == "mcp_tool":
-                observations = await self.execute_mcp_step(workflow, step, decision)
+                await self.report_progress("我正在调用联网检索工具查询公开信息，请稍等。")
+                observations = await self.execute_mcp_step(
+                    workflow,
+                    step,
+                    decision,
+                    prior_observations=result.observations,
+                )
                 result.observations.extend(observations)
                 facts.extend(self.observation_interpreter.interpret_many(observations))
+                self.enqueue_low_relevance_retry(workflow, pending_steps, step, observations)
                 if self.has_failed_observation(workflow, result, step, observations):
                     break
                 continue
@@ -559,9 +645,14 @@ class CognitiveAgentLoop:
             if self.has_failed_observation(workflow, result, step, observations):
                 break
 
+        logger.info(
+            f'AutoGPT trace "{workflow.trace_id}" cognitive loop finished in {time.perf_counter() - loop_started:.3f}s '
+            f"status={workflow.status} observations={len(result.observations)} "
+            f'user_message="{preview_text(result.user_message)}"'
+        )
         result.raw_outputs = collect_unsent_observation_outputs(result.observations)
-        if result.raw_outputs and not result.user_message:
-            result.user_message = "\n\n".join(result.raw_outputs)
+        if result.observations and not result.user_message:
+            result.user_message = build_safe_execution_fallback(result.observations)
         update_execution_metrics(workflow, result.observations)
         result.observability = workflow.observability
         return result
@@ -781,6 +872,14 @@ class CognitiveAgentLoop:
             status="running",
         )
         task = AutoTask(command=decision.capability_name or step.command, params=list(decision.params or step.params))
+        action_request = ActionRequest(
+            trace_id=workflow.trace_id,
+            source_type="command",
+            tool_name=task.command,
+            user_goal=workflow.goal,
+            params=list(task.params),
+            risk_level=step.risk_level,
+        )
         logger.info(
             'AutoGPT trace "{}" loop step "{}" dispatching command "{}"'.format(
                 workflow.trace_id,
@@ -788,17 +887,81 @@ class CognitiveAgentLoop:
                 task.command,
             )
         )
-        observations = await self.dispatcher(task)
-        step.status = "completed"
-        step.observation_message = "命令已通过观察驱动循环执行完成。"
-        step.finished_at = datetime.now()
-        workflow.add_event(
-            "step_completed",
-            step.observation_message,
+        started = time.perf_counter()
+        agent_live_trace_registry.emit(
+            workflow.trace_id,
+            event_type="command_dispatch_started",
+            stage="tool_call",
+            status="running",
+            workflow_kind=workflow.kind,
             step_id=step.step_id,
-            command=step.command,
-            status="completed",
+            tool_name=task.command,
+            params_preview={"action_request": action_request.dict()},
         )
+        try:
+            observations = await self.dispatcher(task)
+        except Exception as error:
+            agent_live_trace_registry.emit(
+                workflow.trace_id,
+                event_type="command_dispatch_completed",
+                stage="tool_call",
+                status="failed",
+                workflow_kind=workflow.kind,
+                step_id=step.step_id,
+                tool_name=task.command,
+                error=error,
+                duration_ms=(time.perf_counter() - started) * 1000,
+            )
+            raise
+        observations = [
+            self.quality_gate.evaluate(observation, user_goal=workflow.goal) for observation in observations
+        ]
+        for observation in observations:
+            agent_live_trace_registry.emit(
+                workflow.trace_id,
+                event_type="quality_gate_evaluated",
+                stage="loop",
+                status="completed" if observation.success else "failed",
+                workflow_kind=workflow.kind,
+                step_id=step.step_id,
+                tool_name=observation.tool_name or observation.command,
+                params_preview={
+                    "relevance": observation.relevance,
+                    "answer_quality": observation.answer_quality,
+                    "next_actions": observation.next_actions,
+                },
+                observation_summary=observation.display_summary or observation.context_summary or observation.message,
+            )
+        logger.info(
+            f'AutoGPT trace "{workflow.trace_id}" loop step "{step.step_id}" command "{task.command}" '
+            f"completed in {time.perf_counter() - started:.3f}s observations={len(observations)} "
+            f"successes={sum(1 for observation in observations if observation.success)} "
+            f'preview="{preview_text(observations[0].message if observations else "")}"'
+        )
+        agent_live_trace_registry.emit(
+            workflow.trace_id,
+            event_type="command_dispatch_completed",
+            stage="tool_call",
+            status="completed" if all(observation.success for observation in observations) else "failed",
+            workflow_kind=workflow.kind,
+            step_id=step.step_id,
+            tool_name=task.command,
+            params_preview={"observations": len(observations)},
+            observation_summary=observations[0].message if observations else "",
+            duration_ms=(time.perf_counter() - started) * 1000,
+        )
+        failed_observation = next((observation for observation in observations if not observation.success), None)
+        if failed_observation is None:
+            step.status = "completed"
+            step.observation_message = "命令已通过观察驱动循环执行完成。"
+            step.finished_at = datetime.now()
+            workflow.add_event(
+                "step_completed",
+                step.observation_message,
+                step_id=step.step_id,
+                command=step.command,
+                status="completed",
+            )
         return observations
 
     async def execute_mcp_step(
@@ -806,6 +969,8 @@ class CognitiveAgentLoop:
         workflow: TaskWorkflow,
         step: WorkflowStep,
         decision: AgentLoopDecision,
+        *,
+        prior_observations: list[CommandObservation] | None = None,
     ) -> list[CommandObservation]:
         """执行单个 MCP tool 步骤并写入生命周期事件。"""
 
@@ -827,8 +992,73 @@ class CognitiveAgentLoop:
             )
         )
         params = list(decision.params or step.params)
-        call_result = await self.mcp_client.call_tool(tool_name, params_to_arguments(params))
-        observation = mcp_result_to_observation(workflow.trace_id, params, call_result)
+        tool = self.capabilities.mcp_tools.get(tool_name)
+        arguments = params_to_arguments(
+            params,
+            input_schema=tool.input_schema if tool else None,
+            prior_observations=prior_observations,
+        )
+        observation_params = (
+            [Param(type="text", value=json.dumps(arguments, ensure_ascii=False))] if arguments else params
+        )
+        action_request = ActionRequest(
+            trace_id=workflow.trace_id,
+            source_type="mcp_tool",
+            tool_name=tool_name,
+            user_goal=workflow.goal,
+            query=ObservationQualityGate.extract_query_from_raw(arguments),
+            params=observation_params,
+            arguments=arguments,
+            risk_level=step.risk_level,
+        )
+        started = time.perf_counter()
+        agent_live_trace_registry.emit(
+            workflow.trace_id,
+            event_type="mcp_call_started",
+            stage="tool_call",
+            status="running",
+            workflow_kind=workflow.kind,
+            step_id=step.step_id,
+            tool_name=tool_name,
+            params_preview={"action_request": action_request.dict()},
+        )
+        try:
+            call_result = await self.mcp_client.call_tool(tool_name, arguments)
+        except Exception as error:
+            agent_live_trace_registry.emit(
+                workflow.trace_id,
+                event_type="mcp_call_completed",
+                stage="tool_call",
+                status="failed",
+                workflow_kind=workflow.kind,
+                step_id=step.step_id,
+                tool_name=tool_name,
+                error=error,
+                duration_ms=(time.perf_counter() - started) * 1000,
+            )
+            raise
+        observation = mcp_result_to_observation(workflow.trace_id, observation_params, call_result)
+        observation = self.quality_gate.evaluate(observation, user_goal=workflow.goal)
+        agent_live_trace_registry.emit(
+            workflow.trace_id,
+            event_type="quality_gate_evaluated",
+            stage="loop",
+            status="completed" if observation.success else "failed",
+            workflow_kind=workflow.kind,
+            step_id=step.step_id,
+            tool_name=observation.tool_name or tool_name,
+            params_preview={
+                "relevance": observation.relevance,
+                "answer_quality": observation.answer_quality,
+                "next_actions": observation.next_actions,
+            },
+            observation_summary=observation.display_summary or observation.context_summary or observation.message,
+        )
+        logger.info(
+            f'AutoGPT trace "{workflow.trace_id}" loop step "{step.step_id}" MCP "{tool_name}" '
+            f"completed in {time.perf_counter() - started:.3f}s success={observation.success} "
+            f'preview="{preview_text(observation.message)}"'
+        )
         if observation.success:
             step.status = "completed"
             step.observation_message = "MCP 工具已通过观察驱动循环执行完成。"
@@ -840,7 +1070,73 @@ class CognitiveAgentLoop:
                 command=step.command,
                 status="completed",
             )
+        agent_live_trace_registry.emit(
+            workflow.trace_id,
+            event_type="mcp_call_completed",
+            stage="tool_call",
+            status="completed" if observation.success else "failed",
+            workflow_kind=workflow.kind,
+            step_id=step.step_id,
+            tool_name=tool_name,
+            observation_summary=observation.display_summary or observation.context_summary or observation.message,
+            duration_ms=(time.perf_counter() - started) * 1000,
+        )
         return [observation]
+
+    def enqueue_low_relevance_retry(
+        self,
+        workflow: TaskWorkflow,
+        pending_steps: list[WorkflowStep],
+        step: WorkflowStep,
+        observations: list[CommandObservation],
+    ) -> None:
+        """低相关搜索结果在预算内允许改写查询再试一次。"""
+
+        observation = next(
+            (
+                item
+                for item in observations
+                if item.success and item.relevance == "low" and "retry_search" in item.next_actions
+            ),
+            None,
+        )
+        if observation is None:
+            return
+        retry_query = self.rewrite_search_query(observation)
+        if not retry_query:
+            return
+        retry_params = [Param(type="text", value=json.dumps({"query": retry_query}, ensure_ascii=False))]
+        retry_step = WorkflowStep(
+            step_id=f"{step.step_id}-retry",
+            step_type="mcp_tool",
+            title=f"改写查询后重试：{step.command}",
+            command=step.command,
+            params=retry_params,
+            description="首次检索结果相关性较低，在循环预算内改写查询重试一次。",
+            risk_level=step.risk_level,
+        )
+        pending_steps.insert(0, retry_step)
+        workflow.steps.append(retry_step)
+        workflow.add_event(
+            "step_started",
+            "工具结果相关性较低，已安排一次改写查询重试。",
+            step_id=retry_step.step_id,
+            command=retry_step.command,
+            status="pending",
+        )
+
+    @staticmethod
+    def rewrite_search_query(observation: CommandObservation) -> str:
+        """为中文实时热点类查询生成更贴近语境的重试词。"""
+
+        query = (observation.query or observation.user_goal).strip()
+        if not query:
+            return ""
+        if "中文互联网" in query:
+            return ""
+        if any(term in query for term in ("热点", "热搜", "新闻", "最近", "最新")):
+            return f"今日中文互联网 热点 新闻 热搜 {query}".strip()
+        return ""
 
     def has_failed_observation(
         self,
@@ -855,6 +1151,10 @@ class CognitiveAgentLoop:
         if failed_observation is None:
             return False
 
+        logger.warning(
+            f'AutoGPT trace "{workflow.trace_id}" step "{step.step_id}" failed '
+            f'command="{step.command}" message="{preview_text(failed_observation.message)}"'
+        )
         step.status = "failed"
         step.observation_message = failed_observation.message
         step.finished_at = datetime.now()
@@ -871,7 +1171,7 @@ class CognitiveAgentLoop:
         result.user_message = self.build_stop_reply(
             "执行过程中有一步没有完成。",
             result.observations,
-            [*result.observations, *observations],
+            result.observations,
         )
         return True
 
@@ -945,15 +1245,17 @@ class CognitiveAgentLoop:
         attempted_commands = []
         seen: set[str] = set()
         for observation in all_observations or attempted_observations:
-            if observation.command in seen:
+            command_name = (
+                "外部查询工具"
+                if observation.source_type == "mcp_tool" or observation.dispatch_type == "mcp_tool"
+                else observation.command
+            )
+            if command_name in seen:
                 continue
-            attempted_commands.append(observation.command)
-            seen.add(observation.command)
+            attempted_commands.append(command_name)
+            seen.add(command_name)
         attempts = "、".join(attempted_commands) if attempted_commands else "还没有成功执行命令"
         budget_text = ""
         if budget is not None:
             budget_text = f" 当前循环预算：已执行 {budget.steps_used}/{budget.config.max_steps} 步。"
-        return (
-            f"我已经尝试了 {attempts}，但目前还不能继续确认结果。{reason}{budget_text}"
-            "我先停止继续消耗资源；你可以稍后让我重新尝试，或补充更多条件后我再继续。"
-        )
+        return f"我已经尝试了 {attempts}，但目前还不能继续确认结果。{reason}{budget_text}" "我先停止继续消耗资源；你可以稍后让我重新尝试，或补充更多条件后我再继续。"

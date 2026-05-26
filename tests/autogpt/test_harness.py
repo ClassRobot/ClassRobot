@@ -8,6 +8,7 @@ def test_auto_gpt_harness_builds_policy_context_and_observability(loaded_plugins
     from src.core.llm.message import Messages
     from src.core.agent.runtime.harness import AutoGPTHarness
     from src.core.agent.runtime.knowledge import RuntimeContext
+
     from tests.autogpt.command_tool_helpers import ensure_service_helper
 
     helpers = Helpers()
@@ -49,9 +50,10 @@ async def test_pipeline_report_progress_uses_harness_observability(loaded_plugin
     pipeline = MessageProcessingPipeline(harness=harness)
 
     await pipeline.report_progress("我正在提取目标。", stage="extract")
-    await pipeline.report_progress("我正在提取目标。", stage="extract")
+    await pipeline.report_progress("我正在检索资料。", stage="rag")
+    await pipeline.report_progress("我正在检索资料。", stage="rag")
 
-    assert reports == ["extract: 我正在提取目标。"]
+    assert reports == ["我正在检索资料。"]
 
 
 def test_chat_session_build_harness_reuses_session_messages(loaded_plugins):
@@ -69,10 +71,10 @@ def test_chat_session_build_harness_reuses_session_messages(loaded_plugins):
 
 
 def test_internal_runtime_models_use_dataclass_and_isolated_defaults(loaded_plugins):
+    from src.core.llm.message import Content
     from src.core.agent.runtime.schema import ChatMessage
     from src.core.agent.runtime.pipeline import PipelineState
     from src.core.agent.runtime.knowledge import RuntimeContext
-    from src.core.llm.message import Content
 
     assert is_dataclass(ChatMessage)
     assert is_dataclass(PipelineState)

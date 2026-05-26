@@ -1,15 +1,16 @@
-from typing import Literal
 from datetime import datetime
+from typing import Any, Literal
 from dataclasses import field, dataclass
 
 from pydantic import Field, BaseModel
-from nonebot_plugin_alconna import UniMessage
-
 from src.core.llm.message import Content
+from nonebot_plugin_alconna import UniMessage
 from src.core.llm.util import uni_message_to_contents
 from src.core.agent.runtime.auto_task import Param as Param  # noqa
 from src.core.agent.runtime.auto_task import AutoTask as AutoTask  # noqa
 from src.core.agent.runtime.auto_task import AutoTaskList as AutoTaskList  # noqa
+
+from .capabilities import CapabilityRequirement, CapabilityFailureReason
 
 KnowledgeSource = Literal[
     "user_chat_history",
@@ -20,6 +21,18 @@ KnowledgeSource = Literal[
 ]
 KnowledgeSourceStatus = Literal["hit", "miss", "skipped", "error"]
 KnowledgeSourceConfidence = Literal["high", "medium", "low", "none"]
+ToolObservationSource = Literal[
+    "command",
+    "mcp_tool",
+    "local_knowledge",
+    "external_rag",
+    "skill",
+    "schedule",
+    "unknown",
+]
+ToolObservationStatus = Literal["succeeded", "failed", "skipped", "partial"]
+ToolObservationRelevance = Literal["unknown", "high", "medium", "low", "none"]
+ToolObservationAnswerQuality = Literal["unknown", "complete", "partial", "insufficient", "failed"]
 
 
 class KnowledgeSourceRequest(BaseModel):
@@ -71,6 +84,10 @@ class IntentRoute(BaseModel):
     """简短说明路由原因，供日志和调试使用。"""
     knowledge_sources: list[KnowledgeSourceRequest] = Field(default_factory=list)
     """由入口路由器按语义选择的知识来源，代码层会继续做权限和范围校验。"""
+    capability_requirements: list[CapabilityRequirement] = Field(default_factory=list)
+    """当前目标需要的能力类型，供运行时做能力可用性校验。"""
+    unavailable_reason: CapabilityFailureReason | None = None
+    """如果能力不可用，记录标准失败原因。"""
 
 
 class AgentPlan(BaseModel):
@@ -96,6 +113,10 @@ class AgentPlan(BaseModel):
     """可能要使用的项目内 Skill 名称。"""
     candidate_mcp_tools: list[str] = []
     """可能要调用的远端 MCP tool 名称。"""
+    capability_requirements: list[CapabilityRequirement] = Field(default_factory=list)
+    """Planner 对本轮目标所需能力的结构化判断。"""
+    unavailable_reason: CapabilityFailureReason | None = None
+    """如果当前能力不足，记录标准失败原因。"""
     steps: list[str] = []
     """面向系统的执行步骤。"""
     confirmation_question: str | None = None
@@ -172,6 +193,8 @@ class AgentObservabilityMetrics(BaseModel):
     """经过校验后真正保留下来的命令列表。"""
     execution: WorkflowExecutionMetric = Field(default_factory=WorkflowExecutionMetric)
     """工作流执行阶段的命令调用指标。"""
+    handoffs: list[dict[str, Any]] = Field(default_factory=list)
+    """Host 规划出的专长 Agent 委派记录摘要。"""
 
 
 class WorkflowApproval(BaseModel):
@@ -211,28 +234,74 @@ class WorkflowEvent(BaseModel):
 
 
 class CommandObservation(BaseModel):
-    """AutoGPT 命令投递后的结构化观察记录。"""
+    """AutoGPT 工具投递后的结构化观察记录。
+
+    历史名称保留为 ``CommandObservation``，但新代码按通用
+    ToolObservation 语义写入 MCP、RAG、command 等结果。
+    """
 
     trace_id: str = ""
     """本轮 AutoGPT 请求的追踪 ID。"""
     command: str
     """被投递的项目命令名称。"""
+    source_type: ToolObservationSource = "command"
+    """观察来源类型，例如 command、mcp_tool 或 external_rag。"""
+    tool_name: str = ""
+    """真实工具名称；未设置时等同于 command。"""
+    user_goal: str = ""
+    """当前工具调用服务的用户目标。"""
+    query: str = ""
+    """检索或查询类工具使用的查询文本。"""
     params: list[Param] = Field(default_factory=list)
     """本次随命令一起投递的参数。"""
     dispatch_type: Literal["command", "mcp_tool", "missing_command", "unsupported_command"] = "command"
     """投递类型：service 命令、缺失命令或尚未 service 化的命令。"""
+    status: ToolObservationStatus = "succeeded"
+    """工具调用状态，供最终回复判断能否可信回答。"""
     success: bool = True
     """是否成功通过统一命令执行器完成。"""
+    relevance: ToolObservationRelevance = "unknown"
+    """工具结果与用户目标的相关性。"""
+    answer_quality: ToolObservationAnswerQuality = "unknown"
+    """工具结果是否足够回答用户问题。"""
     message: str = ""
     """投递结果说明。"""
+    display_summary: str = ""
+    """面向最终回复器和兜底回复的安全摘要，不直接倾倒 raw output。"""
+    context_summary: str = ""
+    """写回上下文的短摘要，便于后续追问复用。"""
     outputs: list[str] = Field(default_factory=list)
     """命令执行产生的用户可见消息文本。"""
     context_outputs: list[str] = Field(default_factory=list)
     """写入 Agent 上下文的紧凑结果，未提供时回退到 outputs。"""
+    raw_result: Any = None
+    """完整原始结果，仅用于审计和调试，默认不面向普通用户。"""
+    next_actions: list[str] = Field(default_factory=list)
+    """质量门建议的下一步，例如 retry_search、ask_user 或 answer。"""
     outputs_sent_to_user: bool = True
     """outputs 是否已经由入口层发送给用户；service 命令通常为 ``False``。"""
     created_at: datetime = Field(default_factory=datetime.now)
     """观察记录创建时间。"""
+
+
+ToolObservation = CommandObservation
+
+
+class ReplyRecord(BaseModel):
+    """记录用户真实看到的最终回复，供后续追问承接。"""
+
+    trace_id: str = ""
+    """本轮 AutoGPT 请求追踪 ID。"""
+    reply: str = ""
+    """最终发送给用户的自然语言回复。"""
+    summary: str = ""
+    """用于后续模型快速引用的短摘要。"""
+    source_observations: list[str] = Field(default_factory=list)
+    """本回复引用过的 observation 工具名称。"""
+    language: str = "zh-CN"
+    """最终回复语言。"""
+    created_at: datetime = Field(default_factory=datetime.now)
+    """记录创建时间。"""
 
 
 class WorkflowStep(BaseModel):

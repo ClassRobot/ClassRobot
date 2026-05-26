@@ -45,6 +45,21 @@ MCP 是外部集成协议层，不是 Agent 本身，也不替代项目内部命
 
 Agent 只能选择 `MCPToolCatalog` 中真实存在且通过 allowlist 的 tool。MCP server 不会获得完整会话历史，只接收本次 tool 调用所需参数。
 
+## Capability Metadata
+
+MCP tools 会被投影到 Agent 的统一能力目录中。远端 server 最好在 tool metadata 或 annotations 中提供这些字段：
+
+- `domain_tags`
+  - 例如 `web_search`、`news`、`docs`、`browser`。
+- `freshness`
+  - `static`、`recent` 或 `realtime`。
+- `public_description`
+  - 给模型和管理端展示的短描述。
+- `when_to_use`
+  - 什么时候应该选择该工具。
+
+如果远端没有提供 metadata，客户端会根据 tool 名称和描述做保守推断。只有标记为 `freshness=realtime` 且带有 `web_search`、`news` 或 `browser` 标签的工具，才会被视为可处理“最近新闻、网上热点、当前动态”等实时公共外部信息。
+
 ## Testing
 
 测试不依赖真实本机 MCP 服务。新增测试应 mock `MCPClient.list_tools()` / `MCPClient.call_tool()`，覆盖配置解析、目录渲染、执行观察和失败降级。

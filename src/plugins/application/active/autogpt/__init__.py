@@ -1,30 +1,40 @@
+from time import perf_counter
 from typing import Any, Iterable
 
+from src.shared import Emoji
 from nonebot.rule import to_me
+from src.core.auth import UserRole
 from nonebot.matcher import Matcher
 from nonebot import logger, on_message
-from src.platform.commands.registry import command_registry
-from src.core.skills import markdown_to_image_skill
-from src.platform.commands.adapters import AgentCommandAdapter
-from nonebot.adapters.qq.exception import ActionFailed
-from src.platform.commands.context import CommandExecutionContext
-from nonebot.adapters.onebot.v12.exception import NetworkError
 from nonebot.adapters import Bot, Event
-from nonebot_plugin_alconna import Target, UniMsg, MsgTarget, UniMessage
-
-from src.shared import Emoji
-from src.core.auth import UserRole
 from src.platform.config import priority
 from src.platform.session import EventSession
-from src.core.agent.runtime import ChatSessionDepends, RuntimeContext, markdown_to_message
-from src.core.agent.runtime.workflow import (
-    collect_unsent_observation_outputs,
-)
+from src.core.skills import markdown_to_image_skill
+from nonebot.adapters.qq.exception import ActionFailed
+from src.platform.commands.registry import command_registry
+from nonebot.adapters.onebot.v12.exception import NetworkError
+from src.platform.commands.adapters import AgentCommandAdapter
+from src.platform.commands.context import CommandExecutionContext
+from nonebot_plugin_alconna import Target, UniMsg, MsgTarget, UniMessage
+from src.core.agent.runtime.workflow import collect_observation_display_summaries
 from src.core.agent.runtime.schema import AutoTask, AutoTaskList, CommandObservation
+from src.core.agent.runtime import RuntimeContext, ChatSessionDepends, markdown_to_message
+
 from . import commands
-from .commands import __helpers__, clear_chat
+from .commands import clear_chat, __helpers__
 
 auto_gpt = on_message(priority=priority * 10, block=True, rule=to_me())
+
+
+def preview_text(text: str | None, limit: int = 160) -> str:
+    """生成适合日志输出的短文本预览。"""
+
+    if not text:
+        return ""
+    compact = " ".join(text.split())
+    if len(compact) <= limit:
+        return compact
+    return compact[: limit - 3] + "..."
 
 
 def normalize_user_roles(roles: Iterable[UserRole | str] | None) -> set[UserRole]:
@@ -91,12 +101,18 @@ async def dispatch_auto_task(
             CommandObservation(
                 trace_id=trace_id,
                 command=task.command,
+                source_type="command",
+                tool_name=task.command,
                 params=list(task.params),
                 dispatch_type="unsupported_command",
+                status="failed",
                 success=False,
                 message=message,
+                display_summary=message,
+                context_summary=message,
                 outputs=[message],
                 context_outputs=[message],
+                next_actions=["explain_failure"],
                 outputs_sent_to_user=False,
             )
         ]
@@ -108,12 +124,18 @@ async def dispatch_auto_task(
             CommandObservation(
                 trace_id=trace_id,
                 command=task.command,
+                source_type="command",
+                tool_name=task.command,
                 params=command_params,
                 dispatch_type="unsupported_command",
+                status="failed",
                 success=False,
                 message=message,
+                display_summary=message,
+                context_summary=message,
                 outputs=[message],
                 context_outputs=[message],
+                next_actions=["explain_failure"],
                 outputs_sent_to_user=False,
             )
         ]
@@ -141,12 +163,18 @@ async def dispatch_auto_task(
         CommandObservation(
             trace_id=trace_id,
             command=task.command,
+            source_type="command",
+            tool_name=task.command,
             params=command_params,
             dispatch_type="command",
+            status="succeeded" if result.success else "failed",
             success=result.success,
             message=message,
+            display_summary="\n".join(result.observation_outputs or result.visible_outputs) or message,
+            context_summary="\n".join(result.observation_outputs) or message,
             outputs=result.visible_outputs,
             context_outputs=result.observation_outputs,
+            next_actions=["answer"] if result.success else ["explain_failure"],
             outputs_sent_to_user=False,
         )
     ]
@@ -155,6 +183,7 @@ async def dispatch_auto_task(
 async def send_progress(matcher: Matcher, text: str) -> None:
     """发送 AutoGPT 阶段性进度反馈。"""
 
+    logger.info(f'AutoGPT progress send queued text="{preview_text(text, limit=120)}"')
     await matcher.send(text)
 
 
@@ -180,7 +209,7 @@ async def _(
 ):
     """处理当前命令或事件逻辑。"""
     if chat_session.lock:
-        await matcher.finish(Emoji.error + "我知道你很急，但是你先别急，等我处理完你的上一条消息。")
+        await matcher.finish(Emoji.error + "上一条消息还在处理中，我处理完后再接着看这条。")
     try:
         turn_result = await chat_session.send_message(
             message,
@@ -199,7 +228,18 @@ async def _(
         await matcher.finish(Emoji.error + "消息理解失败了, 请重新发送")
         return
 
+    logger.info(
+        f'AutoGPT trace "{chat_session.last_trace_id}" plugin entry handling turn for '
+        f"user={chat_session.user_id} platform={platform.platform} channel={platform.channel_id}"
+    )
     auto_task = turn_result.auto_tasks if turn_result else None
+    logger.info(
+        f'AutoGPT trace "{chat_session.last_trace_id}" plugin received turn result '
+        f"workflow={turn_result.workflow.kind if turn_result and turn_result.workflow else None} "
+        f'reply_len={len(auto_task.reply or "") if auto_task else 0} '
+        f"tasks={len(auto_task.tasks) if auto_task else 0} "
+        f"need_confirm={auto_task.need_confirm if auto_task else None}"
+    )
     if turn_result and turn_result.workflow and auto_task and auto_task.need_confirm:
         await chat_session.record_workflow(turn_result.workflow, trace_id=chat_session.last_trace_id)
 
@@ -207,18 +247,28 @@ async def _(
         await matcher.finish(Emoji.error + "消息理解失败了, 请重新发送")
         return
     elif auto_task.is_violation:
-        await matcher.finish(auto_task.reply)
+        await matcher.finish(chat_session.user_visible_initial_reply(turn_result) or auto_task.reply)
 
-    if auto_task.reply:
+    initial_reply = chat_session.user_visible_initial_reply(turn_result)
+    if initial_reply:
         try:
+            reply_started = perf_counter()
+            logger.info(
+                f'AutoGPT trace "{chat_session.last_trace_id}" sending initial reply '
+                f'len={len(initial_reply)} preview="{preview_text(initial_reply)}"'
+            )
             # reply行数大于10时转成图片发送
-            if auto_task.reply.count("\n") < 10:
-                await matcher.send(await markdown_to_message(auto_task.reply).export(adapter=target.adapter, bot=bot))
+            if initial_reply.count("\n") < 10:
+                await matcher.send(await markdown_to_message(initial_reply).export(adapter=target.adapter, bot=bot))
             else:
-                pic = UniMessage.image(raw=await markdown_to_image_skill.to_image(auto_task.reply)) + UniMessage.text(
+                pic = UniMessage.image(raw=await markdown_to_image_skill.to_image(initial_reply)) + UniMessage.text(
                     "文字太长已转为图片发送"
                 )
                 await matcher.send(await pic.export(adapter=target.adapter, bot=bot))
+            logger.info(
+                f'AutoGPT trace "{chat_session.last_trace_id}" sent initial reply '
+                f"in {perf_counter() - reply_started:.3f}s"
+            )
         except ActionFailed as e:
             logger.exception(e)
             await matcher.finish(Emoji.error + (e.message or str(e.status_code)))
@@ -227,7 +277,12 @@ async def _(
             await matcher.finish(Emoji.error + "内部异常, 请重试！")
     if not auto_task.need_confirm:
         workflow = turn_result.workflow if turn_result else None
-        if workflow:
+        if workflow and workflow.steps:
+            workflow_started = perf_counter()
+            logger.info(
+                f'AutoGPT trace "{chat_session.last_trace_id}" starting workflow execution '
+                f"kind={workflow.kind} status={workflow.status} steps={len(workflow.steps)}"
+            )
             execution = await chat_session.execute_task_workflow(
                 workflow,
                 dispatcher=lambda task: dispatch_auto_task(
@@ -242,6 +297,13 @@ async def _(
                     platform_name=platform.platform_name,
                 ),
                 trace_id=chat_session.last_trace_id,
+                progress_reporter=lambda text: send_progress(matcher, text),
+            )
+            logger.info(
+                f'AutoGPT trace "{chat_session.last_trace_id}" workflow execution finished '
+                f"in {perf_counter() - workflow_started:.3f}s status={execution.workflow.status} "
+                f'observations={len(execution.observations)} final_reply_len={len(execution.final_reply or "")} '
+                f'user_message_len={len(execution.user_message or "")}'
             )
             if execution.final_reply:
                 user_message = (
@@ -249,7 +311,21 @@ async def _(
                     if execution.workflow.status == "failed"
                     else execution.final_reply
                 )
+                send_started = perf_counter()
+                logger.info(
+                    f'AutoGPT trace "{chat_session.last_trace_id}" sending execution final reply '
+                    f'len={len(user_message)} preview="{preview_text(user_message)}"'
+                )
                 await matcher.send(await markdown_to_message(user_message).export(adapter=target.adapter, bot=bot))
+                logger.info(
+                    f'AutoGPT trace "{chat_session.last_trace_id}" sent execution final reply '
+                    f"in {perf_counter() - send_started:.3f}s"
+                )
+        elif workflow:
+            logger.info(
+                f'AutoGPT trace "{chat_session.last_trace_id}" skipped workflow execution because no steps were generated '
+                f"kind={workflow.kind} status={workflow.status}"
+            )
         else:
             observations: list[CommandObservation] = []
             for task in auto_task.tasks:
@@ -272,10 +348,16 @@ async def _(
                         CommandObservation(
                             trace_id=chat_session.last_trace_id,
                             command=task.command,
+                            source_type="command",
+                            tool_name=task.command,
                             params=task.params,
                             dispatch_type="missing_command",
+                            status="failed",
                             success=False,
                             message="命令不存在，未投递。",
+                            display_summary="命令不存在，未投递。",
+                            context_summary="命令不存在，未投递。",
+                            next_actions=["explain_failure"],
                         )
                     )
                     await matcher.send(Emoji.error + f"无法调用`{task.command}`命令，因为该命令不存在！")
@@ -289,8 +371,11 @@ async def _(
                             bot=bot,
                         )
                     )
-                unsent_outputs = collect_unsent_observation_outputs(observations)
-                if unsent_outputs:
+                display_summaries = collect_observation_display_summaries(observations)
+                if display_summaries:
                     await matcher.send(
-                        await markdown_to_message("\n\n".join(unsent_outputs)).export(adapter=target.adapter, bot=bot)
+                        await markdown_to_message("\n\n".join(display_summaries)).export(
+                            adapter=target.adapter,
+                            bot=bot,
+                        )
                     )
