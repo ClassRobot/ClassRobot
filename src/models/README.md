@@ -5,6 +5,7 @@
 ## 放什么
 
 - `User`、`UserBind`、`Group`、`GroupBind` 等系统身份和平台绑定模型。
+- `PlatformBotAccount` 等用户接入机器人账号模型。
 - 学校、学院、专业、班级、教师、学生等组织模型。
 - 与模型强相关的创建、查询、绑定、删除方法。
 - 数据删除时的级联行为说明。
@@ -24,7 +25,16 @@ flowchart LR
     UserBind --> User["系统 User"]
     PlatformGroup["平台群或频道"] --> GroupBind["GroupBind"]
     GroupBind --> Group["系统 Group"]
+    User --> PlatformBotAccount["PlatformBotAccount"]
+    PlatformBotAccount --> Bot["用户接入的机器人实例"]
 ```
+
+## `PlatformBotAccount` 与 `UserBind` 的区别
+
+- `UserBind` 表示“平台上的某个用户账号是谁”，例如 `wxclaw.private + from_user_id` 绑定到系统 `User.id`。
+- `PlatformBotAccount` 表示“系统里运行的某个机器人实例”，例如用户扫码接入的 wxclaw bot account。
+- 机器人 token 只能保存在 `PlatformBotAccount.encrypted_token`，不要写进 `UserBind`，也不要写进 `.env`。
+- 删除用户时，`PlatformBotAccount.owner_user_id` 会通过外键级联删除，后续启动不会再恢复该用户接入的机器人。
 
 ## 扩展规则
 

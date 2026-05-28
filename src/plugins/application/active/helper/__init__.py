@@ -1,12 +1,9 @@
-from src.platform.helper import Helpers
-from src.platform.helper.config import helper_menu
-from src.platform.helper.runtime import bootstrap_helper_runtime
-from src.platform.helper.depends import HelpersDepends
 from nonebot import get_driver, get_loaded_plugins
+from src.platform.helper.depends import HelpersDepends
 from nonebot_plugin_alconna import UniMessage, AlconnaMatcher
+from src.platform.helper.runtime import bootstrap_helper_runtime
 
-from . import commands
-from .commands import __helpers__, help_cmd
+from .commands import help_cmd
 
 driver = get_driver()
 

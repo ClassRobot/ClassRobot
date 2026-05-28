@@ -3,12 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
-from src.platform.commands import CommandExecutionContext, CommandResult, command_executor
 from src.core.storage import ChatHistoryRecord, ChatHistorySummary, chat_history_store, normalize_message_text
 
 from .presenters import render_group_history_card
-from src.platform.session.resolvers import resolve_bound_group_id
-from src.platform.session import BaseSession
 
 DEFAULT_RESULT_LIMIT = 12
 DEFAULT_SEARCH_WINDOW = 200
@@ -54,33 +51,13 @@ async def query_group_history(
     return render_group_history_card(query=query or None, records=records), records
 
 
-async def resolve_context_group_id(context: CommandExecutionContext) -> str | None:
-    """把命令上下文解析成系统内 `Group.id`。"""
-
-    if not context.platform or not context.channel_id:
-        return None
-
-    group_id = await resolve_bound_group_id(
-        BaseSession(
-            user_id=str(context.user_id or ""),
-            platform=context.platform,
-            platform_name=str(context.extra.get("platform_name") or ""),
-            channel_id=context.channel_id,
-            guild_id=context.guild_id,
-        )
-    )
-    if group_id is None:
-        return None
-    return str(group_id)
-
-
-def parse_chat_statistics_request(params: dict, context: CommandExecutionContext) -> ChatStatisticsRequest:
+def parse_chat_statistics_request(params: dict, *, default_scope: str) -> ChatStatisticsRequest:
     """把命令参数解析成受控统计请求，不从自然语言中猜测意图。"""
 
     scope = normalize_query_values(params.get("范围", params.get("scope", ""))).lower()
     window = normalize_query_values(params.get("时间范围", params.get("window", ""))).lower()
     if not scope:
-        scope = "group" if context.channel_id else "user"
+        scope = default_scope
     if not window:
         window = "all"
 
@@ -139,50 +116,6 @@ def resolve_statistics_window(window: str) -> tuple[datetime | None, datetime | 
     return None, None
 
 
-async def summarize_chat_history(params: dict, context: CommandExecutionContext) -> CommandResult:
-    """执行用户或当前系统群聊天统计。"""
-
-    try:
-        request = parse_chat_statistics_request(params, context)
-    except ValueError as error:
-        return CommandResult.fail(str(error))
-
-    exclude_message_id = str(context.extra.get("message_id") or "") or None
-    if request.scope == "group":
-        group_id = await resolve_context_group_id(context)
-        if group_id is None:
-            return CommandResult.fail("该统计只能在已绑定系统群组的群聊上下文中调用。")
-        summary = await chat_history_store.summarize_group_messages(
-            group_id,
-            exclude_message_id=exclude_message_id,
-            start_at=request.start_at,
-            end_at=request.end_at,
-        )
-        output = format_group_statistics_reply(request, summary)
-        return CommandResult.ok(
-            "已统计当前系统群聊天记录。",
-            visible_outputs=[output],
-            context_outputs=[output],
-            data={"scope": request.scope, "window": request.window, "group_id": group_id, **summary.dict()},
-        )
-
-    if context.user_id is None:
-        return CommandResult.fail("当前会话没有可用用户身份，无法统计用户私聊记录。")
-    summary = await chat_history_store.summarize_user_chat_messages(
-        context.user_id,
-        exclude_message_id=exclude_message_id,
-        start_at=request.start_at,
-        end_at=request.end_at,
-    )
-    output = format_user_statistics_reply(request, summary)
-    return CommandResult.ok(
-        "已统计当前用户私聊记录。",
-        visible_outputs=[output],
-        context_outputs=[output],
-        data={"scope": request.scope, "window": request.window, "user_id": context.user_id, **summary.dict()},
-    )
-
-
 def statistics_window_label(request: ChatStatisticsRequest) -> str:
     """渲染统计窗口名称。"""
 
@@ -216,54 +149,3 @@ def format_group_statistics_reply(request: ChatStatisticsRequest, summary: ChatH
     if summary.distinct_user_count > 0:
         reply += f" 共有 {summary.distinct_user_count} 位成员发过言。"
     return reply
-
-
-@command_executor.handler("检索群聊记录")
-async def execute_query_group_history(params: dict, context: CommandExecutionContext) -> CommandResult:
-    """执行统一的群聊记录检索命令。"""
-
-    group_id = await resolve_context_group_id(context)
-    if group_id is None:
-        return CommandResult.fail("该命令只能在已绑定系统群组的群聊上下文中调用。")
-
-    query = normalize_query_values(params.get("关键词", params.get("query", "")))
-    output, records = await query_group_history(
-        group_id=group_id,
-        query=query,
-        exclude_message_id=str(context.extra.get("message_id") or "") or None,
-    )
-
-    if not records:
-        return CommandResult.ok(
-            "当前系统群暂无可用历史消息。",
-            visible_outputs=[output],
-            context_outputs=[output],
-            data={"records": [], "query": query, "group_id": group_id},
-        )
-
-    return CommandResult.ok(
-        "已检索当前系统群最近相关消息。",
-        visible_outputs=[output],
-        context_outputs=[output],
-        data={
-            "group_id": group_id,
-            "query": query,
-            "records": [
-                {
-                    "message_id": record.message_id,
-                    "user_id": record.user_id,
-                    "user_name": record.user_name,
-                    "plain_text": record.plain_text,
-                    "created_at": record.created_at.isoformat(timespec="seconds"),
-                }
-                for record in records
-            ],
-        },
-    )
-
-
-@command_executor.handler("统计聊天记录")
-async def execute_chat_statistics(params: dict, context: CommandExecutionContext) -> CommandResult:
-    """执行统一聊天统计命令。"""
-
-    return await summarize_chat_history(params, context)

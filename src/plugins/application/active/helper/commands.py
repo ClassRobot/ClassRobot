@@ -1,7 +1,7 @@
-from src.platform.commands import CommandBinding, on_agent_command
 from src.platform.config import priority
 from src.platform.helper import HelperScope
 from nonebot_plugin_alconna import Args, Alconna
+from src.platform.commands import CommandBinding, on_agent_command
 
 help_cmd = on_agent_command(
     Alconna("help", Args["name?", str | None]),
@@ -15,6 +15,4 @@ help_cmd = on_agent_command(
     block=True,
 )
 
-__helpers__ = [help_cmd.__helper__]
-
-__all__ = ["help_cmd", "__helpers__"]
+__all__ = ["help_cmd"]

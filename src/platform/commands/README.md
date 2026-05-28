@@ -2,7 +2,7 @@
 
 `src/platform/commands` 是项目命令体系的统一元数据、权限策略、可用性与执行调度层。
 
-该目录只放可复用封装，不放具体业务命令。具体命令声明和业务实现应放在 `src/plugins/application/active/*` 或需要复用的 `src/plugins/library/*` 中。
+该目录只放可复用封装，不放具体业务命令。具体命令声明和用户入口应放在 `src/plugins/application/active/*`，被动 matcher 或 hook 放在 `src/plugins/application/passive/*`，`src/plugins/library/*` 只提供复用能力。
 
 如果你要看“为什么会有这层，以及它和 Agent、`Helper`、统一执行器是什么关系”，请先阅读 [命令与 Agent 一体化架构设计](../../../docs/architecture/command-agent-unified-architecture.md)。本文只聚焦当前代码目录的职责和落地方式，尽量不重复写整套架构推导。
 
@@ -23,7 +23,7 @@
 - `src.core.agent.runtime.dispatch_auto_task()` 只通过 `AgentCommandAdapter -> CommandExecutor` 调用 service 命令，没有 service handler 的命令不会暴露给 Agent。
 - `src.interfaces.http.managers.runtime.nonebot` 已合并 `CommandRegistry` 元数据，管理端命令清单可以看到风险等级、执行模式、Agent 可见性和软关闭状态。
 - `src.plugins.application.active.user.commands`、`src.plugins.application.active.curriculum.commands` 与 `src.plugins.application.active.classes.commands` 中的高频“查询班级”已作为样例迁移到 `command_alconna()`。
-- 命令输入记录通过 `history.py` 的注册式钩子派发，具体聊天记录逻辑由 `src.plugins.library.message_history` 注册，避免封装层反向依赖业务插件。
+- 命令输入记录通过 `history.py` 的注册式钩子派发，具体聊天记录 hook 由 `src.plugins.application.passive.message_history_collector` 注册，避免命令封装层反向依赖业务插件。
 
 ## 当前模块
 
@@ -89,7 +89,7 @@ flowchart TD
 
 `command_alconna()` / `command_command()` 仍然保留，用于只需要用户直接触发的 matcher 命令；这类命令默认 `execution_mode="matcher"`，不会进入 Agent 工具目录。
 
-新增或显著改造的命令不要再手写第二份 `__helpers__`。`Helper` 应由 `CommandSpec` 自动派生；未接入 `CommandSpec + CommandExecutor` 的命令只属于普通 matcher 能力，不会进入 Agent 工具目录。
+新增或显著改造的项目内部命令不要再手写第二份 `__helpers__`。`Helper` 应由 `CommandSpec` 自动派生；`src.platform.helper.runtime` 仍保留读取模块级 `__helpers__` 的能力，只作为外部 command、第三方插件或暂未迁移命令的兼容入口。
 
 如果某条命令已经需要接入统一注册表，但暂时不应该展示到 `help`，可以在 `CommandBinding` 中设置 `helper_visible=False`。适合的场景包括：
 

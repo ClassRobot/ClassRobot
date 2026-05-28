@@ -1,6 +1,7 @@
 from typing import Annotated
 
 from pydantic import BaseModel
+from nonebot.adapters import Bot
 from nonebot.params import Depends
 from src.shared.tools import check_punctuation
 from nonebot.adapters import Event as BaseEvent
@@ -11,6 +12,7 @@ ignore_str = ["_", "-"]
 
 class BaseSession(BaseModel):
     """描述一次消息会话的基础标识信息，用于区分私聊、群聊和频道场景。"""
+
     user_id: str
     platform: str
     platform_name: str
@@ -36,24 +38,40 @@ class BaseSession(BaseModel):
 
 class GroupSession(BaseSession):
     """表示群聊或频道场景下的会话信息。"""
+
     channel_id: str
 
 
 class PrivateSession(BaseSession):
     """表示私聊场景下的会话信息。"""
+
     ...
 
 
-async def session(target: MsgTarget, event: BaseEvent) -> BaseSession | None:
+async def session(bot: Bot, event: BaseEvent) -> BaseSession | None:
     """根据消息目标与事件对象构建统一的会话信息。
 
-    参数:
-        target (MsgTarget): 当前消息的发送目标信息。
-        event (BaseEvent): 触发当前处理流程的事件对象。
+    Args:
+        bot: 当前事件所属机器人。
+        event: 触发当前处理流程的事件对象。
 
-    返回:
+    Returns:
         BaseSession | None: 构建出的会话对象；无法识别时返回 `None`。
     """
+
+    from src.platform.session.resolvers import resolve_session_from_event
+
+    return resolve_session_from_event(bot, event)
+
+
+async def session_from_target(target: MsgTarget, event: BaseEvent) -> BaseSession | None:
+    """根据 Alconna 目标构建统一会话。
+
+    该函数保留给已经拿到 `MsgTarget` 的调用方复用；普通 NoneBot 依赖
+    使用 :func:`session`，从而在 wxclaw 尚未被 Alconna 支持时也可以
+    通过事件字段兜底生成会话。
+    """
+
     if target.scope and target.adapter:
         scope = SupportScope(target.scope)
         adapter = SupportAdapter(target.adapter)

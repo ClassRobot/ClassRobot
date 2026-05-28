@@ -1,190 +1,26 @@
 from time import perf_counter
-from typing import Any, Iterable
 
 from src.shared import Emoji
 from nonebot.rule import to_me
-from src.core.auth import UserRole
 from nonebot.matcher import Matcher
 from nonebot import logger, on_message
 from nonebot.adapters import Bot, Event
 from src.platform.config import priority
+from nonebot_plugin_alconna import UniMsg
 from src.platform.session import EventSession
-from src.core.skills import markdown_to_image_skill
 from nonebot.adapters.qq.exception import ActionFailed
-from src.platform.commands.registry import command_registry
+from src.core.agent.runtime.schema import AutoTaskList
+from src.core.agent.runtime.formatting import preview_text
 from nonebot.adapters.onebot.v12.exception import NetworkError
-from src.platform.commands.adapters import AgentCommandAdapter
-from src.platform.commands.context import CommandExecutionContext
-from nonebot_plugin_alconna import Target, UniMsg, MsgTarget, UniMessage
+from src.core.agent.runtime import RuntimeContext, ChatSessionDepends
 from src.core.agent.runtime.workflow import collect_observation_display_summaries
-from src.core.agent.runtime.schema import AutoTask, AutoTaskList, CommandObservation
-from src.core.agent.runtime import RuntimeContext, ChatSessionDepends, markdown_to_message
+from src.core.agent.runtime.execution import dispatch_auto_task, dispatch_auto_tasks
 
 from . import commands
-from .commands import clear_chat, __helpers__
+from .commands import clear_chat
+from .messaging import send_progress, send_markdown_reply, send_long_markdown_reply
 
 auto_gpt = on_message(priority=priority * 10, block=True, rule=to_me())
-
-
-def preview_text(text: str | None, limit: int = 160) -> str:
-    """生成适合日志输出的短文本预览。"""
-
-    if not text:
-        return ""
-    compact = " ".join(text.split())
-    if len(compact) <= limit:
-        return compact
-    return compact[: limit - 3] + "..."
-
-
-def normalize_user_roles(roles: Iterable[UserRole | str] | None) -> set[UserRole]:
-    """把事件侧角色值转换成命令执行上下文使用的角色枚举。"""
-
-    normalized: set[UserRole] = set()
-    for role in roles or []:
-        if isinstance(role, UserRole):
-            normalized.add(role)
-            continue
-        try:
-            normalized.add(UserRole(role))
-        except ValueError:
-            logger.warning(f'AutoGPT ignored unknown user role "{role}" while dispatching command')
-    return normalized
-
-
-def auto_task_params_to_service_dict(task: AutoTask) -> dict[str, Any]:
-    """Convert AutoTask params into a dict for service-style command handlers."""
-
-    spec = command_registry.get(task.command)
-    text_params = [param for param in task.params if param.type == "text" and not param.separate]
-    image_params = [param for param in task.params if param.type == "image" and not param.separate]
-    payload: dict[str, Any] = {}
-
-    if spec is not None:
-        for index, command_param in enumerate(spec.params):
-            if index >= len(text_params):
-                break
-            if command_param.multiple:
-                payload[command_param.name] = [param.value for param in text_params[index:]]
-                break
-            payload[command_param.name] = text_params[index].value
-    else:
-        payload.update({f"arg{index}": param.value for index, param in enumerate(text_params)})
-
-    if image_params:
-        payload["images"] = [param.value for param in image_params]
-    return payload
-
-
-async def dispatch_auto_task(
-    task: AutoTask,
-    target: Target,
-    trace_id: str = "",
-    user_id: int | None = None,
-    roles: Iterable[UserRole | str] | None = None,
-    platform_id: str | None = None,
-    channel_id: str | None = None,
-    guild_id: str | None = None,
-    platform_name: str | None = None,
-) -> list[CommandObservation]:
-    """通过统一服务执行器调度自动任务。
-
-    Agent 只调用接入 `CommandExecutor` 的 service 命令，避免 matcher
-    分支绕过结构化权限、结果回填和可观测指标。
-    """
-
-    command_params = [param for param in task.params if not param.separate]
-    logger.info(f'AutoGPT trace "{trace_id}" dispatch command "{task.command}"')
-    if any(param.separate for param in task.params):
-        message = f"命令 `{task.command}` 包含需要单独投递的参数，Agent 只支持 service handler 结构化参数。"
-        return [
-            CommandObservation(
-                trace_id=trace_id,
-                command=task.command,
-                source_type="command",
-                tool_name=task.command,
-                params=list(task.params),
-                dispatch_type="unsupported_command",
-                status="failed",
-                success=False,
-                message=message,
-                display_summary=message,
-                context_summary=message,
-                outputs=[message],
-                context_outputs=[message],
-                next_actions=["explain_failure"],
-                outputs_sent_to_user=False,
-            )
-        ]
-
-    agent_adapter = AgentCommandAdapter()
-    if not agent_adapter.can_execute(task.command):
-        message = f"命令 `{task.command}` 尚未接入统一 service 执行器，Agent 无法调用该命令。"
-        return [
-            CommandObservation(
-                trace_id=trace_id,
-                command=task.command,
-                source_type="command",
-                tool_name=task.command,
-                params=command_params,
-                dispatch_type="unsupported_command",
-                status="failed",
-                success=False,
-                message=message,
-                display_summary=message,
-                context_summary=message,
-                outputs=[message],
-                context_outputs=[message],
-                next_actions=["explain_failure"],
-                outputs_sent_to_user=False,
-            )
-        ]
-
-    result = await agent_adapter.execute(
-        task.command,
-        params=auto_task_params_to_service_dict(task),
-        context=CommandExecutionContext(
-            user_id=user_id,
-            roles=normalize_user_roles(roles),
-            platform=platform_id or str(getattr(target, "adapter", "") or ""),
-            channel_id=channel_id if not getattr(target, "private", False) else None,
-            guild_id=guild_id,
-            trace_id=trace_id,
-            invoker="agent_workflow",
-            extra={
-                "dispatch": "autogpt",
-                "target_platform": getattr(target, "platform", None),
-                "platform_name": platform_name or "",
-            },
-        ),
-    )
-    message = result.summary or ("命令已通过统一执行器完成。" if result.success else "命令统一执行器调用失败。")
-    return [
-        CommandObservation(
-            trace_id=trace_id,
-            command=task.command,
-            source_type="command",
-            tool_name=task.command,
-            params=command_params,
-            dispatch_type="command",
-            status="succeeded" if result.success else "failed",
-            success=result.success,
-            message=message,
-            display_summary="\n".join(result.observation_outputs or result.visible_outputs) or message,
-            context_summary="\n".join(result.observation_outputs) or message,
-            outputs=result.visible_outputs,
-            context_outputs=result.observation_outputs,
-            next_actions=["answer"] if result.success else ["explain_failure"],
-            outputs_sent_to_user=False,
-        )
-    ]
-
-
-async def send_progress(matcher: Matcher, text: str) -> None:
-    """发送 AutoGPT 阶段性进度反馈。"""
-
-    logger.info(f'AutoGPT progress send queued text="{preview_text(text, limit=120)}"')
-    await matcher.send(text)
 
 
 @clear_chat.handle()
@@ -203,7 +39,6 @@ async def _(
     event: Event,
     matcher: Matcher,
     message: UniMsg,
-    target: MsgTarget,
     platform: EventSession,
     chat_session: ChatSessionDepends,
 ):
@@ -259,12 +94,9 @@ async def _(
             )
             # reply行数大于10时转成图片发送
             if initial_reply.count("\n") < 10:
-                await matcher.send(await markdown_to_message(initial_reply).export(adapter=target.adapter, bot=bot))
+                await send_markdown_reply(matcher, bot, initial_reply)
             else:
-                pic = UniMessage.image(raw=await markdown_to_image_skill.to_image(initial_reply)) + UniMessage.text(
-                    "文字太长已转为图片发送"
-                )
-                await matcher.send(await pic.export(adapter=target.adapter, bot=bot))
+                await send_long_markdown_reply(matcher, bot, initial_reply)
             logger.info(
                 f'AutoGPT trace "{chat_session.last_trace_id}" sent initial reply '
                 f"in {perf_counter() - reply_started:.3f}s"
@@ -287,7 +119,6 @@ async def _(
                 workflow,
                 dispatcher=lambda task: dispatch_auto_task(
                     task,
-                    target,
                     trace_id=chat_session.last_trace_id,
                     user_id=chat_session.user_id,
                     roles=chat_session.helpers.active_roles,
@@ -316,7 +147,7 @@ async def _(
                     f'AutoGPT trace "{chat_session.last_trace_id}" sending execution final reply '
                     f'len={len(user_message)} preview="{preview_text(user_message)}"'
                 )
-                await matcher.send(await markdown_to_message(user_message).export(adapter=target.adapter, bot=bot))
+                await send_markdown_reply(matcher, bot, user_message)
                 logger.info(
                     f'AutoGPT trace "{chat_session.last_trace_id}" sent execution final reply '
                     f"in {perf_counter() - send_started:.3f}s"
@@ -327,55 +158,22 @@ async def _(
                 f"kind={workflow.kind} status={workflow.status}"
             )
         else:
-            observations: list[CommandObservation] = []
-            for task in auto_task.tasks:
-                if chat_session.helpers.get_helper(task.command):
-                    observations.extend(
-                        await dispatch_auto_task(
-                            task,
-                            target,
-                            trace_id=chat_session.last_trace_id,
-                            user_id=chat_session.user_id,
-                            roles=chat_session.helpers.active_roles,
-                            platform_id=platform.platform,
-                            channel_id=platform.channel_id,
-                            guild_id=platform.guild_id,
-                            platform_name=platform.platform_name,
-                        )
-                    )
-                else:
-                    observations.append(
-                        CommandObservation(
-                            trace_id=chat_session.last_trace_id,
-                            command=task.command,
-                            source_type="command",
-                            tool_name=task.command,
-                            params=task.params,
-                            dispatch_type="missing_command",
-                            status="failed",
-                            success=False,
-                            message="命令不存在，未投递。",
-                            display_summary="命令不存在，未投递。",
-                            context_summary="命令不存在，未投递。",
-                            next_actions=["explain_failure"],
-                        )
-                    )
-                    await matcher.send(Emoji.error + f"无法调用`{task.command}`命令，因为该命令不存在！")
+            observations = await dispatch_auto_tasks(
+                auto_task.tasks,
+                helpers=chat_session.helpers,
+                trace_id=chat_session.last_trace_id,
+                user_id=chat_session.user_id,
+                roles=chat_session.helpers.active_roles,
+                platform_id=platform.platform,
+                channel_id=platform.channel_id,
+                guild_id=platform.guild_id,
+                platform_name=platform.platform_name,
+            )
             if observations:
                 chat_session.record_observations(observations, trace_id=chat_session.last_trace_id)
                 executed_count = sum(1 for observation in observations if observation.dispatch_type == "command")
                 if executed_count:
-                    await matcher.send(
-                        await markdown_to_message(f"已运行 {executed_count} 条命令。").export(
-                            adapter=target.adapter,
-                            bot=bot,
-                        )
-                    )
+                    await send_markdown_reply(matcher, bot, f"已运行 {executed_count} 条命令。")
                 display_summaries = collect_observation_display_summaries(observations)
                 if display_summaries:
-                    await matcher.send(
-                        await markdown_to_message("\n\n".join(display_summaries)).export(
-                            adapter=target.adapter,
-                            bot=bot,
-                        )
-                    )
+                    await send_markdown_reply(matcher, bot, "\n\n".join(display_summaries))

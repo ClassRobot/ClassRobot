@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from typing import Optional
 
-from nonebot_plugin_alconna import Args, Alconna, CommandMeta, Field, MultiVar
-
-from src.platform.commands import CommandBinding, CommandParam, on_agent_command
-from src.platform.config import comp_config, priority
+from src.shared import tip
 from src.platform.helper import HelperScope
+from src.platform.config import priority, comp_config
+from nonebot_plugin_alconna import Args, Field, Alconna, MultiVar, CommandMeta
+from src.platform.commands import CommandParam, CommandBinding, on_agent_command
 
-chat_context_command_kwargs = {
+message_history_command_kwargs = {
     "priority": priority,
     "block": True,
     "skip_for_unmatch": False,
@@ -18,10 +18,8 @@ chat_context_command_kwargs = {
 query_group_history_cmd = on_agent_command(
     Alconna(
         "检索群聊记录",
-        Args["query", MultiVar(str, "*"), Field(default=(), completion="可选：输入关键词，例如 迟到、调课、值日")],
-        meta=CommandMeta(
-            description="检索当前系统群组的历史消息，用于回顾讨论内容。"
-        ),
+        Args["query", MultiVar(str, "*"), Field(default=(), completion=tip("可选：输入关键词，例如 迟到、调课、值日"))],
+        meta=CommandMeta(description="检索当前系统群组的历史消息，用于回顾讨论内容。"),
     ),
     aliases={"查询群聊记录", "回顾群聊", "群聊记录", "总结群聊"},
     binding=CommandBinding(
@@ -38,14 +36,14 @@ query_group_history_cmd = on_agent_command(
             )
         ],
     ),
-    **chat_context_command_kwargs,
+    **message_history_command_kwargs,
 )
 
 chat_statistics_cmd = on_agent_command(
     Alconna(
         "统计聊天记录",
-        Args["scope?", Optional[str], Field(default=None, completion="可选：user 或 group")],
-        Args["window?", Optional[str], Field(default=None, completion="可选：all、today、yesterday 或 week")],
+        Args["scope?", Optional[str], Field(default=None, completion=tip("可选：user 或 group"))],
+        Args["window?", Optional[str], Field(default=None, completion=tip("可选：all、today、yesterday 或 week"))],
         meta=CommandMeta(description="统计当前用户或当前系统群的消息数量。"),
     ),
     aliases={"聊天统计", "消息统计", "统计群聊", "统计私聊"},
@@ -69,9 +67,7 @@ chat_statistics_cmd = on_agent_command(
             ),
         ],
     ),
-    **chat_context_command_kwargs,
+    **message_history_command_kwargs,
 )
 
-__helpers__ = [query_group_history_cmd.__helper__, chat_statistics_cmd.__helper__]
-
-__all__ = ["query_group_history_cmd", "chat_statistics_cmd", "__helpers__"]
+__all__ = ["query_group_history_cmd", "chat_statistics_cmd"]

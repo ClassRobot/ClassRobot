@@ -3,7 +3,6 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 LEGACY_IMPORT_PREFIXES = ("core", "utils", "src.features")
 REMOVED_INTERNAL_PREFIXES = (
@@ -91,7 +90,10 @@ def test_shared_layer_has_no_platform_or_core_imports():
         if "__pycache__" in path.parts:
             continue
         for module_name in _iter_imported_modules(path):
-            if any(module_name == prefix or module_name.startswith(f"{prefix}.") or module_name.startswith(f"{prefix}_") for prefix in forbidden_prefixes):
+            if any(
+                module_name == prefix or module_name.startswith(f"{prefix}.") or module_name.startswith(f"{prefix}_")
+                for prefix in forbidden_prefixes
+            ):
                 relative = path.relative_to(PROJECT_ROOT).as_posix()
                 violations.append(f"{relative}: {module_name}")
 
@@ -112,3 +114,42 @@ def test_core_layer_does_not_import_plugins():
                 violations.append(f"{relative}: {module_name}")
 
     assert not violations, "core layer imports plugin modules:\n" + "\n".join(violations)
+
+
+def test_library_message_history_has_no_matcher_or_command_entrypoints():
+    """message_history library 只提供复用能力，不注册 matcher 或命令入口。"""
+
+    forbidden_names = {
+        "on_message",
+        "on_agent_command",
+        "on_alconna",
+        "on_command",
+        "command_executor",
+        "register_command_input_recorder",
+    }
+    library_root = PROJECT_ROOT / "src" / "plugins" / "library" / "message_history"
+    assert not (library_root / "commands.py").exists()
+
+    violations: list[str] = []
+    for path in library_root.rglob("*.py"):
+        if "__pycache__" in path.parts:
+            continue
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for alias in node.names:
+                    if alias.name in forbidden_names or alias.name.rsplit(".", 1)[-1] in forbidden_names:
+                        violations.append(f"{path.relative_to(PROJECT_ROOT).as_posix()}: import {alias.name}")
+            elif isinstance(node, ast.ImportFrom) and node.module:
+                for alias in node.names:
+                    if alias.name in forbidden_names:
+                        violations.append(
+                            f"{path.relative_to(PROJECT_ROOT).as_posix()}: from {node.module} import {alias.name}"
+                        )
+            elif isinstance(node, ast.Call):
+                func = node.func
+                name = getattr(func, "id", None) or getattr(func, "attr", None)
+                if name in forbidden_names or name == "handle":
+                    violations.append(f"{path.relative_to(PROJECT_ROOT).as_posix()}: call {name}")
+
+    assert not violations, "message_history library contains matcher or command entrypoints:\n" + "\n".join(violations)

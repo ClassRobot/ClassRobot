@@ -33,5 +33,5 @@ flowchart TD
 ## 扩展规则
 
 - 面向用户的业务放 `application`。
-- 给多个插件复用、但不直接承担用户交互的能力放 `library`。
+- 给多个插件复用、但不注册 matcher 或运行时 hook 的能力放 `library`。
 - 每个插件目录都应有自己的 `README.md`，说明命令、权限、数据读写和扩展方式。

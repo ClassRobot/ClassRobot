@@ -1,15 +1,14 @@
 from __future__ import annotations
 
-import pandas as pd
 import pytest
-
+import pandas as pd
 
 pytestmark = pytest.mark.asyncio
 
 
 async def test_plain_user_can_create_and_query_teacher_profile(app, onebot, send_recorder, models):
-    from src.plugins.application.active.teacher.commands import query_teacher_cmd, set_teacher_cmd
     from src.models import Teacher
+    from src.plugins.application.active.teacher.commands import set_teacher_cmd, query_teacher_cmd
 
     user = await models.create_user(account_id=10002, nickname="小王")
     school = await models.create_school("测试大学")
@@ -43,8 +42,8 @@ async def test_plain_user_can_create_and_query_teacher_profile(app, onebot, send
 
 
 async def test_teacher_can_create_class_and_query_classes(app, onebot, send_recorder, models):
-    from src.plugins.application.active.classes.commands import create_classes_cmd, query_classes_cmd
     from src.models import Classes
+    from src.plugins.application.active.classes.commands import query_classes_cmd, create_classes_cmd
 
     user = await models.create_user(account_id=10003, nickname="老师甲")
     school = await models.create_school("测试大学")
@@ -81,8 +80,8 @@ async def test_teacher_can_create_class_and_query_classes(app, onebot, send_reco
 
 
 async def test_plain_user_can_join_class_and_exit_after_confirmation(app, onebot, send_recorder, models):
-    from src.plugins.application.active.classes.commands import exit_classes_cmd, join_classes_cmd
     from src.models import Student
+    from src.plugins.application.active.classes.commands import exit_classes_cmd, join_classes_cmd
 
     teacher_user = await models.create_user(account_id=10004, nickname="班主任")
     teacher = await models.create_teacher(teacher_user, name="班主任")
@@ -115,13 +114,13 @@ async def test_plain_user_can_join_class_and_exit_after_confirmation(app, onebot
 
 
 async def test_teacher_can_change_join_method_and_approve_join_request(app, onebot, send_recorder, models):
+    from src.models import Student, ClassesJoinRequest
     from src.plugins.application.active.classes.commands import (
         join_classes_cmd,
+        set_join_classes_cmd,
         query_join_request_cmd,
         review_join_request_cmd,
-        set_join_classes_cmd,
     )
-    from src.models import ClassesJoinRequest, Student
 
     teacher_user = await models.create_user(account_id=10006, nickname="王老师")
     teacher = await models.create_teacher(teacher_user, name="王老师")
@@ -176,8 +175,8 @@ async def test_teacher_can_change_join_method_and_approve_join_request(app, oneb
 
 
 async def test_student_switch_class_syncs_school_scope(app, onebot, send_recorder, models):
-    from src.plugins.application.active.classes.commands import join_classes_cmd
     from src.models import Student
+    from src.plugins.application.active.classes.commands import join_classes_cmd
 
     old_school = await models.create_school("旧学校")
     old_college = await models.create_college(old_school, "旧学院")
@@ -227,8 +226,8 @@ async def test_student_switch_class_syncs_school_scope(app, onebot, send_recorde
 
 
 async def test_student_can_query_and_update_profile(app, onebot, send_recorder, models):
-    from src.plugins.application.active.student.commands import query_cmd, set_cmd
     from src.models import Student
+    from src.plugins.application.active.student.commands import set_cmd, query_cmd
 
     owner = await models.create_user(account_id=10008, nickname="班主任乙")
     teacher = await models.create_teacher(owner, name="班主任乙")
@@ -266,10 +265,10 @@ async def test_student_can_query_and_update_profile(app, onebot, send_recorder, 
 
 
 async def test_teacher_can_delete_empty_class(app, onebot, send_recorder, models, monkeypatch, tmp_path):
-    from src.plugins.application.active.classes.commands import delete_classes_cmd
     from src.models import Classes
     from src.core.storage import StorageManager
     import src.models.models as model_definitions
+    from src.plugins.application.active.classes.commands import delete_classes_cmd
 
     storage = StorageManager(tmp_path / "storage")
     monkeypatch.setattr(model_definitions, "storage_manager", storage)
@@ -296,9 +295,9 @@ async def test_teacher_can_delete_empty_class(app, onebot, send_recorder, models
 
 
 async def test_import_classes_can_create_teacher_class_and_student(app, onebot, send_recorder, monkeypatch, models):
+    from src.models import Classes, Student, Teacher
     import src.plugins.application.active.classes.depends as classes_depends
     from src.plugins.application.active.classes.commands import import_classes_cmd
-    from src.models import Classes, Student, Teacher
 
     user = await models.create_user(account_id=10011, nickname="导入老师")
     school = await models.create_school("导入学校")
@@ -342,10 +341,10 @@ async def test_import_classes_can_create_teacher_class_and_student(app, onebot, 
 
 
 async def test_admin_can_assign_college_manager_and_manager_can_manage_profiles(app, onebot, send_recorder, models):
+    from src.models import Student, Teacher, CollegeTeacher
     from src.plugins.application.active.group.commands import set_college_manager
     from src.plugins.application.active.student.commands import add_student_profile_cmd
     from src.plugins.application.active.teacher.commands import add_teacher_profile_cmd
-    from src.models import Student, Teacher, CollegeTeacher
 
     admin = await models.create_user(account_id=10101, nickname="管理员", is_admin=True)
     school = await models.create_school("组织大学")
@@ -448,10 +447,10 @@ async def test_college_manager_cannot_manage_other_college(app, onebot, send_rec
 
 
 async def test_class_manager_can_set_teacher_and_student_positions(app, onebot, send_recorder, models):
-    from src.plugins.application.active.classes.commands import set_class_teacher_cmd, set_student_position_cmd
-    from src.plugins.application.active.student.commands import set_cmd
     from src.models import Student, TeacherClasses
-    from src.core.auth import StudentRole, TeacherClassesRole, UserRole
+    from src.core.auth import UserRole, StudentRole, TeacherClassesRole
+    from src.plugins.application.active.student.commands import set_cmd
+    from src.plugins.application.active.classes.commands import set_class_teacher_cmd, set_student_position_cmd
 
     school = await models.create_school("岗位大学")
     college = await models.create_college(school, "信息学院")
@@ -520,10 +519,10 @@ async def test_class_manager_can_set_teacher_and_student_positions(app, onebot, 
 
 
 async def test_my_info_bind_user_and_logout_flow(app, onebot, send_recorder, models, fake_cache, monkeypatch, tmp_path):
-    from src.plugins.application.active.user.commands import bind_user_cmd, logout_cmd, self_info_cmd
     from src.models import User
     from src.core.storage import StorageManager
     import src.models.models as model_definitions
+    from src.plugins.application.active.user.commands import logout_cmd, bind_user_cmd, self_info_cmd
 
     storage = StorageManager(tmp_path / "storage")
     monkeypatch.setattr(model_definitions, "storage_manager", storage)
@@ -566,7 +565,7 @@ async def test_my_info_bind_user_and_logout_flow(app, onebot, send_recorder, mod
 
 
 async def test_help_menu_filters_commands_by_current_role(app, onebot, send_recorder, monkeypatch, models):
-    import src.plugins.application.active.helper as helper_module
+    from src.platform.helper import Helpers
     from nonebot_plugin_alconna import UniMessage
     from src.plugins.application.active.helper import help_cmd
 
@@ -581,8 +580,8 @@ async def test_help_menu_filters_commands_by_current_role(app, onebot, send_reco
         text = raw.decode("utf-8") if isinstance(raw, (bytes, bytearray)) else str(raw)
         return UniMessage.text(text)
 
-    monkeypatch.setattr(helper_module.Helpers, "render_pic", fake_render_pic)
-    monkeypatch.setattr(helper_module.UniMessage, "image", classmethod(fake_image))
+    monkeypatch.setattr(Helpers, "render_pic", fake_render_pic)
+    monkeypatch.setattr(UniMessage, "image", classmethod(fake_image))
 
     await models.create_user(account_id=10013, nickname="普通用户")
     async with app.test_matcher(help_cmd) as ctx:

@@ -2,11 +2,28 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from nonebot import logger
 from src.core.auth import UserRole
-
+from pydantic import Field, BaseModel
 
 CommandInvoker = Literal["user_command", "agent_workflow", "system"]
+
+
+def normalize_user_roles(
+    roles: set[UserRole | str] | list[UserRole | str] | tuple[UserRole | str, ...] | None,
+) -> set[UserRole]:
+    """把入口侧角色值转换成命令执行上下文使用的角色枚举。"""
+
+    normalized: set[UserRole] = set()
+    for role in roles or []:
+        if isinstance(role, UserRole):
+            normalized.add(role)
+            continue
+        try:
+            normalized.add(UserRole(role))
+        except ValueError:
+            logger.warning(f'Ignored unknown user role "{role}" while building command execution context')
+    return normalized
 
 
 class CommandExecutionContext(BaseModel):

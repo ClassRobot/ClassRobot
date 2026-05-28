@@ -1,5 +1,5 @@
-import importlib
 import re
+import importlib
 
 from nonebot.internal.matcher.matcher import MatcherMeta
 
@@ -103,7 +103,7 @@ EXPECTED_COMMAND_OBJECTS = {
         "tree_cmd": "tree",
         "upload_file_cmd": "上传文件",
     },
-    "src.plugins.library.message_history.commands": {
+    "src.plugins.application.active.message_history.commands": {
         "query_group_history_cmd": "检索群聊记录",
         "chat_statistics_cmd": "统计聊天记录",
     },

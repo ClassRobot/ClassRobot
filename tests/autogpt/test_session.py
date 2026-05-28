@@ -273,11 +273,6 @@ async def test_plugin_skips_empty_workflow_execution(loaded_plugins, monkeypatch
         async def finish(self, message):
             raise AssertionError(f"finish should not be called: {message}")
 
-    class FakeTarget:
-        adapter = "test"
-        private = True
-        platform = "test"
-
     class FakeBot:
         pass
 
@@ -308,26 +303,18 @@ async def test_plugin_skips_empty_workflow_execution(loaded_plugins, monkeypatch
     async def fake_execute_task_workflow(*args, **kwargs):
         raise AssertionError("empty workflow should not be executed")
 
-    class FakeRenderedMessage:
-        def __init__(self, text: str) -> None:
-            self.text = text
-
-        async def export(self, **kwargs):
-            return self.text
-
-    def fake_markdown_to_message(text: str):
-        return FakeRenderedMessage(text)
+    async def fake_send_markdown_reply(matcher, bot, text):
+        sent_messages.append(text)
 
     monkeypatch.setattr(session, "send_message", fake_send_message)
     monkeypatch.setattr(session, "execute_task_workflow", fake_execute_task_workflow)
-    monkeypatch.setattr(plugin_module, "markdown_to_message", fake_markdown_to_message)
+    monkeypatch.setattr(plugin_module, "send_markdown_reply", fake_send_markdown_reply)
 
     await plugin_module._(
         bot=FakeBot(),
         event=SimpleNamespace(message_id="1"),
         matcher=FakeMatcher(),
         message="你查了吗",
-        target=FakeTarget(),
         platform=FakePlatform(),
         chat_session=session,
     )

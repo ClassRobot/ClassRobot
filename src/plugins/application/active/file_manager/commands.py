@@ -1,7 +1,7 @@
-from src.platform.commands import CommandBinding, on_agent_command
-from src.platform.config import priority, comp_config
-from src.platform.helper import HelperScope, UserRole
 from src.platform.commands.schema import CommandParam
+from src.platform.config import priority, comp_config
+from src.platform.helper import UserRole, HelperScope
+from src.platform.commands import CommandBinding, on_agent_command
 from nonebot_plugin_alconna import Args, File, Field, Image, Other, Alconna, MultiVar
 
 file_command_kwargs = {
@@ -219,20 +219,6 @@ upload_file_cmd = on_agent_command(
     **file_command_kwargs,
 )
 
-__helpers__ = [
-    pwd_cmd.__helper__,
-    ls_cmd.__helper__,
-    cd_cmd.__helper__,
-    mkdir_cmd.__helper__,
-    touch_cmd.__helper__,
-    rm_cmd.__helper__,
-    cat_cmd.__helper__,
-    find_cmd.__helper__,
-    grep_cmd.__helper__,
-    tree_cmd.__helper__,
-    upload_file_cmd.__helper__,
-]
-
 __all__ = [
     "pwd_cmd",
     "ls_cmd",
@@ -245,5 +231,4 @@ __all__ = [
     "grep_cmd",
     "tree_cmd",
     "upload_file_cmd",
-    "__helpers__",
 ]

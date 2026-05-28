@@ -2,10 +2,10 @@ from typing import Optional
 
 from src.shared import tip
 from src.platform.config import alcoona_kwargs
-from src.platform.commands import CommandBinding, on_agent_command
+from src.platform.helper import UserRole, HelperScope
 from src.platform.commands.extensions import AdminExtension
-from src.platform.helper import HelperScope, UserRole
 from nonebot_plugin_alconna import Args, Field, Alconna, MultiVar
+from src.platform.commands import CommandBinding, on_agent_command
 
 add_school = on_agent_command(
     Alconna(
@@ -27,9 +27,7 @@ set_school = on_agent_command(
     Alconna(
         "修改学校",
         Args["school_name", str, Field(completion=tip("请输入学校名称"))],
-        Args[
-            "values", MultiVar(str, flag="+"), Field(completion=tip("修改方式如 名称=新校名 地址=新地址 描述=学校说明"))
-        ],
+        Args["values", MultiVar(str, flag="+"), Field(completion=tip("修改方式如 名称=新校名 地址=新地址 描述=学校说明"))],
     ),
     binding=CommandBinding(
         description="修改学校名称、地址、描述，采用 key=value 形式传参。",
@@ -343,25 +341,3 @@ unset_college_manager = on_agent_command(
     **alcoona_kwargs,
     extensions=[AdminExtension],
 )
-
-
-__helpers__ = [
-    add_school.__helper__,
-    set_school.__helper__,
-    delete_school.__helper__,
-    add_college.__helper__,
-    set_college.__helper__,
-    delete_college.__helper__,
-    add_major.__helper__,
-    set_major.__helper__,
-    delete_major.__helper__,
-    add_organization.__helper__,
-    set_organization.__helper__,
-    delete_organization.__helper__,
-    query_structure.__helper__,
-    query_organization.__helper__,
-    join_organization.__helper__,
-    exit_organization.__helper__,
-    set_college_manager.__helper__,
-    unset_college_manager.__helper__,
-]

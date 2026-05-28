@@ -93,7 +93,7 @@
 
 当前系统不会只依赖全局 `on_message` 来记录命令输入。
 
-- 普通消息和群环境采集消息仍由 `message_history_collector` 负责。
+- 普通消息和群环境采集消息仍由 `application/passive/message_history_collector` 中的 `message_history_collector` 负责。
 - 通过 `command_alconna()` / `command_command()` 注册的非交互项目命令，会在 matcher 内部自动挂一层 `command_input_hook`。
 - 这层 hook 会在命令业务 handler 前，把用户本次显式命令输入写入 `chat` 记录。
 - 多轮交互命令的确认消息，例如 `yes/no`、补充参数、附件追加，当前不通过这条 hook 记录，避免破坏 matcher 交互态。
@@ -176,11 +176,14 @@ Agent 如果需要回顾系统群上下文，应优先调用 `检索群聊记录
 ## 代码入口
 
 - 存储层：[../../src/core/storage/chat_history.py](../../src/core/storage/chat_history.py)
-- 插件入口：[../../src/plugins/library/message_history/__init__.py](../../src/plugins/library/message_history/__init__.py)
+- 被动采集入口：[../../src/plugins/application/passive/message_history_collector/__init__.py](../../src/plugins/application/passive/message_history_collector/__init__.py)
+- 主动命令入口：[../../src/plugins/application/active/message_history/__init__.py](../../src/plugins/application/active/message_history/__init__.py)
+- 命令声明：[../../src/plugins/application/active/message_history/commands.py](../../src/plugins/application/active/message_history/commands.py)
 - 采集逻辑：[../../src/plugins/library/message_history/collector.py](../../src/plugins/library/message_history/collector.py)
 - 出站记录：[../../src/plugins/library/message_history/outbound.py](../../src/plugins/library/message_history/outbound.py)
 - 归属解析：[../../src/platform/session/resolvers.py](../../src/platform/session/resolvers.py)
-- 群历史命令服务：[../../src/plugins/library/message_history/services.py](../../src/plugins/library/message_history/services.py)
+- 群历史能力服务：[../../src/plugins/library/message_history/services.py](../../src/plugins/library/message_history/services.py)
+- Agent 命令执行器：[../../src/plugins/application/active/message_history/services.py](../../src/plugins/application/active/message_history/services.py)
 
 ## 扩展原则
 

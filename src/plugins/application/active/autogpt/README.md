@@ -1,6 +1,6 @@
 # AutoGPT 用户侧入口
 
-这个目录只保留 NoneBot 插件入口、会话接线和消息发送逻辑。
+这个目录只保留 NoneBot 插件入口、会话接线和消息发送逻辑。`messaging.py` 可以放平台发送适配；命令调度、参数转换、observation 构造等可复用能力必须放到 runtime 或 platform 层。
 
 - 新的运行时实现：`src/core/agent/runtime/`
 - 运行时开发文档：`src/core/agent/runtime/README.md`

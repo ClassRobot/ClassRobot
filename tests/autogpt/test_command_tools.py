@@ -1,11 +1,9 @@
-from types import SimpleNamespace
-
 import pytest
 
 
 def register_test_service_spec(spec):
-    from src.platform.commands import CommandResult, command_executor, command_registry
     from src.platform.commands.renderers.helper import command_spec_to_helper
+    from src.platform.commands import CommandResult, command_executor, command_registry
 
     command_registry.register(spec)
 
@@ -19,8 +17,8 @@ def register_test_service_spec(spec):
 def test_command_tool_catalog_hides_matcher_and_unregistered_service_commands(loaded_plugins):
     from src.platform.helper import Helpers
     from src.platform.commands import CommandSpec, command_registry
-    from src.platform.commands.renderers.helper import command_spec_to_helper
     from src.core.agent.runtime.command_tools import CommandToolCatalog
+    from src.platform.commands.renderers.helper import command_spec_to_helper
 
     matcher_spec = CommandSpec(
         name="测试仅用户命令",
@@ -45,8 +43,8 @@ def test_command_tool_catalog_hides_matcher_and_unregistered_service_commands(lo
 
 @pytest.mark.asyncio
 async def test_dispatch_auto_task_rejects_command_without_service_handler(loaded_plugins):
-    from src.plugins.application.active import autogpt as autogpt_module
     from src.core.agent.runtime.schema import AutoTask
+    from src.core.agent.runtime.execution import dispatch_auto_task
     from src.platform.commands import CommandSpec, command_registry
 
     command_registry.register(
@@ -57,9 +55,8 @@ async def test_dispatch_auto_task_rejects_command_without_service_handler(loaded
         )
     )
 
-    observations = await autogpt_module.dispatch_auto_task(
+    observations = await dispatch_auto_task(
         AutoTask(command="测试未服务化命令", params=[]),
-        SimpleNamespace(adapter="test", private=True, platform=[]),
         trace_id="autogpt-no-service",
     )
 
@@ -69,9 +66,75 @@ async def test_dispatch_auto_task_rejects_command_without_service_handler(loaded
     assert "尚未接入统一 service 执行器" in observations[0].message
 
 
+def test_auto_task_params_to_service_dict_maps_text_params_by_command_spec(loaded_plugins):
+    from src.core.agent.runtime.schema import Param, AutoTask
+    from src.core.agent.runtime.execution import auto_task_params_to_service_dict
+    from src.platform.commands import CommandSpec, CommandParam, command_registry
+
+    _ = loaded_plugins
+    command_registry.register(
+        CommandSpec(
+            name="测试参数映射命令",
+            description="测试参数映射",
+            params=[
+                CommandParam(name="标题", description="标题"),
+                CommandParam(name="内容", description="内容"),
+            ],
+            execution_mode="service",
+        )
+    )
+
+    payload = auto_task_params_to_service_dict(
+        AutoTask(
+            command="测试参数映射命令",
+            params=[
+                Param(type="text", value="通知标题"),
+                Param(type="text", value="通知正文"),
+                Param(type="image", value="https://example.com/a.png"),
+            ],
+        )
+    )
+
+    assert payload == {
+        "标题": "通知标题",
+        "内容": "通知正文",
+        "images": ["https://example.com/a.png"],
+    }
+
+
+def test_normalize_user_roles_accepts_enum_and_string_values(loaded_plugins):
+    from src.core.auth import UserRole
+    from src.platform.commands import normalize_user_roles
+
+    _ = loaded_plugins
+    assert normalize_user_roles([UserRole.teacher, "student", "unknown-role"]) == {
+        UserRole.teacher,
+        UserRole.student,
+    }
+
+
+@pytest.mark.asyncio
+async def test_dispatch_auto_tasks_converts_missing_helper_to_observation(loaded_plugins):
+    from src.platform.helper import Helpers
+    from src.core.agent.runtime.schema import AutoTask
+    from src.core.agent.runtime.execution import dispatch_auto_tasks
+
+    _ = loaded_plugins
+    observations = await dispatch_auto_tasks(
+        [AutoTask(command="不存在的测试命令", params=[])],
+        helpers=Helpers(),
+        trace_id="autogpt-missing-helper",
+    )
+
+    assert len(observations) == 1
+    assert observations[0].success is False
+    assert observations[0].dispatch_type == "missing_command"
+    assert observations[0].outputs_sent_to_user is False
+
+
 def test_command_tool_catalog_builds_safe_tool_schema(loaded_plugins):
     from src.platform.helper import Helpers, ParamMode
-    from src.platform.commands import CommandParam, CommandSpec
+    from src.platform.commands import CommandSpec, CommandParam
     from src.core.agent.runtime.command_tools import CommandToolCatalog
 
     spec = CommandSpec(
@@ -196,6 +259,7 @@ def test_command_tool_catalog_infers_high_risk_commands(loaded_plugins):
 def test_basic_commands_are_available_to_autogpt_command_tools(loaded_plugins):
     from src.platform.helper import Helpers
     from src.core.agent.runtime.command_tools import CommandToolCatalog
+
     from tests.commands.test_helper_metadata import collect_helpers
 
     helper_menu = Helpers()
@@ -219,6 +283,7 @@ def test_basic_commands_are_available_to_autogpt_command_tools(loaded_plugins):
 def test_write_commands_are_not_marked_low_risk(loaded_plugins):
     from src.platform.helper import Helpers
     from src.core.agent.runtime.command_tools import CommandToolCatalog
+
     from tests.commands.test_helper_metadata import collect_helpers
 
     helper_menu = Helpers()
@@ -239,8 +304,8 @@ def test_write_commands_are_not_marked_low_risk(loaded_plugins):
 
 
 def test_command_tool_catalog_follows_current_user_visible_helpers(loaded_plugins):
-    from src.platform.helper import HelperScope, Helpers, UserRole
     from src.platform.commands import CommandSpec
+    from src.platform.helper import Helpers, UserRole, HelperScope
     from src.core.agent.runtime.command_tools import CommandToolCatalog
 
     student_spec = CommandSpec(
@@ -283,6 +348,7 @@ def test_query_classes_tool_uses_service_command_spec(loaded_plugins):
     from src.platform.helper import Helpers
     from src.platform.commands.registry import command_registry
     from src.core.agent.runtime.command_tools import CommandToolCatalog
+
     from tests.commands.test_helper_metadata import collect_helpers
 
     helper_menu = Helpers()

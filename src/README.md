@@ -35,7 +35,7 @@ flowchart TD
     Start["新增代码"] --> A{"是否是 NoneBot 插件或插件能力"}
     A -->|是| B{"是否直接面向用户"}
     B -->|是| App["plugins/application"]
-    B -->|否| Lib["plugins/library"]
+    B -->|否| Lib["plugins/library<br/>复用能力库，不进 plugin_dirs"]
     A -->|否| C{"是否封装 NoneBot / 跨平台运行协议"}
     C -->|是| Platform["platform"]
     C -->|否| D{"是否是核心能力"}
@@ -50,7 +50,9 @@ flowchart TD
 | 需求 | 放置位置 | 原因 |
 | --- | --- | --- |
 | 班级、请假、课表、文件管理命令 | `plugins/application` | 用户主动调用的业务插件 |
-| 消息历史采集与 `MessageHistory` 注入 | `plugins/library/message_history` | 给其他插件和 Agent 复用的能力插件 |
+| 消息历史被动采集入口 | `plugins/application/passive/message_history_collector` | 需要注册 `on_message` 和命令输入 hook |
+| 消息历史查询命令 | `plugins/application/active/message_history` | 用户主动调用和 Agent 可调用的命令入口 |
+| 消息历史能力实现 | `plugins/library/message_history` | 给主动/被动插件显式导入复用，不作为 NoneBot 插件自动加载 |
 | 当前事件解析成系统用户 | `plugins/library/identity` | 依赖 NoneBot 事件和平台绑定 |
 | 命令注册、帮助目录、Agent 命令适配 | `platform/commands` | 项目运行协议，不属于单个业务插件 |
 | 跨平台统一发送消息 | `platform/messaging` | 统一处理用户绑定、Bot 选择和平台目标 |
@@ -63,7 +65,7 @@ flowchart TD
 ```mermaid
 flowchart LR
     User["用户消息"] --> App["plugins/application"]
-    App --> Lib["plugins/library"]
+    App --> Lib["plugins/library<br/>显式导入"]
     App --> Platform["platform"]
     Lib --> Platform
     Platform --> Models["models"]
@@ -102,5 +104,5 @@ flowchart LR
 - 不把业务插件写进 `shared`。
 - 不把跨平台发送、命令协议、会话解析写成普通工具函数。
 - 不在 `plugins/application` 里堆 Agent、LLM、Storage 的核心实现。
-- 不在 `plugins/library` 里承载面向最终用户的大型命令体验。
+- 不把 `plugins/library` 加入 NoneBot `plugin_dirs`，也不在其中承载面向最终用户的大型命令体验。
 - 具体目录的内部规则看各目录自己的 `README.md`。

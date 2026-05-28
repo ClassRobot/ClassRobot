@@ -8,6 +8,8 @@
   - 组织一次消息处理链路，并读取热更新后的运行时图。
 - `coordination/`
   - 工作流节点和状态对象。
+- `execution/`
+  - 统一执行协议、ActionExecutor 注册表，以及 AutoTask 到 service command 的调度适配。
 - `harness/`
   - 策略、上下文、可观测性装配层。
 - `knowledge.py`

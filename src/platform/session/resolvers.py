@@ -4,10 +4,9 @@ import re
 from uuid import uuid4
 
 from nonebot.adapters import Bot, Event
-from nonebot_plugin_alconna import SerializeFailed, SupportAdapter, SupportScope, get_target
-
-from src.models import Group, GroupBind, User, UserBind
 from src.platform.session import BaseSession
+from src.models import User, Group, UserBind, GroupBind
+from nonebot_plugin_alconna import SupportScope, SupportAdapter, SerializeFailed, get_target
 
 ALCONNA_TARGET_FALLBACK_ERRORS = (SerializeFailed, NotImplementedError, ValueError)
 """alconna target 解析允许兜底的异常类型。
@@ -165,6 +164,8 @@ def _fallback_platform(bot: Bot) -> str:
 
     if adapter_name == "onebot v11":
         adapter_name = "onebot11"
+    if adapter_name == "wxclaw":
+        return "wxclaw.private"
     return f"{adapter_name}.qq_client"
 
 

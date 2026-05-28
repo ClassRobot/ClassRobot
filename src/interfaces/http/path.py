@@ -7,7 +7,7 @@ app = get_app()
 
 if isinstance(app, FastAPI):
     router = APIRouter(prefix="/api/v1", tags=["API"])
-    from src.plugins.application.active.helper import helper_menu
+    from src.platform.helper.config import helper_menu
     from src.interfaces.http.managers import router as managers_router
 
     @router.get("/commands")

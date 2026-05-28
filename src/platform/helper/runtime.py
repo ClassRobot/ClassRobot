@@ -3,13 +3,13 @@ from types import ModuleType
 from typing import Any, Iterable
 
 from nonebot import logger
-from nonebot.dependencies import Dependent
-from nonebot.matcher import Matcher
 from nonebot.plugin import Plugin
+from nonebot.matcher import Matcher
+from nonebot.dependencies import Dependent
 from nonebot.internal.matcher.matcher import MatcherMeta
 
-from .config import helper_menu
 from .schema import Helper
+from .config import helper_menu
 
 
 def _extract_rule_literals(matcher: type[Matcher]) -> set[str]:
@@ -54,10 +54,10 @@ def bind_helper_access_guard(matcher: type[Matcher], helper: Helper) -> None:
     if getattr(matcher, "__helper_access_bound__", False):
         return
 
-    from src.platform.session.depends import UserOrCreatedDepends
-    from src.platform.commands.availability import command_availability
-    from src.platform.commands.context import CommandExecutionContext
     from src.platform.commands.policy import command_policy
+    from src.platform.session.depends import UserOrCreatedDepends
+    from src.platform.commands.context import CommandExecutionContext
+    from src.platform.commands.availability import command_availability
 
     async def _guard(runtime_matcher: Matcher, user: UserOrCreatedDepends, __helper: Helper = helper):
         spec = getattr(runtime_matcher, "__command_spec__", None)
@@ -77,8 +77,8 @@ def bind_helper_access_guard(matcher: type[Matcher], helper: Helper) -> None:
         await runtime_matcher.finish(f"您当前身份暂无权限使用“{__helper.command}”命令。")
 
     _prepend_handler(matcher, _guard)
-    matcher.__helper_access_bound__ = True
-    matcher.__helper_command__ = helper.command
+    setattr(matcher, "__helper_access_bound__", True)
+    setattr(matcher, "__helper_command__", helper.command)
 
 
 def bind_module_helpers(module: ModuleType, helpers: Iterable[Helper]) -> None:

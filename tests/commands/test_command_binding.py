@@ -5,8 +5,8 @@ import pytest
 
 def test_spec_from_alconna_derives_params_and_helper_view(loaded_plugins):
     from arclet.alconna import Args, Alconna, MultiVar, CommandMeta
+    from src.platform.helper import UserRole, ParamMode, HelperScope
     from src.platform.commands import CommandBinding, spec_from_alconna
-    from src.platform.helper import HelperScope, ParamMode, UserRole
     from src.platform.commands.renderers.helper import command_spec_to_helper
 
     spec = spec_from_alconna(
@@ -40,8 +40,8 @@ def test_spec_from_alconna_derives_params_and_helper_view(loaded_plugins):
 
 def test_command_alconna_registers_spec_and_attaches_helper(loaded_plugins):
     from arclet.alconna import Args, Alconna, CommandMeta
+    from src.platform.helper import UserRole, ParamMode, HelperScope
     from src.platform.commands import CommandBinding, command_alconna, command_registry
-    from src.platform.helper import HelperScope, ParamMode, UserRole
 
     matcher = command_alconna(
         Alconna(
@@ -71,17 +71,17 @@ def test_command_alconna_registers_spec_and_attaches_helper(loaded_plugins):
 
 @pytest.mark.asyncio
 async def test_on_agent_command_registers_alconna_matcher_helper_and_service_handler(loaded_plugins):
+    from src.core.auth import UserRole
+    from src.platform.helper import HelperScope
     from arclet.alconna import Args, Alconna, CommandMeta
     from src.platform.commands import (
+        CommandResult,
         CommandBinding,
         CommandExecutionContext,
-        CommandResult,
         command_executor,
         command_registry,
+        on_agent_command,
     )
-    from src.platform.commands import on_agent_command
-    from src.platform.helper import HelperScope
-    from src.core.auth import UserRole
 
     async def execute(params, context):
         return CommandResult.ok(f"统一入口已处理：{params['关键词']}")
@@ -122,9 +122,9 @@ async def test_on_agent_command_registers_alconna_matcher_helper_and_service_han
 
 @pytest.mark.asyncio
 async def test_on_agent_command_supports_decorator_style_agent_handler(loaded_plugins):
-    from src.platform.commands import CommandBinding, CommandExecutionContext, command_executor, on_agent_command
-    from src.platform.helper import HelperScope
     from src.core.auth import UserRole
+    from src.platform.helper import HelperScope
+    from src.platform.commands import CommandBinding, CommandExecutionContext, command_executor, on_agent_command
 
     matcher = on_agent_command(
         "测试普通统一入口",
@@ -156,9 +156,9 @@ async def test_on_agent_command_supports_decorator_style_agent_handler(loaded_pl
 
 def test_bootstrap_helper_runtime_collects_matcher_bound_helpers(loaded_plugins):
     from arclet.alconna import Alconna, CommandMeta
-    from src.platform.commands import CommandBinding, command_alconna
     from src.platform.helper.config import helper_menu
     from src.platform.helper.runtime import bootstrap_helper_runtime
+    from src.platform.commands import CommandBinding, command_alconna
 
     matcher = command_alconna(
         Alconna("测试绑定帮助", meta=CommandMeta(description="测试绑定帮助说明")),
@@ -181,12 +181,32 @@ def test_bootstrap_helper_runtime_collects_matcher_bound_helpers(loaded_plugins)
         bootstrap_helper_runtime(loaded_plugins)
 
 
+def test_bootstrap_helper_runtime_keeps_manual_helpers_compatibility(loaded_plugins):
+    from src.platform.helper import Helper
+    from src.platform.helper.config import helper_menu
+    from src.platform.helper.runtime import bootstrap_helper_runtime
+
+    module = ModuleType("tests.fake_manual_helpers")
+    module.__helpers__ = [
+        Helper(command="测试手写帮助", description="外部命令仍可手写 Helper。"),
+    ]
+
+    try:
+        bootstrap_helper_runtime([SimpleNamespace(module=module)])
+
+        helper = helper_menu.get_helper("测试手写帮助")
+        assert helper is not None
+        assert helper.description == "外部命令仍可手写 Helper。"
+    finally:
+        bootstrap_helper_runtime(loaded_plugins)
+
+
 @pytest.mark.asyncio
 async def test_command_input_recorder_registry_dispatches_without_src_dependency(loaded_plugins):
     from src.platform.commands import (
         CommandSpec,
-        dispatch_command_input_recorders,
         register_command_input_recorder,
+        dispatch_command_input_recorders,
         unregister_command_input_recorder,
     )
 

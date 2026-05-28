@@ -74,7 +74,7 @@ url = "https://pypi.python.org/simple"
 priority = "supplemental"
 
 [tool.nonebot]
-plugin_dirs = ["src/plugins/application/active", "src/plugins/application/passive", "src/plugins/library"]
+plugin_dirs = ["src/plugins/application/active", "src/plugins/application/passive"]
 builtin_plugins = []
 [tool.nonebot.plugins]
 "@local" = ["src.interfaces.http.path", "src.models"]

@@ -253,13 +253,14 @@ flowchart LR
 
 相关文档：
 
-- [message_history README](../../src/plugins/library/message_history/README.md)
+- [message_history 主动命令 README](../../src/plugins/application/active/message_history/README.md)
+- [message_history 能力库 README](../../src/plugins/library/message_history/README.md)
 - [消息历史存储与归属说明](../guides/message-history-storage.md)
 
 | 命令 | 状态 | 源码入口 | 说明 |
 | --- | --- | --- | --- |
-| `检索群聊记录` | 已完成 | [message_history/commands.py](../../src/plugins/library/message_history/commands.py) | 检索当前系统群的采集消息。 |
-| `统计聊天记录` | 已完成 | [message_history/commands.py](../../src/plugins/library/message_history/commands.py) | 统计当前用户或当前系统群的聊天记录数量。 |
+| `检索群聊记录` | 已完成 | [message_history/commands.py](../../src/plugins/application/active/message_history/commands.py) | 检索当前系统群的采集消息。 |
+| `统计聊天记录` | 已完成 | [message_history/commands.py](../../src/plugins/application/active/message_history/commands.py) | 统计当前用户或当前系统群的聊天记录数量。 |
 
 ## 学生检索与群内协作
 

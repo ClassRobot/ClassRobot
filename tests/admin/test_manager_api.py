@@ -1105,7 +1105,11 @@ async def test_manager_nonebot_runtime_inventory(manager_client, manager_auth_he
     assert {"token", "我的信息"}.issubset(command_names)
     chat_statistics = next(item for item in payload["commands"] if item["command"] == "统计聊天记录")
     assert chat_statistics["matcher_type"] == "agent_command"
-    assert chat_statistics["file"].replace("\\", "/").endswith("src/plugins/library/message_history/commands.py")
+    assert (
+        chat_statistics["file"]
+        .replace("\\", "/")
+        .endswith("src/plugins/application/active/message_history/commands.py")
+    )
     assert chat_statistics["line"] > 0
     assert chat_statistics["service_handler_registered"] is True
     assert chat_statistics["agent_executable"] is True

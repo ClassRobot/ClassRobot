@@ -29,7 +29,7 @@
   - 定义 `Helper`、`Helpers`
   - 实现 `roles / exclude_roles / scopes` 的可见性规则
 - `src/platform/helper/runtime.py`
-  - 启动时收集 `__helpers__`
+  - 启动时优先收集 matcher 上的 `__helper__`，并保留模块级 `__helpers__` 作为外部命令兼容入口
   - 把运行时鉴权 guard 绑定到 matcher 前面
 - `src/platform/helper/depends.py`
   - 基于 `user.roles` 过滤出当前用户可见的命令集合
@@ -119,7 +119,7 @@ flowchart TD
 
 ## `Helper` 是怎么控制命令开放的
 
-每个命令模块都可以声明 `__helpers__`，里面的 `Helper(...)` 是这条命令对外暴露的事实来源。
+项目内部命令的 `Helper` 由 `CommandSpec` 自动派生，并绑定在 matcher 的 `__helper__` 上；模块级 `__helpers__` 只作为外部命令、第三方插件或暂未迁移命令的兼容入口。
 
 最关键的三个字段：
 
@@ -170,12 +170,13 @@ flowchart TD
 
 绑定逻辑在 `src/platform/helper/runtime.py`：
 
-1. 收集所有插件里的 `__helpers__`
-2. 把它们放进全局 `helper_menu`
-3. 根据命令名找到 matcher
-4. 注入一个前置 handler
-5. 前置 handler 用 `user.roles` 调用 `Helper.is_available_for(...)`
-6. 不满足就直接 `finish(...)`
+1. 优先收集 matcher 上自动绑定的 `__helper__`
+2. 兼容读取外部模块手写的 `__helpers__`
+3. 把它们放进全局 `helper_menu`
+4. 根据命令名找到 matcher
+5. 注入一个前置 handler
+6. 前置 handler 用 `user.roles` 调用 `Helper.is_available_for(...)`
+7. 不满足就直接 `finish(...)`
 
 所以当前项目里至少有三层一致的能力边界：
 

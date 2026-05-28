@@ -1,8 +1,8 @@
 from src.shared import tip
 from nonebot import on_command
 from src.platform.config import priority, comp_config
+from src.platform.helper import Context, UserRole, HelperScope
 from src.platform.commands import CommandBinding, on_agent_command
-from src.platform.helper import Context, HelperScope, UserRole
 from nonebot_plugin_alconna import Args, Field, Alconna, CommandMeta
 
 self_info_cmd = on_agent_command(
@@ -47,11 +47,7 @@ logout_cmd = on_agent_command(
         Args[
             "role",
             str,
-            Field(
-                completion=tip(
-                    "可以选择注销**用户**，**教师**或**学生**，一旦注销将无法恢复，相关数据也会被删除，请慎重！"
-                )
-            ),
+            Field(completion=tip("可以选择注销**用户**，**教师**或**学生**，一旦注销将无法恢复，相关数据也会被删除，请慎重！")),
         ],
         meta=CommandMeta(description="注销当前用户，删除相关数据"),
     ),
@@ -73,10 +69,3 @@ logout_cmd = on_agent_command(
 
 
 token_cmd = on_command("token", priority=priority, block=True)
-
-
-__helpers__ = [
-    self_info_cmd.__helper__,
-    bind_user_cmd.__helper__,
-    logout_cmd.__helper__,
-]

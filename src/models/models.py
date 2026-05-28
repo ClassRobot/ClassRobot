@@ -1,14 +1,16 @@
 from hashlib import md5
 from pathlib import Path
 from datetime import datetime
-from typing import Any, Callable, List, Literal, Optional
+from typing import Any, List, Literal, Callable, Optional
 
 from nonebot import logger
+from sqlalchemy import select, update
+from sqlalchemy import delete as sql_delete
 from src.shared.tools import get_file_suffix
+from nonebot_plugin_orm import Model, get_session
 from src.platform.config import data_dir, task_dir
 from src.core.storage.files import StorageManager, storage_manager
-from nonebot_plugin_orm import Model, get_session
-from sqlalchemy.orm import Mapped, relationship, mapped_column, selectinload
+from sqlalchemy.orm import Mapped, relationship, selectinload, mapped_column
 from sqlalchemy import (
     JSON,
     Text,
@@ -20,9 +22,6 @@ from sqlalchemy import (
     CheckConstraint,
     UniqueConstraint,
     and_,
-    delete as sql_delete,
-    select,
-    update,
 )
 from src.core.auth import (
     UserRole,
@@ -401,6 +400,71 @@ class UserBind(FilterModel, Model):
         if orphan_user_id is not None and (orphan_user := await User.get_user(orphan_user_id)) is not None:
             await orphan_user.delete_account()
         return bind
+
+
+class PlatformBotAccount(FilterModel, Model):
+    """用户扫码接入的第三方机器人账号。
+
+    这个模型保存的是“机器人实例”的凭证，例如用户通过 wxclaw 扫码接入
+    的微信机器人。它与 `UserBind` 不同：`UserBind` 表示平台用户账号与
+    系统用户的绑定，不能用来保存机器人 token。
+    """
+
+    __table_args__ = (UniqueConstraint("platform", "account_id", name="uq_bot_platform_bot_account_platform_account"),)
+
+    owner_user_id: Mapped[int] = mapped_column(Integer, ForeignKey(User.id, ondelete="CASCADE"), nullable=False)
+    """接入该机器人实例的系统用户 ID。"""
+    platform: Mapped[str] = mapped_column(String(32), index=True, nullable=False)
+    """平台标识，例如 wxclaw。"""
+    account_id: Mapped[str] = mapped_column(String(128), index=True, nullable=False)
+    """第三方机器人实例 ID。"""
+    encrypted_token: Mapped[str] = mapped_column(Text, nullable=False)
+    """加密后的第三方平台 token。"""
+    base_url: Mapped[str] = mapped_column(String(255), nullable=False, server_default="")
+    """第三方平台 API 基础地址。"""
+    wx_user_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    """扫码用户在 wxclaw 返回中的微信用户 ID。"""
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="1")
+    """是否在系统启动时自动恢复连接。"""
+    status: Mapped[str] = mapped_column(String(32), nullable=False, server_default="created")
+    """运行状态，例如 created、connected、failed、disabled。"""
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    """最近一次连接失败原因。"""
+    last_connected_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    """最近一次成功连接时间。"""
+    created_at: Mapped[CreateAt]
+    updated_at: Mapped[UpdateAt]
+
+    owner: Mapped[User] = relationship(lazy=False)
+    """机器人实例的所有者。"""
+
+    @classmethod
+    async def get_account(cls, platform: str, account_id: str) -> Optional["PlatformBotAccount"]:
+        """根据平台与机器人实例 ID 获取账号。
+
+        Args:
+            platform: 平台标识。
+            account_id: 机器人实例 ID。
+
+        Returns:
+            PlatformBotAccount | None: 已保存的机器人账号。
+        """
+
+        return await cls.filter(platform=platform, account_id=account_id).first()
+
+    async def mark_connected(self) -> "PlatformBotAccount | None":
+        """标记账号已经成功连接。"""
+
+        return await self.update(status="connected", last_error=None, last_connected_at=datetime.now())
+
+    async def mark_failed(self, reason: str) -> "PlatformBotAccount | None":
+        """标记账号连接失败。
+
+        Args:
+            reason: 失败原因。
+        """
+
+        return await self.update(status="failed", last_error=reason)
 
 
 class AgentWorkflowCheckpoint(FilterModel, Model):

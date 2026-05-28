@@ -2,9 +2,9 @@ from typing import Optional
 
 from src.shared import tip
 from src.platform.config import priority, comp_config
+from src.platform.helper import UserRole, HelperScope
 from src.platform.commands import CommandBinding, on_agent_command
-from src.platform.helper import HelperScope, UserRole
-from nonebot_plugin_alconna import Args, Field, Alconna, CommandMeta, MultiVar
+from nonebot_plugin_alconna import Args, Field, Alconna, MultiVar, CommandMeta
 
 query_teacher_cmd = on_agent_command(
     Alconna("查询教师信息", meta=CommandMeta(description="查询当前账号绑定的教师信息和所管理的班级。")),
@@ -104,9 +104,7 @@ set_teacher_cmd = on_agent_command(
             MultiVar(str, flag="+"),
             Field(completion=tip("修改方式如 姓名=张老师 学校=某大学 学院=计算机学院")),
         ],
-        meta=CommandMeta(
-            description="修改教师姓名、学校、学院；若当前账号尚未绑定教师身份，则会在校验通过后自动创建教师信息。"
-        ),
+        meta=CommandMeta(description="修改教师姓名、学校、学院；若当前账号尚未绑定教师身份，则会在校验通过后自动创建教师信息。"),
     ),
     aliases={"修改教师", "设置教师信息"},
     binding=CommandBinding(
@@ -122,13 +120,3 @@ set_teacher_cmd = on_agent_command(
     skip_for_unmatch=False,
     comp_config=comp_config,
 )
-
-
-__helpers__ = [
-    query_teacher_cmd.__helper__,
-    query_teacher_profile_cmd.__helper__,
-    add_teacher_profile_cmd.__helper__,
-    set_teacher_profile_cmd.__helper__,
-    delete_teacher_profile_cmd.__helper__,
-    set_teacher_cmd.__helper__,
-]

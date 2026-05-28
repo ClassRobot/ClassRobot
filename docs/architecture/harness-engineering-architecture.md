@@ -115,6 +115,7 @@ Harness Engineering 的思路是反过来：
 - `src/core/storage/chat_history.py`
 - `src/core/storage/local_rag.py`
 - `src/core/storage/files.py`
+- `src/plugins/application/passive/message_history_collector/__init__.py`
 - `src/plugins/library/message_history/collector.py`
 - 后续可扩展的 context-engine 抽象
 

@@ -7,6 +7,7 @@
 - `on_agent_command`、`on_alconna`、`on_command` 等命令入口。
 - 用户主动调用的班级、用户、教师、学生、文件、课表、请假等业务。
 - Agent 可以调用的 service-style 命令入口。
+- 查询消息历史、统计聊天记录等用户主动发起的历史能力。
 
 ## 不放什么
 
@@ -20,6 +21,7 @@ active/
 ├── user/
 ├── classes/
 ├── file_manager/
+├── message_history/
 ├── notice/
 └── autogpt/
 ```

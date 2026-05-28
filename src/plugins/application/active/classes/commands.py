@@ -2,10 +2,10 @@ from typing import Optional
 
 from src.shared import ValidateName, tip
 from src.platform.files import FileOrOtherFile
+from src.platform.helper import UserRole, HelperScope
 from src.platform.commands import CommandBinding, on_agent_command
-from src.platform.helper import HelperScope, UserRole
-from src.platform.config import priority, comp_config, alcoona_kwargs
 from nonebot_plugin_alconna import Args, Field, Alconna, CommandMeta
+from src.platform.config import priority, comp_config, alcoona_kwargs
 
 import_classes_cmd = on_agent_command(
     Alconna(
@@ -257,19 +257,3 @@ exit_classes_cmd = on_agent_command(
     priority=priority,
     block=True,
 )
-
-__helpers__ = [
-    import_classes_cmd.__helper__,
-    create_classes_cmd.__helper__,
-    delete_classes_cmd.__helper__,
-    query_classes_cmd.__helper__,
-    query_join_request_cmd.__helper__,
-    review_join_request_cmd.__helper__,
-    set_class_teacher_cmd.__helper__,
-    unset_class_teacher_cmd.__helper__,
-    set_student_position_cmd.__helper__,
-    unset_student_position_cmd.__helper__,
-    join_classes_cmd.__helper__,
-    set_join_classes_cmd.__helper__,
-    exit_classes_cmd.__helper__,
-]

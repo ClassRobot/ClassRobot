@@ -1,7 +1,7 @@
 from src.platform.config import priority, comp_config
+from src.platform.helper import UserRole, HelperScope
 from src.shared import ValidateName, tip, alias_product
-from src.platform.commands import CommandBinding, CommandParam, on_agent_command
-from src.platform.helper import HelperScope, UserRole
+from src.platform.commands import CommandParam, CommandBinding, on_agent_command
 from nonebot_plugin_alconna import Args, File, Field, Image, Other, Alconna, MultiVar
 
 push_task_alias = alias_product(["上传", "提交"], ["作业", "任务"])
@@ -115,15 +115,6 @@ query_task_cmd = on_agent_command(
     skip_for_unmatch=False,
     comp_config=comp_config,
 )
-
-
-__helpers__ = [
-    push_task_cmd.__helper__,
-    create_task_cmd.__helper__,
-    delete_task_cmd.__helper__,
-    export_task_cmd.__helper__,
-    query_task_cmd.__helper__,
-]
 
 __all__ = [
     "push_task_cmd",

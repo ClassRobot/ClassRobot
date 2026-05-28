@@ -6,6 +6,7 @@
 
 ```text
 platform/
+├── bots/         # 用户扫码接入的机器人账号运行时
 ├── commands/     # 命令注册、元数据、执行器、Agent 适配
 ├── files.py      # 平台文件消息下载与 Alconna 文件段转换
 ├── helper/       # 帮助目录和展示元数据
@@ -17,6 +18,7 @@ platform/
 ## 放什么
 
 - 命令协议：`CommandSpec`、`on_agent_command`、命令注册表、执行器。
+- 机器人账号协议：用户扫码接入 bot 的持久化恢复和 adapter provider。
 - 帮助协议：help 展示、命令目录、角色过滤。
 - 会话协议：平台、频道、用户、群组上下文。
 - 文件协议：平台文件消息下载、上传前落盘、消息段转换。

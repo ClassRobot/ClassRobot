@@ -1,7 +1,7 @@
 from src.shared import tip
 from src.platform.config import priority, comp_config
+from src.platform.helper import UserRole, HelperScope
 from src.platform.commands import CommandBinding, on_agent_command
-from src.platform.helper import HelperScope, UserRole
 from nonebot_plugin_alconna import Args, Text, Field, Image, Alconna, MultiVar
 
 image_generate_cmd = on_agent_command(
@@ -23,6 +23,3 @@ image_generate_cmd = on_agent_command(
     skip_for_unmatch=False,
     comp_config=comp_config,
 )
-
-
-__helpers__ = [image_generate_cmd.__helper__]

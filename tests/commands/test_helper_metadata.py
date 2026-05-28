@@ -56,25 +56,31 @@ BASIC_HELPER_MODULES = {
         "tree",
         "上传文件",
     },
-    "src.plugins.library.message_history.commands": {"检索群聊记录", "统计聊天记录"},
+    "src.plugins.application.active.message_history.commands": {"检索群聊记录", "统计聊天记录"},
     "src.plugins.application.active.helper.commands": {"help"},
     "src.plugins.application.active.autogpt.commands": {"清空聊天"},
     "src.plugins.application.active.image_generate.commands": {"图片生成"},
 }
 
 
+def collect_module_helpers(module):
+    from src.platform.helper.runtime import collect_bound_helpers
+
+    return collect_bound_helpers(module)
+
+
 def collect_helpers():
     helpers = []
     for module_name in BASIC_HELPER_MODULES:
         module = importlib.import_module(module_name)
-        helpers.extend(getattr(module, "__helpers__", []))
+        helpers.extend(collect_module_helpers(module))
     return helpers
 
 
 def test_basic_command_helpers_are_complete(loaded_plugins):
     for module_name, expected_commands in BASIC_HELPER_MODULES.items():
         module = importlib.import_module(module_name)
-        helpers = getattr(module, "__helpers__", [])
+        helpers = collect_module_helpers(module)
         commands = {helper.command for helper in helpers}
 
         assert commands == expected_commands
@@ -106,14 +112,14 @@ def test_write_command_helpers_are_marked_by_name(loaded_plugins):
 
 
 def test_helper_aliases_and_primary_names_are_invocable(loaded_plugins):
-    import importlib
     import re
+    import importlib
 
     from nonebot.internal.matcher.matcher import MatcherMeta
 
     for module_name in BASIC_HELPER_MODULES:
         module = importlib.import_module(module_name)
-        helpers = getattr(module, "__helpers__", [])
+        helpers = collect_module_helpers(module)
         matchers = []
         triggers = set()
         for value in vars(module).values():

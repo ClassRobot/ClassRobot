@@ -1,7 +1,7 @@
 from src.shared import tip
 from src.platform.config import priority, comp_config
+from src.platform.helper import UserRole, HelperScope
 from src.platform.commands import CommandBinding, on_agent_command
-from src.platform.helper import HelperScope, UserRole
 from nonebot_plugin_alconna import Args, Field, Alconna, MultiVar, CommandMeta
 
 input_help = """具体输入格式如下:
@@ -73,11 +73,7 @@ query_curricula = on_agent_command(
         "查询课表",
         Args["classes?", str | None],
         Args["day?", int, Field(default=0)],
-        meta=CommandMeta(
-            description=(
-                "查询本人或指定班级课表；可带天数，正数看未来，负数看过去。"
-            )
-        ),
+        meta=CommandMeta(description=("查询本人或指定班级课表；可带天数，正数看未来，负数看过去。")),
     ),
     aliases={"查看课表", "课表查询", "我的课表"},
     binding=CommandBinding(
@@ -106,7 +102,6 @@ share_curricula = on_agent_command(
     skip_for_unmatch=False,
     comp_config=comp_config,
 )
-
 set_week_cmd = on_agent_command(
     Alconna(
         "设置当前周",
@@ -125,11 +120,3 @@ set_week_cmd = on_agent_command(
     skip_for_unmatch=False,
     comp_config=comp_config,
 )
-
-__helpers__ = [
-    add_curricula.__helper__,
-    del_curricula.__helper__,
-    query_curricula.__helper__,
-    share_curricula.__helper__,
-    set_week_cmd.__helper__,
-]

@@ -1,9 +1,10 @@
 from nonebot.typing import T_State
 from nonebot.adapters import Bot, Event
 from nonebot_plugin_alconna import Alconna
+from nonebot_plugin_alconna import UniMessage
 from src.platform.session import session as get_session
 from src.platform.session.depends import get_user_depends
-from nonebot_plugin_alconna import UniMessage, get_target, Extension as BaseExtension
+from nonebot_plugin_alconna import Extension as BaseExtension
 
 
 class AdminExtension(BaseExtension):
@@ -34,8 +35,7 @@ class AdminExtension(BaseExtension):
             bool: 表示是否成功。
         """
         assert self.state
-        target = get_target(event, bot)
-        assert (session := await get_session(target, event))
+        assert (session := await get_session(bot, event))
         user = await get_user_depends(session, self.state)
         return bool(user and user.is_admin)
 
