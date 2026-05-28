@@ -26,6 +26,13 @@ repos:
 
   - repo: local
     hooks:
+      - id: poetry-lock
+        name: poetry lock
+        entry: python scripts/sync_poetry_lock.py
+        language: system
+        files: ^pyproject\.toml$
+        stages: [pre-commit]
+
       - id: mypy-agents
         name: mypy agents
         entry: mypy --follow-imports=skip --ignore-missing-imports core/llm/__init__.py core/llm/config.py core/llm/gateway.py core/llm/message.py core/llm/typings.py core/llm/util.py core/llm/session.py core/llm/functools.py core/llm/exceptions.py core/agent/base.py core/agent/agent.py core/agent/schema.py core/agent/tool.py core/agent/profiles.py core/agent/domestic.py core/agent/builtin/conversation.py core/agent/builtin/multimodal.py core/agent/builtin/planning.py core/agent/builtin/retrieval.py core/agent/ragflow/client.py core/agent/runtime/__init__.py core/agent/runtime/command_tools.py core/agent/runtime/knowledge.py core/agent/runtime/node_registry.py core/agent/runtime/orchestration_config.py core/agent/runtime/pipeline.py core/agent/runtime/playbooks.py core/agent/runtime/schema.py core/agent/runtime/util.py core/agent/runtime/workflow.py core/agent/runtime/coordination/state.py core/agent/runtime/coordination/nodes.py core/agent/runtime/persistence/checkpoints.py core/agent/runtime/persistence/runs.py core/storage/local_rag.py src/features/autogpt/__init__.py
