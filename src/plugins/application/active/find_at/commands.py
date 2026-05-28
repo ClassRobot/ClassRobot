@@ -9,7 +9,10 @@ find_student_cmd = on_agent_command(
     Alconna("查找学生", Args["items", MultiVar(str, "+")]),
     aliases={"查询学生", "搜索学生"},
     binding=CommandBinding(
-        description=("查找自己班级的学生或同学，可以通过多个关键信息进行搜索。" "支持姓名、班级、宿舍等组合条件：" + "\\".join(columns_chinese)),
+        description=(
+            "查找自己班级的学生或同学，可以通过多个关键信息进行搜索。"
+            "支持姓名、班级、宿舍等组合条件：" + "\\".join(columns_chinese)
+        ),
         roles={UserRole.teacher, UserRole.student},
         scopes={HelperScope.student, HelperScope.teacher},
         param_labels={"items": "搜索条件"},

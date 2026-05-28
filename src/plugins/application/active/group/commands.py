@@ -27,7 +27,9 @@ set_school = on_agent_command(
     Alconna(
         "修改学校",
         Args["school_name", str, Field(completion=tip("请输入学校名称"))],
-        Args["values", MultiVar(str, flag="+"), Field(completion=tip("修改方式如 名称=新校名 地址=新地址 描述=学校说明"))],
+        Args[
+            "values", MultiVar(str, flag="+"), Field(completion=tip("修改方式如 名称=新校名 地址=新地址 描述=学校说明"))
+        ],
     ),
     binding=CommandBinding(
         description="修改学校名称、地址、描述，采用 key=value 形式传参。",

@@ -104,7 +104,9 @@ set_cmd = on_agent_command(
             "values",
             MultiVar(str, flag="+"),
             Field(
-                completion=tip(f"修改方式如名字=张三 性别=男\n可以修改的内容:\n {', '.join(get_columns_chinese(['user_id']).values())}")
+                completion=tip(
+                    f"修改方式如名字=张三 性别=男\n可以修改的内容:\n {', '.join(get_columns_chinese(['user_id']).values())}"
+                )
             ),
         ],
         meta=CommandMeta(description="按 键=值 的形式修改当前账号绑定的学生资料，例如姓名、学号、宿舍等。"),

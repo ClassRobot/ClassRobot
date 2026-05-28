@@ -47,7 +47,11 @@ logout_cmd = on_agent_command(
         Args[
             "role",
             str,
-            Field(completion=tip("可以选择注销**用户**，**教师**或**学生**，一旦注销将无法恢复，相关数据也会被删除，请慎重！")),
+            Field(
+                completion=tip(
+                    "可以选择注销**用户**，**教师**或**学生**，一旦注销将无法恢复，相关数据也会被删除，请慎重！"
+                )
+            ),
         ],
         meta=CommandMeta(description="注销当前用户，删除相关数据"),
     ),

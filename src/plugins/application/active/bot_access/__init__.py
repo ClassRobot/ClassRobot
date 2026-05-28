@@ -56,7 +56,11 @@ async def access_wxclaw_bot(matcher: AlconnaMatcher, user: User) -> None:
         await matcher.finish(Emoji.error + f"微信机器人接入失败：{result.message or '扫码超时或未确认'}")
 
     account = await bot_account_service.save_wxclaw_login_result(user, result)
-    await matcher.finish(Emoji.success + f"微信机器人接入成功，账号实例：{account.account_id}\n" + "后续系统启动时会自动恢复该机器人连接。")
+    await matcher.finish(
+        Emoji.success
+        + f"微信机器人接入成功，账号实例：{account.account_id}\n"
+        + "后续系统启动时会自动恢复该机器人连接。"
+    )
 
 
 driver = get_driver()

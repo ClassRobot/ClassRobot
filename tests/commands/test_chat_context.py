@@ -103,7 +103,9 @@ async def test_group_messages_can_be_collected_and_queried(
         event = onebot.group_event("我不同意临时调课", user_id=13002, group_id=23001, nickname="李四", message_id=2)
         ctx.receive_event(bot, event)
 
-    command_event = onebot.group_event("检索群聊记录 调课", user_id=13003, group_id=23001, nickname="王五", message_id=3)
+    command_event = onebot.group_event(
+        "检索群聊记录 调课", user_id=13003, group_id=23001, nickname="王五", message_id=3
+    )
 
     async with app.test_matcher([chat_context_module.message_history_collector, query_group_history_cmd]) as ctx:
         recorder = send_recorder(ctx)
@@ -307,7 +309,9 @@ async def test_chat_statistics_service_counts_bound_system_group_only(monkeypatc
 
     now = datetime.now().replace(microsecond=0)
     store._record_group_message_sync(classes.group_id, "u1", "张三", "第一条", "第一条", "g1", now)
-    store._record_group_message_sync(classes.group_id, "u2", "李四", "第二条", "第二条", "g2", now + timedelta(seconds=1))
+    store._record_group_message_sync(
+        classes.group_id, "u2", "李四", "第二条", "第二条", "g2", now + timedelta(seconds=1)
+    )
     store._record_group_message_sync("other-group", "u9", "隔壁", "不该统计", "不该统计", "other", now)
 
     result = await command_executor.execute(
@@ -545,7 +549,9 @@ async def test_unbound_platform_group_message_creates_system_group_and_is_persis
 
     async with app.test_matcher(chat_context_module.message_history_collector) as ctx:
         bot = onebot.create_bot(ctx)
-        event = onebot.group_event("这是一个未绑定群的消息", user_id=15001, group_id=99999, nickname="路人甲", message_id=7)
+        event = onebot.group_event(
+            "这是一个未绑定群的消息", user_id=15001, group_id=99999, nickname="路人甲", message_id=7
+        )
         ctx.receive_event(bot, event)
 
     group_bind = await GroupBind.get_bind("onebot11.qq_client", "99999", None)

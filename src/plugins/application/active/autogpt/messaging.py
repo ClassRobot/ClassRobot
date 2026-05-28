@@ -32,7 +32,9 @@ async def send_long_markdown_reply(matcher: Matcher, bot: Bot, text: str) -> Non
     """发送较长 Markdown 回复，wxclaw 不支持时降级为纯文本。"""
 
     try:
-        pic = UniMessage.image(raw=await markdown_to_image_skill.to_image(text)) + UniMessage.text("文字太长已转为图片发送")
+        pic = UniMessage.image(raw=await markdown_to_image_skill.to_image(text)) + UniMessage.text(
+            "文字太长已转为图片发送"
+        )
         await matcher.send(await pic.export(bot=bot))
     except Exception:
         if not is_wxclaw_bot(bot):

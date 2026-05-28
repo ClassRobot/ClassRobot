@@ -104,7 +104,9 @@ set_teacher_cmd = on_agent_command(
             MultiVar(str, flag="+"),
             Field(completion=tip("修改方式如 姓名=张老师 学校=某大学 学院=计算机学院")),
         ],
-        meta=CommandMeta(description="修改教师姓名、学校、学院；若当前账号尚未绑定教师身份，则会在校验通过后自动创建教师信息。"),
+        meta=CommandMeta(
+            description="修改教师姓名、学校、学院；若当前账号尚未绑定教师身份，则会在校验通过后自动创建教师信息。"
+        ),
     ),
     aliases={"修改教师", "设置教师信息"},
     binding=CommandBinding(
