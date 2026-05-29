@@ -2890,19 +2890,19 @@ reference = "tencent"
 
 [[package]]
 name = "nonebot-adapter-qq"
-version = "1.6.7"
+version = "1.7.1"
 description = "QQ adapter for nonebot2"
 optional = false
-python-versions = ">=3.9, <4"
+python-versions = ">=3.10, <4"
 groups = ["main"]
 files = [
-    {file = "nonebot_adapter_qq-1.6.7-py3-none-any.whl", hash = "sha256:40f9c847cbc1490ccb4f0db7dbad94f3f5841cb79db71d9a8f1ed5598349cf1a"},
-    {file = "nonebot_adapter_qq-1.6.7.tar.gz", hash = "sha256:1631a051ceda0a2b98567c2860819a6fcd0a56c6a36c50653a8014a8ccfc58f9"},
+    {file = "nonebot_adapter_qq-1.7.1-py3-none-any.whl", hash = "sha256:9cd41d4ae56bc31b15681e3fdb63c599770dddf35fce381c232b9ec1b68f53f8"},
+    {file = "nonebot_adapter_qq-1.7.1.tar.gz", hash = "sha256:cc7891fda36155ea9c7524273bbe8b4f6a4637340668c04503aad80f451ca9c5"},
 ]
 
 [package.dependencies]
-cryptography = ">=43.0.3,<47.0.0"
-nonebot2 = ">=2.2.1,<3"
+cryptography = ">=43.0.3,<49.0.0"
+nonebot2 = ">=2.5.0,<3"
 pydantic = ">=1.10.0,<2.5.0 || >2.5.0,<2.5.1 || >2.5.1,<3.0.0"
 typing-extensions = ">=4.4.0,<5.0.0"
 yarl = ">=1.9.0,<2"
@@ -5774,4 +5774,4 @@ reference = "tencent"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<3.13"
-content-hash = "41183698c3041bfd06de125f03d396bd6608792d790e5e11ab79a8030856b318"
+content-hash = "7cca54f85d9116c8e36dfb14aadd714d06e9057d11f752c614e582213565b39a"

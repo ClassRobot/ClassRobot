@@ -26,11 +26,13 @@ repos:
 
   - repo: local
     hooks:
-      - id: poetry-lock
-        name: poetry lock
+      - id: poetry-sync
+        name: poetry sync
         entry: python scripts/sync_poetry_lock.py
-        language: system
-        files: ^pyproject\.toml$
+        language: python
+        language_version: python3.12
+        additional_dependencies: ["poetry==2.3.4", "poetry-plugin-export>=1.8,<2.0"]
+        files: ^(pyproject\.toml|poetry\.lock)$
         stages: [pre-commit]
 
       - id: mypy-agents
@@ -49,15 +51,6 @@ repos:
         language: system
         pass_filenames: false
         files: ^(core/llm/.*|core/agent/.*|core/storage/local_rag\.py|src/features/autogpt/__init__\.py|src/interfaces/http/managers/(agent/.*|api/agents\.py|router\.py))$
-        stages: [pre-commit]
-
-  - repo: https://github.com/python-poetry/poetry
-    rev: 1.6.0
-    hooks:
-      - id: poetry-export
-        name: poetry export
-        entry: poetry
-        args: ["export", "-f", "requirements.txt", "--output", "requirements.txt"]
         stages: [pre-commit]
 
 exclude: ^(migrations|include)/

@@ -38,6 +38,12 @@ ClassRobot 是一个面向校园、班级与组织管理场景的智能机器人
 - Agent 与工作流开发：看 [AI 架构专题](./docs/architecture/README.md)
 - 管理后台开发：看 [本地管理后台文档](./docs/managers/README.md)
 
+## 依赖同步
+
+- 提交中只要包含 `pyproject.toml` 或 `poetry.lock`，pre-commit 会自动同步 `poetry.lock` 与 `requirements.txt`。
+- 正常开发不需要手动执行 `poetry lock` 或 `poetry export`。
+- 如果你跳过了 hook，例如使用 `--no-verify`，需要在提交前手动补跑这两条命令。
+
 ## 文档入口
 
 - [文档中心](./docs/README.md)
