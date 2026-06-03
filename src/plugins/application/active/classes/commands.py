@@ -90,6 +90,7 @@ query_classes_cmd = on_agent_command(
         execution_mode="service",
         param_labels={"classes_id": "班级ID"},
     ),
+    auto_user_handler=True,
     priority=priority,
     block=True,
 )

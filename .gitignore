@@ -37,6 +37,7 @@ MANIFEST
 dump.rdb
 node_modules/
 .codex/
+.agents/
 
 # PyInstaller
 #  Usually these files are written by a python script from a template

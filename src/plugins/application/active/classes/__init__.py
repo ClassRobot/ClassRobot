@@ -3,43 +3,43 @@ from datetime import datetime
 
 from src.shared import Emoji
 from nonebot.adapters import Event
-from src.platform.config import global_config
-from src.platform.session import EventSession
 from nonebot.params import ArgPlainText
 from nonebot_plugin_waiter import waiter
+from src.platform.config import global_config
+from src.platform.session import EventSession
 from nonebot_plugin_alconna import AlconnaMatcher
 from src.core.auth import JoinMethod, StudentRole, TeacherClassesRole
+from src.platform.session.depends import StudentDepends, TeacherDepends, UserOrCreatedDepends
 from src.models import (
-    Group,
     User,
+    Group,
+    Major,
     School,
-    Student,
     Classes,
     College,
-    Major,
+    Student,
     Teacher,
     GroupBind,
     StudentExtra,
     TeacherClasses,
     ClassesJoinRequest,
 )
-from src.platform.session.depends import StudentDepends, TeacherDepends, UserOrCreatedDepends
 
 from .depends import ImportDataFrame
 from .util import student_column_renames, student_column_required
 from .constants import JOIN_METHOD_MAPPING, JOIN_REQUEST_ACTION_MAPPING
-from .importing import normalize_cell, normalize_datetime, get_student_by_student_code, build_user_update_payload
-from .presenters import get_join_method_label, render_classes_card, render_join_request_card
+from .presenters import render_classes_card, get_join_method_label, render_join_request_card
+from .importing import normalize_cell, normalize_datetime, build_user_update_payload, get_student_by_student_code
 from .services import (
+    can_manage_class,
+    parse_student_role,
+    resolve_class_scope,
     ensure_teacher_scope,
     manager_teacher_count,
-    parse_student_role,
-    can_manage_class,
-    ensure_can_manage_class,
-    ensure_can_manage_student,
     get_student_role_label,
-    resolve_class_scope,
+    ensure_can_manage_class,
     parse_teacher_class_role,
+    ensure_can_manage_student,
     get_teacher_class_role_label,
     resolve_teacher_request_scope,
 )
@@ -50,13 +50,13 @@ from .commands import (
     create_classes_cmd,
     delete_classes_cmd,
     import_classes_cmd,
-    set_class_teacher_cmd,
     set_join_classes_cmd,
-    set_student_position_cmd,
+    set_class_teacher_cmd,
     query_join_request_cmd,
-    unset_class_teacher_cmd,
-    unset_student_position_cmd,
     review_join_request_cmd,
+    unset_class_teacher_cmd,
+    set_student_position_cmd,
+    unset_student_position_cmd,
 )
 
 
@@ -372,23 +372,6 @@ async def _(
 
     await classes.delete_related_group()
     await matcher.finish("✅️删除班级成功！！")
-
-
-@query_classes_cmd.handle()
-async def _(
-    classes_id: int | None,
-    teacher: TeacherDepends,
-    matcher: AlconnaMatcher,
-):
-    """处理当前命令或事件逻辑。"""
-    if teacher is None or not teacher.classes:
-        await matcher.finish(Emoji.warning + "您还未创建班级！！")
-    if classes_id is not None:
-        classes = await teacher.get_classes(classes_id)
-        if classes is None:
-            await matcher.finish(Emoji.error + f"班级[{classes_id}]不存在，或不属于您管理。")
-        await matcher.finish(await render_classes_card("班级详情", [classes]))
-    await matcher.finish(await render_classes_card("您所管理的班级如下", list(teacher.classes)))
 
 
 @query_join_request_cmd.handle()

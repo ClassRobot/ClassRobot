@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Any, List, Literal, Callable, Optional
 
 from nonebot import logger
+from strenum import StrEnum
 from sqlalchemy import select, update
 from sqlalchemy import delete as sql_delete
 from src.shared.tools import get_file_suffix
@@ -1848,6 +1849,128 @@ class ScheduledNotice(FilterModel, Model):
     """通知内容"""
     creator: Mapped[User] = relationship(lazy=False)
     """创建者信息"""
+
+
+class TodoStatus(StrEnum):
+    """待办状态枚举。
+
+    待办在生命周期内只有三种稳定状态，状态流转由业务 service 控制：
+    ``pending`` 表示待处理，``done`` 表示已完成，``cancelled`` 表示已取消。
+    """
+
+    pending = "pending"
+    """待处理"""
+    done = "done"
+    """已完成"""
+    cancelled = "cancelled"
+    """已取消"""
+
+
+class Todo(FilterModel, Model):
+    """个人待办表。
+
+    待办是用户私有的行动清单条目，统一归属系统 ``User.id``。
+    带 ``due_at`` 的待办相当于“日程”，不带 ``due_at`` 的待办相当于“便签”，
+    ``remind_at`` 字段为后续定时提醒投递能力预留，当前不参与自动发送。
+    """
+
+    owner_user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey(User.id, ondelete="CASCADE"), nullable=False, index=True
+    )
+    """待办归属用户 ID，使用系统 ``User.id`` 而非平台 ID 或绑定 ID。"""
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    """待办标题"""
+    content: Mapped[str | None] = mapped_column(Text, nullable=True)
+    """待办备注详情，可空。"""
+    status: Mapped[TodoStatus] = mapped_column(
+        String(16), nullable=False, server_default=TodoStatus.pending, index=True
+    )
+    """待办状态，取值见 :class:`TodoStatus`。"""
+    priority: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    """优先级，数值越大越靠前，默认 0。"""
+    due_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    """截止或发生时间，可空表示无固定时间的便签型待办。"""
+    remind_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    """提醒时间，预留给后续定时提醒投递，当前仅存储不触发。"""
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    """完成时间，状态变为 ``done`` 时写入。"""
+    created_at: Mapped[CreateAt]
+    updated_at: Mapped[UpdateAt]
+
+    owner: Mapped[User] = relationship(lazy=False)
+    """待办归属用户。"""
+
+    @classmethod
+    async def create_todo(
+        cls,
+        owner_user_id: int,
+        title: str,
+        *,
+        content: str | None = None,
+        due_at: datetime | None = None,
+        remind_at: datetime | None = None,
+        priority: int = 0,
+    ) -> "Todo":
+        """创建一条个人待办。
+
+        参数:
+            owner_user_id (int): 待办归属的系统用户 ID。
+            title (str): 待办标题。
+            content (str | None): 待办备注，可空。
+            due_at (datetime | None): 截止或发生时间，可空。
+            remind_at (datetime | None): 提醒时间，可空，仅存储。
+            priority (int): 优先级，默认 0。
+
+        返回:
+            Todo: 创建后的待办对象。
+        """
+
+        return await cls(
+            owner_user_id=owner_user_id,
+            title=title,
+            content=content,
+            due_at=due_at,
+            remind_at=remind_at,
+            priority=priority,
+            status=TodoStatus.pending,
+        ).create()
+
+    @classmethod
+    async def get_owned(cls, owner_user_id: int, todo_id: int) -> Optional["Todo"]:
+        """按归属用户安全获取单条待办。
+
+        仅返回属于该用户的待办，避免跨用户访问他人数据。
+
+        参数:
+            owner_user_id (int): 待办归属的系统用户 ID。
+            todo_id (int): 待办 ID。
+
+        返回:
+            Optional[Todo]: 命中的待办；不存在或不归属当前用户时为 ``None``。
+        """
+
+        return await cls.filter(id=todo_id, owner_user_id=owner_user_id).first()
+
+    @classmethod
+    async def list_for_owner(
+        cls,
+        owner_user_id: int,
+        *,
+        status: TodoStatus | None = None,
+    ) -> List["Todo"]:
+        """查询用户的待办列表。
+
+        参数:
+            owner_user_id (int): 待办归属的系统用户 ID。
+            status (TodoStatus | None): 可选状态过滤；为空时返回全部状态。
+
+        返回:
+            List[Todo]: 满足条件的待办列表。
+        """
+
+        if status is None:
+            return await Todo.filter(owner_user_id=owner_user_id).all()
+        return await Todo.filter(owner_user_id=owner_user_id, status=status).all()
 
 
 class CurriculaTimetable(FilterModel, Model):

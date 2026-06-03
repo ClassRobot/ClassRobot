@@ -21,6 +21,7 @@
 - `src.platform.helper.depends.HelpersDepends` 已接入软关闭过滤，`help` 与 AutoGPT 会共享同一份可见命令集。
 - `src.core.agent.runtime.command_tools.CommandToolCatalog` 会优先从 `CommandSpec` 生成 Agent 工具。
 - `src.core.agent.runtime.dispatch_auto_task()` 只通过 `AgentCommandAdapter -> CommandExecutor` 调用 service 命令，没有 service handler 的命令不会暴露给 Agent。
+- `on_agent_command(..., auto_user_handler=True)` 和 `@cmd.unified_handler` 已支持“业务函数写一次，用户命令和 Agent 调用共用同一执行链”。
 - `src.interfaces.http.managers.runtime.nonebot` 已合并 `CommandRegistry` 元数据，管理端命令清单可以看到风险等级、执行模式、Agent 可见性和软关闭状态。
 - `src.plugins.application.active.user.commands`、`src.plugins.application.active.curriculum.commands` 与 `src.plugins.application.active.classes.commands` 中的高频“查询班级”已作为样例迁移到 `command_alconna()`。
 - 命令输入记录通过 `history.py` 的注册式钩子派发，具体聊天记录 hook 由 `src.plugins.application.passive.message_history_collector` 注册，避免命令封装层反向依赖业务插件。
@@ -32,9 +33,13 @@
 - `spec.py`
   `CommandSpec`，一条命令的单一事实来源
 - `context.py`
-  `CommandExecutionContext`，描述用户直发、Agent 工作流或系统任务的一次调用上下文
+  `CommandExecutionContext`、`CommandParams`，描述一次调用上下文和 label/source 双入口参数读取
+- `depends.py`
+  `CommandUserContextDepends`，只供用户 matcher 自动入口使用，负责通过 NoneBot DI 创建用户、解析平台会话并构造 `CommandExecutionContext`
 - `result.py`
   `CommandResult`，统一承载用户输出、上下文输出和结构化数据
+- `delivery.py`
+  `send_command_result()`，统一把 service 命令结果发送给用户
 - `binding.py`
   `on_agent_command()`、`command_alconna()` / `command_command()` 包装器，并保留真实业务模块归属
 - `registry.py`
@@ -97,13 +102,21 @@ flowchart TD
 - 尚未完成、但需要先保留 matcher 或注册表接线的命令
 - 像旧通知命令这类暂时不应暴露给普通用户的入口
 
-## 统一命令推荐写法
+## 单函数双入口推荐写法
+
+简单命令优先用 `@cmd.unified_handler`：一个 service 函数同时注册为 Agent handler，并自动接入用户 matcher。用户显式命令不会进入 AI 规划，但会和 Agent 调用一样经过 `CommandExecutor -> CommandPolicy -> CommandResult`。
 
 ```python
-from arclet.alconna import Alconna, Args, CommandMeta
-from src.platform.commands import CommandBinding, CommandExecutionContext, CommandResult, on_agent_command
-from src.platform.helper import HelperScope
 from src.core.auth import UserRole
+from src.platform.helper import HelperScope
+from arclet.alconna import Args, Alconna, CommandMeta
+from src.platform.commands import (
+    CommandParams,
+    CommandResult,
+    CommandBinding,
+    CommandExecutionContext,
+    on_agent_command,
+)
 
 query_score_cmd = on_agent_command(
     Alconna(
@@ -124,23 +137,23 @@ query_score_cmd = on_agent_command(
 )
 
 
-@query_score_cmd.agent_handler
-async def query_score_service(params: dict, context: CommandExecutionContext) -> CommandResult:
-    semester = params.get("学期")
+@query_score_cmd.unified_handler
+async def query_score_service(params: CommandParams, context: CommandExecutionContext) -> CommandResult:
+    semester = params.get_value("学期", "semester")
     return CommandResult.ok(f"已查询 {semester or '当前学期'} 成绩。")
 ```
 
 这样写以后：
 
-- 用户直接发送 `查询成绩` 时仍然走 NoneBot matcher。
+- 用户直接发送 `查询成绩` 时由自动 matcher handler 调用同一个 service。
 - `help` 和管理端命令清单会读取同一个 `CommandSpec`。
 - AutoGPT 工具目录会从同一个 `CommandSpec` 生成工具说明。
-- Agent 调用时会优先通过 `CommandExecutor` 执行 `agent_handler` 注册的 service 函数。
+- Agent 调用时通过 `CommandExecutor` 执行同一个 service 函数。
 
 如果 service 函数已经存在，也可以直接传入 `service_handler`：
 
 ```python
-from src.platform.commands import CommandBinding, CommandExecutionContext, CommandResult, on_agent_command
+from src.platform.commands import CommandResult, CommandBinding, CommandExecutionContext, on_agent_command
 
 
 async def query_score_service(params: dict, context: CommandExecutionContext) -> CommandResult:
@@ -151,12 +164,15 @@ query_score_cmd = on_agent_command(
     Alconna("查询成绩", Args["semester?", str]),
     binding=CommandBinding(...),
     service_handler=query_score_service,
+    auto_user_handler=True,
     priority=1,
     block=True,
 )
 ```
 
-传入 `service_handler` 时，如果没有显式声明其他执行模式，系统会自动把命令标记为 `execution_mode="service"`。
+传入 `service_handler` 时，如果没有显式声明其他执行模式，系统会自动把命令标记为 `execution_mode="service"`。开启 `auto_user_handler=True` 后，用户 matcher 也会调用同一个 service。
+
+复杂交互命令仍可保留窄 matcher 适配器，例如 `got()`、文件上传、确认、token、注销、批量导入，或需要特殊 Alconna 参数补全的命令。适配器只负责把平台解析结果转换为 `CommandParams`，业务仍应进入 `CommandExecutor`。
 
 ## 迁移注意事项
 

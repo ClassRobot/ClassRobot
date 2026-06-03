@@ -1,21 +1,13 @@
 import json
 
 from nonebot import logger
-
+from pydantic import Field
 from src.core.llm.util import json_loads
 from src.core.agent.prompts import Prompt
 from src.core.llm import LLMTaskType, client_create
 from src.core.llm.message import Context, LLMRole, Messages
 
-from pydantic import Field
-
 from ..base import BaseAgent, BaseAgentConfig
-
-
-class LLMAgentConfig(BaseAgentConfig):
-    """基础对话 Agent 的运行配置。"""
-
-    llm_name: str | None = None
 
 
 class SummaryAgentConfig(BaseAgentConfig):
@@ -36,39 +28,6 @@ class ExecutionReplyAgentConfig(BaseAgentConfig):
 
     llm_name: str | None = None
     max_raw_output_chars: int = 1200
-
-
-class LLMAgent(BaseAgent):
-    """负责协调大模型对话与工具调用流程的智能体。"""
-
-    agent_name = "llm_agent"
-    display_name = "基础对话智能体"
-    capabilities = ("chat", "tool_handoff")
-    config: LLMAgentConfig = Field(default_factory=LLMAgentConfig)
-
-    async def execute(self, messages: Messages) -> Messages:
-        """执行当前逻辑。
-
-        Args:
-            messages: 消息列表。
-
-        Returns:
-            Messages: 返回处理结果。
-        """
-        if messages[-1].role == LLMRole.assistant:
-            return messages
-        response = await client_create(
-            messages,
-            self.functions(),
-            multi_modal=False,
-            task_type=LLMTaskType.tool,
-            llm_name=self.config.llm_name,
-        )
-        if response.choices[0].message.tool_calls:
-            messages.add_tool(response.choices[0].message)
-        else:
-            messages.assistant_message(response.choices[0].message.content or "")
-        return messages
 
 
 class SummaryAgent(BaseAgent):

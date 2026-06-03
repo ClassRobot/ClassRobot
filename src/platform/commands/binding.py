@@ -1,21 +1,26 @@
 from __future__ import annotations
 
-from inspect import _empty, stack
 from typing import Any
+from inspect import stack, _empty
 
-from nonebot.adapters import Bot, Event
 from arclet.alconna import Alconna
-from arclet.alconna.typing import MultiVar
-from pydantic import BaseModel, Field
 from src.core.auth import UserRole
+from nonebot.matcher import Matcher
+from pydantic import Field, BaseModel
+from nonebot.adapters import Bot, Event
+from arclet.alconna.typing import MultiVar
+from nonebot_plugin_alconna import AlcMatches, AlconnaMatcher
 from src.platform.helper import Context, ParamMode, HelperScope
 
-from .schema import CommandExecutionMode, CommandParam, CommandRiskLevel
 from .spec import CommandSpec
+from .context import CommandParams
 from .registry import command_registry
-from .executor import CommandHandler, command_executor
-from .history import dispatch_command_input_recorders
+from .delivery import send_command_result
+from .depends import CommandUserContextDepends
 from .renderers.helper import command_spec_to_helper
+from .history import dispatch_command_input_recorders
+from .executor import CommandHandler, command_executor
+from .schema import CommandParam, CommandRiskLevel, CommandExecutionMode
 
 
 class CommandBinding(BaseModel):
@@ -54,6 +59,7 @@ def command_alconna(alconna: Alconna, *, binding: CommandBinding | None = None, 
 
     caller_module = _caller_module_name()
     matcher = on_alconna(alconna, aliases=aliases, **kwargs)
+    matcher.__command_alconna__ = alconna
     _apply_matcher_module(matcher, caller_module)
     spec = spec_from_alconna(
         alconna,
@@ -101,6 +107,7 @@ def on_agent_command(
     binding: CommandBinding | None = None,
     aliases=None,
     service_handler: CommandHandler | None = None,
+    auto_user_handler: bool = False,
     **kwargs,
 ):
     """创建同时服务用户命令、帮助菜单和 Agent 工具目录的统一命令。
@@ -116,6 +123,7 @@ def on_agent_command(
         binding: 项目级命令元数据。
         aliases: 命令别名。
         service_handler: 可选的 service-style 执行函数。
+        auto_user_handler: 是否自动把用户 matcher 入口接入同一 service handler。
         **kwargs: 继续透传给底层 matcher 创建函数。
 
     Returns:
@@ -123,14 +131,20 @@ def on_agent_command(
     """
 
     binding = _binding_for_agent_command(binding, service_handler)
-    if isinstance(command, Alconna):
+    is_alconna = isinstance(command, Alconna)
+    if is_alconna:
         matcher = command_alconna(command, binding=binding, aliases=aliases, **kwargs)
+        matcher.__command_source__ = "alconna"
     else:
         matcher = command_command(str(command), binding=binding, aliases=aliases, **kwargs)
+        matcher.__command_source__ = "command"
 
     if service_handler is not None:
         _register_agent_handler(matcher, service_handler)
+    if auto_user_handler:
+        _attach_auto_user_handler(matcher)
     _attach_agent_handler_decorator(matcher)
+    _attach_unified_handler_decorator(matcher)
     return matcher
 
 
@@ -289,6 +303,179 @@ def _attach_agent_handler_decorator(matcher) -> None:
     matcher.agent_handler = agent_handler
 
 
+def _attach_unified_handler_decorator(matcher) -> None:
+    """在 matcher 上挂载单函数双入口装饰器。"""
+
+    if hasattr(matcher, "unified_handler"):
+        return
+
+    def unified_handler(handler: CommandHandler) -> CommandHandler:
+        """注册 service handler，并自动接入用户 matcher。"""
+
+        _register_agent_handler(matcher, handler)
+        _attach_auto_user_handler(matcher)
+        return handler
+
+    matcher.unified_handler = unified_handler
+
+
+def _attach_auto_user_handler(matcher) -> None:
+    """为 service-style 命令挂载自动用户入口。"""
+
+    if getattr(matcher, "__command_auto_user_handler_attached__", False):
+        return
+    source = getattr(matcher, "__command_source__", "")
+    if source == "alconna":
+        _attach_alconna_auto_user_handler(matcher)
+    else:
+        _attach_text_auto_user_handler(matcher)
+    matcher.__command_auto_user_handler_attached__ = True
+
+
+def _attach_alconna_auto_user_handler(matcher) -> None:
+    """使用 Alconna 解析结果构建 service 参数并执行命令。"""
+
+    async def auto_user_command_handler(
+        matcher: AlconnaMatcher,
+        context: CommandUserContextDepends,
+        event: Event,
+        matches: AlcMatches,
+    ) -> None:
+        spec = _require_command_spec(matcher)
+        params = command_params_from_alconna_matches(matches, spec)
+        if not params:
+            params = command_params_from_event_text(event, spec, alconna=getattr(matcher, "__command_alconna__", None))
+        result = await command_executor.execute(spec.name, params, context)
+        await send_command_result(matcher, result)
+
+    auto_user_command_handler.__name__ = f"auto_user_command_handler_{id(matcher)}"
+    matcher.handle()(auto_user_command_handler)
+
+
+def _attach_text_auto_user_handler(matcher) -> None:
+    """为普通 ``on_command`` matcher 提供保守的文本参数兜底。"""
+
+    async def auto_user_command_handler(
+        matcher: Matcher,
+        context: CommandUserContextDepends,
+        event: Event,
+    ) -> None:
+        spec = _require_command_spec(matcher)
+        params = command_params_from_event_text(event, spec)
+        result = await command_executor.execute(spec.name, params, context)
+        await send_command_result(matcher, result)
+
+    auto_user_command_handler.__name__ = f"auto_user_command_handler_{id(matcher)}"
+    matcher.handle()(auto_user_command_handler)
+
+
+def command_params_from_alconna_matches(matches: Any, spec: CommandSpec) -> CommandParams:
+    """从 Alconna ``Arparma`` 结果构建统一命令参数。"""
+
+    params = CommandParams()
+    raw_args = dict(getattr(matches, "main_args", None) or {})
+    params.update(raw_args)
+    for param in spec.params:
+        source_name = param.source_name or param.name
+        if source_name in raw_args:
+            params[param.name] = raw_args[source_name]
+            continue
+        if param.name in raw_args:
+            params[param.name] = raw_args[param.name]
+    return params
+
+
+def command_params_from_event_text(event: Event, spec: CommandSpec, *, alconna: Alconna | None = None) -> CommandParams:
+    """从普通文本命令中按 ``CommandSpec`` 顺序构建参数。
+
+    该路径只作为非 Alconna 命令的保守兜底；复杂参数应优先使用
+    Alconna 命令声明，让自动用户入口直接复用框架解析结果。
+    """
+
+    get_plaintext = getattr(event, "get_plaintext", None)
+    text = " ".join(str(get_plaintext() or "").split()) if callable(get_plaintext) else ""
+    rest = text
+    for command_name in sorted(spec.commands, key=len, reverse=True):
+        if text == command_name:
+            rest = ""
+            break
+        if text.startswith(command_name) and len(text) > len(command_name) and text[len(command_name)].isspace():
+            rest = text[len(command_name) :].strip()
+            break
+
+    tokens = rest.split()
+    if alconna is not None:
+        return _command_params_from_tokens(tokens, spec, alconna)
+
+    params = CommandParams()
+    cursor = 0
+    for index, param in enumerate(spec.params):
+        key = param.name
+        source_name = param.source_name or key
+        if param.multiple:
+            value: Any = tokens[cursor:]
+            cursor = len(tokens)
+        elif index == len(spec.params) - 1:
+            value = " ".join(tokens[cursor:]) if tokens[cursor:] else ""
+            cursor = len(tokens)
+        else:
+            value = tokens[cursor] if cursor < len(tokens) else ""
+            cursor += 1
+        value = _coerce_param_value(value, param)
+        params[key] = value
+        if source_name != key:
+            params[source_name] = value
+    return params
+
+
+def _command_params_from_tokens(tokens: list[str], spec: CommandSpec, alconna: Alconna) -> CommandParams:
+    """按 Alconna 原始参数顺序从文本 token 构建参数。"""
+
+    params = CommandParams()
+    alconna_args = list(getattr(alconna, "args", []) or [])
+    cursor = 0
+    for index, arg in enumerate(alconna_args):
+        source_name = str(getattr(arg, "name", ""))
+        if not source_name:
+            continue
+        _, multiple = _param_mode_and_multiple(arg)
+        value_type = _value_type(getattr(arg, "value", None))
+        param = CommandParam(name=source_name, source_name=source_name, multiple=multiple, value_type=value_type)
+        if multiple:
+            value: Any = tokens[cursor:]
+            cursor = len(tokens)
+        else:
+            value = tokens[cursor] if cursor < len(tokens) else ""
+            cursor += 1
+        value = _coerce_param_value(value, param)
+        params[source_name] = value
+    for param in spec.params:
+        source_name = param.source_name or param.name
+        if source_name in params:
+            params[param.name] = params[source_name]
+    return params
+
+
+def _coerce_param_value(value: Any, param: CommandParam) -> Any:
+    """按命令参数元数据做最小类型转换。"""
+
+    if param.multiple:
+        return value
+    if param.value_type == "integer" and value != "":
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return value
+    if param.value_type == "number" and value != "":
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return value
+    if param.value_type == "boolean" and isinstance(value, str):
+        return value.lower() in {"1", "true", "yes", "y", "是", "开启"}
+    return value
+
+
 def _register_agent_handler(matcher, handler: CommandHandler) -> CommandHandler:
     """把 matcher 绑定的命令注册到统一执行器。
 
@@ -303,13 +490,20 @@ def _register_agent_handler(matcher, handler: CommandHandler) -> CommandHandler:
         RuntimeError: matcher 尚未绑定 ``CommandSpec``。
     """
 
-    spec: CommandSpec | None = getattr(matcher, "__command_spec__", None)
-    if spec is None:
-        raise RuntimeError("on_agent_command 只能为已绑定 CommandSpec 的 matcher 注册 Agent handler。")
+    spec = _require_command_spec(matcher)
     if spec.execution_mode == "matcher":
         spec.execution_mode = "service"
     command_executor.register(spec.name, handler)
     return handler
+
+
+def _require_command_spec(matcher) -> CommandSpec:
+    """读取 matcher 上绑定的命令元数据。"""
+
+    spec: CommandSpec | None = getattr(matcher, "__command_spec__", None)
+    if spec is None:
+        raise RuntimeError("on_agent_command 只能为已绑定 CommandSpec 的 matcher 注册统一 handler。")
+    return spec
 
 
 def _event_looks_like_command_trigger(event: Event, spec: CommandSpec) -> bool:

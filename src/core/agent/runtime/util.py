@@ -24,7 +24,7 @@ from .harness import AutoGPTHarness
 from .loop import CognitiveAgentLoop
 from .knowledge import RuntimeContext
 from .exception import SessionLockError
-from .delegation import AgentHandoffRecord
+from .roles import RuntimeRoleTraceRecord
 from .command_tools import CommandToolCatalog
 from .pipeline import MessageProcessingPipeline
 from .live_trace import agent_live_trace_registry
@@ -152,7 +152,7 @@ class ChatSession:
         self.last_turn_envelope: TurnEnvelope | None = None
         self.last_context_pack: ContextPack | None = None
         self.last_turn_output_bundle: TurnOutputBundle | None = None
-        self.last_handoff_records: list[AgentHandoffRecord] = []
+        self.last_runtime_role_records: list[RuntimeRoleTraceRecord] = []
         self.last_mcp_tools = MCPToolCatalog()
         self.pending_workflow: TaskWorkflow | None = None
         self.workflow_checkpoint_store = WorkflowCheckpointStore()
@@ -303,7 +303,7 @@ class ChatSession:
             context_pack=self.last_context_pack,
         )
         self.last_turn_output_bundle = bundle
-        self.last_handoff_records = list(bundle.handoffs)
+        self.last_runtime_role_records = list(bundle.runtime_roles)
         return bundle
 
     def user_visible_initial_reply(self, turn_result: AgentTurnResult | None = None) -> str:

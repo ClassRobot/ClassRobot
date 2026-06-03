@@ -14,7 +14,9 @@ query_cmd = on_agent_command(
     binding=CommandBinding(
         roles={UserRole.student},
         scopes={HelperScope.student},
+        execution_mode="service",
     ),
+    auto_user_handler=True,
     block=True,
     priority=priority,
     comp_config=comp_config,
@@ -33,6 +35,7 @@ query_student_profile_cmd = on_agent_command(
         execution_mode="service",
         param_labels={"student_id": "学生ID"},
     ),
+    auto_user_handler=True,
     block=True,
     priority=priority,
     comp_config=comp_config,

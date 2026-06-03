@@ -36,6 +36,7 @@ query_group_history_cmd = on_agent_command(
             )
         ],
     ),
+    auto_user_handler=True,
     **message_history_command_kwargs,
 )
 
@@ -67,6 +68,7 @@ chat_statistics_cmd = on_agent_command(
             ),
         ],
     ),
+    auto_user_handler=True,
     **message_history_command_kwargs,
 )
 

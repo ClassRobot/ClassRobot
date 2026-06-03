@@ -9,6 +9,32 @@ from pydantic import Field, BaseModel
 CommandInvoker = Literal["user_command", "agent_workflow", "system"]
 
 
+class CommandParams(dict[str, Any]):
+    """命令 service 的轻量参数读取对象。
+
+    用户命令和 Agent 调用会保留不同来源的参数键：中文 label 更适合
+    Agent 工具 schema，Alconna source name 更贴近用户 matcher 解析结果。
+    这个对象让 service 只写一次读取逻辑，不再到处复制 ``_read_param``。
+    """
+
+    def get_value(self, label: str, source_name: str | None = None, default: Any = "") -> Any:
+        """按中文 label、source name 的顺序读取参数值。"""
+
+        if label in self:
+            return self[label]
+        if source_name and source_name in self:
+            return self[source_name]
+        return default
+
+    def require_value(self, label: str, source_name: str | None = None) -> Any:
+        """读取必填参数；缺失或空字符串时抛出 ``KeyError``。"""
+
+        value = self.get_value(label, source_name, None)
+        if value is None or value == "":
+            raise KeyError(label)
+        return value
+
+
 def normalize_user_roles(
     roles: set[UserRole | str] | list[UserRole | str] | tuple[UserRole | str, ...] | None,
 ) -> set[UserRole]:

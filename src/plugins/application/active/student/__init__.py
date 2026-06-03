@@ -1,61 +1,27 @@
 from src.shared import Emoji
 from src.models import User, Classes, Student
-from src.platform.session.depends import StudentDepends, UserOrCreatedDepends
 from nonebot_plugin_alconna import AlconnaMatcher
-from src.plugins.application.active.student.field_aliases import is_user_key, get_column_key, is_student_key, is_student_extra_key
-
-from .commands import (
-    query_cmd,
-    set_cmd,
-    query_student_profile_cmd,
-    add_student_profile_cmd,
-    set_student_profile_cmd,
-    delete_student_profile_cmd,
-)
-from .presenters import render_student_card
-from .services import can_manage_student, apply_student_updates, parse_student_update_values
 from src.plugins.application.active.classes.services import can_manage_class
+from src.platform.session.depends import StudentDepends, UserOrCreatedDepends
+from src.plugins.application.active.student.field_aliases import (
+    is_user_key,
+    get_column_key,
+    is_student_key,
+    is_student_extra_key,
+)
+
 # 导入统一命令 service，确保插件加载时完成 command_executor 注册。
 from . import services as _
-
-
-@query_cmd.handle()
-async def _(matcher: AlconnaMatcher, student: StudentDepends):
-    """查询学生信息。"""
-    if student is None:
-        await matcher.finish(Emoji.error + "您还未绑定学生信息！！")
-    await matcher.finish(await render_student_card(student))
-
-
-@query_student_profile_cmd.handle()
-async def _(matcher: AlconnaMatcher, user: UserOrCreatedDepends, student_id: int | None):
-    """按权限查询学生档案。"""
-    if student_id is not None:
-        student = await Student.filter(id=student_id).first()
-        if student is None:
-            await matcher.finish(Emoji.error + f"学生[{student_id}]不存在。")
-        if not await can_manage_student(user, student):
-            await matcher.finish(Emoji.error + "您没有权限查看该学生档案。")
-        await matcher.finish(await render_student_card(student))
-
-    if user.is_admin:
-        students = await Student.filter().all()
-    elif user.teacher is not None:
-        college_ids = await user.teacher.get_managed_college_ids()
-        if college_ids:
-            students = [student for student in await Student.filter().all() if student.classes.college_id in college_ids]
-        else:
-            class_ids = [classes.id for classes in user.teacher.classes]
-            students = await Student.filter(Student.classes_id.in_(class_ids)).all() if class_ids else []
-    else:
-        students = []
-    if not students:
-        await matcher.finish(Emoji.warning + "当前没有可查看的学生档案。")
-    lines = [Emoji.info + "学生档案列表"] + [
-        f"[{student.id}] {student.name} / 班级:{student.classes.name} / 学校:{student.school.name if student.school else '未设置'}"
-        for student in students
-    ]
-    await matcher.finish("\n".join(lines))
+from .presenters import render_student_card
+from .services import can_manage_student, apply_student_updates, parse_student_update_values
+from .commands import (
+    set_cmd,
+    query_cmd,
+    add_student_profile_cmd,
+    set_student_profile_cmd,
+    query_student_profile_cmd,
+    delete_student_profile_cmd,
+)
 
 
 @add_student_profile_cmd.handle()

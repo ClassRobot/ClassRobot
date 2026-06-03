@@ -7,7 +7,7 @@ from src.core.llm.message import Content
 from src.core.agent.runtime.reply import ReplyPolicy
 from src.core.agent.runtime.context import ContextPack, ContextEngine
 from src.core.agent.runtime.live_trace import agent_live_trace_registry
-from src.core.agent.runtime.delegation import AgentCatalog, AgentHandoffRecord
+from src.core.agent.runtime.roles import RuntimeRoleCatalog, RuntimeRoleTraceRecord
 
 from .schema import TurnDecision, TurnEnvelope, TurnOutputBundle
 
@@ -19,17 +19,17 @@ if TYPE_CHECKING:
 class AgentHost:
     """Host control plane that wraps turns, context, delegation, and reply policy."""
 
-    host_agent_name = "agent_host"
+    host_role_name = "runtime_host"
 
     def __init__(
         self,
         *,
         context_engine: ContextEngine | None = None,
-        agent_catalog: AgentCatalog | None = None,
+        role_catalog: RuntimeRoleCatalog | None = None,
         reply_policy: ReplyPolicy | None = None,
     ) -> None:
         self.context_engine = context_engine or ContextEngine()
-        self.agent_catalog = agent_catalog or AgentCatalog.default()
+        self.role_catalog = role_catalog or RuntimeRoleCatalog.default()
         self.reply_policy = reply_policy or ReplyPolicy()
 
     def create_turn_envelope(
@@ -92,8 +92,8 @@ class AgentHost:
         turn_result: "AgentTurnResult",
         context_pack: ContextPack,
     ) -> TurnOutputBundle:
-        handoffs = self.build_handoffs(envelope=envelope, turn_result=turn_result, context_pack=context_pack)
-        decision = self.build_decision(turn_result=turn_result, handoffs=handoffs)
+        role_traces = self.build_role_traces(envelope=envelope, turn_result=turn_result, context_pack=context_pack)
+        decision = self.build_decision(turn_result=turn_result, role_traces=role_traces)
         auto_tasks = turn_result.auto_tasks
         workflow = turn_result.workflow
         reply_text = getattr(auto_tasks, "reply", "") if auto_tasks is not None else ""
@@ -117,7 +117,7 @@ class AgentHost:
             decision=decision,
             reply=reply,
             context_pack=context_pack,
-            handoffs=handoffs,
+            runtime_roles=role_traces,
             audit_artifacts={
                 "route_intent": getattr(turn_result.route, "intent", "") if turn_result.route is not None else "",
                 "workflow_kind": getattr(workflow, "kind", "") if workflow is not None else "",
@@ -125,46 +125,46 @@ class AgentHost:
                 "consistency_reason": consistency_reason,
             },
         )
-        self.attach_handoffs_to_observability(turn_result, handoffs)
-        self.emit_handoffs(envelope.trace_id, handoffs)
+        self.attach_role_traces_to_observability(turn_result, role_traces)
+        self.emit_role_traces(envelope.trace_id, role_traces)
         logger.info(
             f'AutoGPT trace "{envelope.trace_id}" AgentHost output built '
-            f"decision={decision.decision_type} handoffs={len(handoffs)}"
+            f"decision={decision.decision_type} runtime_roles={len(role_traces)}"
         )
         return bundle
 
-    def build_handoffs(
+    def build_role_traces(
         self,
         *,
         envelope: TurnEnvelope,
         turn_result: "AgentTurnResult",
         context_pack: ContextPack,
-    ) -> list[AgentHandoffRecord]:
-        decisions = self.agent_catalog.select_for_turn(
+    ) -> list[RuntimeRoleTraceRecord]:
+        decisions = self.role_catalog.select_for_turn(
             context_pack=context_pack,
             route=turn_result.route,
             plan=turn_result.plan,
             workflow=turn_result.workflow,
         )
-        handoffs: list[AgentHandoffRecord] = []
+        role_traces: list[RuntimeRoleTraceRecord] = []
         for decision in decisions:
-            descriptor = self.agent_catalog.get(decision.target_agent)
-            layers = decision.context_layers or (descriptor.context_requirements if descriptor else [])
-            handoffs.append(
-                AgentHandoffRecord(
+            descriptor = self.role_catalog.get(decision.target_role)
+            layers = decision.context_layers or (descriptor.context_layers if descriptor else [])
+            role_traces.append(
+                RuntimeRoleTraceRecord(
                     trace_id=envelope.trace_id,
-                    source_agent=self.host_agent_name,
-                    target_agent=decision.target_agent,
+                    source_role=self.host_role_name,
+                    target_role=decision.target_role,
                     status="planned",
                     reason=decision.reason,
                     context_layers=list(layers),
                     context_summary=context_pack.compact_summary(),
                 )
             )
-        return handoffs
+        return role_traces
 
     @staticmethod
-    def build_decision(*, turn_result: "AgentTurnResult", handoffs: list[AgentHandoffRecord]) -> TurnDecision:
+    def build_decision(*, turn_result: "AgentTurnResult", role_traces: list[RuntimeRoleTraceRecord]) -> TurnDecision:
         workflow = turn_result.workflow
         auto_tasks = turn_result.auto_tasks
         if workflow is not None and getattr(workflow, "need_confirm", False):
@@ -177,11 +177,9 @@ class AgentHost:
             )
         if auto_tasks is not None and getattr(auto_tasks, "reply", ""):
             return TurnDecision(decision_type="direct_reply", reason="Turn has a direct reply.")
-        if handoffs:
-            final_agent = handoffs[-1].target_agent
-            return TurnDecision(
-                decision_type="delegate", target_agent=final_agent, reason="Host selected specialized agents."
-            )
+        if role_traces:
+            final_role = role_traces[-1].target_role
+            return TurnDecision(decision_type="delegate", target_role=final_role, reason="Host selected runtime roles.")
         return TurnDecision(decision_type="stop", reason="No executable action or reply was produced.")
 
     def enforce_reply_consistency(
@@ -200,47 +198,48 @@ class AgentHost:
         if has_executable_steps or decision.requires_execution or decision.requires_confirmation:
             return text, ""
         return (
-            "这次还没有生成可执行的工具调用步骤，所以我不会假装已经开始查询。" "你可以稍后让我重新尝试，或补充更明确的查询范围。",
+            "这次还没有生成可执行的工具调用步骤，所以我不会假装已经开始查询。"
+            "你可以稍后让我重新尝试，或补充更明确的查询范围。",
             "action_claim_without_workflow",
         )
 
     @staticmethod
-    def attach_handoffs_to_observability(
+    def attach_role_traces_to_observability(
         turn_result: "AgentTurnResult",
-        handoffs: list[AgentHandoffRecord],
+        role_traces: list[RuntimeRoleTraceRecord],
     ) -> None:
-        """Persist compact handoff records in workflow observability when available."""
+        """Persist compact runtime role records in workflow observability when available."""
 
         if turn_result.workflow is None:
             return
-        turn_result.workflow.observability.handoffs = [
+        turn_result.workflow.observability.runtime_roles = [
             {
-                "source_agent": handoff.source_agent,
-                "target_agent": handoff.target_agent,
-                "status": handoff.status,
-                "reason": handoff.reason,
-                "context_layers": handoff.context_layers,
-                "created_at": handoff.created_at.isoformat(),
+                "source_role": role_trace.source_role,
+                "target_role": role_trace.target_role,
+                "status": role_trace.status,
+                "reason": role_trace.reason,
+                "context_layers": role_trace.context_layers,
+                "created_at": role_trace.created_at.isoformat(),
             }
-            for handoff in handoffs
+            for role_trace in role_traces
         ]
 
     @staticmethod
-    def emit_handoffs(trace_id: str, handoffs: list[AgentHandoffRecord]) -> None:
-        for handoff in handoffs:
+    def emit_role_traces(trace_id: str, role_traces: list[RuntimeRoleTraceRecord]) -> None:
+        for role_trace in role_traces:
             agent_live_trace_registry.emit(
                 trace_id,
-                event_type="agent_handoff_planned",
+                event_type="runtime_role_planned",
                 stage="plan",
-                status=handoff.status,
-                node_type="agent_handoff",
-                node_label=handoff.target_agent,
+                status=role_trace.status,
+                node_type="runtime_role",
+                node_label=role_trace.target_role,
                 params_preview={
-                    "target_agent": handoff.target_agent,
-                    "context_layers": handoff.context_layers,
-                    "reason": handoff.reason,
+                    "target_role": role_trace.target_role,
+                    "context_layers": role_trace.context_layers,
+                    "reason": role_trace.reason,
                 },
-                observation_summary=handoff.context_summary,
+                observation_summary=role_trace.context_summary,
             )
 
     @staticmethod

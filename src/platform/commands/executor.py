@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import time
 from inspect import isawaitable
-from typing import Any, Awaitable, Callable, Protocol
+from typing import Any, Callable, Protocol, Awaitable
 
-from .context import CommandExecutionContext
+from .result import CommandResult
 from .policy import CommandPolicy, command_policy
 from .registry import CommandRegistry, command_registry
-from .result import CommandResult
+from .context import CommandParams, CommandExecutionContext
 
 
 class CommandHandler(Protocol):
@@ -14,7 +15,7 @@ class CommandHandler(Protocol):
 
     def __call__(
         self,
-        params: dict[str, Any],
+        params: CommandParams,
         context: CommandExecutionContext,
     ) -> CommandResult | Awaitable[Any] | Any:
         """执行命令并返回可转换为 ``CommandResult`` 的结果。"""
@@ -74,22 +75,85 @@ class CommandExecutor:
         """执行已注册的 service-style 命令。"""
 
         context = context or CommandExecutionContext()
+        started_at = time.perf_counter()
+        params = params or {}
+        _emit_command_trace(
+            context,
+            event_type="command_dispatch_started",
+            status="running",
+            command=command,
+            params=params,
+        )
         spec = self.registry.get(command)
         if spec is None:
-            return CommandResult.fail(f"命令 `{command}` 不存在或尚未接入统一注册表。")
+            result = CommandResult.fail(f"命令 `{command}` 不存在或尚未接入统一注册表。")
+            _emit_command_trace(
+                context,
+                event_type="command_dispatch_completed",
+                status="failed",
+                command=command,
+                params=params,
+                result=result,
+                duration_ms=_duration_ms(started_at),
+            )
+            return result
 
         decision = self.policy.check(spec, context)
         if not decision.allowed:
-            return CommandResult.fail(f"无权调用 `{spec.name}`：{decision.reason}")
+            result = CommandResult.fail(f"无权调用 `{spec.name}`：{decision.reason}")
+            _emit_command_trace(
+                context,
+                event_type="command_dispatch_completed",
+                status="failed",
+                command=spec.name,
+                params=params,
+                result=result,
+                error=decision.reason,
+                duration_ms=_duration_ms(started_at),
+            )
+            return result
 
         handler = self._resolve_handler(spec, command)
         if handler is None:
-            return CommandResult.fail(f"命令 `{spec.name}` 尚未接入统一 service 执行器，Agent 不能调用该命令。")
+            result = CommandResult.fail(f"命令 `{spec.name}` 尚未接入统一 service 执行器，Agent 不能调用该命令。")
+            _emit_command_trace(
+                context,
+                event_type="command_dispatch_completed",
+                status="failed",
+                command=spec.name,
+                params=params,
+                result=result,
+                duration_ms=_duration_ms(started_at),
+            )
+            return result
 
-        raw_result = handler(params or {}, context)
-        if isawaitable(raw_result):
-            raw_result = await raw_result
-        return self._coerce_result(raw_result)
+        try:
+            raw_result = handler(CommandParams(params), context)
+            if isawaitable(raw_result):
+                raw_result = await raw_result
+            result = self._coerce_result(raw_result)
+        except Exception as error:
+            _emit_command_trace(
+                context,
+                event_type="command_dispatch_completed",
+                status="failed",
+                command=spec.name,
+                params=params,
+                error=error,
+                duration_ms=_duration_ms(started_at),
+            )
+            raise
+
+        _emit_command_trace(
+            context,
+            event_type="command_dispatch_completed",
+            status="completed" if result.success else "failed",
+            command=spec.name,
+            params=params,
+            result=result,
+            duration_ms=_duration_ms(started_at),
+        )
+        return result
 
     def _resolve_handler(self, spec: "CommandSpec", requested_command: str) -> CommandHandler | None:
         """按请求命令、主命令和别名顺序解析 service handler。
@@ -132,3 +196,60 @@ class CommandExecutor:
 
 
 command_executor = CommandExecutor()
+
+
+def _duration_ms(started_at: float) -> float:
+    """计算命令执行耗时毫秒数。"""
+
+    return (time.perf_counter() - started_at) * 1000
+
+
+def _emit_command_trace(
+    context: CommandExecutionContext,
+    *,
+    event_type: str,
+    status: str,
+    command: str,
+    params: dict[str, Any],
+    result: CommandResult | None = None,
+    error: str | Exception = "",
+    duration_ms: float | None = None,
+) -> None:
+    """把统一命令执行过程写入 Agent live trace。"""
+
+    if not context.trace_id:
+        return
+    try:
+        from src.core.agent.runtime.live_trace import agent_live_trace_registry
+    except Exception:
+        return
+
+    params_preview: dict[str, Any] = {
+        "command": command,
+        "params": params,
+        "invoker": context.invoker,
+        "user_id": context.user_id,
+        "platform": context.platform,
+        "channel_id": context.channel_id,
+    }
+    if result is not None:
+        params_preview["result"] = {
+            "success": result.success,
+            "summary": result.summary,
+            "visible_outputs": result.visible_outputs,
+            "context_outputs": result.context_outputs,
+            "data": result.data,
+        }
+    agent_live_trace_registry.emit(
+        context.trace_id,
+        event_type=event_type,
+        stage="tool_call",
+        node_type="command",
+        node_label=command,
+        status=status,
+        tool_name=command,
+        params_preview=params_preview,
+        observation_summary=result.summary if result is not None else "",
+        error=error,
+        duration_ms=duration_ms,
+    )

@@ -193,8 +193,8 @@ class AgentObservabilityMetrics(BaseModel):
     """经过校验后真正保留下来的命令列表。"""
     execution: WorkflowExecutionMetric = Field(default_factory=WorkflowExecutionMetric)
     """工作流执行阶段的命令调用指标。"""
-    handoffs: list[dict[str, Any]] = Field(default_factory=list)
-    """Host 规划出的专长 Agent 委派记录摘要。"""
+    runtime_roles: list[dict[str, Any]] = Field(default_factory=list)
+    """Host 规划出的运行时角色轨迹摘要。"""
 
 
 class WorkflowApproval(BaseModel):

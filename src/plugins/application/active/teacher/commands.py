@@ -12,7 +12,9 @@ query_teacher_cmd = on_agent_command(
     binding=CommandBinding(
         roles={UserRole.teacher},
         scopes={HelperScope.teacher},
+        execution_mode="service",
     ),
+    auto_user_handler=True,
     block=True,
     priority=priority,
     comp_config=comp_config,
@@ -31,6 +33,7 @@ query_teacher_profile_cmd = on_agent_command(
         execution_mode="service",
         param_labels={"teacher_id": "教师ID"},
     ),
+    auto_user_handler=True,
     block=True,
     priority=priority,
     comp_config=comp_config,

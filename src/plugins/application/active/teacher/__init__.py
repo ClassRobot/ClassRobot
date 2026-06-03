@@ -1,58 +1,18 @@
 from src.shared import Emoji
 from nonebot_plugin_alconna import AlconnaMatcher
-from src.models import School, College, Teacher, User
+from src.models import User, School, College, Teacher
 from src.platform.session.depends import TeacherDepends, UserOrCreatedDepends
 
 from .presenters import render_teacher_card
-from .services import (
-    can_manage_teacher,
-    get_teacher_column_key,
-    resolve_teacher_scope,
-    validate_teacher_scope_change,
-)
+from .services import can_manage_teacher, resolve_teacher_scope, get_teacher_column_key, validate_teacher_scope_change
 from .commands import (
-    query_teacher_cmd,
     set_teacher_cmd,
-    query_teacher_profile_cmd,
+    query_teacher_cmd,
     add_teacher_profile_cmd,
     set_teacher_profile_cmd,
+    query_teacher_profile_cmd,
     delete_teacher_profile_cmd,
 )
-
-
-@query_teacher_cmd.handle()
-async def _(matcher: AlconnaMatcher, teacher: TeacherDepends):
-    """查询教师信息。"""
-    if teacher is None:
-        await matcher.finish(Emoji.warning + "您还未绑定教师信息，可先使用“修改教师信息 姓名=xxx 学校=xxx”创建。")
-    await matcher.finish(await render_teacher_card(teacher))
-
-
-@query_teacher_profile_cmd.handle()
-async def _(matcher: AlconnaMatcher, teacher_id: int | None, user: UserOrCreatedDepends):
-    """按权限查询教师档案。"""
-    if teacher_id is not None:
-        teacher = await Teacher.filter(id=teacher_id).first()
-        if teacher is None:
-            await matcher.finish(Emoji.error + f"教师[{teacher_id}]不存在。")
-        if not await can_manage_teacher(user, teacher):
-            await matcher.finish(Emoji.error + "您没有权限查看该教师档案。")
-        await matcher.finish(await render_teacher_card(teacher))
-
-    if user.is_admin:
-        teachers = await Teacher.filter().all()
-    elif user.teacher is not None:
-        college_ids = await user.teacher.get_managed_college_ids()
-        teachers = await Teacher.filter(Teacher.college_id.in_(college_ids)).all() if college_ids else []
-    else:
-        teachers = []
-    if not teachers:
-        await matcher.finish(Emoji.warning + "当前没有可查看的教师档案。")
-    lines = [Emoji.info + "教师档案列表"] + [
-        f"[{teacher.id}] {teacher.name} / 学校:{teacher.school.name if teacher.school else '未设置'} / 学院:{teacher.college.name if teacher.college else '未设置'}"
-        for teacher in teachers
-    ]
-    await matcher.finish("\n".join(lines))
 
 
 @add_teacher_profile_cmd.handle()

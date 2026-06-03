@@ -6,7 +6,7 @@ from typing import Any, Literal
 from pydantic import Field, BaseModel
 from src.core.agent.runtime.context import ContextPack, ContextLayer
 
-AgentKind = Literal[
+RuntimeRoleKind = Literal[
     "conversation",
     "knowledge",
     "execution",
@@ -14,58 +14,55 @@ AgentKind = Literal[
     "workflow_supervisor",
     "reply_synthesis",
 ]
-DelegationStatus = Literal["planned", "running", "completed", "failed", "skipped"]
+RuntimeRoleStatus = Literal["planned", "running", "completed", "failed", "skipped"]
 
 
-class SpecializedAgentDescriptor(BaseModel):
-    """Describes a Host-controlled specialized agent and its context boundary."""
+class RuntimeRoleDescriptor(BaseModel):
+    """Describes a Host-controlled runtime role and its context boundary."""
 
     name: str
     display_name: str
-    kind: AgentKind
+    kind: RuntimeRoleKind
     description: str = ""
     when_to_use: str = ""
-    context_requirements: list[ContextLayer] = Field(default_factory=list)
+    context_layers: list[ContextLayer] = Field(default_factory=list)
     allowed_tool_sources: list[str] = Field(default_factory=list)
-    permission_scope: str = "host_controlled"
-    fallback_behavior: str = "return_to_host"
-    allow_delegate: bool = False
 
     def prompt_summary(self) -> str:
         tools = ", ".join(self.allowed_tool_sources) if self.allowed_tool_sources else "none"
         return (
             f"- {self.name}: {self.description} | kind={self.kind} | "
-            f"context={','.join(self.context_requirements)} | tools={tools}"
+            f"context={','.join(self.context_layers)} | tools={tools}"
         )
 
 
-class AgentDelegationDecision(BaseModel):
-    """Records why the Host selected a specialized agent."""
+class RuntimeRoleDecision(BaseModel):
+    """Records why the Host selected a runtime role."""
 
-    target_agent: str
+    target_role: str
     reason: str = ""
     user_goal: str = ""
     required: bool = False
     context_layers: list[ContextLayer] = Field(default_factory=list)
 
 
-class AgentResultEnvelope(BaseModel):
-    """Standard result returned from a specialized agent to the Host."""
+class RuntimeRoleResult(BaseModel):
+    """Standard result returned from a runtime role to the Host."""
 
-    agent_name: str
-    status: DelegationStatus = "completed"
+    role_name: str
+    status: RuntimeRoleStatus = "completed"
     summary: str = ""
     observations: list[dict[str, Any]] = Field(default_factory=list)
     error: str = ""
 
 
-class AgentHandoffRecord(BaseModel):
-    """Auditable handoff record for Host-controlled multi-agent execution."""
+class RuntimeRoleTraceRecord(BaseModel):
+    """Auditable runtime role trace record for Host-controlled turn processing."""
 
     trace_id: str = ""
-    source_agent: str = "agent_host"
-    target_agent: str
-    status: DelegationStatus = "planned"
+    source_role: str = "runtime_host"
+    target_role: str
+    status: RuntimeRoleStatus = "planned"
     reason: str = ""
     context_summary: str = ""
     context_layers: list[ContextLayer] = Field(default_factory=list)
@@ -74,85 +71,84 @@ class AgentHandoffRecord(BaseModel):
     created_at: datetime = Field(default_factory=datetime.now)
 
 
-class AgentCatalog(BaseModel):
-    """Catalog of specialized agents visible to the Agent Host."""
+class RuntimeRoleCatalog(BaseModel):
+    """Catalog of runtime roles visible to the Agent Host."""
 
-    agents: list[SpecializedAgentDescriptor] = Field(default_factory=list)
+    roles: list[RuntimeRoleDescriptor] = Field(default_factory=list)
 
     @classmethod
-    def default(cls) -> "AgentCatalog":
+    def default(cls) -> "RuntimeRoleCatalog":
         return cls(
-            agents=[
-                SpecializedAgentDescriptor(
+            roles=[
+                RuntimeRoleDescriptor(
                     name="workflow_supervisor",
-                    display_name="Workflow Supervisor Agent",
+                    display_name="Workflow Supervisor Role",
                     kind="workflow_supervisor",
                     description="Routes goals, chooses capabilities, and decides whether to delegate or execute.",
                     when_to_use="Use for every non-trivial turn before tool execution.",
-                    context_requirements=["turn_context", "session_context", "workflow_context", "tool_state_context"],
+                    context_layers=["turn_context", "session_context", "workflow_context", "tool_state_context"],
                     allowed_tool_sources=[],
-                    allow_delegate=True,
                 ),
-                SpecializedAgentDescriptor(
-                    name="conversation_agent",
-                    display_name="Conversation Agent",
+                RuntimeRoleDescriptor(
+                    name="conversation",
+                    display_name="Conversation Role",
                     kind="conversation",
                     description="Handles direct chat, lightweight explanations, and follow-up replies.",
                     when_to_use="Use when no tool execution is needed or the user asks about previous results.",
-                    context_requirements=["turn_context", "session_context", "tool_state_context"],
+                    context_layers=["turn_context", "session_context", "tool_state_context"],
                 ),
-                SpecializedAgentDescriptor(
-                    name="knowledge_agent",
-                    display_name="Knowledge Agent",
+                RuntimeRoleDescriptor(
+                    name="knowledge",
+                    display_name="Knowledge Role",
                     kind="knowledge",
                     description="Retrieves local or external knowledge and summarizes source-backed answers.",
                     when_to_use="Use for school rules, files, chat history, RAG, and source-backed questions.",
-                    context_requirements=["turn_context", "session_context", "knowledge_context"],
+                    context_layers=["turn_context", "session_context", "knowledge_context"],
                     allowed_tool_sources=["local_knowledge", "external_rag"],
                 ),
-                SpecializedAgentDescriptor(
-                    name="realtime_lookup_agent",
-                    display_name="Realtime Lookup Agent",
+                RuntimeRoleDescriptor(
+                    name="realtime_lookup",
+                    display_name="Realtime Lookup Role",
                     kind="realtime_lookup",
                     description="Uses realtime public external tools such as MCP web search.",
                     when_to_use="Use for news, hot topics, weather-now, and other fresh public information.",
-                    context_requirements=["turn_context", "tool_state_context"],
+                    context_layers=["turn_context", "tool_state_context"],
                     allowed_tool_sources=["mcp_tool"],
                 ),
-                SpecializedAgentDescriptor(
-                    name="execution_agent",
-                    display_name="Execution Agent",
+                RuntimeRoleDescriptor(
+                    name="execution",
+                    display_name="Execution Role",
                     kind="execution",
                     description="Executes approved command, MCP, skill, schedule, or delegate actions.",
                     when_to_use="Use when a TaskWorkflow contains executable steps.",
-                    context_requirements=["turn_context", "workflow_context", "tool_state_context"],
+                    context_layers=["turn_context", "workflow_context", "tool_state_context"],
                     allowed_tool_sources=["command", "mcp_tool", "skill", "schedule", "delegate"],
                 ),
-                SpecializedAgentDescriptor(
-                    name="reply_synthesis_agent",
-                    display_name="Reply Synthesis Agent",
+                RuntimeRoleDescriptor(
+                    name="reply_synthesis",
+                    display_name="Reply Synthesis Role",
                     kind="reply_synthesis",
-                    description="Turns observations, handoffs, and failure reasons into the final user reply.",
+                    description="Turns observations, runtime role traces, and failure reasons into the final user reply.",
                     when_to_use="Use before any final user-facing response after execution or delegation.",
-                    context_requirements=["turn_context", "session_context", "workflow_context", "tool_state_context"],
+                    context_layers=["turn_context", "session_context", "workflow_context", "tool_state_context"],
                 ),
             ]
         )
 
-    def get(self, name: str) -> SpecializedAgentDescriptor | None:
-        return next((agent for agent in self.agents if agent.name == name), None)
+    def get(self, name: str) -> RuntimeRoleDescriptor | None:
+        return next((role for role in self.roles if role.name == name), None)
 
     def to_prompt(self) -> str:
-        return "\n".join(agent.prompt_summary() for agent in self.agents)
+        return "\n".join(role.prompt_summary() for role in self.roles)
 
     def select_for_turn(
         self, *, context_pack: ContextPack, route: Any = None, plan: Any = None, workflow: Any = None
-    ) -> list[AgentDelegationDecision]:
-        """Build deterministic Host-level handoff records from current turn state."""
+    ) -> list[RuntimeRoleDecision]:
+        """Build deterministic Host-level role records from current turn state."""
 
         decisions = [
-            AgentDelegationDecision(
-                target_agent="workflow_supervisor",
+            RuntimeRoleDecision(
+                target_role="workflow_supervisor",
                 reason="Host supervisor evaluates the turn and keeps the decision graph auditable.",
                 context_layers=["turn_context", "session_context", "workflow_context", "tool_state_context"],
                 required=True,
@@ -165,8 +161,8 @@ class AgentCatalog(BaseModel):
         has_steps = bool(getattr(workflow, "steps", []) if workflow is not None else [])
         if requires_rag or knowledge_sources:
             decisions.append(
-                AgentDelegationDecision(
-                    target_agent="knowledge_agent",
+                RuntimeRoleDecision(
+                    target_role="knowledge",
                     reason="The turn requires controlled knowledge retrieval or source-backed context.",
                     context_layers=["turn_context", "session_context", "knowledge_context"],
                     required=True,
@@ -174,8 +170,8 @@ class AgentCatalog(BaseModel):
             )
         if candidate_mcp:
             decisions.append(
-                AgentDelegationDecision(
-                    target_agent="realtime_lookup_agent",
+                RuntimeRoleDecision(
+                    target_role="realtime_lookup",
                     reason="Planner selected MCP tools for realtime or external lookup.",
                     context_layers=["turn_context", "tool_state_context"],
                     required=True,
@@ -183,8 +179,8 @@ class AgentCatalog(BaseModel):
             )
         if has_steps:
             decisions.append(
-                AgentDelegationDecision(
-                    target_agent="execution_agent",
+                RuntimeRoleDecision(
+                    target_role="execution",
                     reason="The workflow contains executable steps.",
                     context_layers=["turn_context", "workflow_context", "tool_state_context"],
                     required=True,
@@ -192,15 +188,15 @@ class AgentCatalog(BaseModel):
             )
         if intent == "chat" and not has_steps:
             decisions.append(
-                AgentDelegationDecision(
-                    target_agent="conversation_agent",
+                RuntimeRoleDecision(
+                    target_role="conversation",
                     reason="The turn can be answered through conversation or prior context.",
                     context_layers=["turn_context", "session_context", "tool_state_context"],
                 )
             )
         decisions.append(
-            AgentDelegationDecision(
-                target_agent="reply_synthesis_agent",
+            RuntimeRoleDecision(
+                target_role="reply_synthesis",
                 reason="Every user-visible final answer must pass through reply synthesis policy.",
                 context_layers=["turn_context", "session_context", "workflow_context", "tool_state_context"],
                 required=True,

@@ -5,7 +5,6 @@
 """
 
 from .retrieval import RagAgent as RagAgent
-from .conversation import LLMAgent as LLMAgent
 from .multimodal import FileAgent as FileAgent
 from .multimodal import VisionAgent as VisionAgent
 from .planning import AutoTaskAgent as AutoTaskAgent
@@ -18,7 +17,6 @@ __all__ = [
     "ExecutionReplyAgent",
     "ExtractAgent",
     "FileAgent",
-    "LLMAgent",
     "RagAgent",
     "SummaryAgent",
     "VisionAgent",

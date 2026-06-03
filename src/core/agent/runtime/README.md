@@ -36,20 +36,22 @@ AutoGPT Runtime 里现在固定区分两层工作流，后续开发不要再混�
 
 运行时编排图是系统控制面，AI 不能修改。AI 只能在运行时图约束下生成 `TaskWorkflow`，再由执行器校验、执行、记录 observation，最后交给回复 Agent 汇总给用户。
 
-## Agent Host 与多 Agent 委派
+## Agent Host 与运行时角色
 
-运行时现在增加 `AgentHost` 作为一轮用户消息的控制面封装。它不替代现有 `MessageProcessingPipeline` 和 `CognitiveAgentLoop`，而是先把每轮消息统一包成 `TurnEnvelope`，再生成分层 `ContextPack`、专长 Agent handoff 记录和 `TurnOutputBundle`。
+运行时现在增加 `AgentHost` 作为一轮用户消息的控制面封装。它不替代现有 `MessageProcessingPipeline` 和 `CognitiveAgentLoop`，而是先把每轮消息统一包成 `TurnEnvelope`，再生成分层 `ContextPack`、运行时角色 trace 和 `TurnOutputBundle`。
 
-第一版专长 Agent 目录由 `AgentCatalog` 声明，包含：
+这里的 role 不是 Agent。它们只描述 Host 本轮经过了哪些职责边界，方便上下文切片、live trace 和失败分析；真正能叫 Agent 的仍然只有 `BaseAgent` / `BaseFunctionAgent` 子类。
+
+第一版运行时角色目录由 `RuntimeRoleCatalog` 声明，包含：
 
 - `workflow_supervisor`
-- `conversation_agent`
-- `knowledge_agent`
-- `realtime_lookup_agent`
-- `execution_agent`
-- `reply_synthesis_agent`
+- `conversation`
+- `knowledge`
+- `realtime_lookup`
+- `execution`
+- `reply_synthesis`
 
-这些 Agent 目前由 Host 统一委派和审计，不允许自由递归调用。子 Agent 只能看到自己声明的 context layer，例如 `turn_context`、`workflow_context` 或 `tool_state_context`，后续长期记忆、token budget 和权限切片都应挂到 `ContextEngine`。
+这些角色由 Host 统一选择和审计，不允许自由递归调用。每个角色只声明自己需要的 context layer，例如 `turn_context`、`workflow_context` 或 `tool_state_context`，后续长期记忆、token budget 和权限切片都应挂到 `ContextEngine`。如果未来重新引入真正 subagent，必须同时具备 `BaseAgent` 实现、独立 context slice 和明确 tool/capability 权限。
 
 执行层新增 `ActionRequest` / `ActionResult` / `ActionExecutorRegistry` 协议，用来逐步把 command、MCP、Skill、RAG、schedule 和 delegate 收敛到同一条 `ToolObservation` 后处理链。当前 command 与 MCP 执行前已经会构造 `ActionRequest` 并写入 live trace，后续替换具体执行器时不要绕过这个契约。
 
@@ -197,14 +199,14 @@ AGENT_LIVE_TRACE_RETENTION_SECONDS=1800
 AGENT_LIVE_TRACE_INCLUDE_DEBUG_PREVIEW=true
 ```
 
-启用后，Host turn、ContextPack、Agent handoff、Runtime 节点、LLM 请求、MCP `tools/list`、MCP `tools/call`、command dispatch、quality gate、observation、reply 和 persist 都会产生结构化事件。这个能力只用于开发排障，不改变用户消息主链路，也不替代普通日志。
+启用后，Host turn、ContextPack、runtime role trace、Runtime 节点、LLM 请求、MCP `tools/list`、MCP `tools/call`、command dispatch、quality gate、observation、reply 和 persist 都会产生结构化事件。这个能力只用于开发排障，不改变用户消息主链路，也不替代普通日志。
 
 ## 调用链
 
 ```mermaid
 flowchart TD
     A["src/plugins/application/active/autogpt/__init__.py<br/>NoneBot 入口"] --> B["ChatSession"]
-    B --> H["AgentHost<br/>TurnEnvelope / ContextPack / Handoff / ReplyEnvelope"]
+    B --> H["AgentHost<br/>TurnEnvelope / ContextPack / RuntimeRoleTrace / ReplyEnvelope"]
     H --> C["MessageProcessingPipeline"]
     C --> X["RuntimeGraphExecutor<br/>条件边执行器"]
     X --> D["WorkflowNode"]

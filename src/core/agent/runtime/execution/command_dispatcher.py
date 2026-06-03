@@ -114,7 +114,7 @@ async def dispatch_auto_task(
         ),
     )
     message = result.summary or ("命令已通过统一执行器完成。" if result.success else "命令统一执行器调用失败。")
-    return [
+    observations = [
         CommandObservation(
             trace_id=trace_id,
             command=task.command,
@@ -129,10 +129,13 @@ async def dispatch_auto_task(
             context_summary="\n".join(result.observation_outputs) or message,
             outputs=result.visible_outputs,
             context_outputs=result.observation_outputs,
+            raw_result=result.dict(),
             next_actions=["answer"] if result.success else ["explain_failure"],
             outputs_sent_to_user=False,
         )
     ]
+    _emit_command_observation_trace(trace_id, task.command, result)
+    return observations
 
 
 async def dispatch_auto_tasks(
@@ -183,3 +186,32 @@ async def dispatch_auto_tasks(
             )
         )
     return observations
+
+
+def _emit_command_observation_trace(trace_id: str, command: str, result) -> None:
+    """记录 Agent command 执行结果已经转换为 observation。"""
+
+    if not trace_id:
+        return
+    try:
+        from src.core.agent.runtime.live_trace import agent_live_trace_registry
+    except Exception:
+        return
+
+    agent_live_trace_registry.emit(
+        trace_id,
+        event_type="observation_recorded",
+        stage="loop",
+        node_type="command_observation",
+        node_label=command,
+        status="completed" if result.success else "failed",
+        tool_name=command,
+        params_preview={
+            "success": result.success,
+            "summary": result.summary,
+            "visible_outputs": result.visible_outputs,
+            "context_outputs": result.context_outputs,
+            "data": result.data,
+        },
+        observation_summary="\n".join(result.observation_outputs) or result.summary,
+    )

@@ -7,7 +7,7 @@ from pydantic import Field, BaseModel
 from src.core.llm.message import Content
 from src.core.agent.runtime.context import ContextPack
 from src.core.agent.runtime.reply import ReplyEnvelope
-from src.core.agent.runtime.delegation import AgentHandoffRecord
+from src.core.agent.runtime.roles import RuntimeRoleTraceRecord
 
 TurnDecisionType = Literal["direct_reply", "delegate", "execute", "confirm", "clarify", "schedule", "stop"]
 
@@ -29,7 +29,7 @@ class TurnDecision(BaseModel):
 
     decision_type: TurnDecisionType = "direct_reply"
     reason: str = ""
-    target_agent: str = ""
+    target_role: str = ""
     requires_execution: bool = False
     requires_confirmation: bool = False
 
@@ -41,5 +41,5 @@ class TurnOutputBundle(BaseModel):
     decision: TurnDecision = Field(default_factory=TurnDecision)
     reply: ReplyEnvelope = Field(default_factory=ReplyEnvelope)
     context_pack: ContextPack | None = None
-    handoffs: list[AgentHandoffRecord] = Field(default_factory=list)
+    runtime_roles: list[RuntimeRoleTraceRecord] = Field(default_factory=list)
     audit_artifacts: dict[str, Any] = Field(default_factory=dict)

@@ -21,6 +21,7 @@ pwd_cmd = on_agent_command(
         tags={"file", "storage"},
         execution_mode="service",
     ),
+    auto_user_handler=True,
     **file_command_kwargs,
 )
 
@@ -35,6 +36,7 @@ ls_cmd = on_agent_command(
         execution_mode="service",
         param_labels={"path": "路径"},
     ),
+    auto_user_handler=True,
     **file_command_kwargs,
 )
 
@@ -49,6 +51,7 @@ cd_cmd = on_agent_command(
         execution_mode="service",
         param_labels={"path": "路径"},
     ),
+    auto_user_handler=True,
     **file_command_kwargs,
 )
 
@@ -115,6 +118,7 @@ cat_cmd = on_agent_command(
         execution_mode="service",
         param_labels={"path": "路径"},
     ),
+    auto_user_handler=True,
     **file_command_kwargs,
 )
 
@@ -140,6 +144,7 @@ find_cmd = on_agent_command(
             "path": "可选搜索起点，默认当前目录。",
         },
     ),
+    auto_user_handler=True,
     **file_command_kwargs,
 )
 
@@ -165,6 +170,7 @@ grep_cmd = on_agent_command(
             "path": "可选搜索起点，可以是文件或目录，默认当前目录。",
         },
     ),
+    auto_user_handler=True,
     **file_command_kwargs,
 )
 
@@ -190,6 +196,7 @@ tree_cmd = on_agent_command(
             "max_depth": "可选展示深度，默认 3，最大 8。",
         },
     ),
+    auto_user_handler=True,
     **file_command_kwargs,
 )
 

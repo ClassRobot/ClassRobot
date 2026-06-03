@@ -115,7 +115,7 @@ ClassRobot 的智能体不是一个绕过系统权限、直接改数据库的万
 从 2026-05-15 起，项目采用统一 Agent 抽象边界：
 
 - 只有继承 `BaseAgent` 或 `BaseFunctionAgent` 的可执行对象才叫 Agent。
-- 通用工具调用智能体统一使用 `ToolCallingAgent`，旧名 `Agent` 只作为兼容别名保留。
+- 项目不再维护 `LLMAgent`、`ToolCallingAgent` 这类通用空壳；需要模型推理时优先使用具体内置 Agent、Runtime 节点或 `CognitiveAgentLoop`。
 - `RuntimeContext`、`WorkflowNode`、`SkillCatalog`、`LocalKnowledgeRetriever`、`RuntimeNodeDefinition`、`RuntimeGraphConfig` 都是运行时组件，不进入 Agent 继承树。
 - 新增 Agent 依靠 `BaseAgent.iter_agent_classes()` 自动发现，不再在多个 list/dict 中重复登记。
 

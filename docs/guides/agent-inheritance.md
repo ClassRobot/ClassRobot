@@ -21,6 +21,8 @@ ClassRobot 中只有两类对象可以称为 Agent：
 | 本地知识检索 | `LocalKnowledgeRetriever` | 检索聊天记录、文件空间和本地 RAG |
 | Runtime 节点定义 | `RuntimeNodeDefinition` | 描述管理端画布可拖拽的流程节点 |
 | Runtime 图配置 | `RuntimeGraphConfig` | 保存可热更新的编排图 |
+| Host 角色记录 | `RuntimeRoleDescriptor` / `RuntimeRoleTraceRecord` | 描述本轮经过的运行时职责边界，不执行推理 |
+| 执行动作适配 | `ActionExecutor` | 执行 command、MCP、Skill 等工具动作 |
 
 这条边界用于避免概念漂移、平行抽象和手工注册表反模式。
 
@@ -29,15 +31,15 @@ ClassRobot 中只有两类对象可以称为 Agent：
 ```mermaid
 flowchart TD
     Base["BaseAgent\n统一 Agent 协议"] --> Function["BaseFunctionAgent\nfunction calling Agent"]
-    Base --> ToolCalling["ToolCallingAgent\n工具调用闭环"]
     Base --> Summary["SummaryAgent"]
     Base --> Extract["ExtractAgent"]
     Base --> Rag["RagAgent"]
     Base --> AutoTask["AutoTaskAgent"]
+    Base --> Reply["ExecutionReplyAgent"]
     Function --> Vision["VisionAgent"]
     Function --> File["FileAgent"]
 
-    Runtime["RuntimeContext / WorkflowNode / Catalog / Retriever"] -. "不是 Agent" .-> Base
+    Runtime["RuntimeContext / WorkflowNode / RuntimeRole / Executor / Catalog / Retriever"] -. "不是 Agent" .-> Base
 ```
 
 `BaseAgent` 负责统一元数据、执行入口、工具声明和类型驱动发现。新增 Agent 后不需要再把类手写进多个 list/dict，系统会通过继承树发现。
@@ -45,7 +47,7 @@ flowchart TD
 内置 Agent 的源码按职责放在 `src/core/agent/builtin/`：
 
 - `conversation.py`
-  - `LLMAgent`、`SummaryAgent`、`ExtractAgent`
+  - `SummaryAgent`、`ExtractAgent`、`ExecutionReplyAgent`
 - `multimodal.py`
   - `VisionAgent`、`FileAgent`
 - `retrieval.py`
@@ -111,36 +113,22 @@ summary_agent = BaseAgent.create("summary_agent")
 - Runtime 图节点仍由 `RuntimeNodeDefinition` 管理，因为节点是流程阶段，不是 Agent。
 - Command 工具仍由 `CommandToolCatalog` 管理，因为命令来自 Helper 和统一命令注册表。
 
-## ToolCallingAgent
+## 工具调用闭环放在哪里
 
-`ToolCallingAgent` 是通用工具调用智能体，继承 `BaseAgent`，实现现代 Agent 的基础闭环：
+项目不再维护 `ToolCallingAgent` 这类通用空壳。工具调用闭环由 AutoGPT Runtime 承载：
 
 ```text
-context -> model -> tool call -> observation -> model -> final reply
+ContextPack -> Planner -> TaskWorkflow -> ActionExecutor -> ToolObservation -> ExecutionReplyAgent
 ```
 
-示例：
+新增工具能力时优先选择这些位置：
 
-```python
-from src.core.agent import AgentSession, ToolCallingAgent, tool
+- 内部业务能力：写成 `src.platform.commands` 的 service-style command。
+- 外部实时能力：写成 MCP tool，并进入 runtime capability catalog。
+- 多步执行策略：放进 `CognitiveAgentLoop`、`ActionExecutor` 或 workflow 节点。
+- 最终用户回复：交给 `ExecutionReplyAgent` 基于 observation 汇总。
 
-
-@tool(name="query_current_class", description="查询当前用户所在班级")
-async def query_current_class(user_id: int) -> dict[str, str]:
-    return {"status": "success", "class_name": "软件工程 1 班"}
-
-
-agent = ToolCallingAgent(
-    name="class_query_agent",
-    tools=[query_current_class],
-    instructions="你只能根据工具结果回答用户班级信息。",
-)
-
-session = AgentSession()
-response = await agent.run("我现在在哪个班级？", session=session)
-```
-
-项目中不再维护 `Agent` 旧别名；通用工具调用智能体统一写 `ToolCallingAgent`。
+如果未来确实需要 subagent，必须同时满足三个条件：有真实 `BaseAgent` 实现、有独立 context slice、有明确 tool/capability 权限；否则只能叫 runtime role、workflow stage 或 executor。
 
 ## Function Agent
 

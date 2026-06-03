@@ -9,7 +9,7 @@
 - `src/core/agent/base.py`
   - `BaseAgent`、`BaseFunctionAgent`、`BaseAgentConfig`
 - `src/core/agent/agent.py`
-  - `ToolCallingAgent`、`ToolCallingAgentConfig`、`AgentSession`
+  - `AgentSession`
 - `src/core/agent/builtin/`
   - 内置 Agent 示例
 - `src/core/agent/runtime/README.md`
@@ -26,20 +26,17 @@ from src.core.agent import BaseAgent, BaseAgentConfig
 from src.core.llm.message import Messages
 
 
-class LLMConfig(BaseAgentConfig):
-    llm_name: str
-    api_base: str | None = None
-    api_key: str | None = None
-    temperature: float = 0.1
+class DemoSummaryConfig(BaseAgentConfig):
+    max_chars: int = 1200
 
 
-class LLMAgent(BaseAgent):
-    agent_name = "llm_agent"
-    display_name = "通用大模型智能体"
-    capabilities = ("chat", "planning")
+class DemoSummaryAgent(BaseAgent):
+    agent_name = "demo_summary_agent"
+    display_name = "示例总结 Agent"
+    capabilities = ("summary",)
     risk_level = "low"
 
-    config: LLMConfig = Field(default_factory=lambda: LLMConfig(llm_name="default"))
+    config: DemoSummaryConfig = Field(default_factory=DemoSummaryConfig)
 
     async def execute(self, messages: Messages) -> Messages:
         return messages
@@ -118,6 +115,8 @@ class QueryUserAgent(BaseFunctionAgent):
 - `SkillCatalog`
 - `LocalKnowledgeRetriever`
 - `RuntimeGraphConfig`
+- `RuntimeRoleDescriptor`
+- `ActionExecutor`
 
 ## Runtime 图和任务流
 

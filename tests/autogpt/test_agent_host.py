@@ -3,23 +3,23 @@ from __future__ import annotations
 import pytest
 
 
-def test_agent_catalog_exposes_default_specialized_agents(loaded_plugins):
-    from src.core.agent.runtime.delegation import AgentCatalog
+def test_runtime_role_catalog_exposes_default_roles(loaded_plugins):
+    from src.core.agent.runtime.roles import RuntimeRoleCatalog
 
     _ = loaded_plugins
-    catalog = AgentCatalog.default()
-    names = {agent.name for agent in catalog.agents}
+    catalog = RuntimeRoleCatalog.default()
+    names = {role.name for role in catalog.roles}
 
     assert {
         "workflow_supervisor",
-        "conversation_agent",
-        "knowledge_agent",
-        "realtime_lookup_agent",
-        "execution_agent",
-        "reply_synthesis_agent",
+        "conversation",
+        "knowledge",
+        "realtime_lookup",
+        "execution",
+        "reply_synthesis",
     }.issubset(names)
-    assert catalog.get("execution_agent").allow_delegate is False
-    assert "mcp_tool" in catalog.get("realtime_lookup_agent").allowed_tool_sources
+    assert "delegate" in catalog.get("execution").allowed_tool_sources
+    assert "mcp_tool" in catalog.get("realtime_lookup").allowed_tool_sources
 
 
 def test_action_result_converts_to_tool_observation(loaded_plugins):
@@ -77,10 +77,10 @@ async def test_chat_session_builds_host_turn_artifacts(monkeypatch, loaded_plugi
     assert session.last_turn_output_bundle.decision.decision_type == "direct_reply"
     assert session.user_visible_initial_reply(result) == "你好，我在。"
     assert any("# 系统最终回复记录" in message.single_modal() for message in session.messages.messages)
-    assert {record.target_agent for record in session.last_handoff_records} >= {
+    assert {record.target_role for record in session.last_runtime_role_records} >= {
         "workflow_supervisor",
-        "conversation_agent",
-        "reply_synthesis_agent",
+        "conversation",
+        "reply_synthesis",
     }
 
 
@@ -114,9 +114,9 @@ async def test_host_marks_executable_workflow_for_execution(monkeypatch, loaded_
     assert session.last_turn_output_bundle.decision.decision_type == "execute"
     assert session.last_turn_output_bundle.decision.requires_execution is True
     assert session.last_turn_output_bundle.reply.messages[0].message_type == "progress_message"
-    assert "execution_agent" in {record.target_agent for record in session.last_handoff_records}
+    assert "execution" in {record.target_role for record in session.last_runtime_role_records}
     assert turn_result.workflow is not None
-    assert turn_result.workflow.observability.handoffs
+    assert turn_result.workflow.observability.runtime_roles
 
 
 @pytest.mark.asyncio
