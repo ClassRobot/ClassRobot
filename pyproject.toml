@@ -71,11 +71,6 @@ testpaths = ["tests"]
 [[tool.poetry.source]]
 name = "tencent"
 url = "https://mirrors.cloud.tencent.com/pypi/simple"
-priority = "primary"
-
-[[tool.poetry.source]]
-name = "pypi-official"
-url = "https://pypi.python.org/simple"
 priority = "supplemental"
 
 [tool.nonebot]

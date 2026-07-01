@@ -29,15 +29,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install Poetry
-        run: python -m pip install --upgrade pip poetry
-
-      - name: Disable Tencent mirror for CI
-        run: |
-          # Use Poetry's own source commands instead of editing pyproject.toml
-          # with sed. Unsupported fields in [[tool.poetry.source]] make
-          # `poetry install` fail before dependency resolution starts.
-          poetry source remove tencent || true
-          poetry source remove pypi-official || true
+        run: python -m pip install --upgrade pip poetry "poetry-plugin-export>=1.8"
 
       - name: Install dependencies
         run: poetry install --with dev,test --no-interaction

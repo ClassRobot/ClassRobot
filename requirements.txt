@@ -1,5 +1,3 @@
---index-url https://mirrors.cloud.tencent.com/pypi/simple
-
 aiodns==3.5.0 ; python_version == "3.12" \
     --hash=sha256:11264edbab51896ecf546c18eb0dd56dff0428c6aa6d2cd87e643e07300eb310 \
     --hash=sha256:6d0404f7d5215849233f6ee44854f2bb2481adf71b336b2279016ea5990ca5c5
