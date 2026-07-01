@@ -422,7 +422,7 @@ colorama==0.4.6 ; (sys_platform == "win32" or platform_system == "Windows") and 
 coloredlogs==15.0.1 ; python_version == "3.12" \
     --hash=sha256:612ee75c546f53e92e70049c9dbfcc18c935a2b9a53b66085ce9ef6a6e5c0934 \
     --hash=sha256:7c991aa71a4577af2f82600d8f8f3a89f936baeaf9b50a9c197da014e5bf16b0
-comtypes==1.4.11 ; python_version == "3.12" \
+comtypes==1.4.11 ; python_version == "3.12" and sys_platform == "win32" \
     --hash=sha256:0a4259370ec48b685fe4483b0944ba1df0aa45163922073fe9b7df1d187db09e \
     --hash=sha256:1760d5059ca7ca1d61b574c998378d879c271a86c41f88926619ea97497592bb
 cos-python-sdk-v5==1.9.37 ; python_version == "3.12" \

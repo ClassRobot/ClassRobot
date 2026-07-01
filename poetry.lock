@@ -1096,6 +1096,7 @@ description = "Pure Python COM package"
 optional = false
 python-versions = ">=3.8"
 groups = ["main"]
+markers = "sys_platform == \"win32\""
 files = [
     {file = "comtypes-1.4.11-py3-none-any.whl", hash = "sha256:1760d5059ca7ca1d61b574c998378d879c271a86c41f88926619ea97497592bb"},
     {file = "comtypes-1.4.11.zip", hash = "sha256:0a4259370ec48b685fe4483b0944ba1df0aa45163922073fe9b7df1d187db09e"},
@@ -6757,4 +6758,4 @@ reference = "tencent"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12,<3.13"
-content-hash = "80431158aceb59493c43f0d8eb35753aab2b963f2f35141b87171d28ce98e307"
+content-hash = "97f3d395bcc978d6f6d8d42d748e37a5c3094daae88f189fda9d30f4d81c38d9"

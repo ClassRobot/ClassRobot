@@ -1,4 +1,7 @@
+import sys
 import logging
+import importlib
+from typing import Any
 from pathlib import Path
 
 import pdf2image
@@ -9,17 +12,24 @@ logger = logging.getLogger(__name__)
 powerpoint = None
 word = None
 
-try:
-    import comtypes.client
-except Exception as err:
-    logger.exception(err)
+_comtypes_client: Any | None = None
+
+
+def get_comtypes_client() -> Any:
+    """获取 Windows COM 客户端。"""
+    global _comtypes_client
+    if sys.platform != "win32":
+        raise RuntimeError("PPT/Word 转换依赖 Windows COM，仅支持在 Windows 环境运行。")
+    if _comtypes_client is None:
+        _comtypes_client = importlib.import_module("comtypes.client")
+    return _comtypes_client
 
 
 async def ppt2img(file_path: Path, output: Path) -> list[Path]:
     """将 PPT 转换为图片。"""
     global powerpoint
     if powerpoint is None:
-        powerpoint = comtypes.client.CreateObject("kwpp.Application")
+        powerpoint = get_comtypes_client().CreateObject("kwpp.Application")
     ppt = powerpoint.Presentations.Open(str(file_path))
     ppt.SaveAs(str(output), 17)
     ppt.Close()
@@ -30,7 +40,7 @@ async def doc2pdf(file_path: Path, output: Path) -> Path:
     """将 Word 文档转换为 PDF。"""
     global word
     if word is None:
-        word = comtypes.client.CreateObject("kwps.Application")
+        word = get_comtypes_client().CreateObject("kwps.Application")
     doc = word.Documents.Open(str(file_path))
     output.mkdir(parents=True, exist_ok=True)
     doc.SaveAs(str(output / output.stem), 17)

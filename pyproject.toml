@@ -45,7 +45,7 @@ pyzbar = "^0.1.9"
 markdown2 = "^2.5.3"
 pypandoc = "^1.15"
 pdf2image = "^1.17.0"
-comtypes = "^1.4.11"
+comtypes = { version = "^1.4.11", markers = "sys_platform == 'win32'" }
 onnxruntime = "^1.22.0"
 async-timeout = "^5.0.1"
 hiredis = "^3.2.1"
