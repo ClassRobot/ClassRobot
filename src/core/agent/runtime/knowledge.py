@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 import asyncio
+from enum import StrEnum
 from pathlib import Path
 from dataclasses import dataclass
 from collections.abc import Iterable
@@ -21,6 +22,7 @@ from src.core.storage import (
     chat_history_store,
 )
 
+from .live_trace import agent_live_trace_registry
 from .schema import KnowledgeSourceRequest, KnowledgeSourceObservation
 
 TEXT_FILE_SUFFIXES = {
@@ -50,12 +52,35 @@ class RuntimeContext:
     channel_id: str | None = None
     guild_id: str | None = None
     message_id: str | None = None
+    trace_id: str = ""
 
     @property
     def is_group(self) -> bool:
         """判断当前上下文是否来自群聊或频道。"""
 
         return self.channel_id is not None
+
+
+class KnowledgeAccessScope(StrEnum):
+    """描述 Agent 当前可读取的聊天/文件知识边界。"""
+
+    private_user = "private_user"
+    bound_group = "bound_group"
+
+
+@dataclass(slots=True, frozen=True)
+class ResolvedKnowledgeOwner:
+    """描述一次受控本地知识检索最终落到的 owner 空间。"""
+
+    scope: KnowledgeAccessScope
+    owner_kind: MessageOwnerKind
+    owner_id: str
+
+    @property
+    def display(self) -> str:
+        """返回便于调试和日志展示的 owner 文本。"""
+
+        return f"{self.owner_kind.value}:{self.owner_id}"
 
 
 class SkillCatalog:
@@ -162,44 +187,50 @@ class LocalKnowledgeRetriever:
             query = extract_search_query(request.reason)
 
         if context is None:
-            return self.skipped_observation(request, query, "当前没有可用运行时上下文，无法读取本地知识。")
+            observation = self.skipped_observation(request, query, "当前没有可用运行时上下文，无法读取本地知识。")
+            self.emit_source_trace(context, observation)
+            return observation
 
-        unavailable_reason = self.source_unavailable_reason(request.source, context)
+        owner, unavailable_reason = await self.resolve_source_owner(request.source, context)
         if unavailable_reason:
-            return self.skipped_observation(request, query, unavailable_reason)
-        if request.source in {"group_chat_history", "group_file_space"}:
-            group_id = await self.resolve_system_group_id(context)
-            if group_id is None:
-                return self.skipped_observation(
-                    request,
-                    query,
-                    "当前群聊未绑定系统群或无法解析系统群 ID，已跳过群知识源检索。",
-                )
+            observation = self.skipped_observation(request, query, unavailable_reason, owner=owner)
+            self.emit_source_trace(context, observation)
+            return observation
 
         try:
-            content = await self.retrieve_allowed_source(request.source, query, context)
+            content = await self.retrieve_allowed_source(request.source, query, context, owner=owner)
         except Exception as error:
             logger.warning(f"AutoGPT local knowledge source `{request.source}` failed: {error}")
-            return KnowledgeSourceObservation(
+            observation = KnowledgeSourceObservation(
                 source=request.source,
                 query=query,
                 status="error",
                 summary=f"检索 {request.source} 时发生错误：{error}",
                 confidence="none",
                 required=request.required,
+                scope=owner.scope.value if owner is not None else "",
+                owner_kind=owner.owner_kind.value if owner is not None else "",
+                owner_id=owner.owner_id if owner is not None else "",
             )
+            self.emit_source_trace(context, observation)
+            return observation
 
         if content is None:
-            return KnowledgeSourceObservation(
+            observation = KnowledgeSourceObservation(
                 source=request.source,
                 query=query,
                 status="miss",
                 summary="未检索到相关内容。",
                 confidence="none",
                 required=request.required,
+                scope=owner.scope.value if owner is not None else "",
+                owner_kind=owner.owner_kind.value if owner is not None else "",
+                owner_id=owner.owner_id if owner is not None else "",
             )
+            self.emit_source_trace(context, observation)
+            return observation
 
-        return KnowledgeSourceObservation(
+        observation = KnowledgeSourceObservation(
             source=request.source,
             query=query,
             status="hit",
@@ -207,42 +238,98 @@ class LocalKnowledgeRetriever:
             confidence="medium",
             items_count=estimate_context_items(content),
             required=request.required,
+            scope=owner.scope.value if owner is not None else "",
+            owner_kind=owner.owner_kind.value if owner is not None else "",
+            owner_id=owner.owner_id if owner is not None else "",
         )
+        self.emit_source_trace(context, observation)
+        return observation
+
+    async def resolve_source_owner(
+        self,
+        source: str,
+        context: RuntimeContext,
+    ) -> tuple[ResolvedKnowledgeOwner | None, str]:
+        """把受控知识源解析为唯一可访问的 owner 边界。"""
+
+        if source in {"user_chat_history", "user_file_space"}:
+            if context.user_id is None:
+                return None, "当前没有可用用户 ID，已跳过用户私有知识源检索。"
+            return (
+                ResolvedKnowledgeOwner(
+                    scope=KnowledgeAccessScope.private_user,
+                    owner_kind=MessageOwnerKind.user,
+                    owner_id=str(context.user_id),
+                ),
+                "",
+            )
+
+        if source in {"group_chat_history", "group_file_space"}:
+            if not context.is_group:
+                return None, "当前不是群聊或频道上下文，已跳过群知识源检索。"
+            group_id = await self.resolve_system_group_id(context)
+            if group_id is None:
+                return None, "当前群聊未绑定系统群或无法解析系统群 ID，已跳过群知识源检索。"
+            return (
+                ResolvedKnowledgeOwner(
+                    scope=KnowledgeAccessScope.bound_group,
+                    owner_kind=MessageOwnerKind.group,
+                    owner_id=str(group_id),
+                ),
+                "",
+            )
+        return None, ""
 
     @staticmethod
-    def source_unavailable_reason(source: str, context: RuntimeContext) -> str:
-        """返回当前上下文无法访问某知识源的原因，空字符串表示可尝试检索。"""
+    def emit_source_trace(context: RuntimeContext | None, observation: KnowledgeSourceObservation) -> None:
+        """把知识源命中边界写入开发态 live trace。"""
 
-        if source in {"user_chat_history", "user_file_space"} and context.user_id is None:
-            return "当前没有可用用户 ID，已跳过用户私有知识源检索。"
-        if source in {"group_chat_history", "group_file_space"} and not context.is_group:
-            return "当前不是群聊或频道上下文，已跳过群知识源检索。"
-        return ""
+        if context is None or not context.trace_id:
+            return
+        agent_live_trace_registry.emit(
+            context.trace_id,
+            event_type="knowledge_lookup_completed",
+            stage="knowledge",
+            node_type="knowledge_source",
+            node_label=observation.source,
+            status=observation.status,
+            params_preview={
+                "source": observation.source,
+                "scope": observation.scope,
+                "owner_kind": observation.owner_kind,
+                "owner_id": observation.owner_id,
+                "query": observation.query,
+                "required": observation.required,
+                "items_count": observation.items_count,
+            },
+            observation_summary=observation.summary,
+        )
 
     async def retrieve_allowed_source(
         self,
         source: str,
         query: str,
         context: RuntimeContext,
+        owner: ResolvedKnowledgeOwner | None = None,
     ) -> str | None:
         """根据受控 source 调用对应检索实现，不让模型直接决定存储范围。"""
 
         if source == "user_chat_history":
-            if context.user_id is None:
+            if owner is None:
                 return None
-            return await self.retrieve_user_chat_history(query, context)
+            return await self.retrieve_user_chat_history(query, context, owner)
         if source == "group_chat_history":
-            if not context.is_group:
+            if owner is None:
                 return None
-            return await self.retrieve_group_chat_history(query, context)
+            return await self.retrieve_group_chat_history(query, context, owner)
         if source == "user_file_space":
-            if context.user_id is None:
+            if owner is None:
                 return None
-            return await self.retrieve_user_files(query, context)
+            return await self.retrieve_user_files(query, owner)
         if source == "group_file_space":
-            if not context.is_group:
+            if owner is None:
                 return None
-            return await self.retrieve_group_files(query, context)
+            return await self.retrieve_group_files(query, owner)
         return None
 
     @staticmethod
@@ -250,6 +337,8 @@ class LocalKnowledgeRetriever:
         request: KnowledgeSourceRequest,
         query: str,
         summary: str,
+        *,
+        owner: ResolvedKnowledgeOwner | None = None,
     ) -> KnowledgeSourceObservation:
         """构造因权限或上下文不足而跳过的检索观察。"""
 
@@ -260,6 +349,9 @@ class LocalKnowledgeRetriever:
             summary=summary,
             confidence="none",
             required=request.required,
+            scope=owner.scope.value if owner is not None else "",
+            owner_kind=owner.owner_kind.value if owner is not None else "",
+            owner_id=owner.owner_id if owner is not None else "",
         )
 
     @staticmethod
@@ -275,22 +367,29 @@ class LocalKnowledgeRetriever:
                     f"- status: {observation.status}",
                     f"- required: {str(observation.required).lower()}",
                     f"- confidence: {observation.confidence}",
+                    f"- scope: {observation.scope or 'none'}",
+                    f"- owner: {(observation.owner_kind + ':' + observation.owner_id) if observation.owner_kind else 'none'}",
                     f"- items_count: {observation.items_count}",
                     observation.summary.strip() or "未检索到相关内容。",
                 ]
             )
         return "\n".join(lines)
 
-    async def retrieve_user_chat_history(self, query: str, context: RuntimeContext) -> str | None:
+    async def retrieve_user_chat_history(
+        self,
+        query: str,
+        context: RuntimeContext,
+        owner: ResolvedKnowledgeOwner,
+    ) -> str | None:
         """检索当前用户私聊历史，禁止读取其它用户记录。"""
 
-        if context.user_id is None:
+        if owner.owner_kind != MessageOwnerKind.user:
             return None
-        user_context = await self.retrieve_user_chat_rag(query, context)
+        user_context = await self.retrieve_user_chat_rag(query, context, owner)
         if user_context:
             return user_context
         records = await self.chat_store.search_user_chat_messages(
-            context.user_id,
+            owner.owner_id,
             query,
             limit=8,
             search_window=120,
@@ -300,17 +399,21 @@ class LocalKnowledgeRetriever:
             return None
         return format_chat_records("用户人机聊天记录检索", query, records)
 
-    async def retrieve_group_chat_history(self, query: str, context: RuntimeContext) -> str | None:
+    async def retrieve_group_chat_history(
+        self,
+        query: str,
+        context: RuntimeContext,
+        owner: ResolvedKnowledgeOwner,
+    ) -> str | None:
         """检索当前绑定系统群的群聊历史，不直接信任平台 channel id。"""
 
-        group_id = await self.resolve_system_group_id(context)
-        if group_id is None:
+        if owner.owner_kind != MessageOwnerKind.group:
             return None
-        group_context = await self.retrieve_group_chat_rag(group_id, query, context)
+        group_context = await self.retrieve_group_chat_rag(query, context, owner)
         if group_context:
             return group_context
         records = await self.chat_store.search_group_messages(
-            group_id,
+            owner.owner_id,
             query,
             limit=8,
             search_window=160,
@@ -320,16 +423,21 @@ class LocalKnowledgeRetriever:
             return None
         return format_chat_records("系统群近期消息检索", query, records)
 
-    async def retrieve_user_chat_rag(self, query: str, context: RuntimeContext) -> str | None:
+    async def retrieve_user_chat_rag(
+        self,
+        query: str,
+        context: RuntimeContext,
+        owner: ResolvedKnowledgeOwner,
+    ) -> str | None:
         """通过本地 RAG 索引检索用户人机聊天记录。"""
 
-        if context.user_id is None:
+        if owner.owner_kind != MessageOwnerKind.user:
             return None
         try:
-            await self.rag_service.refresh_user_chat(context.user_id)
+            await self.rag_service.refresh_user_chat(owner.owner_id)
             results = await self.rag_service.search_owner(
-                MessageOwnerKind.user,
-                context.user_id,
+                owner.owner_kind,
+                owner.owner_id,
                 query,
                 source_types={"chat"},
                 limit=10,
@@ -342,17 +450,19 @@ class LocalKnowledgeRetriever:
 
     async def retrieve_group_chat_rag(
         self,
-        group_id: str,
         query: str,
         context: RuntimeContext,
+        owner: ResolvedKnowledgeOwner,
     ) -> str | None:
-        """通过本地 RAG 索引检索系统群采集消息。"""
+        """通过本地 RAG 索引检索系统群聊天历史。"""
 
+        if owner.owner_kind != MessageOwnerKind.group:
+            return None
         try:
-            await self.rag_service.refresh_group_collect(group_id)
+            await self.rag_service.refresh_group_chat_history(owner.owner_id)
             results = await self.rag_service.search_owner(
-                MessageOwnerKind.group,
-                group_id,
+                owner.owner_kind,
+                owner.owner_id,
                 query,
                 source_types={"chat"},
                 limit=10,
@@ -363,20 +473,19 @@ class LocalKnowledgeRetriever:
             logger.warning(f"AutoGPT local RAG failed to retrieve group chat: {error}")
             return None
 
-    async def retrieve_user_files(self, query: str, context: RuntimeContext) -> str | None:
+    async def retrieve_user_files(self, query: str, owner: ResolvedKnowledgeOwner) -> str | None:
         """检索当前用户隔离文件空间。"""
 
-        if context.user_id is None:
+        if owner.owner_kind != MessageOwnerKind.user:
             return None
-        return await self.retrieve_file_space(query, self.manager.user_space(context.user_id), "用户文件空间检索")
+        return await self.retrieve_file_space(query, self.manager.user_space(owner.owner_id), "用户文件空间检索")
 
-    async def retrieve_group_files(self, query: str, context: RuntimeContext) -> str | None:
+    async def retrieve_group_files(self, query: str, owner: ResolvedKnowledgeOwner) -> str | None:
         """检索当前绑定系统群文件空间，不直接使用平台 channel id。"""
 
-        group_id = await self.resolve_system_group_id(context)
-        if group_id is None:
+        if owner.owner_kind != MessageOwnerKind.group:
             return None
-        return await self.retrieve_file_space(query, self.manager.group_space(group_id), "群文件空间检索")
+        return await self.retrieve_file_space(query, self.manager.group_space(owner.owner_id), "群文件空间检索")
 
     async def retrieve_file_space(self, query: str, space: FileSpace, title: str) -> str | None:
         """检索指定隔离文件空间。"""

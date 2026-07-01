@@ -70,6 +70,8 @@ async def test_local_knowledge_retriever_reads_user_chat_history(loaded_plugins,
     assert "## user_chat_history" in routed_context
     assert "status: hit" in routed_context
     assert "班会材料" in routed_context
+    assert "scope: private_user" in routed_context
+    assert "owner: user:90001" in routed_context
 
 
 @pytest.mark.asyncio
@@ -100,6 +102,46 @@ async def test_local_knowledge_retriever_uses_rag_overlap_recall(loaded_plugins,
     assert "本地 RAG" in context
     assert "召回摘要" in context
     assert "班会材料" in context
+
+
+@pytest.mark.asyncio
+async def test_local_knowledge_retriever_keeps_user_chat_history_isolated(loaded_plugins, tmp_path):
+    from src.core.agent.runtime.schema import KnowledgeSourceRequest
+    from src.core.storage import StorageManager, ChatHistoryStore, MessageActorRole
+    from src.core.agent.runtime.knowledge import RuntimeContext, LocalKnowledgeRetriever
+
+    manager = StorageManager(tmp_path / "storage")
+    store = ChatHistoryStore(manager)
+    await store.record_user_chat_message(
+        user_id=91001,
+        user_name="用户A",
+        plain_text="奖学金材料放在 scholarship.md",
+        raw_text="奖学金材料放在 scholarship.md",
+        actor_role=MessageActorRole.user,
+        message_id="u-a-1",
+        created_at=datetime(2026, 5, 6, 8, 30),
+    )
+    await store.record_user_chat_message(
+        user_id=91002,
+        user_name="用户B",
+        plain_text="我只聊过食堂菜单。",
+        raw_text="我只聊过食堂菜单。",
+        actor_role=MessageActorRole.user,
+        message_id="u-b-1",
+        created_at=datetime(2026, 5, 6, 8, 31),
+    )
+
+    retriever = LocalKnowledgeRetriever(manager=manager, chat_store=store)
+    context = await retriever.retrieve_sources(
+        [KnowledgeSourceRequest(source="user_chat_history", query="奖学金材料", reason="查询历史", required=True)],
+        RuntimeContext(user_id=91002, message_id="u-b-current"),
+    )
+
+    assert context is not None
+    assert "owner: user:91002" in context
+    assert "scholarship.md" not in context
+    assert "食堂菜单" not in context
+    assert "status: miss" in context
 
 
 @pytest.mark.asyncio
@@ -202,6 +244,130 @@ async def test_local_knowledge_retriever_skips_group_sources_outside_group_conte
     assert "## group_chat_history" in context
     assert "status: skipped" in context
     assert "不是群聊或频道上下文" in context
+
+
+@pytest.mark.asyncio
+async def test_local_knowledge_retriever_skips_unbound_group_chat_history(loaded_plugins, tmp_path):
+    from src.core.storage import StorageManager, ChatHistoryStore
+    from src.core.agent.runtime.schema import KnowledgeSourceRequest
+    from src.core.agent.runtime.knowledge import RuntimeContext, LocalKnowledgeRetriever
+
+    manager = StorageManager(tmp_path / "storage")
+    retriever = LocalKnowledgeRetriever(manager=manager, chat_store=ChatHistoryStore(manager))
+
+    context = await retriever.retrieve_sources(
+        [
+            KnowledgeSourceRequest(
+                source="group_chat_history", query="作业安排", reason="用户询问群聊历史", required=True
+            )
+        ],
+        RuntimeContext(user_id=90007, platform="onebot11.qq_client", channel_id="92008", message_id="group-current"),
+    )
+
+    assert context is not None
+    assert "## group_chat_history" in context
+    assert "status: skipped" in context
+    assert "未绑定系统群" in context
+
+
+@pytest.mark.asyncio
+async def test_local_knowledge_retriever_group_chat_history_uses_bound_group_contract(loaded_plugins, tmp_path):
+    from src.core.agent.runtime.schema import KnowledgeSourceRequest
+    from src.core.storage import StorageManager, ChatHistoryStore, MessageActorRole
+    from src.core.agent.runtime.knowledge import RuntimeContext, LocalKnowledgeRetriever
+
+    manager = StorageManager(tmp_path / "storage")
+    store = ChatHistoryStore(manager)
+    await store.record_group_collect_message(
+        group_id="system-group-93001",
+        user_id="u1",
+        user_name="张三",
+        plain_text="今天作业安排是什么",
+        raw_text="今天作业安排是什么",
+        message_id="group-collect-1",
+        created_at=datetime(2026, 5, 6, 8, 30),
+    )
+    await store.record_group_chat_message(
+        group_id="system-group-93001",
+        plain_text="今天作业是完成第 3 章习题。",
+        raw_text="今天作业是完成第 3 章习题。",
+        actor_role=MessageActorRole.assistant,
+        actor_id="bot-1",
+        actor_name="机器人",
+        message_id="group-assistant-1",
+        created_at=datetime(2026, 5, 6, 8, 31),
+    )
+    await store.record_group_chat_message(
+        group_id="system-group-93001",
+        plain_text="检索群聊记录 作业安排",
+        raw_text="检索群聊记录 作业安排",
+        actor_role=MessageActorRole.user,
+        actor_id="u2",
+        actor_name="李四",
+        message_id="group-chat-user-1",
+        created_at=datetime(2026, 5, 6, 8, 32),
+    )
+
+    retriever = LocalKnowledgeRetriever(manager=manager, chat_store=store)
+    context = await retriever.retrieve_sources(
+        [
+            KnowledgeSourceRequest(
+                source="group_chat_history", query="作业安排", reason="用户询问群聊历史", required=True
+            )
+        ],
+        RuntimeContext(
+            user_id=90008,
+            group_id="system-group-93001",
+            platform="onebot11.qq_client",
+            channel_id="93001",
+            message_id="group-current",
+        ),
+    )
+
+    assert context is not None
+    assert "scope: bound_group" in context
+    assert "owner: group:system-group-93001" in context
+    assert "今天作业安排是什么" in context
+    assert "今天作业是完成第 3 章习题" in context
+    assert "检索群聊记录 作业安排" not in context
+
+
+@pytest.mark.asyncio
+async def test_local_knowledge_retriever_filters_current_message_from_user_rag(loaded_plugins, tmp_path):
+    from src.core.agent.runtime.schema import KnowledgeSourceRequest
+    from src.core.storage import StorageManager, ChatHistoryStore, MessageActorRole
+    from src.core.agent.runtime.knowledge import RuntimeContext, LocalKnowledgeRetriever
+
+    manager = StorageManager(tmp_path / "storage")
+    store = ChatHistoryStore(manager)
+    await store.record_user_chat_message(
+        user_id=91003,
+        user_name="测试用户",
+        plain_text="之前提到奖学金材料在 scholarship.md",
+        raw_text="之前提到奖学金材料在 scholarship.md",
+        actor_role=MessageActorRole.user,
+        message_id="rag-old",
+        created_at=datetime(2026, 5, 6, 8, 20),
+    )
+    await store.record_user_chat_message(
+        user_id=91003,
+        user_name="测试用户",
+        plain_text="我现在这条也提到奖学金材料",
+        raw_text="我现在这条也提到奖学金材料",
+        actor_role=MessageActorRole.user,
+        message_id="rag-current",
+        created_at=datetime(2026, 5, 6, 8, 21),
+    )
+
+    retriever = LocalKnowledgeRetriever(manager=manager, chat_store=store)
+    context = await retriever.retrieve_sources(
+        [KnowledgeSourceRequest(source="user_chat_history", query="奖学金材料", reason="查询历史")],
+        RuntimeContext(user_id=91003, message_id="rag-current"),
+    )
+
+    assert context is not None
+    assert "scholarship.md" in context
+    assert "我现在这条也提到奖学金材料" not in context
 
 
 def test_intent_route_accepts_ai_selected_knowledge_sources(loaded_plugins):

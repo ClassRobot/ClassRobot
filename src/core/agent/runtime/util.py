@@ -245,6 +245,8 @@ class ChatSession:
         try:
             self.lock = True
             self.last_trace_id = f"autogpt-{uuid4().hex[:12]}"
+            if runtime_context is not None:
+                runtime_context.trace_id = self.last_trace_id
             message_contents = self.message_to_contents(message)
             message_preview = preview_contents(message_contents, limit=120)
             agent_live_trace_registry.start_trace(

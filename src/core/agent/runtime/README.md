@@ -15,7 +15,7 @@
 - `harness/`
   - 策略、上下文、可观测性装配层。
 - `knowledge.py`
-  - 受控知识源检索、本地聊天、文件空间、本地 RAG 和 Skill 目录。
+  - 受控知识源检索、本地聊天、文件空间、本地 RAG、owner/scope 边界解析和 Skill 目录。
 - `workflow.py`
   - 显式工作流构建、审批语义和执行器。
 - `loop.py`
@@ -38,6 +38,21 @@ AutoGPT Runtime 里现在固定区分两层工作流，后续开发不要再混�
 
 运行时编排图是系统控制面，AI 不能修改。AI 只能在运行时图约束下生成 `TaskWorkflow`，再由执行器校验、执行、记录 observation，最后交给回复 Agent 汇总给用户。
 
+## 聊天与本地 RAG 边界
+
+本地聊天检索和本地 RAG 现在统一遵守同一条 owner scope 契约：
+
+- `private_user`
+  - 只能读取当前用户自己的聊天记录与本地 RAG 索引。
+- `bound_group`
+  - 只能读取当前会话已解析绑定的系统群聊天记录与本地 RAG 索引。
+- `group_chat_history`
+  - 可见语义固定为“群用户发言 + 机器人在该群的回复”，但不重复纳入已由 `collect` 覆盖的人类命令回放。
+- `exclude_message_id`
+  - 会同时作用于历史回填、普通聊天检索和本地 RAG 召回，避免当前消息自回声。
+
+如果当前轮次无法解析系统绑定群，runtime 会把群知识源标记为 `skipped`，而不是回退到平台 `channel_id` 直查。
+
 ## LangGraph 设计取舍
 
 当前运行时选择 LangGraph Graph API，而不是 Functional API，原因是项目已经有管理端可视化编排、节点目录和条件边配置。Graph API 的 `StateGraph` 天然对应：
@@ -51,6 +66,7 @@ AutoGPT Runtime 里现在固定区分两层工作流，后续开发不要再混�
 - LangGraph 负责执行图、条件跳转和未来可视化/可观测扩展。
 - `ChatSession` 和 `AgentWorkflowCheckpoint` 继续负责项目已有的会话与工作流状态。
 - `src.core.storage.ChatHistoryStore` 负责用户、群组的长期聊天事实；用户私聊还会额外写入 `users/{user_id}/chat/daily/YYYY-MM-DD.jsonl`。
+- 路径只负责物理承载，真正的聊天/RAG 权限边界由 runtime 解析出的 owner scope 决定。
 - 不直接把所有聊天历史塞进 LangGraph state，避免图状态膨胀，也避免跨用户长期记忆越权。
 - 当前没有启用 LangGraph checkpoint/store，也不把 `LangGraphRuntime` 描述为 durable execution；持久化、恢复和审计仍由项目现有的 `ChatSession`、workflow checkpoint/run 与 `ChatHistoryStore` 承担。
 

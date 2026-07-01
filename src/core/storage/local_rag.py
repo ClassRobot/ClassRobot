@@ -420,7 +420,9 @@ class LocalRagService:
 
         if owner_kind == MessageOwnerKind.user:
             return LocalRagIndex(self.manager.user_space(owner_id))
-        return LocalRagIndex(self.manager.group_space(owner_id))
+        if owner_kind == MessageOwnerKind.group:
+            return LocalRagIndex(self.manager.group_space(owner_id))
+        raise ValueError(f"LocalRagService only supports user/group owner indexes, got {owner_kind}")
 
     async def refresh_user_chat(self, user_id: str | int, *, limit: int = 240) -> int:
         """刷新用户人机聊天记录索引。"""
@@ -433,16 +435,15 @@ class LocalRagService:
             limit=limit,
         )
 
-    async def refresh_group_collect(self, group_id: str | int, *, limit: int = 320) -> int:
-        """刷新系统群采集消息索引。"""
+    async def refresh_group_chat_history(self, group_id: str | int, *, limit: int = 320) -> int:
+        """刷新与 ``group_chat_history`` 契约一致的系统群聊天历史索引。"""
 
-        return await asyncio.to_thread(
-            self._refresh_chat_sync,
-            MessageOwnerKind.group,
-            group_id,
-            (MessageRecordKind.collect,),
-            limit=limit,
-        )
+        return await asyncio.to_thread(self._refresh_group_chat_history_sync, group_id, limit=limit)
+
+    async def refresh_group_collect(self, group_id: str | int, *, limit: int = 320) -> int:
+        """兼容旧命名，转调系统群聊天历史索引刷新。"""
+
+        return await self.refresh_group_chat_history(group_id, limit=limit)
 
     async def refresh_file_space(self, space: FileSpace, *, max_files: int = 220) -> int:
         """刷新文件空间文本内容索引。"""
@@ -480,6 +481,17 @@ class LocalRagService:
         rows = self.chat_store._load_recent_rows(owner_kind, owner_id, limit, record_kinds)
         records = [self.chat_store._row_to_record(row) for row in rows]
         index = self.index_for_owner(owner_kind, owner_id)
+        chunks: list[LocalRagChunk] = []
+        for record in records:
+            chunks.extend(chat_record_to_chunks(record))
+        index.upsert_chunks(chunks)
+        return len(chunks)
+
+    def _refresh_group_chat_history_sync(self, group_id: str | int, *, limit: int) -> int:
+        """同步刷新系统群聊天历史索引。"""
+
+        records = self.chat_store._load_group_chat_history_records_sync(group_id, limit=limit)
+        index = self.index_for_owner(MessageOwnerKind.group, group_id)
         chunks: list[LocalRagChunk] = []
         for record in records:
             chunks.extend(chat_record_to_chunks(record))

@@ -21,6 +21,7 @@ KnowledgeSource = Literal[
 ]
 KnowledgeSourceStatus = Literal["hit", "miss", "skipped", "error"]
 KnowledgeSourceConfidence = Literal["high", "medium", "low", "none"]
+KnowledgeSourceScope = Literal["private_user", "bound_group", ""]
 ToolObservationSource = Literal[
     "command",
     "mcp_tool",
@@ -65,6 +66,12 @@ class KnowledgeSourceObservation(BaseModel):
     """粗略命中条目数量。"""
     required: bool = False
     """该来源是否由路由器标记为必须命中。"""
+    scope: KnowledgeSourceScope = ""
+    """当前知识源命中的空间边界。"""
+    owner_kind: Literal["user", "group", ""] = ""
+    """当前知识源解析出的 owner 类型。"""
+    owner_id: str = ""
+    """当前知识源解析出的 owner 标识。"""
 
 
 class IntentRoute(BaseModel):

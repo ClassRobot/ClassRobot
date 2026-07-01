@@ -298,21 +298,13 @@ class ChatHistoryStore:
         部分，避免把已经存在于 ``collect`` 的用户命令消息重复计入。
         """
 
-        records = await self._search_messages(
-            owner_kind=MessageOwnerKind.group,
-            owner_id=group_id,
-            query=query,
-            limit=max(limit, search_window),
-            search_window=search_window,
-            exclude_message_id=exclude_message_id,
-            record_kinds=(MessageRecordKind.collect, MessageRecordKind.chat),
+        return self._search_group_chat_history_records_sync(
+            group_id,
+            query,
+            limit,
+            search_window,
+            exclude_message_id,
         )
-        filtered_records = [
-            record
-            for record in records
-            if record.record_kind == MessageRecordKind.collect or record.actor_role == MessageActorRole.assistant
-        ]
-        return filtered_records[-limit:]
 
     async def search_user_chat_messages(
         self,
@@ -763,15 +755,55 @@ class ChatHistoryStore:
     ) -> list[ChatHistoryRecord]:
         """兼容旧调用方式，检索群组采集消息。"""
 
-        return self._search_messages_sync(
-            MessageOwnerKind.group,
+        return self._search_group_chat_history_records_sync(
             group_id,
             query,
             limit,
             search_window,
             exclude_message_id,
-            (MessageRecordKind.collect,),
         )
+
+    def _search_group_chat_history_records_sync(
+        self,
+        group_id: str | int,
+        query: str | None,
+        limit: int,
+        search_window: int,
+        exclude_message_id: str | int | None,
+    ) -> list[ChatHistoryRecord]:
+        """同步检索与 ``group_chat_history`` 契约一致的系统群聊天历史。"""
+
+        records = self._search_messages_sync(
+            MessageOwnerKind.group,
+            group_id,
+            query,
+            max(limit, search_window),
+            search_window,
+            exclude_message_id,
+            (MessageRecordKind.collect, MessageRecordKind.chat),
+        )
+        return self._filter_group_chat_history_records(records)[-limit:]
+
+    def _load_group_chat_history_records_sync(
+        self,
+        group_id: str | int,
+        *,
+        limit: int,
+        exclude_message_id: str | int | None = None,
+    ) -> list[ChatHistoryRecord]:
+        """读取系统群最近聊天历史，语义与 ``group_chat_history`` 保持一致。"""
+
+        rows = self._load_recent_rows(
+            MessageOwnerKind.group,
+            group_id,
+            limit,
+            (MessageRecordKind.collect, MessageRecordKind.chat),
+        )
+        if exclude_message_id is not None:
+            excluded = str(exclude_message_id)
+            rows = [row for row in rows if str(row["message_id"] or "") != excluded]
+        records = [self._row_to_record(row) for row in rows]
+        return self._filter_group_chat_history_records(records)
 
     def _summarize_messages_sync(
         self,
@@ -884,7 +916,19 @@ class ChatHistoryStore:
 
         if owner_kind == MessageOwnerKind.user:
             return self.manager.user_space(owner_id).chat_dir / MESSAGE_DB_NAME
-        return self.manager.group_space(owner_id).chat_dir / MESSAGE_DB_NAME
+        if owner_kind == MessageOwnerKind.group:
+            return self.manager.group_space(owner_id).chat_dir / MESSAGE_DB_NAME
+        raise FileSpaceError(f"聊天历史只支持 user/group 空间，当前 owner_kind={owner_kind}")
+
+    @staticmethod
+    def _filter_group_chat_history_records(records: list[ChatHistoryRecord]) -> list[ChatHistoryRecord]:
+        """过滤出允许进入 ``group_chat_history`` 的记录视图。"""
+
+        return [
+            record
+            for record in records
+            if record.record_kind == MessageRecordKind.collect or record.actor_role == MessageActorRole.assistant
+        ]
 
     @staticmethod
     def _normalize_query_terms(query: str | None) -> list[str]:
