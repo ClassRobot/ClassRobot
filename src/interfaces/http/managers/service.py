@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from datetime import datetime
-from pathlib import Path
 from typing import Any
+from pathlib import Path
+from datetime import datetime
+
 
 def now_iso() -> str:
     """返回当前时间的 ISO 字符串。
@@ -56,7 +57,7 @@ def _runtime_path_map() -> dict[str, Path]:
         dict[str, Path]: 项目根目录及常用运行目录映射。
     """
 
-    from src.platform.config import cache_dir, config_dir, data_dir, project_root
+    from src.platform.config import data_dir, cache_dir, config_dir, project_root
 
     return {
         "project_root": project_root,

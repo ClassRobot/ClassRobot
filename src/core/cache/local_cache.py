@@ -1,10 +1,10 @@
 from __future__ import annotations
 
+import time
 import asyncio
 import sqlite3
-import time
-from pathlib import Path
 from typing import Any
+from pathlib import Path
 
 
 def _now() -> float:
@@ -66,8 +66,7 @@ class LocalCache:
         with sqlite3.connect(self.path, timeout=30, check_same_thread=False) as connection:
             connection.execute("PRAGMA journal_mode=WAL")
             connection.execute("PRAGMA synchronous=NORMAL")
-            connection.execute(
-                """
+            connection.execute("""
                 CREATE TABLE IF NOT EXISTS cache_entries (
                     namespace INTEGER NOT NULL,
                     key TEXT NOT NULL,
@@ -76,11 +75,8 @@ class LocalCache:
                     updated_at REAL NOT NULL,
                     PRIMARY KEY (namespace, key)
                 )
-                """
-            )
-            connection.execute(
-                "CREATE INDEX IF NOT EXISTS idx_cache_entries_expires_at ON cache_entries (expires_at)"
-            )
+                """)
+            connection.execute("CREATE INDEX IF NOT EXISTS idx_cache_entries_expires_at ON cache_entries (expires_at)")
             connection.commit()
 
     async def ping(self) -> bool:

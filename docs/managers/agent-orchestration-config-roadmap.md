@@ -22,7 +22,7 @@
 | 管理端请求模型 | `src/interfaces/http/managers/agent/models.py` |
 | Runtime 节点注册表 | `src/core/agent/runtime/node_registry.py` |
 | Runtime 编排配置读写与校验 | `src/core/agent/runtime/orchestration_config.py` |
-| Runtime 条件图执行器 | `src/core/agent/runtime/graph_executor.py` |
+| Runtime 条件图执行器 | `src/core/agent/runtime/langgraph_runtime.py` |
 | AutoGPT Pipeline 节点构建 | `src/core/agent/runtime/pipeline.py` |
 | 管理端页面 | `website/managers/src/views/AgentsView.vue` |
 | 后端测试 | `tests/admin/test_manager_api.py` |
@@ -136,7 +136,7 @@ flowchart LR
     Validate --> Config["resources/agent/agent_orchestration_runtime.json"]
     Config --> Store["RuntimeOrchestrationStore\nmtime 热加载"]
     Store --> Pipeline["MessageProcessingPipeline"]
-    Pipeline --> Executor["RuntimeGraphExecutor\n条件边执行"]
+    Pipeline --> Executor["LangGraphRuntime\n条件边执行"]
     Executor --> Turn["后续 Agent 消息轮次"]
 ```
 
@@ -195,7 +195,7 @@ persist
 
 ```mermaid
 flowchart TD
-    Config["RuntimeGraphConfig"] --> Executor["RuntimeGraphExecutor"]
+    Config["RuntimeGraphConfig"] --> Executor["LangGraphRuntime"]
     Executor --> Condition["RuntimeEdgeConditionEvaluator"]
     Condition --> Node["WorkflowNode.run"]
     Node --> State["PipelineState"]

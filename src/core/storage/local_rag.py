@@ -347,8 +347,7 @@ class LocalRagIndex:
 
         self.space.chat_dir.mkdir(parents=True, exist_ok=True)
         with self._connect() as connection:
-            connection.execute(
-                f"""
+            connection.execute(f"""
                 CREATE TABLE IF NOT EXISTS {RAG_CHUNK_TABLE_NAME} (
                     chunk_key TEXT PRIMARY KEY,
                     owner_kind TEXT NOT NULL,
@@ -364,22 +363,16 @@ class LocalRagIndex:
                     source_updated_at INTEGER NOT NULL DEFAULT 0,
                     indexed_at TEXT NOT NULL
                 )
-                """
-            )
-            connection.execute(
-                f"""
+                """)
+            connection.execute(f"""
                 CREATE INDEX IF NOT EXISTS idx_rag_chunks_source
                 ON {RAG_CHUNK_TABLE_NAME} (source_type, source_id)
-                """
-            )
-            connection.execute(
-                f"""
+                """)
+            connection.execute(f"""
                 CREATE INDEX IF NOT EXISTS idx_rag_chunks_updated
                 ON {RAG_CHUNK_TABLE_NAME} (source_updated_at DESC)
-                """
-            )
-            connection.execute(
-                f"""
+                """)
+            connection.execute(f"""
                 CREATE TABLE IF NOT EXISTS {RAG_TERM_TABLE_NAME} (
                     term TEXT NOT NULL,
                     chunk_key TEXT NOT NULL,
@@ -387,20 +380,15 @@ class LocalRagIndex:
                     source_id TEXT NOT NULL,
                     PRIMARY KEY (term, chunk_key)
                 )
-                """
-            )
-            connection.execute(
-                f"""
+                """)
+            connection.execute(f"""
                 CREATE INDEX IF NOT EXISTS idx_rag_terms_chunk_key
                 ON {RAG_TERM_TABLE_NAME} (chunk_key)
-                """
-            )
-            connection.execute(
-                f"""
+                """)
+            connection.execute(f"""
                 CREATE INDEX IF NOT EXISTS idx_rag_terms_source
                 ON {RAG_TERM_TABLE_NAME} (source_type, source_id)
-                """
-            )
+                """)
             connection.commit()
 
     @staticmethod

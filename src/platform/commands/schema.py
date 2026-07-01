@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, root_validator
 from src.platform.helper import ParamMode
+from pydantic import BaseModel, model_validator
 
 CommandRiskLevel = Literal["low", "medium", "high"]
 CommandExecutionMode = Literal["service", "matcher", "interactive", "disabled"]
@@ -24,7 +24,8 @@ class CommandParam(BaseModel):
     source_name: str | None = None
     required: bool = True
 
-    @root_validator(pre=True)
+    @model_validator(mode="before")
+    @classmethod
     def infer_required_from_mode(cls, values):
         """未显式声明时，根据参数数量模式推断是否必填。"""
 

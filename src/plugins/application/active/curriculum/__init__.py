@@ -1,7 +1,7 @@
 from uuid import uuid4
 
-from src.core.cache import get_cache
 from src.shared import Emoji
+from src.core.cache import get_cache
 from src.models.models import CurriculaConfig
 from nonebot_plugin_alconna import UniMessage, AlconnaMatcher
 
@@ -24,7 +24,9 @@ async def _(matcher: AlconnaMatcher, add_curricula: AddCurriculaDepends, values:
     """处理当前命令或事件逻辑。"""
     value_length = len(values)
     if value_length < 4:
-        await matcher.finish(Emoji.error + "至少具备[周期] [星期几] [第几节课] [课程名称]四个参数,其次[教室(可选)] [老师(可选)]")
+        await matcher.finish(
+            Emoji.error + "至少具备[周期] [星期几] [第几节课] [课程名称]四个参数,其次[教室(可选)] [老师(可选)]"
+        )
 
     if not (weeks := range_parser(values[0])):
         await matcher.finish(Emoji.error + "周期参数错误")
@@ -109,7 +111,9 @@ async def _(
             await cache.set(share_id, str(user_config.id), ex=180)
         else:
             await matcher.finish(Emoji.error + "您没有自己的课表可以分享")
-        await matcher.finish(Emoji.success + f"您的课表分享ID为: {share_id}\n对方输入: `分享课表+ID`即可获取,有效期为3分钟")
+        await matcher.finish(
+            Emoji.success + f"您的课表分享ID为: {share_id}\n对方输入: `分享课表+ID`即可获取,有效期为3分钟"
+        )
     elif config_id := await cache.get(share_id):
         config_id = int(config_id)
         result = await share_curricula.share(config_id)

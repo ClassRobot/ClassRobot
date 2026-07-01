@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import Depends, APIRouter
 
 from .. import audit
 from ..schemas import LoginRequest, TokenResponse
-from ..security import SESSION_TTL_SECONDS, manager_auth, manager_auth_token, token_store
+from ..security import SESSION_TTL_SECONDS, token_store, manager_auth, manager_auth_token
 
 router = APIRouter()
 

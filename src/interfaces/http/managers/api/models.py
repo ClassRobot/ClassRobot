@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import Depends, APIRouter, HTTPException, status
 
 from .. import audit
-from ..catalog import llm_models as model_service
-from ..schemas import ModelSettingsRequest
 from ..security import manager_auth
+from ..schemas import ModelSettingsRequest
+from ..catalog import llm_models as model_service
 
 router = APIRouter()
 
@@ -22,7 +22,7 @@ async def save_model_items(payload: ModelSettingsRequest, session=Depends(manage
     """保存模型配置。"""
 
     try:
-        result = model_service.save_models(payload.dict(exclude_unset=True))
+        result = model_service.save_models(payload.model_dump(exclude_unset=True))
         audit.log_event(
             "models",
             "save_models",
@@ -45,7 +45,9 @@ async def test_model(name: str, session=Depends(manager_auth)):
 
     try:
         result = await model_service.test_model(name)
-        audit.log_event("models", "test_model", "completed", detail={"name": name, "ok": result.get("ok")}, session=session)
+        audit.log_event(
+            "models", "test_model", "completed", detail={"name": name, "ok": result.get("ok")}, session=session
+        )
         return result
     except KeyError as error:
         audit.log_event(

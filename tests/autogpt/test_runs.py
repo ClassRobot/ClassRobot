@@ -4,7 +4,7 @@ import pytest
 @pytest.mark.asyncio
 async def test_workflow_run_store_roundtrip(loaded_plugins, workflow_checkpoint_table):
     from src.core.agent.runtime.persistence import WorkflowRunStore
-    from src.core.agent.runtime.schema import TaskWorkflow, WorkflowApproval, WorkflowStep
+    from src.core.agent.runtime.schema import TaskWorkflow, WorkflowStep, WorkflowApproval
 
     store = WorkflowRunStore()
     workflow = TaskWorkflow(
@@ -48,7 +48,7 @@ async def test_resumed_workflow_saves_parent_child_run_history(loaded_plugins, w
     from src.platform.helper import Helpers
     from src.core.agent.runtime.util import ChatSession
     from src.core.agent.runtime.persistence import WorkflowRunStore
-    from src.core.agent.runtime.schema import TaskWorkflow, WorkflowApproval, WorkflowStep
+    from src.core.agent.runtime.schema import TaskWorkflow, WorkflowStep, WorkflowApproval
 
     pending_session = ChatSession(user_id=102, helpers=Helpers())
     workflow = TaskWorkflow(
@@ -95,7 +95,7 @@ async def test_cancelling_pending_workflow_updates_existing_run(loaded_plugins, 
     from src.platform.helper import Helpers
     from src.core.agent.runtime.util import ChatSession
     from src.core.agent.runtime.persistence import WorkflowRunStore
-    from src.core.agent.runtime.schema import TaskWorkflow, WorkflowApproval, WorkflowStep
+    from src.core.agent.runtime.schema import TaskWorkflow, WorkflowStep, WorkflowApproval
 
     session = ChatSession(user_id=103, helpers=Helpers())
     workflow = TaskWorkflow(

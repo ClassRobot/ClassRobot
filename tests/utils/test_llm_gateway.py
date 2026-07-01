@@ -106,8 +106,8 @@ async def test_client_create_keeps_explicit_tool_request_fields(loaded_plugins, 
 
 
 def test_core_llm_modules_import_from_canonical_entry(loaded_plugins):
-    import src.core.llm.message as core_message_module
     import src.core.llm.gateway as core_gateway_module
+    import src.core.llm.message as core_message_module
 
     assert core_message_module.__name__ == "src.core.llm.message"
     assert core_gateway_module.__name__ == "src.core.llm.gateway"

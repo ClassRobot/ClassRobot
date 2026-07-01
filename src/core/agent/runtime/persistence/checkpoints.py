@@ -4,7 +4,6 @@ from nonebot import logger
 from sqlalchemy import select
 from nonebot_plugin_orm import get_session
 from sqlalchemy.exc import SQLAlchemyError
-
 from src.models.models import AgentWorkflowCheckpoint
 
 from ..schema import TaskWorkflow
@@ -13,7 +12,7 @@ from ..schema import TaskWorkflow
 def serialize_workflow(workflow: TaskWorkflow) -> dict:
     """把工作流转换成适合写入 JSON 列的结构。"""
 
-    return json.loads(workflow.json(ensure_ascii=False))
+    return workflow.model_dump(mode="json")
 
 
 class WorkflowCheckpointStore:
@@ -112,7 +111,7 @@ class WorkflowCheckpointStore:
         """从 JSON 快照恢复工作流对象。"""
 
         try:
-            return TaskWorkflow.parse_obj(payload)
+            return TaskWorkflow.model_validate(payload)
         except Exception as error:
             logger.warning(
                 'AutoGPT workflow checkpoint parse failed for user {} trace "{}": {}'.format(

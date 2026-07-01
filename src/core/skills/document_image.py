@@ -1,17 +1,16 @@
 from __future__ import annotations
 
 import hashlib
-from asyncio import gather
 from pathlib import Path
+from asyncio import gather
 
 import numpy as np
 from PIL import Image
 from filetype import guess
 from httpx import AsyncClient
 from aiofiles import open as async_open
-from filetype.types import archive, document
-
 from src.shared.tools.sync import run_sync
+from filetype.types import archive, document
 from src.core.storage.object_store import upload_file
 from src.shared.tools.docs2img.to_img import doc2img, pdf2img, ppt2img
 

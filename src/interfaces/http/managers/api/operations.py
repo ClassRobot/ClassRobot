@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import Query, Depends, APIRouter, HTTPException, status
 
 from .. import audit
-from ..runtime import operations as operation_service
-from ..schemas import AutomationScriptCreateRequest, AutomationScriptUpdateRequest, TerminalExecuteRequest
 from ..security import manager_auth
+from ..runtime import operations as operation_service
+from ..schemas import TerminalExecuteRequest, AutomationScriptCreateRequest, AutomationScriptUpdateRequest
 
 router = APIRouter()
 
@@ -71,7 +71,7 @@ async def create_automation_script(payload: AutomationScriptCreateRequest, sessi
     """创建自动化脚本。"""
 
     try:
-        return operation_service.create_automation_script(payload.dict(exclude_unset=True), session=session)
+        return operation_service.create_automation_script(payload.model_dump(exclude_unset=True), session=session)
     except ValueError as error:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
 
@@ -85,7 +85,9 @@ async def update_automation_script(
     """更新自动化脚本。"""
 
     try:
-        return operation_service.update_automation_script(script_id, payload.dict(exclude_unset=True), session=session)
+        return operation_service.update_automation_script(
+            script_id, payload.model_dump(exclude_unset=True), session=session
+        )
     except KeyError as error:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Automation script not found") from error
     except ValueError as error:

@@ -1,6 +1,5 @@
 """与教师相关的用户身份"""
 
-
 from strenum import StrEnum
 
 

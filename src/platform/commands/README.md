@@ -20,7 +20,7 @@
 - `src.platform.helper.runtime` 已支持优先收集 matcher 上的 `__command_spec__` / `__helper__`。
 - `src.platform.helper.depends.HelpersDepends` 已接入软关闭过滤，`help` 与 AutoGPT 会共享同一份可见命令集。
 - `src.core.agent.runtime.command_tools.CommandToolCatalog` 会优先从 `CommandSpec` 生成 Agent 工具。
-- `src.core.agent.runtime.dispatch_auto_task()` 只通过 `AgentCommandAdapter -> CommandExecutor` 调用 service 命令，没有 service handler 的命令不会暴露给 Agent。
+- `src.core.agent.runtime.dispatch_auto_task()` 只通过 `CommandCLI -> CommandExecutor` 调用 service 命令，没有 service handler 的命令不会暴露给 Agent。
 - `on_agent_command(..., auto_user_handler=True)` 和 `@cmd.unified_handler` 已支持“业务函数写一次，用户命令和 Agent 调用共用同一执行链”。
 - `src.interfaces.http.managers.runtime.nonebot` 已合并 `CommandRegistry` 元数据，管理端命令清单可以看到风险等级、执行模式、Agent 可见性和软关闭状态。
 - `src.plugins.application.active.user.commands`、`src.plugins.application.active.curriculum.commands` 与 `src.plugins.application.active.classes.commands` 中的高频“查询班级”已作为样例迁移到 `command_alconna()`。
@@ -50,12 +50,12 @@
   命令/插件软关闭服务
 - `executor.py`
   service-style 命令统一执行器
+- `cli.py`
+  CLI 风格命令调用门面，供 Agent 用“命令名 + 参数”的方式调用同一套 service handler
 - `history.py`
   命令输入记录器注册表，供聊天记录、审计或可观测插件挂接
 - `discovery.py`
   注册表到管理端命令清单的导出层
-- `adapters/`
-  Agent 调用统一执行器的入口适配层
 - `renderers/helper.py`
   `CommandSpec -> Helper`
 - `renderers/tool.py`
@@ -79,8 +79,8 @@ flowchart LR
 ```mermaid
 flowchart TD
     User["用户显式命令"] --> Matcher["NoneBot matcher"]
-    Agent["Agent 工作流"] --> Adapter["AgentCommandAdapter"]
-    Adapter --> Executor["CommandExecutor"]
+    Agent["Agent 工作流"] --> CLI["CommandCLI"]
+    CLI --> Executor["CommandExecutor"]
     Matcher --> Guard["CommandPolicy / Helper guard"]
     Executor --> Policy["CommandPolicy"]
     Policy --> Service["Service Handler"]
@@ -93,6 +93,19 @@ flowchart TD
 新增命令优先使用 `on_agent_command()`，让 NoneBot matcher、Alconna 解析、`Helper`、命令注册表、Agent tool 元数据和可选 service handler 从同一个声明派生。
 
 `command_alconna()` / `command_command()` 仍然保留，用于只需要用户直接触发的 matcher 命令；这类命令默认 `execution_mode="matcher"`，不会进入 Agent 工具目录。
+
+`CommandCLI` 是 Agent 调用命令的门面，不是新的业务命令开发方式。开发者仍然写 `on_agent_command()` / `command_alconna()` / `on_command()`；Agent 只是在执行阶段把已 service 化命令当成“项目内 CLI”调用：
+
+```python
+from src.platform.commands import command_cli, CommandExecutionContext
+
+result = await command_cli.run_text(
+    "查询班级 1",
+    CommandExecutionContext(user_id=user.id, roles=user_roles, invoker="agent_workflow"),
+)
+```
+
+`CommandCLI` 会根据 `CommandRegistry` 解析命令名、别名和位置参数，再交给 `CommandExecutor` 做权限、软关闭和 service handler 调度。没有 service handler 的命令会拒绝 Agent 调用，不会回放 NoneBot matcher 事件。
 
 新增或显著改造的项目内部命令不要再手写第二份 `__helpers__`。`Helper` 应由 `CommandSpec` 自动派生；`src.platform.helper.runtime` 仍保留读取模块级 `__helpers__` 的能力，只作为外部 command、第三方插件或暂未迁移命令的兼容入口。
 

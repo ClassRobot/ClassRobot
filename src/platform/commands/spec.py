@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
 from src.core.auth import UserRole
+from pydantic import Field, BaseModel
 from src.platform.helper import Context, HelperScope
 
-from .schema import CommandExecutionMode, CommandParam, CommandRiskLevel
+from .schema import CommandParam, CommandRiskLevel, CommandExecutionMode
 
 
 class CommandSpec(BaseModel):

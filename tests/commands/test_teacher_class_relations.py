@@ -9,18 +9,14 @@ import sqlalchemy as sa
 def create_teacher_classes_table(connection) -> None:
     """创建迁移 SQL 所需的最小教师-班级关系表。"""
 
-    connection.execute(
-        sa.text(
-            """
+    connection.execute(sa.text("""
             CREATE TABLE bot_teacher_classes (
                 id INTEGER PRIMARY KEY,
                 teacher_id INTEGER NOT NULL,
                 classes_id INTEGER NOT NULL,
                 role VARCHAR(32) NOT NULL
             )
-            """
-        )
-    )
+            """))
 
 
 def test_teacher_classes_migration_keeps_highest_priority_role() -> None:
@@ -30,9 +26,7 @@ def test_teacher_classes_migration_keeps_highest_priority_role() -> None:
     engine = sa.create_engine("sqlite:///:memory:")
     with engine.begin() as connection:
         create_teacher_classes_table(connection)
-        connection.execute(
-            sa.text(
-                """
+        connection.execute(sa.text("""
                 INSERT INTO bot_teacher_classes (id, teacher_id, classes_id, role)
                 VALUES
                     (1, 10, 20, 'teacher'),
@@ -40,25 +34,19 @@ def test_teacher_classes_migration_keeps_highest_priority_role() -> None:
                     (3, 10, 20, 'counselor'),
                     (4, 11, 20, 'teacher'),
                     (5, 11, 20, 'teacher')
-                """
-            )
-        )
+                """))
 
-        unknown_roles = connection.execute(
-            sa.text(migration.unknown_duplicate_teacher_class_roles_sql())
-        ).scalars().all()
+        unknown_roles = (
+            connection.execute(sa.text(migration.unknown_duplicate_teacher_class_roles_sql())).scalars().all()
+        )
         assert unknown_roles == []
 
         connection.execute(sa.text(migration.deduplicate_teacher_classes_sql()))
-        rows = connection.execute(
-            sa.text(
-                """
+        rows = connection.execute(sa.text("""
                 SELECT id, teacher_id, classes_id, role
                 FROM bot_teacher_classes
                 ORDER BY teacher_id, classes_id
-                """
-            )
-        ).all()
+                """)).all()
 
     assert rows == [
         (2, 10, 20, "homeroom"),
@@ -73,20 +61,16 @@ def test_teacher_classes_migration_reports_unknown_duplicate_roles() -> None:
     engine = sa.create_engine("sqlite:///:memory:")
     with engine.begin() as connection:
         create_teacher_classes_table(connection)
-        connection.execute(
-            sa.text(
-                """
+        connection.execute(sa.text("""
                 INSERT INTO bot_teacher_classes (id, teacher_id, classes_id, role)
                 VALUES
                     (1, 10, 20, 'teacher'),
                     (2, 10, 20, 'legacy_manager')
-                """
-            )
-        )
+                """))
 
-        unknown_roles = connection.execute(
-            sa.text(migration.unknown_duplicate_teacher_class_roles_sql())
-        ).scalars().all()
+        unknown_roles = (
+            connection.execute(sa.text(migration.unknown_duplicate_teacher_class_roles_sql())).scalars().all()
+        )
 
     assert unknown_roles == ["legacy_manager"]
 

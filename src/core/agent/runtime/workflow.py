@@ -42,7 +42,7 @@ class WorkflowObservabilityBuilder:
 
         if observability is None:
             return AgentObservabilityMetrics(trace_id=trace_id)
-        snapshot = observability.copy(deep=True)
+        snapshot = observability.model_copy(deep=True)
         snapshot.trace_id = trace_id
         return snapshot
 
@@ -154,7 +154,11 @@ class WorkflowStepBuilder:
                         matched_playbook_step.description
                         if matched_playbook_step
                         else (tool.description if tool else "")
-                        or ("通过 MCP Client 调用远端工具。" if step_type == "mcp_tool" else "通过统一 service 命令执行项目能力。")
+                        or (
+                            "通过 MCP Client 调用远端工具。"
+                            if step_type == "mcp_tool"
+                            else "通过统一 service 命令执行项目能力。"
+                        )
                     ),
                     risk_level=tool.risk_level if tool else "medium",
                 )
@@ -213,7 +217,11 @@ class WorkflowApprovalBuilder:
         has_high_risk_step = any(step.risk_level == "high" for step in steps)
         if needs_confirm or (plan and plan.confirmation_question):
             approval_type = "high_risk" if risk_level == "high" or has_high_risk_step else "user_confirm"
-            reason = "该任务包含高风险步骤，执行前需要用户确认。" if approval_type == "high_risk" else "当前任务在执行前需要用户确认。"
+            reason = (
+                "该任务包含高风险步骤，执行前需要用户确认。"
+                if approval_type == "high_risk"
+                else "当前任务在执行前需要用户确认。"
+            )
             return WorkflowApproval(
                 required=True,
                 type=approval_type,
@@ -439,7 +447,7 @@ class WorkflowExecutor:
                 workflow_kind=workflow.kind,
                 step_id=step.step_id,
                 tool_name=step.command,
-                params_preview={"params": [param.dict() for param in step.params]},
+                params_preview={"params": [param.model_dump() for param in step.params]},
             )
             try:
                 observations = await self.dispatcher(task)
@@ -732,7 +740,7 @@ def build_turn_result(
                         "step_id": step.step_id,
                         "step_type": step.step_type,
                         "command": step.command,
-                        "params": [param.dict() for param in step.params],
+                        "params": [param.model_dump() for param in step.params],
                     }
                     for step in workflow.steps
                 ],
@@ -768,7 +776,7 @@ def workflow_to_auto_tasks(workflow: TaskWorkflow, reply: str | None = None) -> 
 def clone_workflow_for_execution(workflow: TaskWorkflow, trace_id: str) -> TaskWorkflow:
     """复制并重置一个待确认工作流，供用户确认后重新执行。"""
 
-    cloned = workflow.copy(deep=True)
+    cloned = workflow.model_copy(deep=True)
     cloned.source_trace_id = workflow.trace_id
     cloned.trace_id = trace_id
     cloned.status = "planned"

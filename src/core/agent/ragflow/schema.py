@@ -173,7 +173,7 @@ class ChatSession(BaseModel):
         if data["code"] != 0:
             raise Exception(data["message"])
         else:
-            return ChatBotMessage.parse_obj(data["data"])
+            return ChatBotMessage.model_validate(data["data"])
 
 
 class Chatbot(BaseModel):
@@ -209,7 +209,7 @@ class Chatbot(BaseModel):
         if data["code"] != 0:
             raise Exception(data["message"])
         else:
-            return ChatSession.parse_obj(data["data"])
+            return ChatSession.model_validate(data["data"])
 
     async def delete_session(self, ids: List[str]):
         """删除会话。

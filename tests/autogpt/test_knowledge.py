@@ -37,9 +37,8 @@ def test_skill_catalog_does_not_filter_by_query(loaded_plugins):
 @pytest.mark.asyncio
 async def test_local_knowledge_retriever_reads_user_chat_history(loaded_plugins, tmp_path):
     from src.core.agent.runtime.schema import KnowledgeSourceRequest
-    from src.core.agent.runtime.knowledge import LocalKnowledgeRetriever, RuntimeContext
-
     from src.core.storage import StorageManager, ChatHistoryStore, MessageActorRole
+    from src.core.agent.runtime.knowledge import RuntimeContext, LocalKnowledgeRetriever
 
     manager = StorageManager(tmp_path / "storage")
     store = ChatHistoryStore(manager)
@@ -76,9 +75,8 @@ async def test_local_knowledge_retriever_reads_user_chat_history(loaded_plugins,
 @pytest.mark.asyncio
 async def test_local_knowledge_retriever_uses_rag_overlap_recall(loaded_plugins, tmp_path):
     from src.core.agent.runtime.schema import KnowledgeSourceRequest
-    from src.core.agent.runtime.knowledge import LocalKnowledgeRetriever, RuntimeContext
-
     from src.core.storage import StorageManager, ChatHistoryStore, MessageActorRole
+    from src.core.agent.runtime.knowledge import RuntimeContext, LocalKnowledgeRetriever
 
     manager = StorageManager(tmp_path / "storage")
     store = ChatHistoryStore(manager)
@@ -106,10 +104,9 @@ async def test_local_knowledge_retriever_uses_rag_overlap_recall(loaded_plugins,
 
 @pytest.mark.asyncio
 async def test_local_knowledge_retriever_reads_user_file_space(loaded_plugins, tmp_path):
-    from src.core.agent.runtime.schema import KnowledgeSourceRequest
-    from src.core.agent.runtime.knowledge import LocalKnowledgeRetriever, RuntimeContext
-
     from src.core.storage import StorageManager, ChatHistoryStore
+    from src.core.agent.runtime.schema import KnowledgeSourceRequest
+    from src.core.agent.runtime.knowledge import RuntimeContext, LocalKnowledgeRetriever
 
     manager = StorageManager(tmp_path / "storage")
     space = manager.user_space(90002)
@@ -130,9 +127,9 @@ async def test_local_knowledge_retriever_reads_user_file_space(loaded_plugins, t
 
 @pytest.mark.asyncio
 async def test_local_knowledge_retriever_reads_group_file_space_by_system_group_id(loaded_plugins, tmp_path):
-    from src.core.agent.runtime.schema import KnowledgeSourceRequest
-    from src.core.agent.runtime.knowledge import LocalKnowledgeRetriever, RuntimeContext
     from src.core.storage import StorageManager, ChatHistoryStore
+    from src.core.agent.runtime.schema import KnowledgeSourceRequest
+    from src.core.agent.runtime.knowledge import RuntimeContext, LocalKnowledgeRetriever
 
     manager = StorageManager(tmp_path / "storage")
     report = manager.group_space("system-group-92001").home_dir / "documents" / "group-report.md"
@@ -160,9 +157,9 @@ async def test_local_knowledge_retriever_reads_group_file_space_by_system_group_
 
 @pytest.mark.asyncio
 async def test_local_knowledge_retriever_does_not_treat_channel_id_as_system_group_id(loaded_plugins, tmp_path):
-    from src.core.agent.runtime.schema import KnowledgeSourceRequest
-    from src.core.agent.runtime.knowledge import LocalKnowledgeRetriever, RuntimeContext
     from src.core.storage import StorageManager, ChatHistoryStore
+    from src.core.agent.runtime.schema import KnowledgeSourceRequest
+    from src.core.agent.runtime.knowledge import RuntimeContext, LocalKnowledgeRetriever
 
     manager = StorageManager(tmp_path / "storage")
     report = manager.group_space("92002").home_dir / "documents" / "channel-only-report.md"
@@ -182,9 +179,9 @@ async def test_local_knowledge_retriever_does_not_treat_channel_id_as_system_gro
 
 @pytest.mark.asyncio
 async def test_local_knowledge_retriever_skips_group_sources_outside_group_context(loaded_plugins, tmp_path):
-    from src.core.agent.runtime.schema import KnowledgeSourceRequest
-    from src.core.agent.runtime.knowledge import LocalKnowledgeRetriever, RuntimeContext
     from src.core.storage import StorageManager, ChatHistoryStore
+    from src.core.agent.runtime.schema import KnowledgeSourceRequest
+    from src.core.agent.runtime.knowledge import RuntimeContext, LocalKnowledgeRetriever
 
     manager = StorageManager(tmp_path / "storage")
     retriever = LocalKnowledgeRetriever(manager=manager, chat_store=ChatHistoryStore(manager))
@@ -210,7 +207,7 @@ async def test_local_knowledge_retriever_skips_group_sources_outside_group_conte
 def test_intent_route_accepts_ai_selected_knowledge_sources(loaded_plugins):
     from src.core.agent.runtime.schema import IntentRoute
 
-    route = IntentRoute.parse_obj(
+    route = IntentRoute.model_validate(
         {
             "intent": "knowledge",
             "requires_rag": False,

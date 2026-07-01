@@ -1,9 +1,9 @@
 import pytest
 
-from tests.autogpt.eval_cases import ARG_EVAL_CASES, EvalGateReport, ROUTE_EVAL_CASES, TOOL_EVAL_CASES
+from tests.autogpt.eval_cases import ARG_EVAL_CASES, TOOL_EVAL_CASES, ROUTE_EVAL_CASES, EvalGateReport
 from tests.autogpt.semantic_helpers import (
-    task_response,
     plan_response,
+    task_response,
     route_response,
     extract_response,
     patch_pipeline_llm,
@@ -34,8 +34,8 @@ def assert_eval_report(report: EvalGateReport) -> None:
 @pytest.mark.asyncio
 async def test_route_eval_gate(loaded_plugins, monkeypatch):
     from src.core.llm.message import Content, Messages
-    from src.core.agent.runtime.pipeline import MessageProcessingPipeline
     from src.core.agent.runtime.schema import ChatMessage
+    from src.core.agent.runtime.pipeline import MessageProcessingPipeline
 
     report = EvalGateReport(category="route")
 
@@ -76,8 +76,8 @@ async def test_route_eval_gate(loaded_plugins, monkeypatch):
 
 
 def test_tool_eval_gate(loaded_plugins):
-    from src.core.agent.runtime.pipeline import MessageProcessingPipeline
     from src.core.llm.message import Content, Messages
+    from src.core.agent.runtime.pipeline import MessageProcessingPipeline
 
     pipeline = MessageProcessingPipeline(
         build_eval_helpers(),
@@ -98,8 +98,8 @@ def test_tool_eval_gate(loaded_plugins):
 @pytest.mark.asyncio
 async def test_arg_eval_gate(loaded_plugins, monkeypatch):
     from src.core.llm.message import Content, Messages
-    from src.core.agent.runtime.pipeline import MessageProcessingPipeline
     from src.core.agent.runtime.schema import ChatMessage
+    from src.core.agent.runtime.pipeline import MessageProcessingPipeline
 
     report = EvalGateReport(category="arg")
 

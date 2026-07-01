@@ -11,7 +11,7 @@ def test_mcp_config_defaults_disabled():
 
 
 def test_mcp_config_parses_env_style_values():
-    config = MCPConfig.parse_obj(
+    config = MCPConfig.model_validate(
         {
             "mcp_enabled": "true",
             "mcp_server_url": " http://127.0.0.1:8000/mcp ",

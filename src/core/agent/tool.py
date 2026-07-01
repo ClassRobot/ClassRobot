@@ -6,9 +6,8 @@ from collections.abc import Awaitable
 from typing import Any, Union, Literal, Callable, TypeAlias, get_args, get_origin
 
 from pydantic import BaseModel
-
-from src.core.llm.typings import ChatCompletionToolParam
 from src.core.llm.util import json_loads
+from src.core.llm.typings import ChatCompletionToolParam
 
 JsonSchema: TypeAlias = dict[str, Any]
 ToolValue: TypeAlias = str | int | float | bool | dict[str, Any] | list[Any] | BaseModel | None
@@ -84,7 +83,7 @@ class AgentTool:
             if self.model_param:
                 # 函数只有一个 Pydantic 入参时，让 Pydantic 负责校验和类型转换。
                 annotation = inspect.signature(self.handler).parameters[self.model_param].annotation
-                result = self.handler(annotation.parse_obj(kwargs))
+                result = self.handler(annotation.model_validate(kwargs))
             else:
                 result = self.handler(**kwargs)
             if inspect.isawaitable(result):
@@ -125,7 +124,7 @@ def build_tool_parameters(func: ToolHandler) -> tuple[JsonSchema, str | None]:
     ]
     if len(params) == 1 and is_pydantic_model_annotation(params[0].annotation):
         # 复杂业务参数建议走 Pydantic，这样字段说明、必填项和校验都集中在模型里。
-        return params[0].annotation.schema(), params[0].name
+        return params[0].annotation.model_json_schema(), params[0].name
 
     properties: dict[str, JsonSchema] = {}
     required: list[str] = []
@@ -155,7 +154,7 @@ def annotation_to_json_schema(annotation: Any) -> JsonSchema:
     if annotation is inspect.Parameter.empty or annotation is Any:
         return {"type": "string"}
     if is_pydantic_model_annotation(annotation):
-        return annotation.schema()
+        return annotation.model_json_schema()
 
     origin = get_origin(annotation)
     args = get_args(annotation)
@@ -201,5 +200,5 @@ def stringify_tool_result(result: Any) -> str:
     if isinstance(result, str):
         return result
     if isinstance(result, BaseModel):
-        return result.json(ensure_ascii=False)
+        return json.dumps(result.model_dump(mode="json"), ensure_ascii=False, default=str)
     return json.dumps(result, ensure_ascii=False, default=str)

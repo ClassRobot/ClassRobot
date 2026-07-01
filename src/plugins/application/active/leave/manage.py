@@ -3,14 +3,14 @@ from datetime import datetime
 from typing import List, Iterable
 
 from nonebot import logger
-from src.platform.config import leave_dir
 from src.core.auth import StudentRole
 from src.core.llm.message import Content
 from src.core.llm.util import json_loads
+from src.platform.config import leave_dir
+from src.shared.tools import get_url_suffix
+from src.platform.files import download_file
 from src.core.llm import Messages, client_create
 from nonebot_plugin_alconna import Image, UniMessage
-from src.platform.files import download_file
-from src.shared.tools import get_url_suffix
 from src.models import User, Files, Classes, Student, StudentLeave
 
 from .schema import Leave
@@ -83,7 +83,7 @@ class AddLeave:
             chat = await client_create(messages=self.messages)
             if chat.choices[0].message.content:
                 print(chat.choices[0].message.content)
-                data = Leave.parse_obj(obj=json_loads(chat.choices[0].message.content))
+                data = Leave.model_validate(obj=json_loads(chat.choices[0].message.content))
                 return data
         except Exception as error:
             logger.exception(error)

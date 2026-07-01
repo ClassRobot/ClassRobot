@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import Depends, APIRouter
 
-from ..agent import service as agent_service
-from ..catalog import llm_models, prompts, skills
-from ..schemas import StatusCheckRequest
 from ..security import manager_auth
-from ..runtime.status import check_system_metrics, get_status
+from ..schemas import StatusCheckRequest
+from ..agent import service as agent_service
+from ..catalog import skills, prompts, llm_models
+from ..runtime.status import get_status, check_system_metrics
 
 router = APIRouter()
 

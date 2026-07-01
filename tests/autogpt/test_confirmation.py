@@ -5,7 +5,7 @@ import pytest
 async def test_confirm_message_resumes_pending_workflow(loaded_plugins):
     from src.platform.helper import Helpers
     from src.core.agent.runtime.util import ChatSession
-    from src.core.agent.runtime.schema import TaskWorkflow, WorkflowApproval, WorkflowStep
+    from src.core.agent.runtime.schema import TaskWorkflow, WorkflowStep, WorkflowApproval
 
     session = ChatSession(user_id=1, helpers=Helpers())
     workflow = TaskWorkflow(
@@ -46,7 +46,7 @@ async def test_confirm_message_resumes_pending_workflow(loaded_plugins):
 async def test_cancel_message_clears_pending_workflow(loaded_plugins):
     from src.platform.helper import Helpers
     from src.core.agent.runtime.util import ChatSession
-    from src.core.agent.runtime.schema import TaskWorkflow, WorkflowApproval, WorkflowStep
+    from src.core.agent.runtime.schema import TaskWorkflow, WorkflowStep, WorkflowApproval
 
     session = ChatSession(user_id=1, helpers=Helpers())
     workflow = TaskWorkflow(
@@ -83,7 +83,7 @@ async def test_cancel_message_clears_pending_workflow(loaded_plugins):
 async def test_non_decision_text_keeps_pending_workflow_for_followup(loaded_plugins):
     from src.platform.helper import Helpers
     from src.core.agent.runtime.util import ChatSession
-    from src.core.agent.runtime.schema import TaskWorkflow, WorkflowApproval, WorkflowStep
+    from src.core.agent.runtime.schema import TaskWorkflow, WorkflowStep, WorkflowApproval
 
     session = ChatSession(user_id=1, helpers=Helpers())
     workflow = TaskWorkflow(

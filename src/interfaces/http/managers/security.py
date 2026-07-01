@@ -1,14 +1,13 @@
 from __future__ import annotations
 
+from hashlib import sha256
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from hashlib import sha256
-from secrets import compare_digest, token_urlsafe
+from secrets import token_urlsafe, compare_digest
 
 from nonebot import logger
 from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 SESSION_TTL_SECONDS = 24 * 60 * 60
 

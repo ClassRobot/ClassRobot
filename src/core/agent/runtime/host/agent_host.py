@@ -80,7 +80,9 @@ class AgentHost:
             status="completed",
             params_preview={
                 "summary": pack.compact_summary(),
-                "layers": [layer for layer in pack.dict() if layer.endswith("_context") or layer.endswith("_memory")],
+                "layers": [
+                    layer for layer in pack.model_dump() if layer.endswith("_context") or layer.endswith("_memory")
+                ],
             },
         )
         return pack

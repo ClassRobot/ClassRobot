@@ -1,7 +1,6 @@
-from dataclasses import dataclass
-from pathlib import Path
 import re
-
+from pathlib import Path
+from dataclasses import dataclass
 
 FRONTMATTER_RE = re.compile(r"^---\r?\n(.*?)\r?\n---\r?\n?(.*)$", re.DOTALL)
 

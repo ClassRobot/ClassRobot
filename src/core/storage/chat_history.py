@@ -1,17 +1,17 @@
 from __future__ import annotations
 
-import asyncio
-from contextlib import closing
-import json
 import re
+import json
+import asyncio
 import sqlite3
-from datetime import datetime
 from enum import Enum
+from typing import Any
 from hashlib import md5
 from pathlib import Path
-from typing import Any
+from contextlib import closing
+from datetime import date, datetime
 
-from pydantic import BaseModel, Extra, Field
+from pydantic import Field, BaseModel, ConfigDict
 
 from .files import StorageManager, storage_manager
 
@@ -86,11 +86,7 @@ class ChatHistoryRecord(BaseModel):
 
         return normalize_message_text(self.plain_text or self.raw_text or NON_TEXT_PLACEHOLDER)
 
-    class Config:
-        """描述消息记录模型的配置项。"""
-
-        extra = Extra.forbid
-        allow_mutation = False
+    model_config = ConfigDict(extra="forbid", frozen=True)
 
 
 class ChatHistorySummary(BaseModel):
@@ -104,12 +100,7 @@ class ChatHistorySummary(BaseModel):
     distinct_user_count: int = 0
     start_at: datetime | None = None
     end_at: datetime | None = None
-
-    class Config:
-        """定义统计摘要模型的运行约束。"""
-
-        extra = Extra.forbid
-        allow_mutation = False
+    model_config = ConfigDict(extra="forbid", frozen=True)
 
 
 class ChatHistoryStore:
@@ -299,17 +290,29 @@ class ChatHistoryStore:
         search_window: int = 200,
         exclude_message_id: str | int | None = None,
     ) -> list[ChatHistoryRecord]:
-        """检索系统群组空间中的采集消息。"""
+        """检索系统群组空间中的消息。
 
-        return await self._search_messages(
+        采集消息（``collect``）覆盖群内用户发言，机器人自己的群聊回复写在
+        ``chat`` 空间。为了让 Agent 能看到“用户发言 -> 机器人回复”的完整群聊
+        闭环，这里同时读取两类记录，但只保留 ``chat`` 中机器人（assistant）那
+        部分，避免把已经存在于 ``collect`` 的用户命令消息重复计入。
+        """
+
+        records = await self._search_messages(
             owner_kind=MessageOwnerKind.group,
             owner_id=group_id,
             query=query,
-            limit=limit,
+            limit=max(limit, search_window),
             search_window=search_window,
             exclude_message_id=exclude_message_id,
-            record_kinds=(MessageRecordKind.collect,),
+            record_kinds=(MessageRecordKind.collect, MessageRecordKind.chat),
         )
+        filtered_records = [
+            record
+            for record in records
+            if record.record_kind == MessageRecordKind.collect or record.actor_role == MessageActorRole.assistant
+        ]
+        return filtered_records[-limit:]
 
     async def search_user_chat_messages(
         self,
@@ -541,7 +544,7 @@ class ChatHistoryStore:
         )
 
         with closing(self._connect(owner_kind, owner_id)) as connection:
-            connection.execute(
+            cursor = connection.execute(
                 f"""
                 INSERT OR IGNORE INTO {MESSAGE_TABLE_NAME} (
                     event_key,
@@ -589,7 +592,105 @@ class ChatHistoryStore:
                     metadata_text,
                 ),
             )
+            inserted = cursor.rowcount > 0
             connection.commit()
+        if inserted and owner_kind == MessageOwnerKind.user:
+            self._append_user_daily_message(
+                owner_id=owner_id_text,
+                record_kind=record_kind,
+                direction=direction,
+                actor_role=actor_role,
+                message_id=message_id_text,
+                user_id=user_id_text,
+                user_name=normalize_message_text(user_name) or user_id_text,
+                plain_text=plain_text,
+                raw_text=raw_text,
+                created_at=created_at,
+                platform=normalize_message_text(platform),
+                platform_name=normalize_message_text(platform_name),
+                channel_id=normalize_message_text(channel_id),
+                guild_id=normalize_message_text(guild_id),
+                bot_id=normalize_message_text(bot_id),
+                platform_user_id=normalize_message_text(
+                    str(platform_user_id) if platform_user_id is not None else None
+                ),
+                metadata=metadata or {},
+            )
+
+    def _append_user_daily_message(
+        self,
+        *,
+        owner_id: str,
+        record_kind: MessageRecordKind,
+        direction: MessageDirection,
+        actor_role: MessageActorRole,
+        message_id: str,
+        user_id: str,
+        user_name: str,
+        plain_text: str,
+        raw_text: str,
+        created_at: datetime,
+        platform: str,
+        platform_name: str,
+        channel_id: str,
+        guild_id: str,
+        bot_id: str,
+        platform_user_id: str,
+        metadata: dict[str, Any],
+    ) -> None:
+        """把用户聊天消息按日期追加到 JSONL 文件。
+
+        SQLite 仍是结构化检索主索引；每日 JSONL 是面向用户空间的时间线镜像，
+        便于后续做按天检索、导出或构建长期记忆。
+        """
+
+        daily_dir = self.manager.user_space(owner_id).chat_dir / "daily"
+        daily_dir.mkdir(parents=True, exist_ok=True)
+        daily_path = daily_dir / f"{created_at.date().isoformat()}.jsonl"
+        payload = {
+            "record_kind": record_kind.value,
+            "direction": direction.value,
+            "actor_role": actor_role.value,
+            "message_id": message_id,
+            "user_id": user_id,
+            "user_name": user_name,
+            "plain_text": plain_text,
+            "raw_text": raw_text,
+            "created_at": created_at.isoformat(timespec="seconds"),
+            "platform": platform,
+            "platform_name": platform_name,
+            "channel_id": channel_id,
+            "guild_id": guild_id,
+            "bot_id": bot_id,
+            "platform_user_id": platform_user_id,
+            "metadata": metadata,
+        }
+        with daily_path.open("a", encoding="utf-8") as file:
+            file.write(json.dumps(payload, ensure_ascii=False, default=str) + "\n")
+
+    def read_user_daily_messages(self, user_id: str | int, day: date | datetime | str) -> list[dict[str, Any]]:
+        """读取指定用户某一天的聊天 JSONL 记录。"""
+
+        if isinstance(day, datetime):
+            day_text = day.date().isoformat()
+        elif isinstance(day, date):
+            day_text = day.isoformat()
+        else:
+            day_text = str(day)
+        daily_path = self.manager.user_space(user_id).chat_dir / "daily" / f"{day_text}.jsonl"
+        if not daily_path.exists():
+            return []
+        records: list[dict[str, Any]] = []
+        for line in daily_path.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            try:
+                payload = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(payload, dict):
+                records.append(payload)
+        return records
 
     def _record_group_message_sync(
         self,
@@ -816,8 +917,7 @@ class ChatHistoryStore:
     ) -> None:
         """确保消息归档表结构存在，并兼容旧版群聊表。"""
 
-        connection.execute(
-            f"""
+        connection.execute(f"""
             CREATE TABLE IF NOT EXISTS {MESSAGE_TABLE_NAME} (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 event_key TEXT NOT NULL UNIQUE,
@@ -841,8 +941,7 @@ class ChatHistoryStore:
                 platform_user_id TEXT NOT NULL DEFAULT '',
                 metadata TEXT NOT NULL DEFAULT '{{}}'
             )
-            """
-        )
+            """)
         cls._ensure_columns(connection)
         cls._backfill_created_timestamps(connection)
         connection.execute(
@@ -883,13 +982,11 @@ class ChatHistoryStore:
     def _backfill_created_timestamps(connection: sqlite3.Connection) -> None:
         """为旧记录补齐 ``created_ts`` 秒级时间戳。"""
 
-        rows = connection.execute(
-            f"""
+        rows = connection.execute(f"""
             SELECT id, created_at
             FROM {MESSAGE_TABLE_NAME}
             WHERE created_ts IS NULL OR created_ts <= 0
-            """
-        ).fetchall()
+            """).fetchall()
         if not rows:
             return
 

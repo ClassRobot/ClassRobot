@@ -20,6 +20,7 @@ async def get_prompts(name: str, params: dict | None = None) -> str:
 
 class Prompt:
     """负责加载并渲染提示词模板。"""
+
     def __init__(self, name: str, params: dict | None = None) -> None:
         """初始化实例。
 

@@ -50,7 +50,7 @@ CommandSpec
 - `src.platform.helper.runtime` 已优先收集 matcher 上绑定的 helper，并在真实执行前优先走 `CommandPolicy`。
 - `src.platform.helper.depends.HelpersDepends` 已接入软关闭过滤，让 `help` 和 AutoGPT 共享相同可见命令集合。
 - AutoGPT 的 `CommandToolCatalog` 已优先使用 `CommandRegistry`，并识别 `risk_level`、`agent_callable`、`execution_mode`。
-- AutoGPT 执行命令时只走 `AgentCommandAdapter -> CommandExecutor`，不再回放 NoneBot 事件。
+- AutoGPT 执行命令时只走 `CommandCLI -> CommandExecutor`，不再回放 NoneBot 事件。
 - 管理端 `nonebot_runtime` 命令清单已合并注册表数据，能暴露风险等级、执行模式、Agent 可见性和软关闭状态。
 - 第一批样例命令已迁移：`src.plugins.application.active.user.commands`、`src.plugins.application.active.curriculum.commands`。
 
@@ -107,7 +107,7 @@ CommandSpec
 当前实际存在两套路径：
 
 - 用户直接发命令：走 matcher，通常不写入 Agent 会话语义层
-- Agent 调命令：走 `AutoTask -> AgentCommandAdapter -> CommandExecutor -> service handler`，再回写观察结果
+- Agent 调命令：走 `AutoTask -> CommandCLI -> CommandExecutor -> service handler`，再回写观察结果
 
 目标态不应继续维持两套松散链路，而应变成：
 
@@ -419,7 +419,7 @@ src/
 | `availability.py` | 插件/命令启停、Agent 可见性控制 |
 | `history.py` | 命令输入记录器注册表，供聊天记录、审计或可观测插件挂接 |
 | `discovery.py` | 扫描和导出命令清单，供后台与调试使用 |
-| `adapters/agent.py` | Agent 工作流入口适配 |
+| `cli.py` | CLI 风格命令调用门面，供 Agent 工作流按“命令名 + 参数”调用统一执行器 |
 | `renderers/helper.py` | `CommandSpec -> Helper` |
 | `renderers/tool.py` | `CommandSpec -> Agent Tool` |
 
@@ -475,7 +475,7 @@ src/plugins/application/active/user/
 - `src/core/agent/runtime/command_tools.py`
   改为从 `CommandRegistry` 和 `CommandSpec` 生成工具目录
 - `src/plugins/application/active/autogpt/__init__.py`
-  只走 `AgentCommandAdapter -> CommandExecutor`，未 service 化命令直接拒绝 Agent 调用
+  只走 `CommandCLI -> CommandExecutor`，未 service 化命令直接拒绝 Agent 调用
 
 ### 与管理后台的关系
 
@@ -696,7 +696,7 @@ Agent 就可以基于最近命令结果继续工作。
 
 目标：
 
-- `AutoGPT` 先调用 `AgentCommandAdapter`
+- `AutoGPT` 先调用 `CommandCLI`
 - 对 service 化命令直接执行
 - 对未 service 化命令直接拒绝，不尝试 matcher 分支
 

@@ -9,9 +9,9 @@ pytestmark = pytest.mark.usefixtures("loaded_plugins")
 
 def _node_registry():
     from src.core.agent.runtime.node_registry import (
+        RUNTIME_NODE_REGISTRY,
         DEFAULT_RUNTIME_NODE_ORDER,
         REQUIRED_RUNTIME_NODE_TYPES,
-        RUNTIME_NODE_REGISTRY,
     )
 
     return DEFAULT_RUNTIME_NODE_ORDER, REQUIRED_RUNTIME_NODE_TYPES, RUNTIME_NODE_REGISTRY
@@ -252,10 +252,44 @@ def test_pipeline_build_nodes_uses_default_graph_without_config(monkeypatch, tmp
 
 
 @pytest.mark.asyncio
-async def test_runtime_graph_executor_takes_conditional_direct_reply_branch(loaded_plugins):
+async def test_pipeline_process_delegates_to_langgraph_runtime(monkeypatch, loaded_plugins):
+    from src.platform.helper import Helpers
+    from src.core.llm.message import Messages
+    import src.core.agent.runtime.pipeline as pipeline_module
+    from src.core.agent.runtime.harness import AutoGPTHarness
+
+    calls = {}
+
+    class StubLangGraphRuntime:
+        """测试替身：确认 pipeline 只负责装配，实际编排交给 LangGraphRuntime。"""
+
+        def __init__(self, config) -> None:
+            calls["config"] = config
+
+        async def run(self, pipeline, state, message):
+            calls["pipeline"] = pipeline
+            calls["state"] = state
+            calls["message"] = message
+            return state
+
+    monkeypatch.setattr(pipeline_module, "LangGraphRuntime", StubLangGraphRuntime)
+
+    harness = AutoGPTHarness.build(helpers=Helpers(), messages=Messages(), trace_id="autogpt-langgraph-process")
+    pipeline = pipeline_module.MessageProcessingPipeline(harness=harness)
+    result = await pipeline.process("你好")
+
+    assert calls["pipeline"] is pipeline
+    assert calls["message"] == "你好"
+    assert calls["state"].trace_id == "autogpt-langgraph-process"
+    assert result.auto_tasks is None
+    assert result.observability is not None
+
+
+@pytest.mark.asyncio
+async def test_langgraph_runtime_takes_conditional_direct_reply_branch(loaded_plugins):
     from src.core.agent.runtime.schema import AutoTaskList
     from src.core.agent.runtime.coordination import PipelineState
-    from src.core.agent.runtime.graph_executor import RuntimeGraphExecutor
+    from src.core.agent.runtime.langgraph_runtime import LangGraphRuntime
     from src.core.agent.runtime.orchestration_config import default_graph_config
 
     visited: list[str] = []
@@ -270,7 +304,7 @@ async def test_runtime_graph_executor_takes_conditional_direct_reply_branch(load
                 state.auto_tasks = AutoTaskList(reply="直接回复")
 
     class StubPipeline:
-        trace_id = "autogpt-conditional"
+        trace_id = "autogpt-langgraph-conditional"
         current_node_config = {}
         current_node_type = ""
 
@@ -289,7 +323,11 @@ async def test_runtime_graph_executor_takes_conditional_direct_reply_branch(load
         def should_direct_reply_from_vision(self, route, contents):
             return False
 
-    await RuntimeGraphExecutor(default_graph_config()).run(StubPipeline(), PipelineState(), "你好")
+        @staticmethod
+        def stage_from_node_type(node_type: str):
+            return node_type
+
+    await LangGraphRuntime(default_graph_config()).run(StubPipeline(), PipelineState(), "你好")
 
     assert "route" in visited
     assert "persist" in visited
@@ -297,11 +335,11 @@ async def test_runtime_graph_executor_takes_conditional_direct_reply_branch(load
 
 
 @pytest.mark.asyncio
-async def test_runtime_graph_executor_uses_route_knowledge_sources_for_local_rag(loaded_plugins):
-    from src.core.agent.runtime.schema import IntentRoute, KnowledgeSourceRequest
+async def test_langgraph_runtime_uses_route_knowledge_sources_for_local_rag(loaded_plugins):
     from src.core.agent.runtime.coordination import PipelineState
-    from src.core.agent.runtime.graph_executor import RuntimeGraphExecutor
+    from src.core.agent.runtime.langgraph_runtime import LangGraphRuntime
     from src.core.agent.runtime.orchestration_config import default_graph_config
+    from src.core.agent.runtime.schema import IntentRoute, KnowledgeSourceRequest
 
     visited: list[str] = []
 
@@ -327,7 +365,7 @@ async def test_runtime_graph_executor_uses_route_knowledge_sources_for_local_rag
                 )
 
     class StubPipeline:
-        trace_id = "autogpt-local-knowledge-route"
+        trace_id = "autogpt-langgraph-local-knowledge"
         current_node_config = {}
         current_node_type = ""
 
@@ -346,7 +384,11 @@ async def test_runtime_graph_executor_uses_route_knowledge_sources_for_local_rag
         def should_direct_reply_from_vision(self, route, contents):
             return False
 
-    await RuntimeGraphExecutor(default_graph_config()).run(StubPipeline(), PipelineState(), "之前我让你记了什么")
+        @staticmethod
+        def stage_from_node_type(node_type: str):
+            return node_type
+
+    await LangGraphRuntime(default_graph_config()).run(StubPipeline(), PipelineState(), "之前我让你记了什么")
 
     assert "route" in visited
     assert "local_rag" in visited
@@ -371,8 +413,8 @@ def test_pipeline_resolves_configured_model_profile(loaded_plugins):
 def test_runtime_modules_are_imported_from_core_runtime():
     """运行时模块应直接从 core 运行时入口导入。"""
 
-    import src.core.agent.runtime.knowledge as core_knowledge
     import src.core.agent.runtime.pipeline as core_pipeline
+    import src.core.agent.runtime.knowledge as core_knowledge
     import src.core.agent.runtime.orchestration_config as core_orchestration
 
     assert core_pipeline.__name__ == "src.core.agent.runtime.pipeline"

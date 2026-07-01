@@ -379,7 +379,7 @@ class MCPClient:
         if hasattr(value, "model_dump"):
             return value.model_dump()
         if hasattr(value, "dict"):
-            return value.dict()
+            return value.model_dump()
         if isinstance(value, dict):
             return value
         return {"repr": repr(value)}

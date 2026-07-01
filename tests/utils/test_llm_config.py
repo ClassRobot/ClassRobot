@@ -1,7 +1,7 @@
 def test_autogpt_config_accepts_json_string_llm_configs(loaded_plugins):
     from src.core.llm.config import AutoGPTConfig
 
-    config = AutoGPTConfig.parse_obj(
+    config = AutoGPTConfig.model_validate(
         {
             "llm_configs": """
             [
@@ -36,7 +36,7 @@ def test_core_llm_config_imports_from_canonical_entry(loaded_plugins):
 def test_autogpt_config_accepts_agent_loop_limits(loaded_plugins):
     from src.core.llm.config import AutoGPTConfig
 
-    config = AutoGPTConfig.parse_obj(
+    config = AutoGPTConfig.model_validate(
         {
             "agent_loop_max_steps": "6",
             "agent_loop_max_verify_attempts": "3",

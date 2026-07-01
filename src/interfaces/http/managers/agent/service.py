@@ -499,7 +499,7 @@ class AgentManagerService:
             return self.build_default_designer_state()
         try:
             data = json.loads(DESIGNER_CONFIG_PATH.read_text(encoding="utf-8"))
-            return AgentDesignerDraft.parse_obj(data)
+            return AgentDesignerDraft.model_validate(data)
         except (OSError, json.JSONDecodeError, ValueError):
             return self.build_default_designer_state()
 
@@ -524,7 +524,7 @@ class AgentManagerService:
     def mark_runtime_applied(self, draft: AgentDesignerDraft) -> AgentDesignerDraft:
         """根据当前运行时配置标记草稿节点和连线是否已应用。"""
 
-        cloned = AgentDesignerDraft.parse_obj(draft.to_payload())
+        cloned = AgentDesignerDraft.model_validate(draft.to_payload())
         applied = is_designer_applied_to_runtime(cloned.to_payload(compact=True))
         for node in cloned.nodes:
             node.runtime_applied = applied and bool(node.enabled)
@@ -545,15 +545,15 @@ class AgentManagerService:
         """过滤节点参数配置中的不支持字段。"""
 
         if isinstance(config, AgentNodeDraftConfig):
-            return AgentNodeDraftConfig.parse_obj(config.to_payload(compact=True))
+            return AgentNodeDraftConfig.model_validate(config.to_payload(compact=True))
         if isinstance(config, dict):
-            return AgentNodeDraftConfig.parse_obj(config)
+            return AgentNodeDraftConfig.model_validate(config)
         return AgentNodeDraftConfig()
 
     def validate_designer_state(self, payload: AgentDesignerDraft | dict[str, Any]) -> AgentDesignerDraft:
         """校验并标准化管理端提交的编排草稿。"""
 
-        state = payload if isinstance(payload, AgentDesignerDraft) else AgentDesignerDraft.parse_obj(payload)
+        state = payload if isinstance(payload, AgentDesignerDraft) else AgentDesignerDraft.model_validate(payload)
         if len(state.nodes) > DESIGNER_MAX_NODES:
             raise ValueError(f"Designer nodes must not exceed {DESIGNER_MAX_NODES}")
         if len(state.edges) > DESIGNER_MAX_EDGES:
@@ -948,7 +948,7 @@ class AgentManagerService:
                 for index, definition in enumerate(list_runtime_node_definitions())
             ],
             edges=[
-                AgentOrchestrationEdge.parse_obj({"from": source, "to": target, "label": label})
+                AgentOrchestrationEdge.model_validate({"from": source, "to": target, "label": label})
                 for source, target, label, _condition in ORCHESTRATION_EDGES
             ],
         )
@@ -1090,13 +1090,13 @@ class AgentManagerService:
     def get_live_trace_status(self) -> dict[str, Any]:
         """读取开发态 live trace 注册表状态。"""
 
-        return AgentLiveTraceStatusPayload.parse_obj(agent_live_trace_registry.status()).to_payload()
+        return AgentLiveTraceStatusPayload.model_validate(agent_live_trace_registry.status()).to_payload()
 
     def list_live_traces(self) -> dict[str, Any]:
         """列出正在执行和最近完成的 live traces。"""
 
         items = [
-            AgentLiveTraceSummaryPayload.parse_obj(item).to_payload()
+            AgentLiveTraceSummaryPayload.model_validate(item).to_payload()
             for item in agent_live_trace_registry.list_traces()
         ]
         return {"items": items, "total": len(items)}
@@ -1106,11 +1106,12 @@ class AgentManagerService:
 
         trace = agent_live_trace_registry.get_trace(trace_id)
         if trace is not None:
-            payload = AgentLiveTraceDetailPayload.parse_obj(
+            payload = AgentLiveTraceDetailPayload.model_validate(
                 {
                     **trace.summary(),
                     "events": [
-                        AgentLiveTraceEventPayload.parse_obj(event.dict()).to_payload() for event in trace.events
+                        AgentLiveTraceEventPayload.model_validate(event.model_dump()).to_payload()
+                        for event in trace.events
                     ],
                 }
             )

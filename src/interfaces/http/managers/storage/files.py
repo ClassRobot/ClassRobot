@@ -1,17 +1,23 @@
 from __future__ import annotations
 
-from collections import defaultdict
-from datetime import datetime
-from pathlib import Path
 from typing import Any
+from pathlib import Path
+from datetime import datetime
+from collections import defaultdict
 
-from nonebot_plugin_orm import get_session
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
-
-from src.models import Classes, College, Group, GroupBind, School, User
-from src.core.storage import DEFAULT_HOME_DIRS, FileSpace, FileSpaceError, PathEscapeError, StorageManager, storage_manager
-from src.core.storage.files import SPACE_ROOT_DIRS, normalize_file_space_kind, sanitize_owner_id
+from nonebot_plugin_orm import get_session
+from src.models import User, Group, School, Classes, College, GroupBind
+from src.core.storage.files import SPACE_ROOT_DIRS, sanitize_owner_id, normalize_file_space_kind
+from src.core.storage import (
+    DEFAULT_HOME_DIRS,
+    FileSpace,
+    FileSpaceError,
+    StorageManager,
+    PathEscapeError,
+    storage_manager,
+)
 
 
 def _space_root(kind: str, manager: StorageManager | None = None) -> Path:

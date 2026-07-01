@@ -57,8 +57,7 @@ class ActionResult(BaseModel):
 class ActionExecutor(Protocol):
     """Executor protocol for the Host action bus."""
 
-    async def execute(self, request: ActionRequest) -> ActionResult:
-        ...
+    async def execute(self, request: ActionRequest) -> ActionResult: ...
 
 
 class ActionExecutorRegistry:

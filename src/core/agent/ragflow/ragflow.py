@@ -26,7 +26,7 @@ class AsyncRagFlow:
         if data["code"] != 0:
             raise Exception(data["message"])
         else:
-            return [Chatbot.parse_obj(chat) for chat in data["data"]]
+            return [Chatbot.model_validate(chat) for chat in data["data"]]
 
 
 if __name__ == "__main__":

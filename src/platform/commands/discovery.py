@@ -4,11 +4,11 @@ from typing import Any
 
 from src.platform.helper import Helper, ParamMode
 
-from .availability import command_availability
+from .spec import CommandSpec
 from .executor import command_executor
 from .registry import command_registry
+from .availability import command_availability
 from .renderers.tool import command_spec_to_tool_schema
-from .spec import CommandSpec
 
 
 def spec_to_payload(spec: CommandSpec) -> dict[str, Any]:

@@ -5,11 +5,12 @@ from pydantic import BaseModel
 
 class Leave(BaseModel):
     """描述请假申请的数据结构。"""
-    start_time: datetime | None
+
+    start_time: datetime | None = None
     "请假时间"
-    end_time: datetime | None
+    end_time: datetime | None = None
     "请假结束时间"
-    reason: str | None
+    reason: str | None = None
     "请假原因"
     is_valid: bool = False
     "请假信息是否有效"

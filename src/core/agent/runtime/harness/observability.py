@@ -97,7 +97,7 @@ class ProgressFeedbackHarness:
         """导出当前轮次的结构化可观测指标快照。"""
 
         self._metrics.trace_id = self.trace_id
-        return self._metrics.copy(deep=True)
+        return self._metrics.model_copy(deep=True)
 
     @staticmethod
     def normalize_names(names: Sequence[str]) -> list[str]:

@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
-from pathlib import Path
 from typing import Any
+from pathlib import Path
+from datetime import datetime
+
+from src.platform.config import data_dir
 
 from .security import ManagerSession
-from src.platform.config import data_dir
 
 AUDIT_LOG_PATH = data_dir / "logs" / "manager_audit.jsonl"
 MAX_DETAIL_TEXT = 2000

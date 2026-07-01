@@ -8,9 +8,8 @@ from collections.abc import Iterable
 
 from nonebot import logger
 from src.core.skills import skill_registry
-from src.platform.session.resolvers import resolve_bound_group_id
-
 from src.platform.session import BaseSession
+from src.platform.session.resolvers import resolve_bound_group_id
 from src.core.storage import (
     FileSpace,
     StorageManager,
@@ -23,6 +22,7 @@ from src.core.storage import (
 )
 
 from .schema import KnowledgeSourceRequest, KnowledgeSourceObservation
+
 TEXT_FILE_SUFFIXES = {
     ".cfg",
     ".csv",
@@ -115,6 +115,7 @@ class SkillCatalog:
             selected.append(summary)
             seen.add(skill_name)
         return selected
+
 
 class LocalKnowledgeRetriever:
     """按需检索用户聊天记录、群聊采集消息和隔离文件空间。"""

@@ -686,6 +686,7 @@ def parse_module_result(response):
 
 class ResponseCallbackProtocol(Protocol):
     """定义responsecallbackprotocol协议接口。"""
+
     def __call__(self, response: Any, **kwargs):
         """调用实例并返回结果。
 
@@ -698,6 +699,7 @@ class ResponseCallbackProtocol(Protocol):
 
 class AsyncResponseCallbackProtocol(Protocol):
     """定义asyncresponsecallbackprotocol协议接口。"""
+
     async def __call__(self, response: Any, **kwargs):
         """调用实例并返回结果。
 
@@ -4702,6 +4704,7 @@ StrictRedis = Redis
 
 class MonitorCommandInfo(TypedDict):
     """处理monitorcommandinfo相关逻辑。"""
+
     time: float
     db: int
     client_address: str
@@ -5208,6 +5211,7 @@ class PubSub:
 
 class PubsubWorkerExceptionHandler(Protocol):
     """处理pubsubworkerexceptionhandler相关逻辑。"""
+
     def __call__(self, e: BaseException, pubsub: PubSub):
         """调用实例并返回结果。
 
@@ -5220,6 +5224,7 @@ class PubsubWorkerExceptionHandler(Protocol):
 
 class AsyncPubsubWorkerExceptionHandler(Protocol):
     """处理asyncpubsubworkerexceptionhandler相关逻辑。"""
+
     async def __call__(self, e: BaseException, pubsub: PubSub):
         """调用实例并返回结果。
 

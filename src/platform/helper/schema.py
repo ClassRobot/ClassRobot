@@ -4,7 +4,7 @@ from typing import Iterable, Generator
 from nonebot import logger
 from strenum import StrEnum
 from src.core.auth import UserRole
-from pydantic import BaseModel, Field, validator
+from pydantic import Field, BaseModel, field_validator
 
 
 class ParamMode(StrEnum):
@@ -94,7 +94,8 @@ class Param(BaseModel):
     description: str | None = None
     mode: ParamMode | None = None
 
-    @validator("name")
+    @field_validator("name")
+    @classmethod
     def name_validator(cls, value: str) -> str:
         """校验参数名称是否合法。"""
 
@@ -352,9 +353,8 @@ class Helpers(BaseModel):
     async def render_pic(self) -> bytes:
         """将当前帮助集合渲染为图片。"""
 
-        from nonebot_plugin_htmlrender import template_to_pic
-
         from src.platform.config import template_dir
+        from nonebot_plugin_htmlrender import template_to_pic
 
         return await template_to_pic(
             str(template_dir),

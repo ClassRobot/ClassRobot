@@ -3,10 +3,9 @@ from __future__ import annotations
 from typing import Any
 
 from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import selectinload
+from sqlalchemy.exc import IntegrityError
 from nonebot_plugin_orm import get_session
-
 from src.models import User, Student, Teacher, UserBind
 
 

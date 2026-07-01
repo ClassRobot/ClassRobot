@@ -2,29 +2,29 @@ from __future__ import annotations
 
 from io import BytesIO
 from enum import StrEnum
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
+from dataclasses import dataclass
 
-from nonebot.adapters import Bot as BaseBot, Event
+from src.models import User
+from pydantic import BaseModel
+from nonebot.adapters import Event
+from src.shared.tools import StringCard
+from nonebot.adapters import Bot as BaseBot
+from src.platform.files import download_file
+from src.platform.session import BaseSession
+from src.platform.config import global_config
 from nonebot.adapters.onebot.v11 import Bot as V11Bot
 from nonebot_plugin_alconna import File, Image, Other
-from pydantic import BaseModel
-
-from src.platform.commands import CommandExecutionContext, CommandResult, command_executor
-from src.platform.config import global_config
-from src.models import User
-from src.platform.session import BaseSession
-from src.core.storage import FileEntry, FileSpace, FileSpaceError, PathEscapeError, StorageManager, storage_manager
-from src.platform.files import download_file
-from src.shared.tools import StringCard
+from src.platform.commands import CommandResult, CommandExecutionContext, command_executor
+from src.core.storage import FileEntry, FileSpace, FileSpaceError, StorageManager, PathEscapeError, storage_manager
 
 from .virtual import (
     VirtualFileWorkspace,
     display_path_from_parts,
-    build_context_file_workspace,
-    build_event_file_workspace,
     resolve_platform_group_id,
+    build_event_file_workspace,
+    build_context_file_workspace,
 )
 
 Attachment = File | Image | Other
@@ -898,7 +898,7 @@ async def execute_grep(params: dict, context: CommandExecutionContext) -> Comman
             path=display,
             keyword=str(keyword),
             truncated=truncated,
-            matches=[match.dict() for match in matches],
+            matches=[match.model_dump() for match in matches],
         )
     except FileSpaceError as error:
         return CommandResult.fail(handle_space_error(error))

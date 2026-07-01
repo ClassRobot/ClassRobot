@@ -9,15 +9,13 @@ from threading import RLock
 from datetime import datetime
 from collections import OrderedDict, deque
 
-from pydantic import Extra, Field, BaseModel, validator
+from pydantic import Field, BaseModel, ConfigDict, field_validator
 
 
 class AgentLiveTraceConfig(BaseModel):
     """开发态 Agent 实时追踪配置。"""
 
-    class Config:
-        extra = Extra.ignore
-        allow_population_by_field_name = True
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
     enabled: bool = Field(default=False, alias="agent_live_trace_enabled")
     max_traces: int = Field(default=50, alias="agent_live_trace_max_traces")
@@ -25,7 +23,8 @@ class AgentLiveTraceConfig(BaseModel):
     retention_seconds: int = Field(default=1800, alias="agent_live_trace_retention_seconds")
     include_debug_preview: bool = Field(default=True, alias="agent_live_trace_include_debug_preview")
 
-    @validator("enabled", "include_debug_preview", pre=True)
+    @field_validator("enabled", "include_debug_preview", mode="before")
+    @classmethod
     def normalize_bool(cls, value: object) -> bool:
         if isinstance(value, bool):
             return value
@@ -33,7 +32,8 @@ class AgentLiveTraceConfig(BaseModel):
             return False
         return str(value).strip().lower() in {"1", "true", "yes", "on"}
 
-    @validator("max_traces", "max_events_per_trace", "retention_seconds", pre=True)
+    @field_validator("max_traces", "max_events_per_trace", "retention_seconds", mode="before")
+    @classmethod
     def normalize_positive_int(cls, value: object) -> int:
         try:
             parsed = int(value) if value is not None else 0
@@ -73,11 +73,11 @@ class AgentLiveTraceConfig(BaseModel):
         for env_key, config_key in env_key_map.items():
             if env_key in os.environ:
                 data[config_key] = os.environ[env_key]
-        return cls.parse_obj(data).with_safe_defaults()
+        return cls.model_validate(data).with_safe_defaults()
 
     def with_safe_defaults(self) -> "AgentLiveTraceConfig":
         defaults = type(self)()
-        values = self.dict()
+        values = self.model_dump()
         for field_name in ("max_traces", "max_events_per_trace", "retention_seconds"):
             if values[field_name] <= 0:
                 values[field_name] = getattr(defaults, field_name)
@@ -106,7 +106,7 @@ class AgentTraceRedactor:
         if cls.is_sensitive_key(key):
             return "***"
         if isinstance(value, BaseModel):
-            return cls.redact(value.dict(), key=key)
+            return cls.redact(value.model_dump(), key=key)
         if isinstance(value, dict):
             items = list(value.items())[: cls.max_mapping_items]
             result = {str(item_key): cls.redact(item_value, key=str(item_key)) for item_key, item_value in items}
@@ -498,7 +498,7 @@ class AgentLiveTraceRegistry:
         record = self._records.get(trace_id)
         if record is None:
             return None
-        snapshot = record.copy(deep=True)
+        snapshot = record.model_copy(deep=True)
         snapshot.events = list(self._event_buffers.get(trace_id, ()))
         snapshot.event_count = len(snapshot.events)
         return snapshot

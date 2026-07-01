@@ -3,8 +3,8 @@ import pytest
 
 @pytest.mark.asyncio
 async def test_workflow_checkpoint_store_roundtrip(loaded_plugins, workflow_checkpoint_table):
-    from src.core.agent.runtime.persistence import WorkflowCheckpointStore
     from src.core.agent.runtime.schema import TaskWorkflow, WorkflowStep
+    from src.core.agent.runtime.persistence import WorkflowCheckpointStore
 
     store = WorkflowCheckpointStore()
     workflow = TaskWorkflow(
@@ -72,8 +72,8 @@ async def test_chat_session_restores_pending_workflow_from_checkpoint(loaded_plu
 async def test_confirming_restored_workflow_updates_checkpoint(loaded_plugins, workflow_checkpoint_table):
     from src.platform.helper import Helpers
     from src.core.agent.runtime.util import ChatSession
-    from src.core.agent.runtime.persistence import WorkflowCheckpointStore
     from src.core.agent.runtime.schema import TaskWorkflow, WorkflowStep
+    from src.core.agent.runtime.persistence import WorkflowCheckpointStore
 
     pending_session = ChatSession(user_id=12, helpers=Helpers())
     workflow = TaskWorkflow(
@@ -108,8 +108,8 @@ async def test_confirming_restored_workflow_updates_checkpoint(loaded_plugins, w
 async def test_clearing_session_removes_persisted_checkpoint(loaded_plugins, workflow_checkpoint_table):
     from src.platform.helper import Helpers
     from src.core.agent.runtime.util import ChatSession
-    from src.core.agent.runtime.persistence import WorkflowCheckpointStore
     from src.core.agent.runtime.schema import TaskWorkflow, WorkflowStep
+    from src.core.agent.runtime.persistence import WorkflowCheckpointStore
 
     session = ChatSession(user_id=20, helpers=Helpers())
     workflow = TaskWorkflow(

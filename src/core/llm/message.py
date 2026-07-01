@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import json
 import hashlib
-from datetime import datetime
 from enum import StrEnum
-from typing import Any, Iterator, Literal, TypeAlias, Union
+from datetime import datetime
+from typing import Any, Union, Literal, Iterator, TypeAlias
 
-from pydantic import BaseModel, Field
+from pydantic import Field, BaseModel
 
 from .typings import ChatCompletionMessage, ChatCompletionMessageParam
 
@@ -53,7 +54,12 @@ class Context(ContextSchema):
         """返回当前消息内容的摘要值。"""
 
         if self.context_md5 is None:
-            self.context_md5 = hashlib.md5(self.json(include={"role", "content"}).encode("utf-8")).hexdigest()
+            payload = json.dumps(
+                self.model_dump(mode="json", include={"role", "content"}),
+                ensure_ascii=False,
+                default=str,
+            )
+            self.context_md5 = hashlib.md5(payload.encode("utf-8")).hexdigest()
         return self.context_md5
 
     async def multi_modal(self) -> str | list[dict[str, Any]]:
@@ -108,10 +114,10 @@ class Context(ContextSchema):
             return len(self.content.encode("utf-8"))
         return sum(len(msg) for msg in self.content)
 
-    def dict(self, *args, **kwargs) -> dict:
+    def model_dump(self, *args, **kwargs) -> dict:
         """导出适用于模型请求的消息字典。"""
 
-        data = super().dict(
+        data = super().model_dump(
             *args,
             **(kwargs | {"include": {"role", "content"}}),
         )
@@ -140,7 +146,7 @@ class Messages(BaseModel):
         for index, ctx in enumerate(self.messages):
             msg_dict = None
             if isinstance(ctx, Context):
-                msg_dict = ctx.dict()
+                msg_dict = ctx.model_dump()
                 msg_dict["content"] = ctx.single_modal()
                 if index == message_count - 1 and is_multi_modal:
                     msg_dict["content"] = await ctx.multi_modal()

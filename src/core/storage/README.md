@@ -61,10 +61,13 @@
   - `storage/groups/{system_group_id}/chat/messages.db`
 - 用户聊天消息：
   - `storage/users/{user_id}/chat/messages.db`
+  - `storage/users/{user_id}/chat/daily/YYYY-MM-DD.jsonl`
 - 机器人回复消息：
   - 按回复目标落到对应的 `groups/{system_group_id}` 或 `users/{user_id}` 空间
 
 这里的 `system_group_id` 指系统内 `Group.id`，不是平台原始群号。
+
+`messages.db` 是结构化查询和统计的主索引；用户空间下的 `daily/*.jsonl` 是按日期追加的聊天时间线镜像。这样后续做“查看某天聊天记录”“导出某天历史”“按日期构建长期记忆”时，不需要先扫描整库。每日镜像只在数据库成功插入新消息后写入，因此重复消息不会重复追加。
 
 补充业务规则：
 
@@ -159,6 +162,7 @@ flowchart LR
 - 后台管理或 Agent 工具需要访问文件时，应复用 `StorageManager` / `FileSpace`，不要自行拼接路径。
 - 如果新增文件类型分类，只需要调整 `DEFAULT_HOME_DIRS`，新空间初始化时会自动创建目录。
 - 如果新增消息历史能力，优先复用 `src.core.storage.chat_history.ChatHistoryStore`，不要自行创建新的 SQLite 结构。
+- 如果需要按日期读取用户聊天时间线，优先使用 `ChatHistoryStore.read_user_daily_messages(user_id, day)`，不要直接拼接 `daily/*.jsonl` 路径。
 - 需要读取消息历史字段含义时，可参考 `docs/guides/message-history-storage.md`。
 
 ## 本地 RAG 索引

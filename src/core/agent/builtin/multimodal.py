@@ -1,10 +1,9 @@
 from nonebot import logger
 from httpx import AsyncClient
 from pydantic import Field, BaseModel
-from src.core.skills import document_to_image_skill
-
 from src.platform.config import autogpt_dir
 from src.core.llm import LLMTaskType, client_create
+from src.core.skills import document_to_image_skill
 from src.core.llm.message import Content, LLMRole, Messages
 
 from ..base import BaseAgentConfig, BaseFunctionAgent
@@ -55,7 +54,7 @@ class VisionAgent(BaseFunctionAgent):
         logger.debug(self.name())
         vision_message = messages.get(*self.roles)
         for tool in self.call_tools(messages):
-            params = self.Params.parse_raw(tool.function.arguments)
+            params = self.Params.model_validate_json(tool.function.arguments)
             contents: list[Content] = [Content(type="text", value=params.desc)]
             contents.extend(Content(type="image", value=url) for url in params.urls)
             vision_message.user_message(contents)
@@ -103,7 +102,7 @@ class FileAgent(BaseFunctionAgent):
 
         async with AsyncClient() as client:
             for tool in self.call_tools(messages):
-                params = self.Params.parse_raw(tool.function.arguments)
+                params = self.Params.model_validate_json(tool.function.arguments)
                 images: list[str] = []
                 for url in params.urls:
                     response = await client.get(url)

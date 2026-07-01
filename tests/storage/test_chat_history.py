@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta
 import sqlite3
+from datetime import datetime, timedelta
 
 import pytest
 
 
 @pytest.mark.asyncio
 async def test_group_chat_history_store_can_record_search_and_build_context(loaded_plugins, tmp_path):
-    from src.core.storage import GroupChatHistoryStore, StorageManager
+    from src.core.storage import StorageManager, GroupChatHistoryStore
 
     store = GroupChatHistoryStore(StorageManager(tmp_path / "storage"))
     now = datetime.now()
@@ -45,7 +45,7 @@ async def test_group_chat_history_store_can_record_search_and_build_context(load
 
     assert [record.user_name for record in records] == ["张三", "李四"]
     assert any("调课" in record.display_text for record in records)
-    assert records[0].dict()["user_name"] == "张三"
+    assert records[0].model_dump()["user_name"] == "张三"
 
     context = await store.build_group_history_context("30001", "调课", limit=10, search_window=50)
     assert context is not None
@@ -55,7 +55,7 @@ async def test_group_chat_history_store_can_record_search_and_build_context(load
 
 
 def test_group_chat_history_store_returns_recent_messages_without_query(loaded_plugins, tmp_path):
-    from src.core.storage import GroupChatHistoryStore, StorageManager
+    from src.core.storage import StorageManager, GroupChatHistoryStore
 
     store = GroupChatHistoryStore(StorageManager(tmp_path / "storage"))
     now = datetime.now()
@@ -76,8 +76,42 @@ def test_group_chat_history_store_returns_recent_messages_without_query(loaded_p
 
 
 @pytest.mark.asyncio
+async def test_group_search_filters_duplicate_chat_user_records_before_limit(loaded_plugins, tmp_path):
+    from src.core.storage import StorageManager, ChatHistoryStore, MessageActorRole
+
+    store = ChatHistoryStore(StorageManager(tmp_path / "storage"))
+    now = datetime(2026, 6, 30, 12, 0, 0)
+
+    for index in range(3):
+        await store.record_group_collect_message(
+            group_id="30002",
+            user_id=f"u{index}",
+            user_name=f"用户{index}",
+            plain_text=f"关键词 collect {index}",
+            raw_text=f"关键词 collect {index}",
+            message_id=f"collect-{index}",
+            created_at=now + timedelta(minutes=index),
+        )
+    for index in range(2):
+        await store.record_group_chat_message(
+            group_id="30002",
+            actor_role=MessageActorRole.user,
+            actor_id=f"u{index}",
+            actor_name=f"用户{index}",
+            plain_text=f"关键词 duplicate chat {index}",
+            raw_text=f"关键词 duplicate chat {index}",
+            message_id=f"chat-user-{index}",
+            created_at=now + timedelta(minutes=10 + index),
+        )
+
+    records = await store.search_group_messages("30002", "关键词", limit=2, search_window=5)
+
+    assert [record.plain_text for record in records] == ["关键词 collect 1", "关键词 collect 2"]
+
+
+@pytest.mark.asyncio
 async def test_user_chat_messages_are_stored_under_user_space(loaded_plugins, tmp_path):
-    from src.core.storage import ChatHistoryStore, MessageActorRole, MessageDirection, StorageManager
+    from src.core.storage import StorageManager, ChatHistoryStore, MessageActorRole, MessageDirection
 
     manager = StorageManager(tmp_path / "storage")
     store = ChatHistoryStore(manager)
@@ -108,14 +142,64 @@ async def test_user_chat_messages_are_stored_under_user_space(loaded_plugins, tm
 
 
 @pytest.mark.asyncio
+async def test_user_chat_messages_are_mirrored_to_daily_jsonl(loaded_plugins, tmp_path):
+    from src.core.storage import StorageManager, ChatHistoryStore, MessageActorRole
+
+    manager = StorageManager(tmp_path / "storage")
+    store = ChatHistoryStore(manager)
+    created_at = datetime(2026, 6, 30, 12, 30, 0)
+
+    await store.record_user_chat_message(
+        user_id="90002",
+        user_name="每日记录用户",
+        plain_text="今天需要写进用户聊天时间线",
+        raw_text="今天需要写进用户聊天时间线",
+        message_id="daily-1",
+        actor_role=MessageActorRole.user,
+        created_at=created_at,
+        platform="onebot11.qq_client",
+        platform_name="QQ",
+        bot_id="114514",
+        platform_user_id="90002",
+        metadata={"source": "unit_test"},
+    )
+    await store.record_user_chat_message(
+        user_id="90002",
+        user_name="每日记录用户",
+        plain_text="今天需要写进用户聊天时间线",
+        raw_text="今天需要写进用户聊天时间线",
+        message_id="daily-1",
+        actor_role=MessageActorRole.user,
+        created_at=created_at,
+        platform="onebot11.qq_client",
+        platform_name="QQ",
+        bot_id="114514",
+        platform_user_id="90002",
+        metadata={"source": "unit_test"},
+    )
+
+    daily_path = manager.user_space("90002").chat_dir / "daily" / "2026-06-30.jsonl"
+    daily_records = store.read_user_daily_messages("90002", "2026-06-30")
+
+    assert daily_path.is_file()
+    assert len(daily_records) == 1
+    assert daily_records[0]["plain_text"] == "今天需要写进用户聊天时间线"
+    assert daily_records[0]["record_kind"] == "chat"
+    assert daily_records[0]["direction"] == "inbound"
+    assert daily_records[0]["actor_role"] == "user"
+    assert daily_records[0]["platform_user_id"] == "90002"
+    assert daily_records[0]["metadata"]["source"] == "unit_test"
+
+
+@pytest.mark.asyncio
 async def test_group_assistant_messages_are_stored_under_group_space(loaded_plugins, tmp_path):
     from src.core.storage import (
+        StorageManager,
         ChatHistoryStore,
         MessageActorRole,
         MessageDirection,
         MessageOwnerKind,
         MessageRecordKind,
-        StorageManager,
     )
 
     store = ChatHistoryStore(StorageManager(tmp_path / "storage"))
@@ -150,7 +234,7 @@ async def test_group_assistant_messages_are_stored_under_group_space(loaded_plug
 
 @pytest.mark.asyncio
 async def test_chat_history_store_can_summarize_user_chat_messages(loaded_plugins, tmp_path):
-    from src.core.storage import ChatHistoryStore, MessageActorRole, StorageManager
+    from src.core.storage import StorageManager, ChatHistoryStore, MessageActorRole
 
     store = ChatHistoryStore(StorageManager(tmp_path / "storage"))
     today = datetime(2026, 5, 6, 0, 0, 0)
@@ -209,7 +293,7 @@ async def test_chat_history_store_can_summarize_user_chat_messages(loaded_plugin
 
 @pytest.mark.asyncio
 async def test_chat_history_store_can_summarize_group_collect_messages(loaded_plugins, tmp_path):
-    from src.core.storage import ChatHistoryStore, StorageManager
+    from src.core.storage import StorageManager, ChatHistoryStore
 
     store = ChatHistoryStore(StorageManager(tmp_path / "storage"))
     today = datetime(2026, 5, 6, 0, 0, 0)
@@ -265,15 +349,14 @@ async def test_chat_history_store_can_summarize_group_collect_messages(loaded_pl
 
 
 def test_chat_history_store_backfills_created_ts_for_legacy_rows(loaded_plugins, tmp_path):
-    from src.core.storage import ChatHistoryStore, MessageOwnerKind, StorageManager
+    from src.core.storage import StorageManager, ChatHistoryStore, MessageOwnerKind
 
     manager = StorageManager(tmp_path / "storage")
     db_path = manager.user_space("legacy-user").chat_dir / "messages.db"
     db_path.parent.mkdir(parents=True, exist_ok=True)
 
     with sqlite3.connect(db_path) as connection:
-        connection.execute(
-            """
+        connection.execute("""
             CREATE TABLE messages (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 event_key TEXT NOT NULL UNIQUE,
@@ -286,8 +369,7 @@ def test_chat_history_store_backfills_created_ts_for_legacy_rows(loaded_plugins,
                 raw_text TEXT NOT NULL DEFAULT '',
                 created_at TEXT NOT NULL
             )
-            """
-        )
+            """)
         connection.execute(
             """
             INSERT INTO messages (
@@ -317,9 +399,7 @@ def test_chat_history_store_backfills_created_ts_for_legacy_rows(loaded_plugins,
 
     store = ChatHistoryStore(manager)
     with store._connect(MessageOwnerKind.user, "legacy-user") as connection:  # noqa: SLF001
-        columns = {
-            str(row["name"]) for row in connection.execute("PRAGMA table_info(messages)").fetchall()
-        }
+        columns = {str(row["name"]) for row in connection.execute("PRAGMA table_info(messages)").fetchall()}
         row = connection.execute(
             """
             SELECT owner_kind, owner_id, direction, created_ts

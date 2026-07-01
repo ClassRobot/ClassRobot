@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING
 from abc import ABC, abstractmethod
 
@@ -65,7 +66,11 @@ class IntentRouteNode(WorkflowNode):
         reply_prompt = await Prompt("direct_chat_reply").render(
             {
                 "capability_catalog": pipeline.render_capability_catalog_prompt(),
-                "route": state.intent_route.json(ensure_ascii=False) if state.intent_route else "{}",
+                "route": (
+                    json.dumps(state.intent_route.model_dump(mode="json"), ensure_ascii=False, default=str)
+                    if state.intent_route
+                    else "{}"
+                ),
                 "history": pipeline.serialize_recent_history(),
                 "user_message": pipeline.text_query_from_contents(state.user_content),
             }
@@ -125,7 +130,7 @@ class IntentRouteNode(WorkflowNode):
         )
         text = response.choices[0].message.content or "{}"
         try:
-            state.intent_route = IntentRoute.parse_obj(json_loads(text))
+            state.intent_route = IntentRoute.model_validate(json_loads(text))
         except Exception as error:
             preview = text.strip().replace("\n", "\\n")[:240]
             logger.warning(
@@ -202,7 +207,8 @@ class DirectVisionReplyNode(WorkflowNode):
         reply = (response.choices[0].message.content or "").strip()
         state.runtime_scene = "vision"
         state.auto_tasks = AutoTaskList(
-            reply=reply or "我看到了这张图片，但还不能可靠判断具体内容，你可以发更清晰一点的图片或补一句你想让我看什么。",
+            reply=reply
+            or "我看到了这张图片，但还不能可靠判断具体内容，你可以发更清晰一点的图片或补一句你想让我看什么。",
             need_confirm=False,
         )
 
@@ -269,7 +275,7 @@ class PlannerNode(WorkflowNode):
         normalized = dict(payload)
         route_requirements = state.intent_route.capability_requirements if state.intent_route else []
         normalized["capability_requirements"] = [
-            requirement.dict()
+            requirement.model_dump()
             for requirement in pipeline.normalize_capability_requirements(
                 normalized.get("capability_requirements"),
                 route_requirements,
@@ -307,7 +313,11 @@ class PlannerNode(WorkflowNode):
                 "skill_catalog": pipeline.render_skill_catalog_prompt_from_summaries(plan_skills),
                 "mcp_tools": pipeline.render_mcp_tools_prompt(),
                 "capability_catalog": pipeline.render_capability_catalog_prompt(),
-                "route": state.intent_route.json(ensure_ascii=False) if state.intent_route else "{}",
+                "route": (
+                    json.dumps(state.intent_route.model_dump(mode="json"), ensure_ascii=False, default=str)
+                    if state.intent_route
+                    else "{}"
+                ),
                 "context": state.extracted_context.single_modal(),
                 "local_knowledge": state.local_knowledge,
                 "history": pipeline.serialize_recent_history(),
@@ -333,7 +343,7 @@ class PlannerNode(WorkflowNode):
         try:
             payload = self.normalize_plan_payload(pipeline, state, json_loads(text))
             state.agent_plan = pipeline.ensure_realtime_mcp_plan_defaults(
-                AgentPlan.parse_obj(payload),
+                AgentPlan.model_validate(payload),
                 state.intent_route,
             )
         except Exception as error:
@@ -410,7 +420,8 @@ class ExecutionPolicyNode(WorkflowNode):
         if plan.requires_command and not plan.should_execute:
             state.auto_tasks = AutoTaskList(
                 reply=plan.confirmation_question
-                or "我还需要你确认执行条件后才能调用系统命令。" + (f" 缺少信息：{'、'.join(plan.missing_info)}" if plan.missing_info else ""),
+                or "我还需要你确认执行条件后才能调用系统命令。"
+                + (f" 缺少信息：{'、'.join(plan.missing_info)}" if plan.missing_info else ""),
                 need_confirm=True,
             )
             return
@@ -470,7 +481,11 @@ class PlanTasksNode(WorkflowNode):
                 "helpers": pipeline.helpers,
                 "context": state.extracted_context.single_modal(),
                 "knowledge": combined_knowledge,
-                "plan": state.agent_plan.json(ensure_ascii=False) if state.agent_plan else None,
+                "plan": (
+                    json.dumps(state.agent_plan.model_dump(mode="json"), ensure_ascii=False, default=str)
+                    if state.agent_plan
+                    else None
+                ),
                 "command_tools": pipeline.render_command_tools_prompt_from_tools(task_tools),
                 "skill_catalog": pipeline.render_skill_catalog_prompt_from_summaries(task_skills),
                 "mcp_tools": pipeline.render_mcp_tools_prompt(
@@ -495,7 +510,11 @@ class PlanTasksNode(WorkflowNode):
             state.auto_tasks = await task_agent.execute(
                 state.extracted_context,
                 combined_knowledge,
-                plan=state.agent_plan.json(ensure_ascii=False) if state.agent_plan else None,
+                plan=(
+                    json.dumps(state.agent_plan.model_dump(mode="json"), ensure_ascii=False, default=str)
+                    if state.agent_plan
+                    else None
+                ),
             )
         except Exception as error:
             logger.exception(f'AutoGPT trace "{state.trace_id}" auto task parse failed: {error}')
@@ -536,7 +555,9 @@ class ValidateAutoTasksNode(WorkflowNode):
                 and state.agent_plan.should_execute
                 and state.agent_plan.candidate_mcp_tools
             ):
-                state.auto_tasks.reply = "这次还没有生成可执行的外部查询步骤，所以我不会假装已经开始联网查询。请稍后重试。"
+                state.auto_tasks.reply = (
+                    "这次还没有生成可执行的外部查询步骤，所以我不会假装已经开始联网查询。请稍后重试。"
+                )
                 state.auto_tasks.need_confirm = True
             return
 

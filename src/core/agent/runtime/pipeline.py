@@ -18,7 +18,7 @@ from src.core.agent.builtin.conversation import ExtractAgentConfig, SummaryAgent
 from .auto_task import Param, AutoTask
 from .workflow import build_turn_result
 from .capabilities import CapabilityRequirement
-from .graph_executor import RuntimeGraphExecutor
+from .langgraph_runtime import LangGraphRuntime
 from .node_registry import RUNTIME_NODE_REGISTRY
 from .live_trace import agent_live_trace_registry
 from .knowledge import RuntimeContext, LocalKnowledgeRetriever
@@ -441,7 +441,7 @@ class MessageProcessingPipeline:
             if not isinstance(item, dict):
                 return fallback
             try:
-                normalized.append(CapabilityRequirement.parse_obj(item))
+                normalized.append(CapabilityRequirement.model_validate(item))
             except Exception:
                 return fallback
         return normalized
@@ -489,7 +489,11 @@ class MessageProcessingPipeline:
         """将自动任务结果序列化为会话中可追溯的统一格式。"""
 
         reply = (auto_tasks.reply or "").strip()
-        task_json = auto_tasks.json(exclude={"reply", "create_at"}, ensure_ascii=False)
+        task_json = json.dumps(
+            auto_tasks.model_dump(mode="json", exclude={"reply", "create_at"}),
+            ensure_ascii=False,
+            default=str,
+        )
         if reply:
             return f"{reply}\n<hr/>\n{task_json}"
         return f"<hr/>\n{task_json}"
@@ -648,7 +652,10 @@ class MessageProcessingPipeline:
     def unavailable_realtime_reply(self) -> str:
         """实时外部信息能力缺失时的自然收束回复。"""
 
-        return "我这边目前没有可用的实时新闻或网页检索工具，所以不能可靠告诉你现在网上的最新热点。" "接入支持实时搜索的 MCP 工具后，我就可以直接帮你查。"
+        return (
+            "我这边目前没有可用的实时新闻或网页检索工具，所以不能可靠告诉你现在网上的最新热点。"
+            "接入支持实时搜索的 MCP 工具后，我就可以直接帮你查。"
+        )
 
     def route_requires_unavailable_realtime_lookup(self, route: IntentRoute | None) -> bool:
         """判断路由是否要求实时公共外部能力但当前不可用。"""
@@ -999,7 +1006,7 @@ class MessageProcessingPipeline:
 
         state = PipelineState(trace_id=self.trace_id)
         config = self.resolve_runtime_graph_config()
-        await RuntimeGraphExecutor(config).run(self, state, message)
+        state = await LangGraphRuntime(config).run(self, state, message)
         return build_turn_result(
             trace_id=self.trace_id,
             route=state.intent_route,

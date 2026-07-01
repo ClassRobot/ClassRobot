@@ -36,8 +36,8 @@ class CommandExecutor:
     ) -> None:
         """创建绑定命令注册表和权限策略的执行器。"""
 
-        self.registry = registry or command_registry
-        self.policy = policy or command_policy
+        self.registry = registry if registry is not None else command_registry
+        self.policy = policy if policy is not None else command_policy
         self._handlers: dict[str, CommandHandler] = {}
 
     def clear_handlers(self) -> None:

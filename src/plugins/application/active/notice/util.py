@@ -1,3 +1,4 @@
+import json
 from datetime import datetime
 
 from nonebot import logger
@@ -5,8 +6,8 @@ from pandas import DataFrame
 from src.models import User, Classes
 from nonebot_plugin_alconna import UniMessage
 from src.core.llm import Messages, client_create
-from src.plugins.application.active.find_at.util import students_to_df
 from src.core.llm.typings import ChatCompletionToolParam
+from src.plugins.application.active.find_at.util import students_to_df
 from src.platform.messaging import push_user_message, push_group_message
 from src.core.llm.util import json_loads, contents_to_uni_message, uni_message_to_contents
 
@@ -121,9 +122,11 @@ class NoticeSession:
 
             if content:
                 print(content)
-                notices = Notices.parse_obj(json_loads(content))
+                notices = Notices.model_validate(json_loads(content))
                 self.filter_notices(notices)
-                self.messages.assistant_message(notices.json(ensure_ascii=False))
+                self.messages.assistant_message(
+                    json.dumps(notices.model_dump(mode="json"), ensure_ascii=False, default=str)
+                )
                 return notices
         except Exception as e:
             logger.exception(e)

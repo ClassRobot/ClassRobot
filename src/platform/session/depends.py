@@ -4,9 +4,9 @@ from typing import Annotated
 from nonebot.params import Depends
 from nonebot.typing import T_State
 from nonebot_plugin_alconna import At, UniMessage
-from src.platform.session import EventSession, GroupEventSession
 from nonebot_plugin_userinfo import UserInfo, EventUserInfo
 from src.models import User, Classes, Student, Teacher, UserBind
+from src.platform.session import EventSession, GroupEventSession
 
 default_nickname = "user"
 

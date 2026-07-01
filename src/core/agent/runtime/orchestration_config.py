@@ -7,17 +7,16 @@ from typing import Any, Literal
 from dataclasses import dataclass
 
 from nonebot import logger
-from pydantic import Field, BaseModel, validator
-
 from src.platform.config import agent_resources_dir
+from pydantic import Field, BaseModel, field_validator
 
+from .schema import RuntimeScene
 from .node_registry import (
     RUNTIME_NODE_REGISTRY,
     DEFAULT_RUNTIME_NODE_ORDER,
     REQUIRED_RUNTIME_NODE_TYPES,
     list_runtime_node_definitions,
 )
-from .schema import RuntimeScene
 
 AGENT_ORCHESTRATION_CONFIG_PATH = agent_resources_dir / "agent_orchestration_runtime.json"
 GRAPH_CONFIG_VERSION = 1
@@ -87,7 +86,8 @@ class RuntimeNodeConfig(BaseModel):
     config: dict[str, Any] = Field(default_factory=dict)
     runtime_applied: bool = True
 
-    @validator("node_type")
+    @field_validator("node_type")
+    @classmethod
     def validate_node_type(cls, value: str) -> str:
         if value not in RUNTIME_NODE_REGISTRY:
             raise ValueError(f"unknown runtime node type `{value}`")
@@ -109,7 +109,8 @@ class RuntimeGraphConfig(BaseModel):
     node_order: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
 
-    @validator("enabled", pre=True, always=True)
+    @field_validator("enabled", mode="before")
+    @classmethod
     def force_enabled(cls, value: bool) -> bool:
         """Runtime 始终保留一张可执行编排图，不能退回不可编排链路。"""
 
@@ -267,7 +268,7 @@ def build_graph_config_from_designer(payload: dict[str, Any], *, applied_at: str
         updated_at=payload.get("updated_at"),
         applied_at=applied_at,
         source_hash=stable_designer_hash(payload),
-        model_profiles=ModelProfileConfig.parse_obj(payload.get("model_profiles") or {}),
+        model_profiles=ModelProfileConfig.model_validate(payload.get("model_profiles") or {}),
         nodes=nodes,
         edges=edges,
         node_order=node_order,
@@ -278,7 +279,10 @@ def write_runtime_orchestration_config(config: RuntimeGraphConfig) -> None:
     """将运行时编排配置写入 resources/agent 资源目录。"""
 
     AGENT_ORCHESTRATION_CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
-    AGENT_ORCHESTRATION_CONFIG_PATH.write_text(config.json(ensure_ascii=False, indent=2), encoding="utf-8")
+    AGENT_ORCHESTRATION_CONFIG_PATH.write_text(
+        json.dumps(config.model_dump(mode="json"), ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
 
 
 def read_runtime_orchestration_config() -> RuntimeGraphConfig:
@@ -287,7 +291,7 @@ def read_runtime_orchestration_config() -> RuntimeGraphConfig:
     if not AGENT_ORCHESTRATION_CONFIG_PATH.exists():
         return default_graph_config()
     data = json.loads(AGENT_ORCHESTRATION_CONFIG_PATH.read_text(encoding="utf-8"))
-    return RuntimeGraphConfig.parse_obj(data)
+    return RuntimeGraphConfig.model_validate(data)
 
 
 def reload_runtime_orchestration_config(*, force: bool = False) -> RuntimeOrchestrationSnapshot:

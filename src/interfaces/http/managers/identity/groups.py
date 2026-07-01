@@ -1,23 +1,13 @@
 from __future__ import annotations
 
-from collections import defaultdict
 from typing import Any
+from collections import defaultdict
 
-from nonebot_plugin_orm import get_session
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
-
+from nonebot_plugin_orm import get_session
 from src.core.storage import storage_manager
-from src.models import (
-    Classes,
-    ClassesJoinRequest,
-    Group,
-    GroupBind,
-    Student,
-    Teacher,
-    TeacherClasses,
-    User,
-)
+from src.models import User, Group, Classes, Student, Teacher, GroupBind, TeacherClasses, ClassesJoinRequest
 
 
 def _group_load_options():
@@ -218,11 +208,7 @@ async def _load_group_context() -> tuple[list[Group], dict[int, list[GroupBind]]
             for bind in binds_result:
                 binds_by_group[bind.group_id].append(bind)
 
-        class_ids = [
-            group.classes.id
-            for group in groups
-            if getattr(group, "classes", None) is not None
-        ]
+        class_ids = [group.classes.id for group in groups if getattr(group, "classes", None) is not None]
         pending_by_class: dict[int, int] = defaultdict(int)
         if class_ids:
             join_requests = await session.scalars(
@@ -262,9 +248,7 @@ async def list_groups(
 
     if platform_id:
         groups = [
-            group
-            for group in groups
-            if any(bind.platform_id == platform_id for bind in binds_by_group[group.id])
+            group for group in groups if any(bind.platform_id == platform_id for bind in binds_by_group[group.id])
         ]
 
     if join_method:
@@ -305,22 +289,18 @@ async def get_group_detail(group_id: int) -> dict[str, Any]:
         KeyError: 当群组不存在时抛出。
     """
     async with get_session() as session:
-        group = await session.scalar(
-            select(Group)
-            .where(Group.id == group_id)
-            .options(*_group_load_options())
-        )
+        group = await session.scalar(select(Group).where(Group.id == group_id).options(*_group_load_options()))
         if group is None:
             raise KeyError(str(group_id))
 
-        binds = list(await session.scalars(select(GroupBind).where(GroupBind.group_id == group.id).order_by(GroupBind.id)))
+        binds = list(
+            await session.scalars(select(GroupBind).where(GroupBind.group_id == group.id).order_by(GroupBind.id))
+        )
         classes = getattr(group, "classes", None)
         teacher_roles: dict[int, str] = {}
         join_requests: list[ClassesJoinRequest] = []
         if classes is not None:
-            role_rows = await session.scalars(
-                select(TeacherClasses).where(TeacherClasses.classes_id == classes.id)
-            )
+            role_rows = await session.scalars(select(TeacherClasses).where(TeacherClasses.classes_id == classes.id))
             teacher_roles = {item.teacher_id: _stringify(item.role) or "" for item in role_rows}
             join_requests = list(
                 await session.scalars(
@@ -404,17 +384,11 @@ async def delete_group(group_id: int) -> dict[str, Any]:
     """
 
     async with get_session() as session:
-        group = await session.scalar(
-            select(Group)
-            .where(Group.id == group_id)
-            .options(*_group_load_options())
-        )
+        group = await session.scalar(select(Group).where(Group.id == group_id).options(*_group_load_options()))
         if group is None:
             raise KeyError(str(group_id))
         binds = list(
-            await session.scalars(
-                select(GroupBind).where(GroupBind.group_id == group.id).order_by(GroupBind.id)
-            )
+            await session.scalars(select(GroupBind).where(GroupBind.group_id == group.id).order_by(GroupBind.id))
         )
 
     group_name = group.name

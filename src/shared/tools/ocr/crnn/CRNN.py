@@ -25,6 +25,7 @@ def softmax(x):
 
 class CRNNHandle:
     """封装 CRNN 文字识别模型的加载与推理流程。"""
+
     def __init__(self, model_path: Union[str, Path, None] = None):
         """初始化实例。
 

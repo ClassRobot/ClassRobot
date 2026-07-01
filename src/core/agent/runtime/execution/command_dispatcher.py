@@ -6,8 +6,8 @@ from collections.abc import Iterable
 from nonebot import logger
 from src.core.auth import UserRole
 from src.platform.helper import Helpers
+from src.platform.commands.cli import command_cli
 from src.platform.commands.registry import command_registry
-from src.platform.commands.adapters import AgentCommandAdapter
 from src.platform.commands.context import CommandExecutionContext, normalize_user_roles
 
 from ..schema import AutoTask, CommandObservation
@@ -25,10 +25,17 @@ def auto_task_params_to_service_dict(task: AutoTask) -> dict[str, Any]:
         for index, command_param in enumerate(spec.params):
             if index >= len(text_params):
                 break
+            source_name = command_param.source_name or command_param.name
             if command_param.multiple:
-                payload[command_param.name] = [param.value for param in text_params[index:]]
+                value = [param.value for param in text_params[index:]]
+                payload[command_param.name] = value
+                if source_name != command_param.name:
+                    payload[source_name] = value
                 break
-            payload[command_param.name] = text_params[index].value
+            value = command_cli.coerce_value(text_params[index].value, command_param.value_type)
+            payload[command_param.name] = value
+            if source_name != command_param.name:
+                payload[source_name] = value
     else:
         payload.update({f"arg{index}": param.value for index, param in enumerate(text_params)})
 
@@ -73,8 +80,7 @@ async def dispatch_auto_task(
             )
         ]
 
-    agent_adapter = AgentCommandAdapter()
-    if not agent_adapter.can_execute(task.command):
+    if not command_cli.executor.has_handler(task.command):
         message = f"命令 `{task.command}` 尚未接入统一 service 执行器，Agent 无法调用该命令。"
         return [
             CommandObservation(
@@ -96,7 +102,7 @@ async def dispatch_auto_task(
             )
         ]
 
-    result = await agent_adapter.execute(
+    result = await command_cli.run_command(
         task.command,
         params=auto_task_params_to_service_dict(task),
         context=CommandExecutionContext(
@@ -129,7 +135,7 @@ async def dispatch_auto_task(
             context_summary="\n".join(result.observation_outputs) or message,
             outputs=result.visible_outputs,
             context_outputs=result.observation_outputs,
-            raw_result=result.dict(),
+            raw_result=result.model_dump(),
             next_actions=["answer"] if result.success else ["explain_failure"],
             outputs_sent_to_user=False,
         )

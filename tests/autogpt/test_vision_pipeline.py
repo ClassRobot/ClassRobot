@@ -11,10 +11,9 @@ def build_llm_response(content: str) -> SimpleNamespace:
 
 @pytest.mark.asyncio
 async def test_visual_message_does_not_short_circuit_to_generic_reply(loaded_plugins, monkeypatch):
-    from src.core.agent.runtime import pipeline as pipeline_module
-
     from src.platform.helper import Helpers
     from src.core.llm.message import Content, Messages
+    from src.core.agent.runtime import pipeline as pipeline_module
 
     captured: dict[str, object] = {}
     reports: list[str] = []
@@ -102,11 +101,10 @@ async def test_extract_agent_uses_latest_visual_message_as_multimodal_input(load
 
 @pytest.mark.asyncio
 async def test_simple_visual_question_replies_directly_without_progress(loaded_plugins, monkeypatch):
-    from src.core.agent.runtime.schema import ChatMessage
-    from src.core.agent.runtime import pipeline as pipeline_module
-
     from src.platform.helper import Helpers
     from src.core.llm.message import Content, Messages
+    from src.core.agent.runtime.schema import ChatMessage
+    from src.core.agent.runtime import pipeline as pipeline_module
 
     calls: list[dict[str, object]] = []
     reports: list[str] = []

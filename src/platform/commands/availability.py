@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import Field, BaseModel
 from src.platform.helper import Helper, Helpers
 
 from .spec import CommandSpec
@@ -175,7 +175,7 @@ class CommandAvailabilityService:
             dict[str, dict]: 面向管理端和诊断接口的命令状态字典。
         """
 
-        return {command: state.dict() for command, state in sorted(self._commands.items())}
+        return {command: state.model_dump() for command, state in sorted(self._commands.items())}
 
     def plugin_states_payload(self) -> dict[str, dict]:
         """导出插件软开关状态。
@@ -184,7 +184,7 @@ class CommandAvailabilityService:
             dict[str, dict]: 面向管理端和诊断接口的插件状态字典。
         """
 
-        return {plugin: state.dict() for plugin, state in sorted(self._plugins.items())}
+        return {plugin: state.model_dump() for plugin, state in sorted(self._plugins.items())}
 
 
 command_availability = CommandAvailabilityService()

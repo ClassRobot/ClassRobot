@@ -1,9 +1,9 @@
 from itertools import repeat, product
 from datetime import datetime, timedelta
 
-from src.platform.rendering import template_to_pic
-from pydantic import Extra, Field, BaseModel
+from pydantic import Field, BaseModel, ConfigDict
 from src.models import Curricula, CurriculaConfig
+from src.platform.rendering import template_to_pic
 
 from .util import times
 
@@ -22,18 +22,16 @@ class Course(BaseModel):
     """ "课程信息"""
 
     name: str
-    teacher: str | None
+    teacher: str | None = None
     time: str
-    location: str | None
+    location: str | None = None
     end: bool = Field(default=False)
 
     def md5(self) -> str:
         """返回当前课表内容的 MD5 摘要。"""
         return f"{self.name}{self.teacher}{self.location}"
 
-    class Config:
-        """描述配置的配置项。"""
-        extra = Extra.forbid
+    model_config = ConfigDict(extra="forbid")
 
 
 class CurrentWeek(BaseModel):
@@ -44,10 +42,7 @@ class CurrentWeek(BaseModel):
     month: str
     day: str
     weekday: str
-
-    class Config:
-        """描述配置的配置项。"""
-        extra = Extra.forbid
+    model_config = ConfigDict(extra="forbid")
 
 
 class NextCountdown(BaseModel):
@@ -56,10 +51,7 @@ class NextCountdown(BaseModel):
     title: str
     time_remaining: str
     percentage: float
-
-    class Config:
-        """描述配置的配置项。"""
-        extra = Extra.forbid
+    model_config = ConfigDict(extra="forbid")
 
     @classmethod
     def calc(cls, title: str, first_date: str, today: datetime, last_date: str):
@@ -86,15 +78,13 @@ class NextCountdown(BaseModel):
 
 class CurriculaSchema(BaseModel):
     """描述课表条目的结构化数据。"""
+
     current_week: CurrentWeek
     next_countdown: NextCountdown
     next_course: Course
     today_course: list[Course]
     this_week_course: list[list[Course | None]]
-
-    class Config:
-        """描述配置的配置项。"""
-        extra = Extra.forbid
+    model_config = ConfigDict(extra="forbid")
 
     @classmethod
     async def prase(cls, config: CurriculaConfig, curricula: list[Curricula] | None = None, day: int = 0):
@@ -215,6 +205,6 @@ class CurriculaSchema(BaseModel):
         data[row][col] = course
 
     async def render(self) -> bytes:
-        # open("data.json", "w", encoding="utf-8").write(self.json(ensure_ascii=False, indent=4))
+        # open("data.json", "w", encoding="utf-8").write(self.model_dump_json(indent=4))
         """将当前课表渲染为图片。"""
         return await template_to_pic("curricula.html", {"data": self})

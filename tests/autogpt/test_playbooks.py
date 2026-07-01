@@ -1,8 +1,8 @@
 def test_workflow_builder_matches_builtin_playbook(loaded_plugins):
     from src.platform.helper import Helper, Helpers
-    from src.core.agent.runtime.schema import AutoTask, AutoTaskList, Param
-    from src.core.agent.runtime.command_tools import CommandToolCatalog
     from src.core.agent.runtime.workflow import WorkflowBuilder
+    from src.core.agent.runtime.command_tools import CommandToolCatalog
+    from src.core.agent.runtime.schema import Param, AutoTask, AutoTaskList
 
     helpers = Helpers()
     helpers.append(Helper(command="创建任务", description="创建一个班级任务"))
@@ -31,9 +31,9 @@ def test_workflow_builder_matches_builtin_playbook(loaded_plugins):
 
 def test_workflow_builder_leaves_playbook_empty_for_unmatched_sequence(loaded_plugins):
     from src.platform.helper import Helper, Helpers
+    from src.core.agent.runtime.workflow import WorkflowBuilder
     from src.core.agent.runtime.schema import AutoTask, AutoTaskList
     from src.core.agent.runtime.command_tools import CommandToolCatalog
-    from src.core.agent.runtime.workflow import WorkflowBuilder
 
     helpers = Helpers()
     helpers.append(Helper(command="查询课表", description="查询当前课表"))

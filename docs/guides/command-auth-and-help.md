@@ -121,7 +121,7 @@ AutoGPT 不再直接读取全量命令目录，而是依赖当前用户视角下
 - `src/core/agent/runtime/command_tools.py`
   - 只把当前用户可见且 `execution_mode="service"` 的 `CommandSpec` 转成 Agent 工具
 - `src/plugins/application/active/autogpt/__init__.py`
-  - 负责把平台消息接入运行时，并在需要时通过 `AgentCommandAdapter -> CommandExecutor` 执行命令
+  - 负责把平台消息接入运行时，并在需要时通过 `CommandCLI -> CommandExecutor` 执行命令
   - 若命令尚未 service 化，返回结构化失败，不回放 NoneBot 事件
 
 因此：

@@ -24,8 +24,12 @@ def test_normalize_datetime_accepts_supported_formats(loaded_plugins):
 
 
 def test_join_method_and_request_action_aliases_are_supported(loaded_plugins):
-    from src.plugins.application.active.classes import JOIN_METHOD_MAPPING, JOIN_REQUEST_ACTION_MAPPING, get_join_method_label
     from src.core.auth import JoinMethod
+    from src.plugins.application.active.classes import (
+        JOIN_METHOD_MAPPING,
+        JOIN_REQUEST_ACTION_MAPPING,
+        get_join_method_label,
+    )
 
     assert JOIN_METHOD_MAPPING["直接"] == JoinMethod.direct
     assert JOIN_METHOD_MAPPING["申请加入"] == JoinMethod.apply

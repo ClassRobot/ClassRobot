@@ -3,27 +3,26 @@ from __future__ import annotations
 import os
 import sys
 import time
-from datetime import datetime
 from typing import Any
+from datetime import datetime
 
 from sqlalchemy import text
 from nonebot import get_driver
+from src.core.mcp import MCPClient
 from nonebot_plugin_orm import get_session
-
+from src.core.llm.config import plugin_config as llm_config
+from src.core.cache.config import plugin_config as cache_config
+from src.core.storage.object_store import plugin_config as cos_config
+from src.models import User, Files, UserBind, AgentWorkflowRun, AgentWorkflowCheckpoint
 from src.platform.config import (
+    data_dir,
     cache_dir,
     config_dir,
-    data_dir,
+    skills_dir,
     prompts_dir,
     project_root,
     skill_runtime_dir,
-    skills_dir,
 )
-from src.core.cache.config import plugin_config as cache_config
-from src.core.llm.config import plugin_config as llm_config
-from src.core.mcp import MCPClient
-from src.core.storage.object_store import plugin_config as cos_config
-from src.models import User, Files, UserBind, AgentWorkflowRun, AgentWorkflowCheckpoint
 
 from ..service import path_payload
 
@@ -146,7 +145,7 @@ async def check_mcp() -> dict[str, Any]:
     """检查 MCP Client 配置和远端工具目录状态。"""
 
     status = await MCPClient().health_check()
-    return status.dict()
+    return status.model_dump()
 
 
 def check_runtime() -> dict[str, Any]:

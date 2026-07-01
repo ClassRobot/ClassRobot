@@ -1,5 +1,5 @@
-from importlib import import_module
 from typing import Any
+from importlib import import_module
 
 
 def __getattr__(name: str) -> Any:

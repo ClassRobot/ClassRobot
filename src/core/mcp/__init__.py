@@ -1,8 +1,8 @@
 """ClassRobot MCP Client integration layer."""
 
-from .config import MCPConfig, load_mcp_config
-from .client import MCPClient, MCPClientError
 from .catalog import MCPToolCatalog
+from .client import MCPClient, MCPClientError
+from .config import MCPConfig, load_mcp_config
 from .schema import MCPTool, MCPCallResult, MCPHealthStatus
 
 __all__ = [

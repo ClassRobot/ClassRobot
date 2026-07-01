@@ -1,7 +1,6 @@
 from typing import Literal, Iterable, Iterator
 
 from pydantic import Field, BaseModel
-
 from src.platform.helper import Helpers
 from src.platform.commands.renderers.tool import safe_tool_name
 
@@ -143,9 +142,9 @@ class CommandToolCatalog(BaseModel):
         `execution_mode="service"`，避免 Agent 绕过统一执行器。
         """
 
+        from src.platform.commands.executor import command_executor
         from src.platform.commands.registry import command_registry
         from src.platform.commands.availability import command_availability
-        from src.platform.commands.executor import command_executor
 
         catalog = cls()
         for helper in helpers:

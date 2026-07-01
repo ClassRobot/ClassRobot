@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import Query, Depends, APIRouter, HTTPException, status
 
 from .. import audit
-from ..identity import users as user_service
-from ..schemas import AdminPatchRequest
 from ..security import manager_auth
+from ..schemas import AdminPatchRequest
+from ..identity import users as user_service
 
 router = APIRouter()
 

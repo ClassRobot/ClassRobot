@@ -3,8 +3,8 @@ from types import SimpleNamespace
 import pytest
 
 from tests.autogpt.semantic_helpers import (
-    task_response,
     plan_response,
+    task_response,
     route_response,
     extract_response,
     patch_pipeline_llm,
@@ -25,8 +25,8 @@ def build_observability_helpers():
 @pytest.mark.asyncio
 async def test_route_stage_observability_records_prompt_length_and_recall(loaded_plugins, monkeypatch):
     from src.core.llm.message import Content, Messages
-    from src.core.agent.runtime import pipeline as pipeline_module
     from src.core.agent.runtime.schema import ChatMessage
+    from src.core.agent.runtime import pipeline as pipeline_module
 
     async def fake_client_create(*args, **kwargs):
         return SimpleNamespace(
@@ -58,8 +58,8 @@ async def test_route_stage_observability_records_prompt_length_and_recall(loaded
 @pytest.mark.asyncio
 async def test_semantic_command_observability_records_final_hit_commands(loaded_plugins, monkeypatch):
     from src.core.llm.message import Content, Messages
-    from src.core.agent.runtime.pipeline import MessageProcessingPipeline
     from src.core.agent.runtime.schema import ChatMessage
+    from src.core.agent.runtime.pipeline import MessageProcessingPipeline
 
     patch_pipeline_llm(
         monkeypatch,
@@ -86,7 +86,7 @@ async def test_semantic_command_observability_records_final_hit_commands(loaded_
 @pytest.mark.asyncio
 async def test_workflow_executor_observability_detects_repeated_invocation(loaded_plugins):
     from src.core.agent.runtime.workflow import WorkflowExecutor
-    from src.core.agent.runtime.schema import WorkflowStep, TaskWorkflow, CommandObservation
+    from src.core.agent.runtime.schema import TaskWorkflow, WorkflowStep, CommandObservation
 
     async def dispatch(task):
         return [

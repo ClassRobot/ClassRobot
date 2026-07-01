@@ -1,16 +1,15 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from itertools import count
 from typing import Any
+from itertools import count
+from dataclasses import field, dataclass
 
 import pytest
 import pytest_asyncio
-from nonebot.adapters.onebot.v11 import Adapter as OneBot11Adapter
 from nonebot.adapters.onebot.v11 import Bot as OneBot11Bot
-from nonebot.adapters.onebot.v11.event import GroupMessageEvent, PrivateMessageEvent, Sender
+from nonebot.adapters.onebot.v11 import Adapter as OneBot11Adapter
 from nonebot.adapters.onebot.v11.message import Message, MessageSegment
-
+from nonebot.adapters.onebot.v11.event import Sender, GroupMessageEvent, PrivateMessageEvent
 
 PLATFORM_ID = "onebot11.qq_client"
 PLATFORM_NAME = ""
@@ -69,8 +68,7 @@ class SendRecorder:
     def assert_any(self, *parts: str, absent: tuple[str, ...] = ()) -> None:
         matcher = MessageText(*parts, absent=absent)
         assert any(matcher == call.message for call in self.calls), (
-            f"未找到匹配发送消息: {matcher!r}\n"
-            f"实际发送内容: {[call.text for call in self.calls]!r}"
+            f"未找到匹配发送消息: {matcher!r}\n" f"实际发送内容: {[call.text for call in self.calls]!r}"
         )
 
 
@@ -383,8 +381,8 @@ def patch_onebot_userinfo(monkeypatch, loaded_plugins):
 def fake_cache(monkeypatch) -> MemoryCache:
     """把命令里的缓存调用切到内存实现。"""
 
-    import src.plugins.application.active.user as user_module
     import src.core.cache as cache_module
+    import src.plugins.application.active.user as user_module
 
     cache = MemoryCache()
     monkeypatch.setattr(cache_module, "get_cache", lambda db=0, decode_responses=True: cache)

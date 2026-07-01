@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import Query, Depends, APIRouter, HTTPException, status
 
-from ..runtime import logs as log_service
 from ..security import manager_auth
+from ..runtime import logs as log_service
 
 router = APIRouter()
 

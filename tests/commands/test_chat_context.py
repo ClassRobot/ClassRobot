@@ -114,12 +114,18 @@ async def test_group_messages_can_be_collected_and_queried(
 
     records = await store.search_group_messages(classes.group_id, "调课", limit=10, search_window=50)
 
-    assert [record.user_name for record in records] == ["张三", "李四", "王五"]
-    assert records[-1].plain_text == "检索群聊记录 调课"
-    assert records[-1].direction == MessageDirection.inbound
-    assert records[-1].metadata["source"] == "event_collector"
-    assert records[-1].metadata["message_source"] == "alconna"
-    assert "message_fallback_reason" not in records[-1].metadata
+    user_records = [record for record in records if record.actor_role == MessageActorRole.user]
+    assistant_records = [record for record in records if record.actor_role == MessageActorRole.assistant]
+
+    assert [record.user_name for record in user_records] == ["张三", "李四", "王五"]
+    assert user_records[-1].plain_text == "检索群聊记录 调课"
+    assert user_records[-1].direction == MessageDirection.inbound
+    assert user_records[-1].metadata["source"] == "event_collector"
+    assert user_records[-1].metadata["message_source"] == "alconna"
+    assert "message_fallback_reason" not in user_records[-1].metadata
+    assert len(assistant_records) == 1
+    assert assistant_records[0].metadata["source"] == "bot_send_hook"
+    assert "系统群记录检索" in assistant_records[0].plain_text
     recorder.assert_any("系统群记录检索", "张三", "调课", "李四", absent=("王五", "检索群聊记录 调课"))
 
     rows = store._load_recent_rows(MessageOwnerKind.group, classes.group_id, 10, (MessageRecordKind.chat,))
@@ -399,6 +405,49 @@ async def test_private_command_input_and_response_are_recorded(
     assert outbound_record.direction == MessageDirection.outbound
     assert outbound_record.bot_id == "114514"
     assert outbound_record.platform_user_id == "114514"
+    assert outbound_record.metadata["source"] == "bot_send_hook"
+    recorder.assert_any("~")
+
+
+async def test_private_command_input_is_recorded_without_message_collector(
+    app,
+    onebot,
+    send_recorder,
+    monkeypatch,
+    tmp_path,
+    loaded_plugins,
+):
+    from src.models import User, UserBind
+    import src.plugins.library.message_history.collector as collector_module
+    from src.plugins.application.active.file_manager.commands import pwd_cmd
+    import src.plugins.application.active.file_manager.services as file_services
+    from src.core.storage import StorageManager, ChatHistoryStore, MessageActorRole, MessageDirection
+
+    manager = StorageManager(tmp_path / "storage")
+    store = ChatHistoryStore(manager)
+    monkeypatch.setattr(collector_module, "chat_history_store", store)
+    monkeypatch.setattr(file_services, "storage_manager", manager)
+
+    user = await User.create_user(nickname="私聊命令独立记录用户", username="chat_context_private_command_only_user")
+    await UserBind.bind_user("onebot11.qq_client", "14031", user)
+
+    async with app.test_matcher(pwd_cmd) as ctx:
+        recorder = send_recorder(ctx)
+        bot = onebot.create_bot(ctx)
+        event = onebot.private_event("pwd", user_id=14031, nickname="私聊命令独立记录用户", message_id=31)
+        ctx.receive_event(bot, event)
+
+    records = await store.search_user_chat_messages(user.id, "", limit=10, search_window=50)
+    inbound_record = next(record for record in records if record.actor_role == MessageActorRole.user)
+    outbound_record = next(record for record in records if record.actor_role == MessageActorRole.assistant)
+
+    assert inbound_record.direction == MessageDirection.inbound
+    assert inbound_record.plain_text == "pwd"
+    assert inbound_record.platform_user_id == "14031"
+    assert inbound_record.metadata["source"] == "command_input_hook"
+    assert inbound_record.metadata["command_name"] == "pwd"
+    assert inbound_record.metadata["command_plugin_module"] == "src.plugins.application.active.file_manager.commands"
+    assert outbound_record.direction == MessageDirection.outbound
     assert outbound_record.metadata["source"] == "bot_send_hook"
     recorder.assert_any("~")
 

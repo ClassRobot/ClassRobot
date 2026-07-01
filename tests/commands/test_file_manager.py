@@ -8,19 +8,19 @@ pytestmark = pytest.mark.asyncio
 async def test_private_file_commands_keep_user_space_isolated(
     app, onebot, send_recorder, monkeypatch, tmp_path, models
 ):
+    from src.core.storage import StorageManager
     import src.plugins.application.active.file_manager.services as file_services
     from src.plugins.application.active.file_manager.commands import (
         cd_cmd,
+        ls_cmd,
+        rm_cmd,
+        pwd_cmd,
         find_cmd,
         grep_cmd,
-        ls_cmd,
-        mkdir_cmd,
-        pwd_cmd,
-        rm_cmd,
-        touch_cmd,
         tree_cmd,
+        mkdir_cmd,
+        touch_cmd,
     )
-    from src.core.storage import StorageManager
 
     monkeypatch.setattr(file_services, "storage_manager", StorageManager(tmp_path / "storage"))
     user = await models.create_user(account_id=11001, nickname="文件用户")
@@ -109,9 +109,9 @@ async def test_private_file_commands_keep_user_space_isolated(
 async def test_file_manager_rejects_reserved_mount_directory_names(
     app, onebot, send_recorder, monkeypatch, tmp_path, models
 ):
-    import src.plugins.application.active.file_manager.services as file_services
-    from src.plugins.application.active.file_manager.commands import mkdir_cmd
     from src.core.storage import StorageManager
+    from src.plugins.application.active.file_manager.commands import mkdir_cmd
+    import src.plugins.application.active.file_manager.services as file_services
 
     monkeypatch.setattr(file_services, "storage_manager", StorageManager(tmp_path / "storage"))
     user = await models.create_user(account_id=11009, nickname="保留目录用户")
@@ -134,11 +134,12 @@ async def test_file_manager_rejects_reserved_mount_directory_names(
 async def test_group_context_mounts_system_group_but_defaults_to_user_space(
     app, onebot, send_recorder, monkeypatch, tmp_path, models
 ):
-    import src.plugins.application.active.file_manager.services as file_services
-    from src.plugins.application.active.file_manager.commands import ls_cmd, mkdir_cmd
-    from tests.commands.conftest import PLATFORM_ID
     from src.models import GroupBind
     from src.core.storage import StorageManager
+    import src.plugins.application.active.file_manager.services as file_services
+    from src.plugins.application.active.file_manager.commands import ls_cmd, mkdir_cmd
+
+    from tests.commands.conftest import PLATFORM_ID
 
     monkeypatch.setattr(file_services, "storage_manager", StorageManager(tmp_path / "storage"))
     user = await models.create_user(account_id=11002, nickname="群文件用户")
@@ -193,9 +194,9 @@ async def test_group_context_mounts_system_group_but_defaults_to_user_space(
 async def test_student_file_scope_mounts_class_college_and_school_readonly(
     app, onebot, send_recorder, monkeypatch, tmp_path, models
 ):
-    import src.plugins.application.active.file_manager.services as file_services
-    from src.plugins.application.active.file_manager.commands import find_cmd, grep_cmd, ls_cmd, mkdir_cmd
     from src.core.storage import StorageManager
+    import src.plugins.application.active.file_manager.services as file_services
+    from src.plugins.application.active.file_manager.commands import ls_cmd, find_cmd, grep_cmd, mkdir_cmd
 
     monkeypatch.setattr(file_services, "storage_manager", StorageManager(tmp_path / "storage"))
 
@@ -270,9 +271,9 @@ async def test_student_file_scope_mounts_class_college_and_school_readonly(
 
 
 async def test_teacher_can_write_class_mounted_space(app, onebot, send_recorder, monkeypatch, tmp_path, models):
-    import src.plugins.application.active.file_manager.services as file_services
-    from src.plugins.application.active.file_manager.commands import mkdir_cmd
     from src.core.storage import StorageManager
+    from src.plugins.application.active.file_manager.commands import mkdir_cmd
+    import src.plugins.application.active.file_manager.services as file_services
 
     monkeypatch.setattr(file_services, "storage_manager", StorageManager(tmp_path / "storage"))
 
@@ -294,9 +295,9 @@ async def test_teacher_can_write_class_mounted_space(app, onebot, send_recorder,
 
 
 async def test_file_service_handlers_can_be_called_by_agent_context(loaded_plugins, tmp_path):
+    from src.core.storage import StorageManager
     import src.plugins.application.active.file_manager.services as file_services
     from src.platform.commands import CommandExecutionContext, command_executor
-    from src.core.storage import StorageManager
 
     manager = StorageManager(tmp_path / "storage")
     file_services.storage_manager = manager
@@ -331,10 +332,10 @@ async def test_file_service_handlers_can_be_called_by_agent_context(loaded_plugi
 
 
 async def test_file_service_group_context_uses_system_group_id(loaded_plugins, tmp_path):
+    from src.models import User, Classes
+    from src.core.storage import StorageManager
     import src.plugins.application.active.file_manager.services as file_services
     from src.platform.commands import CommandExecutionContext, command_executor
-    from src.models import Classes, User
-    from src.core.storage import StorageManager
 
     manager = StorageManager(tmp_path / "storage")
     file_services.storage_manager = manager

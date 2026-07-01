@@ -1,26 +1,25 @@
 from __future__ import annotations
 
-import json
 import re
 import sys
+import json
 import time
 import shutil
 import asyncio
-from datetime import datetime
-from pathlib import Path
 from typing import Any
 from uuid import uuid4
+from pathlib import Path
+from datetime import datetime
 
-from sqlalchemy.schema import CreateTable
 from nonebot_plugin_orm import Model
-
+from sqlalchemy.schema import CreateTable
 from src.core.llm.config import plugin_config
 from src.platform.config import config_dir, project_root
 
-from .. import audit
-from ..catalog import prompts, skills
-from ..security import ManagerSession
 from . import status
+from .. import audit
+from ..catalog import skills, prompts
+from ..security import ManagerSession
 
 MANAGER_FRONTEND_ROOT = project_root / "website" / "managers"
 AUTOMATION_SCRIPT_PATH = config_dir / "manager_automation_scripts.json"

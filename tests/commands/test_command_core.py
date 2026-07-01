@@ -2,12 +2,12 @@ import pytest
 
 
 def test_command_policy_and_availability_share_soft_disable_state(loaded_plugins):
-    from src.platform.commands import CommandExecutionContext, CommandSpec
-    from src.platform.commands.availability import command_availability
-    from src.platform.commands.policy import CommandPolicy
-    from src.platform.commands.renderers.helper import command_spec_to_helper
-    from src.platform.helper import Helpers, HelperScope
     from src.core.auth import UserRole
+    from src.platform.helper import Helpers, HelperScope
+    from src.platform.commands.policy import CommandPolicy
+    from src.platform.commands.availability import command_availability
+    from src.platform.commands import CommandSpec, CommandExecutionContext
+    from src.platform.commands.renderers.helper import command_spec_to_helper
 
     spec = CommandSpec(
         name="测试软关闭命令",
@@ -33,9 +33,9 @@ def test_command_policy_and_availability_share_soft_disable_state(loaded_plugins
 
 
 def test_hidden_command_spec_does_not_create_helper_view():
+    from src.platform.helper import HelperScope
     from src.platform.commands import CommandSpec
     from src.platform.commands.binding import _bind_spec_to_matcher
-    from src.platform.helper import HelperScope
 
     class DummyMatcher:
         pass
@@ -55,10 +55,67 @@ def test_hidden_command_spec_does_not_create_helper_view():
 
 
 @pytest.mark.asyncio
-async def test_command_executor_runs_service_handler_with_static_policy():
-    from src.platform.commands import CommandExecutionContext, CommandExecutor, CommandParam, CommandRegistry, CommandResult
-    from src.platform.commands.spec import CommandSpec
+async def test_command_cli_runs_service_handler_with_positional_params():
     from src.core.auth import UserRole
+    from src.platform.commands import (
+        CommandCLI,
+        CommandSpec,
+        CommandParam,
+        CommandResult,
+        CommandExecutor,
+        CommandRegistry,
+        CommandExecutionContext,
+    )
+
+    registry = CommandRegistry()
+    executor = CommandExecutor(registry=registry)
+    registry.register(
+        CommandSpec(
+            name="测试CLI命令",
+            aliases={"cli测试"},
+            description="测试 Agent 以 CLI 风格调用命令",
+            params=[
+                CommandParam(name="编号", source_name="id", value_type="integer"),
+                CommandParam(name="内容", source_name="content"),
+            ],
+            roles={UserRole.user},
+            execution_mode="service",
+        )
+    )
+    captured = {}
+
+    @executor.handler("测试CLI命令")
+    async def _(params, context):
+        captured["params"] = dict(params)
+        captured["context"] = context
+        return CommandResult.ok("CLI 命令已执行。", data={"id": params["id"], "content": params["content"]})
+
+    cli = CommandCLI(registry=registry, executor=executor)
+    result = await cli.run_text(
+        "cli测试 42 hello world",
+        CommandExecutionContext(roles={UserRole.user}, invoker="agent_workflow"),
+    )
+
+    assert result.success is True
+    assert result.data == {"id": 42, "content": "hello world"}
+    assert captured["params"]["编号"] == 42
+    assert captured["params"]["id"] == 42
+    assert captured["params"]["内容"] == "hello world"
+    assert captured["params"]["content"] == "hello world"
+    assert captured["context"].invoker == "agent_workflow"
+
+
+@pytest.mark.asyncio
+async def test_command_executor_runs_service_handler_with_static_policy():
+    from src.core.auth import UserRole
+    from src.platform.commands.spec import CommandSpec
+    from src.platform.commands import (
+        CommandParam,
+        CommandResult,
+        CommandExecutor,
+        CommandRegistry,
+        CommandExecutionContext,
+    )
 
     registry = CommandRegistry()
     registry.register(
@@ -94,12 +151,12 @@ async def test_command_executor_runs_service_handler_with_static_policy():
 
 
 def test_command_tool_catalog_prefers_registered_spec_and_respects_agent_visibility(loaded_plugins):
-    from src.platform.commands import CommandParam, CommandResult, CommandSpec, command_executor, command_registry
+    from src.core.auth import UserRole
+    from src.platform.helper import Helpers, HelperScope
+    from src.core.agent.runtime.command_tools import CommandToolCatalog
     from src.platform.commands.availability import command_availability
     from src.platform.commands.renderers.helper import command_spec_to_helper
-    from src.core.agent.runtime.command_tools import CommandToolCatalog
-    from src.platform.helper import Helpers, HelperScope
-    from src.core.auth import UserRole
+    from src.platform.commands import CommandSpec, CommandParam, CommandResult, command_executor, command_registry
 
     visible_spec = CommandSpec(
         name="测试Agent工具",
@@ -147,8 +204,8 @@ def test_command_tool_catalog_prefers_registered_spec_and_respects_agent_visibil
 
 @pytest.mark.asyncio
 async def test_command_executor_can_query_current_user_info(loaded_plugins, models):
-    from src.platform.commands import CommandExecutionContext, command_executor
     from src.core.auth import UserRole
+    from src.platform.commands import CommandExecutionContext, command_executor
 
     user = await models.create_user(account_id=12001, nickname="信息测试用户")
     school = await models.create_school("用户信息学校")
@@ -174,8 +231,8 @@ async def test_command_executor_can_query_current_user_info(loaded_plugins, mode
 
 @pytest.mark.asyncio
 async def test_command_executor_can_query_teacher_profile(loaded_plugins, models):
-    from src.platform.commands import CommandExecutionContext, command_executor
     from src.core.auth import UserRole
+    from src.platform.commands import CommandExecutionContext, command_executor
 
     user = await models.create_user(account_id=12002, nickname="教师执行器用户")
     school = await models.create_school("教师命令学校")
@@ -201,8 +258,8 @@ async def test_command_executor_can_query_teacher_profile(loaded_plugins, models
 
 @pytest.mark.asyncio
 async def test_command_executor_can_query_teacher_classes(loaded_plugins, models):
-    from src.platform.commands import CommandExecutionContext, command_executor
     from src.core.auth import UserRole
+    from src.platform.commands import CommandExecutionContext, command_executor
 
     user = await models.create_user(account_id=12005, nickname="班级执行器教师")
     school = await models.create_school("班级命令学校")
@@ -240,8 +297,8 @@ async def test_command_executor_can_query_teacher_classes(loaded_plugins, models
 
 @pytest.mark.asyncio
 async def test_command_executor_can_query_student_profile(loaded_plugins, models):
-    from src.platform.commands import CommandExecutionContext, command_executor
     from src.core.auth import UserRole
+    from src.platform.commands import CommandExecutionContext, command_executor
 
     owner = await models.create_user(account_id=12003, nickname="学生班主任")
     teacher = await models.create_teacher(owner, name="学生班主任")

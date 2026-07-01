@@ -72,7 +72,9 @@ async def test_class_and_schedule_queries_are_planned_by_model_not_local_shortcu
         Messages(),
         trace_id="semantic-schedule-query",
     )
-    schedule_result = await schedule_pipeline.process(ChatMessage(message=[Content(type="text", value="我明天有什么课")]))
+    schedule_result = await schedule_pipeline.process(
+        ChatMessage(message=[Content(type="text", value="我明天有什么课")])
+    )
 
     assert len(calls) == 8
     assert class_result.auto_tasks is not None

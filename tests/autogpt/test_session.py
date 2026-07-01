@@ -1,5 +1,6 @@
 import json
 import asyncio
+from datetime import datetime
 from types import SimpleNamespace
 
 import pytest
@@ -255,6 +256,91 @@ async def test_execution_reply_timeout_does_not_leak_full_raw_output(monkeypatch
 
     assert "http" not in execution.final_reply
     assert "不匹配" in execution.final_reply or "不能可靠回答" in execution.final_reply
+
+
+@pytest.mark.asyncio
+async def test_send_message_backfill_excludes_current_collected_message(monkeypatch, loaded_plugins):
+    from src.platform.helper import Helpers
+    from src.core.agent.runtime import util as util_module
+    from src.core.agent.runtime.auto_task import AutoTaskList
+    from src.core.agent.runtime.knowledge import RuntimeContext
+    from src.core.agent.runtime.pipeline import MessageProcessingPipeline
+    from src.core.agent.runtime.schema import TaskWorkflow, AgentTurnResult
+    from src.core.storage import (
+        MessageActorRole,
+        MessageDirection,
+        MessageOwnerKind,
+        ChatHistoryRecord,
+        MessageRecordKind,
+    )
+
+    _ = loaded_plugins
+
+    previous_message = ChatHistoryRecord(
+        event_key="chat:1:prev",
+        owner_kind=MessageOwnerKind.user,
+        owner_id="1",
+        record_kind=MessageRecordKind.chat,
+        direction=MessageDirection.inbound,
+        actor_role=MessageActorRole.user,
+        message_id="msg-prev",
+        user_id="1",
+        user_name="用户",
+        plain_text="上一轮问题",
+        raw_text="上一轮问题",
+        created_at=datetime(2026, 5, 25, 18, 0, 0),
+    )
+    current_message = ChatHistoryRecord(
+        event_key="chat:1:current",
+        owner_kind=MessageOwnerKind.user,
+        owner_id="1",
+        record_kind=MessageRecordKind.chat,
+        direction=MessageDirection.inbound,
+        actor_role=MessageActorRole.user,
+        message_id="msg-current",
+        user_id="1",
+        user_name="用户",
+        plain_text="当前这句不能被回填",
+        raw_text="当前这句不能被回填",
+        created_at=datetime(2026, 5, 25, 18, 1, 0),
+    )
+
+    class FakeHistoryStore:
+        exclude_message_id: str | None = None
+
+        async def search_user_chat_messages(
+            self,
+            user_id,
+            query,
+            *,
+            limit=12,
+            search_window=200,
+            exclude_message_id=None,
+        ):
+            self.exclude_message_id = exclude_message_id
+            records = [previous_message, current_message]
+            return [record for record in records if record.message_id != exclude_message_id]
+
+    fake_store = FakeHistoryStore()
+    monkeypatch.setattr(util_module, "chat_history_store", fake_store)
+
+    async def fake_process(self, message):
+        context_text = "\n".join(item.single_modal() for item in self.messages.messages)
+        assert "上一轮问题" in context_text
+        assert "当前这句不能被回填" not in context_text
+        return AgentTurnResult(
+            auto_tasks=AutoTaskList(reply="收到"),
+            workflow=TaskWorkflow(trace_id=self.trace_id, kind="chat", goal="测试"),
+        )
+
+    monkeypatch.setattr(MessageProcessingPipeline, "process", fake_process)
+
+    session = util_module.ChatSession(user_id=1, helpers=Helpers())
+    await session.send_message(
+        "当前这句不能被回填", runtime_context=RuntimeContext(user_id=1, message_id="msg-current")
+    )
+
+    assert fake_store.exclude_message_id == "msg-current"
 
 
 @pytest.mark.asyncio

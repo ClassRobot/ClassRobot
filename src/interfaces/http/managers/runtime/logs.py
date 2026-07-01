@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any
+from pathlib import Path
 
 from src.platform.config import data_dir, project_root
 

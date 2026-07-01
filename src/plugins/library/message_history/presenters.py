@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from src.core.storage import ChatHistoryRecord
 from src.shared.tools import StringCard
+from src.core.storage import ChatHistoryRecord
 
 
 def render_group_history_card(

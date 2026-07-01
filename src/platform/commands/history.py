@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
+from collections.abc import Callable, Awaitable
 
 from nonebot import logger
 from nonebot.adapters import Bot, Event

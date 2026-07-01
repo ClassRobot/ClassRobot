@@ -41,4 +41,4 @@ class ChatSession:
     def dict(self) -> dict:
         """返回字典表示。"""
 
-        return self.messages.dict(include={"messages"})
+        return self.messages.model_dump(include={"messages"})

@@ -55,7 +55,7 @@ class AutoTaskList(BaseModel):
             data = json_loads(task_data)
             if isinstance(data, list):
                 data = data[0]
-            auto_tasks = cls.parse_obj(data)
+            auto_tasks = cls.model_validate(data)
             contents = contents[:-1]
         except json.JSONDecodeError:
             auto_tasks = cls()

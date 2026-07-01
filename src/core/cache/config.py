@@ -1,9 +1,10 @@
 from typing import Literal
+
 from nonebot import get_driver
-from pydantic import BaseModel, Extra
+from pydantic import BaseModel, ConfigDict
 
 
-class CacheConfig(BaseModel, extra=Extra.ignore):
+class CacheConfig(BaseModel):
     """描述缓存服务连接与回退行为的配置项。
 
     Attributes:
@@ -21,6 +22,8 @@ class CacheConfig(BaseModel, extra=Extra.ignore):
             统一兜底路径语义。
         cache_local_path: 兼容旧配置名，语义等同于 ``cache_path``。
     """
+
+    model_config = ConfigDict(extra="ignore")
 
     cache_host: str = "localhost"
     cache_port: int = 6379
@@ -42,4 +45,4 @@ class CacheConfig(BaseModel, extra=Extra.ignore):
         return self.cache_path or self.cache_local_path
 
 
-plugin_config = CacheConfig.parse_obj(get_driver().config.dict())
+plugin_config = CacheConfig.model_validate(get_driver().config.model_dump())

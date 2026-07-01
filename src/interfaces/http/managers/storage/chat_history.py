@@ -1,18 +1,19 @@
 from __future__ import annotations
 
-import asyncio
 import gc
-import sqlite3
 import shutil
-from datetime import date as date_value, datetime, time, timedelta
-from pathlib import Path
+import asyncio
+import sqlite3
 from typing import Any
+from pathlib import Path
+from datetime import date as date_value
+from datetime import time, datetime, timedelta
 
-from nonebot_plugin_orm import get_session
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
-
-from src.models import Classes, Group, GroupBind, User
+from nonebot_plugin_orm import get_session
+from src.core.storage.files import sanitize_owner_id
+from src.models import User, Group, Classes, GroupBind
 from src.core.storage import (
     MESSAGE_DB_NAME,
     MESSAGE_TABLE_NAME,
@@ -21,7 +22,6 @@ from src.core.storage import (
     parse_metadata,
     storage_manager,
 )
-from src.core.storage.files import sanitize_owner_id
 
 
 def _space_root(kind: str) -> Path:
@@ -179,35 +179,27 @@ def _space_stats(kind: str, owner_id: str, db_path: Path) -> dict[str, Any]:
         total_row = connection.execute(
             f"SELECT COUNT(*) AS total, COUNT(DISTINCT user_id) AS participants FROM {MESSAGE_TABLE_NAME}"
         ).fetchone()
-        grouped_record_kinds = connection.execute(
-            f"""
+        grouped_record_kinds = connection.execute(f"""
             SELECT record_kind, COUNT(*) AS total
             FROM {MESSAGE_TABLE_NAME}
             GROUP BY record_kind
-            """
-        ).fetchall()
-        grouped_actor_roles = connection.execute(
-            f"""
+            """).fetchall()
+        grouped_actor_roles = connection.execute(f"""
             SELECT actor_role, COUNT(*) AS total
             FROM {MESSAGE_TABLE_NAME}
             GROUP BY actor_role
-            """
-        ).fetchall()
-        grouped_directions = connection.execute(
-            f"""
+            """).fetchall()
+        grouped_directions = connection.execute(f"""
             SELECT direction, COUNT(*) AS total
             FROM {MESSAGE_TABLE_NAME}
             GROUP BY direction
-            """
-        ).fetchall()
-        latest_row = connection.execute(
-            f"""
+            """).fetchall()
+        latest_row = connection.execute(f"""
             SELECT user_name, plain_text, raw_text, created_at, actor_role, record_kind, direction
             FROM {MESSAGE_TABLE_NAME}
             ORDER BY created_ts DESC, id DESC
             LIMIT 1
-            """
-        ).fetchone()
+            """).fetchone()
 
     for row in grouped_record_kinds:
         kind = str(row["record_kind"])
@@ -563,8 +555,7 @@ def _message_query_parts(
     keyword = str(q or "").strip().lower()
     if keyword:
         for term in [item for item in keyword.split(" ") if item]:
-            conditions.append(
-                """
+            conditions.append("""
                 instr(
                     lower(
                         coalesce(user_name, '') || ' ' ||
@@ -573,8 +564,7 @@ def _message_query_parts(
                     ),
                     ?
                 ) > 0
-                """
-            )
+                """)
             params.append(term)
 
     where_sql = f"WHERE {' AND '.join(conditions)}" if conditions else ""

@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from nonebot_plugin_alconna import AlconnaMatcher
-
-from src.platform.commands import CommandExecutionContext, CommandResult, command_executor
 from src.shared import Emoji
-from src.models import College, School, Teacher, User
+from nonebot_plugin_alconna import AlconnaMatcher
+from src.models import User, School, College, Teacher
+from src.platform.commands import CommandResult, CommandExecutionContext, command_executor
 
 from .presenters import render_teacher_card
 

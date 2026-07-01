@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import Query, Depends, APIRouter, HTTPException, status
 
 from .. import audit
-from ..identity import groups as group_service
 from ..security import manager_auth
+from ..identity import groups as group_service
 
 router = APIRouter()
 

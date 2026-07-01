@@ -18,7 +18,7 @@ def test_roles_are_matched_by_any_role_instead_of_subset(loaded_plugins):
 
 
 def test_excluded_roles_can_block_teacher_or_student_paths(loaded_plugins):
-    from src.platform.helper import Helper, HelperScope, UserRole
+    from src.platform.helper import Helper, UserRole, HelperScope
 
     helper = Helper(
         command="添加班级",
@@ -34,7 +34,7 @@ def test_excluded_roles_can_block_teacher_or_student_paths(loaded_plugins):
 
 
 def test_help_groups_keep_current_role_visible_scopes_only(loaded_plugins):
-    from src.platform.helper import Helper, HelperScope, Helpers, UserRole
+    from src.platform.helper import Helper, Helpers, UserRole, HelperScope
 
     helpers = Helpers()
     helpers.extend(

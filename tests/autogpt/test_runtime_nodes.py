@@ -155,7 +155,13 @@ async def test_route_node_uses_direct_reply_instead_of_generic_router_reply(load
                 ]
             )
         return SimpleNamespace(
-            choices=[SimpleNamespace(message=SimpleNamespace(content="我目前没有可用的实时新闻或网页检索能力，所以不能可靠告诉你最近网上的热点。"))]
+            choices=[
+                SimpleNamespace(
+                    message=SimpleNamespace(
+                        content="我目前没有可用的实时新闻或网页检索能力，所以不能可靠告诉你最近网上的热点。"
+                    )
+                )
+            ]
         )
 
     monkeypatch.setattr(pipeline, "ensure_mcp_tools", fake_ensure_mcp_tools)
@@ -365,7 +371,7 @@ async def test_planner_node_recovers_invalid_capability_requirements_for_realtim
     state = PipelineState(
         trace_id="planner-invalid-capability-requirements",
         user_content=[Content(type="text", value="最近网上有什么热点")],
-        intent_route=IntentRoute.parse_obj(
+        intent_route=IntentRoute.model_validate(
             {
                 "intent": "complex_task",
                 "requires_command": False,
@@ -451,5 +457,5 @@ def test_agent_plan_supports_command_not_found(loaded_plugins):
         "reason": "未找到命令",
     }
 
-    plan = AgentPlan.parse_obj(payload)
+    plan = AgentPlan.model_validate(payload)
     assert plan.unavailable_reason == "command_not_found"

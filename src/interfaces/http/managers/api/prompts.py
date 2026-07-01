@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import Depends, APIRouter, HTTPException, status
 
 from .. import audit
-from ..catalog import prompts as prompt_service
-from ..schemas import PromptUpdateRequest
 from ..security import manager_auth
+from ..schemas import PromptUpdateRequest
+from ..catalog import prompts as prompt_service
 
 router = APIRouter()
 
@@ -44,10 +44,14 @@ async def update_prompt(name: str, payload: PromptUpdateRequest, session=Depends
         )
         return result
     except FileNotFoundError as error:
-        audit.log_event("prompts", "update_prompt", "failed", detail={"name": name, "error": str(error)}, session=session)
+        audit.log_event(
+            "prompts", "update_prompt", "failed", detail={"name": name, "error": str(error)}, session=session
+        )
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error)) from error
     except ValueError as error:
-        audit.log_event("prompts", "update_prompt", "failed", detail={"name": name, "error": str(error)}, session=session)
+        audit.log_event(
+            "prompts", "update_prompt", "failed", detail={"name": name, "error": str(error)}, session=session
+        )
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(error)) from error
 
 

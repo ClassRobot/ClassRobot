@@ -1,7 +1,7 @@
 from src.platform.config import priority, comp_config
 from src.platform.helper import UserRole, HelperScope
 from src.shared import ValidateName, tip, alias_product
-from src.platform.commands import CommandParam, CommandBinding, on_agent_command
+from src.platform.commands import CommandBinding, on_agent_command
 from nonebot_plugin_alconna import Args, File, Field, Image, Other, Alconna, MultiVar
 
 push_task_alias = alias_product(["上传", "提交"], ["作业", "任务"])
@@ -15,14 +15,8 @@ push_task_cmd = on_agent_command(
         risk_level="medium",
         agent_callable=False,
         execution_mode="interactive",
-        params=[
-            CommandParam(
-                name="任务名称/ID与附件",
-                description="先写任务名称或ID，再附带文件、图片等提交内容。",
-                multiple=True,
-                source_name="task_arg",
-            )
-        ],
+        param_labels={"task_arg": "任务名称/ID与附件"},
+        param_descriptions={"task_arg": "先写任务名称或ID，再附带文件、图片等提交内容。"},
     ),
     priority=priority,
     block=True,

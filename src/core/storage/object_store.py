@@ -5,14 +5,15 @@ from pathlib import Path
 
 from httpx import AsyncClient
 from nonebot import logger, get_driver
-from qcloud_cos import CosConfig, CosS3Client
-from pydantic import Extra, BaseModel
-
+from pydantic import BaseModel, ConfigDict
 from src.shared.tools.sync import run_sync
+from qcloud_cos import CosConfig, CosS3Client
 
 
-class ObjectStoreConfig(BaseModel, extra=Extra.ignore):
+class ObjectStoreConfig(BaseModel):
     """描述对象存储上传所需的配置项。"""
+
+    model_config = ConfigDict(extra="ignore")
 
     cos_secret_id: str | None = None
     cos_secret_key: str | None = None
@@ -26,7 +27,7 @@ class ObjectStoreConfig(BaseModel, extra=Extra.ignore):
         return all([self.cos_secret_id, self.cos_secret_key, self.region, self.bucket])
 
 
-plugin_config = ObjectStoreConfig(**get_driver().config.dict())
+plugin_config = ObjectStoreConfig(**get_driver().config.model_dump())
 try:
     cos_config = CosConfig(
         Region=plugin_config.region,

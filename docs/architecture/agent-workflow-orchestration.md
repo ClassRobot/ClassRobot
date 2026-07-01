@@ -60,12 +60,12 @@
 | --- | --- |
 | Agent workspace / role context | `Prompt("autogpt")` + 当前用户可见 `Helpers` + 会话历史 |
 | Tool catalog | `CommandToolCatalog` |
-| Runtime planning loop | `RuntimeGraphExecutor -> IntentRouteNode -> PlannerNode -> AutoTaskAgent` |
+| Runtime planning loop | `LangGraphRuntime -> IntentRouteNode -> PlannerNode -> AutoTaskAgent` |
 | Explicit workflow | `TaskWorkflow` + `WorkflowStep` |
 | Deterministic executor | `WorkflowExecutor` |
 | Observation / trace | `CommandObservation` + `trace_id` + 会话回写 + `ExecutionReplyAgent` 最终总结 |
 | Session state | `ChatSession` |
-| Existing capability reuse | `AgentCommandAdapter -> CommandExecutor` 调用项目命令 service |
+| Existing capability reuse | `CommandCLI -> CommandExecutor` 调用项目命令 service |
 
 这张表很重要，因为它说明当前项目不是“没有 Agent 能力”，而是已经形成了可继续工程化增强的基础骨架。
 
@@ -79,7 +79,7 @@ flowchart TD
     Pipeline --> RuntimeGraph["RuntimeGraphConfig\n热更新运行时编排图"]
 
     subgraph Runtime["开发者控制的运行时图"]
-        RuntimeGraph --> GraphExec["RuntimeGraphExecutor\n条件边选择"]
+        RuntimeGraph --> GraphExec["LangGraphRuntime\n条件边选择"]
         Router["IntentRouteNode\n判断聊天 / 检索 / 命令 / 复杂任务"]
         LocalRag["RetrieveLocalKnowledgeNode\n本地上下文"]
         Vision["DirectVisionReplyNode\n视觉直答"]
@@ -96,7 +96,7 @@ flowchart TD
 
     subgraph Execution["执行层"]
         Executor["WorkflowExecutor\n顺序执行"]
-        Dispatch["dispatch_auto_task()\nAgentCommandAdapter"]
+        Dispatch["dispatch_auto_task()\nCommandCLI"]
         Matchers["CommandExecutor\nservice handler"]
         Domain["业务规则与依赖"]
         Executor --> Dispatch --> Matchers --> Domain
@@ -123,7 +123,7 @@ flowchart TD
 - `RuntimeGraphConfig`
 - `RuntimeGraphEdge`
 - `RuntimeNodeConfig`
-- `RuntimeGraphExecutor`
+- `LangGraphRuntime`
 - `ModelProfileConfig`
 
 这些对象的意义是：
@@ -296,7 +296,7 @@ sequenceDiagram
     autonumber
     participant Agent as TaskWorkflow
     participant WfExec as WorkflowExecutor
-    participant Dispatch as AgentCommandAdapter
+    participant Dispatch as CommandCLI
     participant CmdExec as CommandExecutor
     participant Depends as 权限 / 参数 / 可用性策略
     participant Domain as 业务逻辑

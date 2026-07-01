@@ -1,19 +1,16 @@
-import json
 import re
+import json
 
 import httpx
 from nonebot import get_driver
 from openai import AsyncOpenAI
-from pydantic import BaseModel, Extra, Field, validator
+from pydantic import Field, BaseModel, ConfigDict, field_validator
 
 
 class LLMConfig(BaseModel):
     """描述大模型服务连接与调用的配置项。"""
 
-    class Config:
-        """允许忽略额外字段，兼容环境配置里的扩展项。"""
-
-        extra = Extra.ignore
+    model_config = ConfigDict(extra="ignore")
 
     name: str
     key: str
@@ -30,7 +27,8 @@ class LLMConfig(BaseModel):
     supports_functools: bool = False
     """是否支持函数工具调用。"""
 
-    @validator("name", "key", "url", "model", pre=True, allow_reuse=True)
+    @field_validator("name", "key", "url", "model", mode="before")
+    @classmethod
     def normalize_required_strings(cls, value: object) -> object:
         """去掉模型关键字段两端空白，避免环境变量里夹带空格。"""
 
@@ -38,7 +36,8 @@ class LLMConfig(BaseModel):
             return value.strip()
         return value
 
-    @validator("proxy", pre=True, allow_reuse=True)
+    @field_validator("proxy", mode="before")
+    @classmethod
     def normalize_proxy(cls, value: object) -> str | None | object:
         """把空白代理统一视为未设置。"""
 
@@ -65,10 +64,7 @@ class LLMConfig(BaseModel):
 class AutoGPTConfig(BaseModel):
     """描述 AutoGPT 会话与规划模块的配置项。"""
 
-    class Config:
-        """允许忽略额外字段，兼容运行时配置注入。"""
-
-        extra = Extra.ignore
+    model_config = ConfigDict(extra="ignore")
 
     llm_configs: list[LLMConfig] = Field(default_factory=list)
     llm_timeout: float = 20
@@ -81,7 +77,8 @@ class AutoGPTConfig(BaseModel):
     agent_loop_max_runtime_seconds: int = 120
     """单轮 Agent observe-act 循环最长运行秒数。"""
 
-    @validator("llm_configs", pre=True, allow_reuse=True)
+    @field_validator("llm_configs", mode="before")
+    @classmethod
     def normalize_llm_configs(cls, value: object) -> object:
         """兼容 `.env` 中以 JSON 字符串形式声明的模型配置列表。"""
 
@@ -104,4 +101,4 @@ class AutoGPTConfig(BaseModel):
         raise Exception(f"LLM config <{name}> not found")
 
 
-plugin_config = AutoGPTConfig.parse_obj(get_driver().config)
+plugin_config = AutoGPTConfig.model_validate(get_driver().config.model_dump())

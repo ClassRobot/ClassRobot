@@ -13,7 +13,7 @@ if isinstance(app, FastAPI):
     @router.get("/commands")
     async def get_commands():
         """获取所有命令"""
-        return helper_menu.dict(include={"helpers"})
+        return helper_menu.model_dump(include={"helpers"})
 
     app.include_router(router)
     app.include_router(managers_router)

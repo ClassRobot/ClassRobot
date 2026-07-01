@@ -4,6 +4,7 @@ from src.models import User, ScheduledNotice
 
 class QueryNotice:
     """负责查询通知内容的业务处理。"""
+
     def __init__(self, user: User) -> None:
         """初始化实例。
 
@@ -35,6 +36,7 @@ class QueryNotice:
 
 class DeleteNotice(QueryNotice):
     """负责删除通知记录的业务处理。"""
+
     async def get_notice(self, notice_id: int) -> ScheduledNotice | None:
         """获取到通知
 

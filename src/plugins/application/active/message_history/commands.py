@@ -5,8 +5,8 @@ from typing import Optional
 from src.shared import tip
 from src.platform.helper import HelperScope
 from src.platform.config import priority, comp_config
+from src.platform.commands import CommandBinding, on_agent_command
 from nonebot_plugin_alconna import Args, Field, Alconna, MultiVar, CommandMeta
-from src.platform.commands import CommandParam, CommandBinding, on_agent_command
 
 message_history_command_kwargs = {
     "priority": priority,
@@ -27,14 +27,8 @@ query_group_history_cmd = on_agent_command(
         scopes={HelperScope.public},
         tags={"chat", "group", "history"},
         execution_mode="service",
-        params=[
-            CommandParam(
-                name="关键词",
-                description="可选检索关键词；不提供时默认回顾最近群聊。",
-                source_name="query",
-                multiple=True,
-            )
-        ],
+        param_labels={"query": "关键词"},
+        param_descriptions={"query": "可选检索关键词；不提供时默认回顾最近群聊。"},
     ),
     auto_user_handler=True,
     **message_history_command_kwargs,
@@ -53,20 +47,11 @@ chat_statistics_cmd = on_agent_command(
         scopes={HelperScope.public},
         tags={"chat", "statistics", "history"},
         execution_mode="service",
-        params=[
-            CommandParam(
-                name="范围",
-                description="统计范围：user 表示当前用户私聊；group 表示当前绑定系统群。",
-                source_name="scope",
-                required=False,
-            ),
-            CommandParam(
-                name="时间范围",
-                description="统计时间范围：all、today、yesterday 或 week。",
-                source_name="window",
-                required=False,
-            ),
-        ],
+        param_labels={"scope": "范围", "window": "时间范围"},
+        param_descriptions={
+            "scope": "统计范围：user 表示当前用户私聊；group 表示当前绑定系统群。",
+            "window": "统计时间范围：all、today、yesterday 或 week。",
+        },
     ),
     auto_user_handler=True,
     **message_history_command_kwargs,

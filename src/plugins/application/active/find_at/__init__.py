@@ -1,7 +1,7 @@
 from src.shared import Emoji
 from src.models import UserBind
-from src.platform.config import template_dir
 from nonebot.adapters import Event, qq
+from src.platform.config import template_dir
 from src.platform.session import EventSession
 from nonebot_plugin_htmlrender import template_to_pic
 from nonebot_plugin_alconna import UniMessage, AlconnaMatcher

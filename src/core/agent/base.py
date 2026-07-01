@@ -1,12 +1,11 @@
+from enum import StrEnum
 from inspect import isabstract
 from abc import ABC, abstractmethod
-from enum import StrEnum
 from typing import Any, Type, Union, Literal, TypeVar, ClassVar, Optional, Generator, TypedDict, cast
 
-from pydantic import BaseModel, Field, root_validator
-
 from src.core.llm.message import Messages
-from src.core.llm.typings import ChatCompletionMessage, ChatCompletionMessageToolCall, ChatCompletionToolParam
+from pydantic import Field, BaseModel, ConfigDict, model_validator
+from src.core.llm.typings import ChatCompletionMessage, ChatCompletionToolParam, ChatCompletionMessageToolCall
 
 AgentRiskLevel = Literal["low", "medium", "high"]
 AgentT = TypeVar("AgentT", bound="BaseAgent")
@@ -15,10 +14,7 @@ AgentT = TypeVar("AgentT", bound="BaseAgent")
 class BaseAgentConfig(BaseModel):
     """所有 Agent 运行时配置的统一基类。"""
 
-    class Config:
-        """允许 Agent 配置携带项目内扩展字段。"""
-
-        extra = "ignore"
+    model_config = ConfigDict(extra="ignore")
 
 
 class AgentStatus(StrEnum):
@@ -82,27 +78,26 @@ class BaseAgent(ABC, BaseModel):
 
         ...
 
-    class Config:
-        """允许 Agent 持有项目内的消息、工具和会话对象。"""
-
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     @classmethod
     def config_model(cls) -> type[BaseAgentConfig]:
         """返回当前 Agent 使用的配置模型类型。"""
 
-        config_field = cls.__fields__.get("config")
-        if config_field is not None and isinstance(config_field.type_, type) and issubclass(
-            config_field.type_, BaseAgentConfig
+        config_field = cls.model_fields.get("config")
+        if (
+            config_field is not None
+            and isinstance(config_field.annotation, type)
+            and issubclass(config_field.annotation, BaseAgentConfig)
         ):
-            return cast(type[BaseAgentConfig], config_field.type_)
+            return cast(type[BaseAgentConfig], config_field.annotation)
         return BaseAgentConfig
 
     @classmethod
     def config_schema(cls) -> dict[str, Any]:
         """返回当前 Agent 配置的 JSON Schema。"""
 
-        return cls.config_model().schema()
+        return cls.config_model().model_json_schema()
 
     @classmethod
     def parameters(cls) -> dict:
@@ -111,9 +106,10 @@ class BaseAgent(ABC, BaseModel):
         返回:
             dict: 可供函数调用工具注册使用的 JSON Schema。
         """
-        return cls.Params.schema()
+        return cls.Params.model_json_schema()
 
-    @root_validator(pre=True)
+    @model_validator(mode="before")
+    @classmethod
     def normalize_config_payload(cls, values: Any) -> Any:
         """把旧版散装字段迁移到显式 config 对象，保持向后兼容。"""
 
@@ -122,7 +118,7 @@ class BaseAgent(ABC, BaseModel):
 
         normalized = dict(values)
         config_model = cls.config_model()
-        config_fields = set(getattr(config_model, "__fields__", {}))
+        config_fields = set(getattr(config_model, "model_fields", {}))
         legacy_config = {key: normalized.pop(key) for key in list(normalized.keys()) if key in config_fields}
         if legacy_config:
             existing = normalized.get("config")
@@ -133,12 +129,12 @@ class BaseAgent(ABC, BaseModel):
             elif existing is None:
                 normalized["config"] = legacy_config
             elif isinstance(existing, BaseAgentConfig):
-                merged = existing.dict()
+                merged = existing.model_dump()
                 merged.update(legacy_config)
                 normalized["config"] = merged
         config_value = normalized.get("config")
         if isinstance(config_value, BaseAgentConfig):
-            normalized["config"] = config_value.dict()
+            normalized["config"] = config_value.model_dump()
         return normalized
 
     @classmethod

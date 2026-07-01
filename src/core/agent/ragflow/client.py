@@ -1,7 +1,6 @@
 from urllib.parse import urlparse
 
 from httpx import AsyncClient
-
 from src.platform.config import global_config
 
 version: str = "v1"

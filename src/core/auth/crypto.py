@@ -8,18 +8,20 @@ from binascii import hexlify, unhexlify
 from hashlib import sha256, pbkdf2_hmac
 from base64 import urlsafe_b64decode, urlsafe_b64encode
 
-from pydantic import Extra, BaseModel
 from nonebot import logger, get_driver
+from pydantic import BaseModel, ConfigDict
 from nonebot_plugin_localstore import get_config_dir
 
 
-class EncryptConfig(BaseModel, extra=Extra.ignore):
+class EncryptConfig(BaseModel):
     """描述密码散列与加密盐配置。"""
+
+    model_config = ConfigDict(extra="ignore")
 
     encrypt_salt: str | None = None
 
 
-plugin_config = EncryptConfig.parse_obj(get_driver().config.dict())
+plugin_config = EncryptConfig.model_validate(get_driver().config.model_dump())
 config_salt: Path = get_config_dir("encrypt") / "salt.txt"
 
 if plugin_config.encrypt_salt is None:

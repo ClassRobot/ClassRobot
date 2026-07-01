@@ -16,7 +16,7 @@ class BaseSession(BaseModel):
     user_id: str
     platform: str
     platform_name: str
-    channel_id: str | None
+    channel_id: str | None = None
     "群ID或者子频道ID"
     guild_id: str | None = None
 
@@ -107,7 +107,7 @@ async def group_session(session: EventSession) -> GroupSession | None:
         GroupSession | None: 当前会话是群聊时返回群组会话对象。
     """
     if session.is_group:
-        return GroupSession.parse_obj(session)
+        return GroupSession.model_validate(session)
 
 
 GroupEventSession = Annotated[GroupSession, Depends(group_session)]
@@ -125,7 +125,7 @@ async def private_session(
         PrivateSession | None: 当前会话是私聊时返回私聊会话对象。
     """
     if session.is_private:
-        return PrivateSession.parse_obj(session)
+        return PrivateSession.model_validate(session)
 
 
 PrivateEventSession = Annotated[PrivateSession, Depends(private_session)]

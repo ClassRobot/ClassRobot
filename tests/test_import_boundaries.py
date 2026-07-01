@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import ast
 from pathlib import Path
 
@@ -10,8 +11,10 @@ REMOVED_INTERNAL_PREFIXES = (
     "src.shared.template",
     "src.shared.tools.cos",
     "src.shared.encrypt",
+    "src.core.agent.runtime.graph_executor",
     "src.models.depends",
     "src.models.params",
+    "src.platform.commands.adapters",
     "src.plugins.library.message_history.resolvers",
 )
 REMOVED_ROOTS = (
@@ -23,6 +26,11 @@ REMOVED_ROOTS = (
     PROJECT_ROOT / "src" / "shared" / "tools" / "cos",
     PROJECT_ROOT / "src" / "shared" / "encrypt",
     PROJECT_ROOT / "src" / "models" / "params",
+)
+REMOVED_FILES = (
+    PROJECT_ROOT / "src" / "core" / "agent" / "runtime" / "graph_executor.py",
+    PROJECT_ROOT / "src" / "platform" / "commands" / "adapters" / "__init__.py",
+    PROJECT_ROOT / "src" / "platform" / "commands" / "adapters" / "agent.py",
 )
 
 
@@ -60,6 +68,13 @@ def test_removed_code_roots_do_not_exist():
         assert not root.exists(), f"legacy code root should be removed: {root}"
 
 
+def test_removed_agent_and_command_adapter_files_do_not_exist():
+    """旧 Agent 图执行器和旧 Agent 命令适配器不得恢复。"""
+
+    for path in REMOVED_FILES:
+        assert not path.exists(), f"removed runtime file should not exist: {path}"
+
+
 def test_python_code_does_not_import_removed_namespaces():
     """业务代码和测试不能再导入旧命名空间。"""
 
@@ -72,6 +87,39 @@ def test_python_code_does_not_import_removed_namespaces():
                 violations.append(f"{relative}: {module_name}")
 
     assert not violations, "removed namespace imports found:\n" + "\n".join(violations)
+
+
+def test_python_code_does_not_use_pydantic_v1_api():
+    """项目模型统一使用 Pydantic v2 API，避免 v1 兼容写法回流。"""
+
+    forbidden_patterns = (
+        "pydantic.v1",
+        ".parse_obj(",
+        ".parse_raw(",
+        "@validator(",
+        "@root_validator(",
+        "class Config:",
+        "__fields__",
+        ".type_",
+        ".schema(",
+        "BaseModel, extra=",
+    )
+    forbidden_regex_patterns = (r"\bExtra\.",)
+    violations: list[str] = []
+    for path in _iter_python_files():
+        if path == Path(__file__):
+            continue
+        text = path.read_text(encoding="utf-8")
+        for pattern in forbidden_patterns:
+            if pattern in text:
+                relative = path.relative_to(PROJECT_ROOT).as_posix()
+                violations.append(f"{relative}: {pattern}")
+        for pattern in forbidden_regex_patterns:
+            if re.search(pattern, text):
+                relative = path.relative_to(PROJECT_ROOT).as_posix()
+                violations.append(f"{relative}: {pattern}")
+
+    assert not violations, "Pydantic v1 API patterns found:\n" + "\n".join(violations)
 
 
 def test_shared_layer_has_no_platform_or_core_imports():

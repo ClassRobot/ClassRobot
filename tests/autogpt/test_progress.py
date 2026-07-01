@@ -29,7 +29,10 @@ def test_format_progress_message_hides_internal_stage_tags(loaded_plugins):
     from src.core.agent.runtime.pipeline import MessageProcessingPipeline
 
     assert MessageProcessingPipeline.format_progress_message("我正在提取这轮对话里的目标。", stage="extract") == ""
-    assert MessageProcessingPipeline.format_progress_message("rag: 我正在检索相关资料。", stage="rag") == "我正在检索相关资料。"
+    assert (
+        MessageProcessingPipeline.format_progress_message("rag: 我正在检索相关资料。", stage="rag")
+        == "我正在检索相关资料。"
+    )
 
 
 @pytest.mark.asyncio

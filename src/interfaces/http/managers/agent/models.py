@@ -3,17 +3,13 @@ from __future__ import annotations
 from typing import Any, Literal
 from dataclasses import dataclass
 
-from pydantic import Field, BaseModel, validator, root_validator
+from pydantic import Field, BaseModel, ConfigDict, field_validator, model_validator
 
 
 class AgentPayloadModel(BaseModel):
     """Agent 管理模块的统一数据模型基类。"""
 
-    class Config:
-        """统一允许忽略额外字段，并支持字段名回填。"""
-
-        extra = "ignore"
-        allow_population_by_field_name = True
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
     def to_payload(self, *, compact: bool = False) -> dict[str, Any]:
         """导出适合接口响应或持久化的字典数据。
@@ -25,7 +21,7 @@ class AgentPayloadModel(BaseModel):
             dict[str, Any]: 序列化后的字典结果。
         """
 
-        return self.dict(exclude_none=compact, by_alias=True)
+        return self.model_dump(exclude_none=compact, by_alias=True)
 
 
 @dataclass(frozen=True, slots=True)
@@ -75,7 +71,8 @@ class AgentNodeDraftConfig(AgentPayloadModel):
     timeout_seconds: int | None = None
     risk_policy: str | None = None
 
-    @root_validator(pre=True)
+    @model_validator(mode="before")
+    @classmethod
     def normalize_empty_values(cls, values: Any) -> dict[str, Any]:
         """把空字符串归一化为 ``None``，避免数值字段解析报错。"""
 
@@ -87,7 +84,8 @@ class AgentNodeDraftConfig(AgentPayloadModel):
                 normalized[key] = None
         return normalized
 
-    @validator("temperature")
+    @field_validator("temperature")
+    @classmethod
     def validate_temperature(cls, value: float | None) -> float | None:
         """限制温度范围，避免写入明显错误的配置。"""
 
@@ -95,7 +93,8 @@ class AgentNodeDraftConfig(AgentPayloadModel):
             raise ValueError("temperature must be between 0 and 2")
         return value
 
-    @validator("max_iterations")
+    @field_validator("max_iterations")
+    @classmethod
     def validate_max_iterations(cls, value: int | None) -> int | None:
         """限制最大迭代次数范围。"""
 
@@ -103,7 +102,8 @@ class AgentNodeDraftConfig(AgentPayloadModel):
             raise ValueError("max_iterations must be between 1 and 20")
         return value
 
-    @validator("timeout_seconds")
+    @field_validator("timeout_seconds")
+    @classmethod
     def validate_timeout_seconds(cls, value: int | None) -> int | None:
         """限制节点超时范围。"""
 

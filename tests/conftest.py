@@ -1,7 +1,7 @@
 import os
 import sys
-from pathlib import Path
 from uuid import uuid4
+from pathlib import Path
 
 import pytest
 from nonebug import NONEBOT_INIT_KWARGS, NONEBOT_START_LIFESPAN

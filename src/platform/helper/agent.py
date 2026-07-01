@@ -1,10 +1,10 @@
 from nonebot import logger
 from pydantic import Field, BaseModel
-from src.core.agent import BaseFunctionAgent
 from src.core.llm.message import Messages
+from src.core.agent import BaseFunctionAgent
 
-from .config import helper_menu
 from .schema import Helpers
+from .config import helper_menu
 
 
 class HelperAgent(BaseFunctionAgent):
@@ -34,7 +34,7 @@ class HelperAgent(BaseFunctionAgent):
         """
         logger.debug(self.name())
         for tool in self.call_tools(messages):
-            params = self.Params.parse_raw(tool.function.arguments)
+            params = self.Params.model_validate_json(tool.function.arguments)
             helpers: list[str] = []
             for cmd in params.commands:
                 if helper := self.helpers.get_helper(cmd):

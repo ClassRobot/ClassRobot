@@ -1,4 +1,3 @@
-from src.platform.commands.schema import CommandParam
 from src.platform.config import priority, comp_config
 from src.platform.helper import UserRole, HelperScope
 from src.platform.commands import CommandBinding, on_agent_command
@@ -95,14 +94,8 @@ rm_cmd = on_agent_command(
         tags={"file", "storage"},
         risk_level="high",
         execution_mode="service",
-        params=[
-            CommandParam(
-                name="参数",
-                description="删除参数，例如 文件名、-r 目录、-f 文件名。",
-                multiple=True,
-                source_name="rm_args",
-            )
-        ],
+        param_labels={"rm_args": "参数"},
+        param_descriptions={"rm_args": "删除参数，例如 文件名、-r 目录、-f 文件名。"},
     ),
     **file_command_kwargs,
 )
@@ -214,14 +207,8 @@ upload_file_cmd = on_agent_command(
         risk_level="medium",
         agent_callable=False,
         execution_mode="matcher",
-        params=[
-            CommandParam(
-                name="文件参数",
-                description="可选目标目录以及一个或多个消息附件。",
-                multiple=True,
-                source_name="upload_items",
-            )
-        ],
+        param_labels={"upload_items": "文件参数"},
+        param_descriptions={"upload_items": "可选目标目录以及一个或多个消息附件。"},
     ),
     **file_command_kwargs,
 )

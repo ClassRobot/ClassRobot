@@ -49,7 +49,7 @@
 ```mermaid
 flowchart LR
     User["用户消息"] --> Matcher["matcher.handle()"]
-    Agent["Agent 工作流"] --> Adapter["AgentCommandAdapter"]
+    Agent["Agent 工作流"] --> Adapter["CommandCLI"]
     Matcher --> Context["构建 CommandExecutionContext"]
     Context --> Executor["command_executor.execute"]
     Adapter --> Executor

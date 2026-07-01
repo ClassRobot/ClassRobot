@@ -35,7 +35,7 @@ class ObservationQualityGate:
     ) -> CommandObservation:
         """返回补齐质量字段后的 observation。"""
 
-        updated = observation.copy(deep=True)
+        updated = observation.model_copy(deep=True)
         if user_goal and not updated.user_goal:
             updated.user_goal = user_goal
         if query and not updated.query:
@@ -72,7 +72,8 @@ class ObservationQualityGate:
             updated.answer_quality = "insufficient"
             updated.display_summary = "工具返回的结果与用户问题不匹配，不能作为可靠答案。"
             updated.context_summary = (
-                f"工具 `{updated.tool_name or updated.command}` 返回内容与目标不匹配。" f" query={updated.query or '未记录'}"
+                f"工具 `{updated.tool_name or updated.command}` 返回内容与目标不匹配。"
+                f" query={updated.query or '未记录'}"
             )
             updated.next_actions = self.merge_next_actions(updated.next_actions, ["rewrite_query", "retry_search"])
             logger.info(

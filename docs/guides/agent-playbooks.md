@@ -123,7 +123,7 @@ sequenceDiagram
 
 - AI 不直接调用数据库写操作
 - AI 不绕过现有命令体系
-- AI 恢复执行后，仍然通过 `AgentCommandAdapter -> CommandExecutor` 调用已 service 化命令
+- AI 恢复执行后，仍然通过 `CommandCLI -> CommandExecutor` 调用已 service 化命令
 
 因此确认执行只是“恢复工作流”，不是“绕过规则”。
 

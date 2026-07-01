@@ -6,6 +6,8 @@
 
 - `pipeline.py`
   - 组织一次消息处理链路，并读取热更新后的运行时图。
+- `langgraph_runtime.py`
+  - 唯一运行时图执行入口，把 `RuntimeGraphConfig` 编译为 LangGraph `StateGraph`，并复用项目现有 `WorkflowNode`。
 - `coordination/`
   - 工作流节点和状态对象。
 - `execution/`
@@ -35,6 +37,27 @@ AutoGPT Runtime 里现在固定区分两层工作流，后续开发不要再混�
 | AI 任务执行流 | `TaskWorkflow` | AI 在系统约束内生成 | 决定本轮用户目标要执行哪些 command、skill、confirm、respond 或 schedule 步骤 |
 
 运行时编排图是系统控制面，AI 不能修改。AI 只能在运行时图约束下生成 `TaskWorkflow`，再由执行器校验、执行、记录 observation，最后交给回复 Agent 汇总给用户。
+
+## LangGraph 设计取舍
+
+当前运行时选择 LangGraph Graph API，而不是 Functional API，原因是项目已经有管理端可视化编排、节点目录和条件边配置。Graph API 的 `StateGraph` 天然对应：
+
+- `PipelineState`: 一轮消息处理的共享状态。
+- `WorkflowNode`: 运行时节点函数。
+- `RuntimeGraphEdge`: 根据状态选择下一跳的条件边。
+
+参考 LangGraph 官方文档，Graph API 的核心就是用 State、Nodes、Edges 表达 Agent 工作流；持久化上则把短期线程状态 checkpoint 与长期 store/memory 区分开。ClassRobot 因此做如下边界：
+
+- LangGraph 负责执行图、条件跳转和未来可视化/可观测扩展。
+- `ChatSession` 和 `AgentWorkflowCheckpoint` 继续负责项目已有的会话与工作流状态。
+- `src.core.storage.ChatHistoryStore` 负责用户、群组的长期聊天事实；用户私聊还会额外写入 `users/{user_id}/chat/daily/YYYY-MM-DD.jsonl`。
+- 不直接把所有聊天历史塞进 LangGraph state，避免图状态膨胀，也避免跨用户长期记忆越权。
+- 当前没有启用 LangGraph checkpoint/store，也不把 `LangGraphRuntime` 描述为 durable execution；持久化、恢复和审计仍由项目现有的 `ChatSession`、workflow checkpoint/run 与 `ChatHistoryStore` 承担。
+
+参考：
+
+- [LangGraph Graph API](https://docs.langchain.com/oss/python/langgraph/graph-api)
+- [LangGraph Persistence](https://docs.langchain.com/oss/python/langgraph/persistence)
 
 ## Agent Host 与运行时角色
 
@@ -208,7 +231,7 @@ flowchart TD
     A["src/plugins/application/active/autogpt/__init__.py<br/>NoneBot 入口"] --> B["ChatSession"]
     B --> H["AgentHost<br/>TurnEnvelope / ContextPack / RuntimeRoleTrace / ReplyEnvelope"]
     H --> C["MessageProcessingPipeline"]
-    C --> X["RuntimeGraphExecutor<br/>条件边执行器"]
+    C --> X["LangGraphRuntime<br/>StateGraph 条件边执行器"]
     X --> D["WorkflowNode"]
     D --> E["BaseAgent 子类"]
     E --> F["Command / Skill / RAG / Local Memory"]
@@ -219,7 +242,9 @@ flowchart TD
 
 ## 默认编排图
 
-系统默认编排链路就是外部最初的 AutoGPT 主流程，现在由 `default_graph_config()` 显式生成，而不是藏在一串硬编码 `if/else` 里。
+系统默认编排链路就是外部最初的 AutoGPT 主流程，现在由 `default_graph_config()` 显式生成，再由 `LangGraphRuntime` 编译成 LangGraph `StateGraph` 执行，而不是藏在一串硬编码 `if/else` 里。
+
+`src.core.agent.runtime.graph_executor` 已移除，不再保留旧自研执行器兼容入口。后续如果要扩展编排能力，应优先扩展 `RuntimeGraphConfig`、`WorkflowNode` 和 `LangGraphRuntime`，不要重新引入平行图执行器。
 
 节点目录由 `node_registry.py` 定义，运行时编排由 `orchestration_config.py` 加载和热更新。
 

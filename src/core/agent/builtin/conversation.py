@@ -109,7 +109,7 @@ class ExtractAgent(BaseAgent):
         )
         text = response.choices[0].message.content or ""
         logger.debug(text)
-        return Context.parse_obj(json_loads(text))
+        return Context.model_validate(json_loads(text))
 
     def message_to_string(self, messages: Messages) -> str:
         """将系统、用户和助手消息序列化为字符串。
@@ -121,7 +121,7 @@ class ExtractAgent(BaseAgent):
             str: 适合放入提示词中的 JSON 字符串。
         """
         message = messages.get(LLMRole.system, LLMRole.user, LLMRole.assistant)
-        return message.json(ensure_ascii=False)
+        return json.dumps(message.model_dump(mode="json"), ensure_ascii=False, default=str)
 
     @staticmethod
     def latest_user_context(messages: Messages) -> Context | None:
@@ -153,9 +153,9 @@ class ExecutionReplyAgent(BaseAgent):
 
         prompt = await Prompt("execution_reply").render(
             {
-                "workflow": json.dumps(workflow.dict(), ensure_ascii=False, default=str),
+                "workflow": json.dumps(workflow.model_dump(), ensure_ascii=False, default=str),
                 "observations": json.dumps(
-                    [observation.dict() for observation in observations],
+                    [observation.model_dump() for observation in observations],
                     ensure_ascii=False,
                     default=str,
                 ),

@@ -1,5 +1,5 @@
-from pathlib import Path
 import logging
+from pathlib import Path
 
 import pdf2image
 from src.shared.tools.sync import run_sync

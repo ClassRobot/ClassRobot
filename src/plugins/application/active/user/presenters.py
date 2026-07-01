@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from src.models import User
-from src.core.auth import StudentRoleLang
 from src.shared.tools import StringCard
+from src.core.auth import StudentRoleLang
 
 
 async def render_user_card(user: User) -> str:

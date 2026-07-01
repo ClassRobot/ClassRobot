@@ -1,19 +1,19 @@
 from uuid import uuid4
 
 from src.shared import Emoji
-from src.core.cache import get_cache
 from nonebot.matcher import Matcher
-from src.platform.session import EventSession
+from src.core.cache import get_cache
 from src.models import User, UserBind
+from src.platform.session import EventSession
 from src.core.auth import UserRole, UserRoleLang
 from nonebot.params import ArgPlainText, EventPlainText
 from nonebot_plugin_alconna import UniMessage, AlconnaMatcher
 from src.platform.session.depends import UserDepends, UserOrCreatedDepends
 
-from .commands import token_cmd, logout_cmd, bind_user_cmd, self_info_cmd
-from .presenters import render_user_card
 # 导入统一命令 service，确保插件加载时完成 command_executor 注册。
 from . import services as _
+from .presenters import render_user_card
+from .commands import token_cmd, logout_cmd, bind_user_cmd, self_info_cmd
 
 
 @self_info_cmd.handle()

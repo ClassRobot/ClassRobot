@@ -1,7 +1,7 @@
 from typing import Annotated
 
-from src.platform.helper import Helpers
 from nonebot.params import Depends
+from src.platform.helper import Helpers
 from src.platform.session.depends import UserOrCreatedDepends
 
 from .config import helper_menu

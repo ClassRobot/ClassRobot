@@ -18,7 +18,7 @@ def _config_payload(config, *, mask: bool = True) -> dict[str, Any]:
     Returns:
         dict[str, Any]: 可供管理端直接消费的模型配置字典。
     """
-    payload = config.dict(exclude_none=True)
+    payload = config.model_dump(exclude_none=True)
     if mask:
         payload["key"] = mask_secret(payload.get("key"))
     return payload

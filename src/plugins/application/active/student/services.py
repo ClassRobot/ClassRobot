@@ -1,8 +1,13 @@
 from __future__ import annotations
 
-from src.platform.commands import CommandExecutionContext, CommandResult, command_executor
 from src.models import User, Student
-from src.plugins.application.active.student.field_aliases import is_user_key, get_column_key, is_student_key, is_student_extra_key
+from src.platform.commands import CommandResult, CommandExecutionContext, command_executor
+from src.plugins.application.active.student.field_aliases import (
+    is_user_key,
+    get_column_key,
+    is_student_key,
+    is_student_extra_key,
+)
 
 from .presenters import render_student_card
 
@@ -28,9 +33,9 @@ async def can_manage_student(operator: User, student: Student) -> bool:
     relation = next((item for item in teacher.classes if item.id == student.classes_id), None)
     if relation is None:
         return False
-    from src.plugins.application.active.classes.services import CLASS_MANAGER_ROLES
     from src.models import TeacherClasses
     from src.core.auth import TeacherClassesRole
+    from src.plugins.application.active.classes.services import CLASS_MANAGER_ROLES
 
     teacher_classes = await TeacherClasses.filter(teacher_id=teacher.id, classes_id=student.classes_id).first()
     return teacher_classes is not None and TeacherClassesRole(teacher_classes.role) in CLASS_MANAGER_ROLES

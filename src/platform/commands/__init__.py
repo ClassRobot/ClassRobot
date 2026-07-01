@@ -3,6 +3,7 @@ from .result import CommandResult
 from .policy import CommandPolicy, command_policy
 from .executor import CommandExecutor, command_executor
 from .registry import CommandRegistry, command_registry
+from .cli import CommandCLI, CommandCLIInvocation, command_cli
 from .schema import CommandParam, CommandRiskLevel, CommandExecutionMode
 from .availability import CommandAvailabilityService, command_availability
 from .context import CommandParams, CommandInvoker, CommandExecutionContext, normalize_user_roles
@@ -20,6 +21,8 @@ __all__ = [
     "CommandExecutionMode",
     "CommandExecutionContext",
     "CommandExecutor",
+    "CommandCLI",
+    "CommandCLIInvocation",
     "CommandInputRecorder",
     "CommandInvoker",
     "CommandParam",
@@ -34,6 +37,7 @@ __all__ = [
     "command_alconna",
     "command_availability",
     "command_command",
+    "command_cli",
     "command_executor",
     "command_policy",
     "command_result_text",

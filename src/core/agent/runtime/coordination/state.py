@@ -4,7 +4,7 @@ from dataclasses import field, dataclass
 
 from src.core.llm.message import Content, Context
 
-from ..schema import AgentPlan, RuntimeScene, IntentRoute, AutoTaskList
+from ..schema import AgentPlan, IntentRoute, AutoTaskList, RuntimeScene
 
 
 @dataclass(slots=True)

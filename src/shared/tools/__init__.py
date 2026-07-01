@@ -7,6 +7,7 @@ from filetype import guess_extension
 
 class StringCard:
     """按统一格式拼装文本卡片内容。"""
+
     left_top = "┌"
     right_top = "┐"
     left_bottom = "└"

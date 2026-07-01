@@ -12,10 +12,11 @@ from src.core.agent.prompts import Prompt
 from src.core.llm.message import Messages
 from src.core.mcp import MCPClient, MCPToolCatalog
 from src.core.llm import LLMTaskType, client_create
-from pydantic import Extra, Field, BaseModel, validator
+from pydantic import Field, BaseModel, ConfigDict, field_validator
 from src.core.mcp.observation import params_to_arguments, mcp_result_to_observation
 
 from .execution import ActionRequest
+from .formatting import preview_text
 from .command_tools import CommandToolCatalog
 from .live_trace import agent_live_trace_registry
 from .observation_quality import ObservationQualityGate, build_safe_execution_fallback
@@ -49,16 +50,15 @@ class AgentLoopConfig(BaseModel):
     预算，但不能绕过预算。
     """
 
-    class Config:
-        extra = Extra.ignore
-        allow_population_by_field_name = True
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
     max_steps: int = Field(default=8, alias="agent_loop_max_steps")
     max_verify_attempts: int = Field(default=3, alias="agent_loop_max_verify_attempts")
     max_repeat_actions: int = Field(default=2, alias="agent_loop_max_repeat_actions")
     max_runtime_seconds: int = Field(default=120, alias="agent_loop_max_runtime_seconds")
 
-    @validator("max_steps", "max_verify_attempts", "max_repeat_actions", "max_runtime_seconds", pre=True)
+    @field_validator("max_steps", "max_verify_attempts", "max_repeat_actions", "max_runtime_seconds", mode="before")
+    @classmethod
     def normalize_positive_int(cls, value: object) -> int:
         """把环境变量里的字符串转成正整数，非法值回退到字段默认值。"""
 
@@ -103,14 +103,14 @@ class AgentLoopConfig(BaseModel):
         for env_key, config_key in env_key_map.items():
             if env_key in os.environ:
                 data[config_key] = os.environ[env_key]
-        config = cls.parse_obj(data)
+        config = cls.model_validate(data)
         return config.with_safe_defaults()
 
     def with_safe_defaults(self) -> "AgentLoopConfig":
         """避免把非正数配置成无限循环或不可用循环。"""
 
         defaults = type(self)()
-        values = self.dict()
+        values = self.model_dump()
         for field_name, value in values.items():
             if value <= 0:
                 values[field_name] = getattr(defaults, field_name)
@@ -285,7 +285,7 @@ class LoopBudget:
     def action_key(cls, decision: AgentLoopDecision) -> str:
         """把动作归一化为重复调用检测键。"""
 
-        params = [param.dict() for param in decision.params]
+        params = [param.model_dump() for param in decision.params]
         return json.dumps(
             {
                 "action_type": decision.action_type,
@@ -473,17 +473,6 @@ DecisionProvider = Callable[
 ProgressReporter = Callable[[str], Awaitable[None]]
 
 
-def preview_text(text: str | None, limit: int = 180) -> str:
-    """生成适合日志输出的短文本预览。"""
-
-    if not text:
-        return ""
-    compact = " ".join(text.split())
-    if len(compact) <= limit:
-        return compact
-    return compact[: limit - 3] + "..."
-
-
 class CognitiveAgentLoop:
     """通用观察驱动循环执行器。
 
@@ -574,7 +563,7 @@ class CognitiveAgentLoop:
                 tool_name=decision.capability_name,
                 params_preview={
                     "action_type": decision.action_type,
-                    "params": [param.dict() for param in decision.params],
+                    "params": [param.model_dump() for param in decision.params],
                     "verify_target": decision.verify_target,
                     "reason": decision.reason,
                 },
@@ -704,16 +693,16 @@ class CognitiveAgentLoop:
         try:
             prompt = await Prompt("agent_loop_decision").render(
                 {
-                    "workflow": json.dumps(workflow.dict(), ensure_ascii=False, default=str),
+                    "workflow": json.dumps(workflow.model_dump(), ensure_ascii=False, default=str),
                     "pending_steps": json.dumps(
-                        [step.dict() for step in pending_steps], ensure_ascii=False, default=str
+                        [step.model_dump() for step in pending_steps], ensure_ascii=False, default=str
                     ),
                     "observations": json.dumps(
-                        [observation.dict() for observation in observations[-6:]],
+                        [observation.model_dump() for observation in observations[-6:]],
                         ensure_ascii=False,
                         default=str,
                     ),
-                    "facts": json.dumps([fact.dict() for fact in facts[-6:]], ensure_ascii=False, default=str),
+                    "facts": json.dumps([fact.model_dump() for fact in facts[-6:]], ensure_ascii=False, default=str),
                     "capabilities": self.capabilities.to_prompt(),
                     "budget": json.dumps(budget.snapshot(), ensure_ascii=False, default=str),
                 }
@@ -728,7 +717,7 @@ class CognitiveAgentLoop:
                 llm_name=self.resolve_supervisor_model_name(),
             )
             content = response.choices[0].message.content or "{}"
-            return self.normalize_model_decision(AgentLoopDecision.parse_obj(json_loads(content)))
+            return self.normalize_model_decision(AgentLoopDecision.model_validate(json_loads(content)))
         except Exception as error:
             logger.warning(f'AutoGPT trace "{workflow.trace_id}" loop decision failed: {error}')
             return AgentLoopDecision(action_type="finish", reason="无法可靠生成下一步动作，基于已有观察结束。")
@@ -896,7 +885,7 @@ class CognitiveAgentLoop:
             workflow_kind=workflow.kind,
             step_id=step.step_id,
             tool_name=task.command,
-            params_preview={"action_request": action_request.dict()},
+            params_preview={"action_request": action_request.model_dump()},
         )
         try:
             observations = await self.dispatcher(task)
@@ -1020,7 +1009,7 @@ class CognitiveAgentLoop:
             workflow_kind=workflow.kind,
             step_id=step.step_id,
             tool_name=tool_name,
-            params_preview={"action_request": action_request.dict()},
+            params_preview={"action_request": action_request.model_dump()},
         )
         try:
             call_result = await self.mcp_client.call_tool(tool_name, arguments)
@@ -1258,4 +1247,7 @@ class CognitiveAgentLoop:
         budget_text = ""
         if budget is not None:
             budget_text = f" 当前循环预算：已执行 {budget.steps_used}/{budget.config.max_steps} 步。"
-        return f"我已经尝试了 {attempts}，但目前还不能继续确认结果。{reason}{budget_text}" "我先停止继续消耗资源；你可以稍后让我重新尝试，或补充更多条件后我再继续。"
+        return (
+            f"我已经尝试了 {attempts}，但目前还不能继续确认结果。{reason}{budget_text}"
+            "我先停止继续消耗资源；你可以稍后让我重新尝试，或补充更多条件后我再继续。"
+        )

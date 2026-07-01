@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import Depends, APIRouter, HTTPException, status
 
 from .. import audit
-from ..catalog import skills as skill_service
 from ..security import manager_auth
+from ..catalog import skills as skill_service
 
 router = APIRouter()
 

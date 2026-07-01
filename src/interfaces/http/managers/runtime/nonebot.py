@@ -2,16 +2,15 @@ from __future__ import annotations
 
 import ast
 import tomllib
-from collections import Counter
 from pathlib import Path
+from collections import Counter
 from typing import Any, Iterable
 
-from nonebot import get_adapters, get_bots, get_driver, get_loaded_plugins
-
 from src.platform.config import project_root
+from nonebot import get_bots, get_driver, get_adapters, get_loaded_plugins
 
-from .command_state import load_availability_state
 from ..service import relative_to_project
+from .command_state import load_availability_state
 
 PYPROJECT_PATH = project_root / "pyproject.toml"
 SOURCE_ROOTS = (

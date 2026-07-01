@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import Depends, APIRouter, HTTPException, status
 
 from .. import audit
-from ..runtime import command_state, nonebot
-from ..schemas import AvailabilityUpdateRequest
 from ..security import manager_auth
+from ..runtime import nonebot, command_state
+from ..schemas import AvailabilityUpdateRequest
 
 router = APIRouter()
 

@@ -79,6 +79,7 @@ SERVER_CLOSED_CONNECTION_ERROR = "Connection closed by server."
 
 class _Sentinel(enum.Enum):
     """定义sentinel枚举。"""
+
     sentinel = object()
 
 
@@ -97,6 +98,7 @@ EncodableT = Union[EncodedT, DecodedT]
 
 class _HiredisReaderArgs(TypedDict, total=False):
     """处理hiredisreader位置参数相关逻辑。"""
+
     protocolError: Callable[[str], Exception]
     replyError: Callable[[str], Exception]
     encoding: Optional[str]
@@ -664,6 +666,7 @@ else:
 
 class ConnectCallbackProtocol(Protocol):
     """定义connectcallbackprotocol协议接口。"""
+
     def __call__(self, connection: "Connection"):
         """调用实例并返回结果。
 
@@ -675,6 +678,7 @@ class ConnectCallbackProtocol(Protocol):
 
 class AsyncConnectCallbackProtocol(Protocol):
     """定义asyncconnectcallbackprotocol协议接口。"""
+
     async def __call__(self, connection: "Connection"):
         """调用实例并返回结果。
 
@@ -1155,6 +1159,7 @@ class Connection:
 
 class SSLConnection(Connection):
     """处理sslconnection相关逻辑。"""
+
     def __init__(
         self,
         ssl_keyfile: Optional[str] = None,
@@ -1211,6 +1216,7 @@ class SSLConnection(Connection):
 
 class RedisSSLContext:
     """定义redissslcontext数据结构。"""
+
     __slots__ = (
         "keyfile",
         "certfile",
@@ -1270,6 +1276,7 @@ class RedisSSLContext:
 
 class UnixDomainSocketConnection(Connection):  # lgtm [py/missing-call-to-init]
     """处理unixdomainsocketconnection相关逻辑。"""
+
     def __init__(
         self,
         *,
@@ -1386,6 +1393,7 @@ URL_QUERY_ARGUMENT_PARSERS: Mapping[str, Callable[..., object]] = MappingProxyTy
 
 class ConnectKwargs(TypedDict, total=False):
     """处理connect关键字参数相关逻辑。"""
+
     username: str
     password: str
     connection_class: Type[Connection]

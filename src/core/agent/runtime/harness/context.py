@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from dataclasses import field, dataclass
 
 from src.core.llm.message import LLMRole, Messages
@@ -21,4 +22,8 @@ class ContextHarness:
         """序列化最近若干轮消息，供轻量路由和规划使用。"""
 
         recent_messages = Messages(messages=self.messages.messages[-keep_recent:])
-        return recent_messages.get(LLMRole.user, LLMRole.assistant).json(ensure_ascii=False)
+        return json.dumps(
+            recent_messages.get(LLMRole.user, LLMRole.assistant).model_dump(mode="json"),
+            ensure_ascii=False,
+            default=str,
+        )

@@ -1,7 +1,7 @@
 from nonebot import on_command
-from src.platform.commands import CommandBinding, on_agent_command
 from src.platform.config import priority, comp_config
 from nonebot_plugin_alconna import Args, Field, Alconna, MultiVar
+from src.platform.commands import CommandBinding, on_agent_command
 
 notice_cmd = on_command(
     "创建通知",

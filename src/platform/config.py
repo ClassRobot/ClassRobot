@@ -4,14 +4,17 @@ from pathlib import Path
 import certifi
 from tarina import lang
 from nonebot import get_driver
-from pydantic import Extra, BaseModel
+from pydantic import BaseModel, ConfigDict
 from nonebot_plugin_alconna.model import CompConfig
 from arclet.alconna.config import config as alc_config
 from nonebot_plugin_localstore import get_data_dir, get_cache_dir, get_config_dir
 
 
-class GlobalConfig(BaseModel, extra=Extra.ignore):
+class GlobalConfig(BaseModel):
     """定义项目运行时使用的全局配置项。"""
+
+    model_config = ConfigDict(extra="ignore")
+
     wsl_share_dir: Path | None = None
     "WSL共享目录"
     global_proxy: str | None = None
@@ -44,7 +47,7 @@ lang.load_data(
         }
     },
 )
-global_config = GlobalConfig.parse_obj(get_driver().config)
+global_config = GlobalConfig.model_validate(get_driver().config.model_dump())
 comp_config = CompConfig(
     exit="退出",
     lite=False,

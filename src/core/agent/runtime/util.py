@@ -16,11 +16,13 @@ from src.core.llm.util import uni_message_to_contents
 from src.core.agent.builtin import ExecutionReplyAgent
 from src.platform.helper.depends import HelpersDepends
 from src.platform.session.depends import UserOrCreatedDepends
+from src.core.storage import MessageActorRole, chat_history_store
 from src.core.llm.message import Content, Context, LLMRole, Messages
 from src.core.agent.builtin.conversation import ExecutionReplyAgentConfig
 
 from .context import ContextPack
 from .harness import AutoGPTHarness
+from .formatting import preview_text
 from .loop import CognitiveAgentLoop
 from .knowledge import RuntimeContext
 from .exception import SessionLockError
@@ -53,17 +55,6 @@ pattern = r"!\[image\]\(([^)]+)\)"
 ProgressReporter = Callable[[str], Awaitable[None]]
 CONFIRM_PATTERNS = ("确认", "继续执行", "继续吧", "执行吧", "可以执行", "好的执行", "确认执行")
 CANCEL_PATTERNS = ("取消", "不用了", "算了", "停止", "终止", "先别执行", "取消执行")
-
-
-def preview_text(text: str | None, limit: int = 180) -> str:
-    """生成适合日志输出的短文本预览。"""
-
-    if not text:
-        return ""
-    compact = " ".join(text.split())
-    if len(compact) <= limit:
-        return compact
-    return compact[: limit - 3] + "..."
 
 
 def preview_contents(contents: list[Content], limit: int = 180) -> str:
@@ -155,6 +146,7 @@ class ChatSession:
         self.last_runtime_role_records: list[RuntimeRoleTraceRecord] = []
         self.last_mcp_tools = MCPToolCatalog()
         self.pending_workflow: TaskWorkflow | None = None
+        self.history_backfilled = False
         self.workflow_checkpoint_store = WorkflowCheckpointStore()
         self.workflow_run_store = WorkflowRunStore()
         self.agent_host = AgentHost()
@@ -188,6 +180,51 @@ class ChatSession:
             self.messages[0].content = prompts
         else:
             self.messages.system_message(prompts)
+
+    async def backfill_recent_history(self, limit: int = 8, exclude_message_id: str | None = None) -> None:
+        """会话首次创建时，从持久化聊天记录回填最近的人机对话。
+
+        进程内 ``messages`` 在超时清理或重启后会丢失，导致同一用户隔一会儿
+        再聊时，Agent 看不到上一段对话。这里在会话刚创建时，从 DB 拉取最近
+        若干条用户/助手消息，压缩成一条带标记的助手备注注入上下文，让 Agent
+        能承接跨会话记忆，同时不破坏正常的逐轮 user/assistant 结构。
+
+        参数:
+            limit (int): 最多回填多少条最近消息。
+            exclude_message_id (str | None): 当前正在处理的消息 ID，避免被被动采集后又回填给模型。
+        """
+
+        if self.history_backfilled:
+            return
+        # 仅在“只有系统提示词、还没有任何对话”时回填，避免重复注入或污染在途会话。
+        non_system = [message for message in self.messages.messages if getattr(message, "role", None) != LLMRole.system]
+        if non_system:
+            return
+        self.history_backfilled = True
+        try:
+            records = await chat_history_store.search_user_chat_messages(
+                self.user_id,
+                None,
+                limit=limit,
+                exclude_message_id=exclude_message_id,
+            )
+        except Exception as error:
+            logger.warning(f"AutoGPT history backfill failed for user {self.user_id}: {error}")
+            return
+        if not records:
+            return
+        lines: list[str] = []
+        for record in records:
+            speaker = "机器人" if record.actor_role == MessageActorRole.assistant else (record.user_name or "用户")
+            text = preview_text(record.display_text, limit=200)
+            if text:
+                lines.append(f"[{record.created_at.strftime('%m-%d %H:%M')}] {speaker}: {text}")
+        if not lines:
+            return
+        self.messages.assistant_message(
+            "# 历史会话回填\n以下是该用户最近的人机对话，供承接上下文参考：\n" + "\n".join(lines)
+        )
+        logger.info(f"AutoGPT backfilled {len(lines)} history lines for user {self.user_id}")
 
     async def send_message(
         self,
@@ -223,6 +260,9 @@ class ChatSession:
                 message_preview=message_preview,
                 runtime_context=runtime_context,
                 pending_workflow=self.pending_workflow,
+            )
+            await self.backfill_recent_history(
+                exclude_message_id=runtime_context.message_id if runtime_context is not None else None
             )
             self.last_context_pack = self.agent_host.build_context_pack(self.last_turn_envelope, self)
             logger.info(f'AutoGPT trace "{self.last_trace_id}" started for user {self.user_id}')
@@ -354,7 +394,7 @@ class ChatSession:
         marker = f"# 系统最终回复记录\ntrace_id: {current_trace_id}\n"
         if any(marker in message.single_modal() for message in self.messages.messages):
             return
-        self.messages.assistant_message(marker + json.dumps(record.dict(), ensure_ascii=False, default=str))
+        self.messages.assistant_message(marker + json.dumps(record.model_dump(), ensure_ascii=False, default=str))
 
     def build_harness(
         self,
@@ -386,7 +426,7 @@ class ChatSession:
             f'AutoGPT trace "{current_trace_id}" recording {len(observations)} observations '
             f"commands={[observation.command for observation in observations]}"
         )
-        payload = [observation.dict() for observation in observations]
+        payload = [observation.model_dump() for observation in observations]
         content = json.dumps(payload, ensure_ascii=False, default=str)
         self.messages.assistant_message(f"# 系统命令执行观察\ntrace_id: {current_trace_id}\n{content}")
 
@@ -562,7 +602,7 @@ class ChatSession:
                 continue
             tool = self.last_mcp_tools.get(step.command)
             if tool is not None:
-                catalog.append(tool.copy(deep=True))
+                catalog.append(tool.model_copy(deep=True))
                 continue
             catalog.append(MCPTool(name=step.command, description=step.description or step.title))
         return catalog
@@ -638,7 +678,7 @@ class ChatSession:
         current_trace_id = trace_id or workflow.trace_id or self.last_trace_id
         self.last_workflow = workflow
         if workflow_requires_confirmation(workflow) and workflow.status == "needs_confirm":
-            self.pending_workflow = workflow.copy(deep=True)
+            self.pending_workflow = workflow.model_copy(deep=True)
         elif workflow.status in {"completed", "failed", "cancelled"} or not workflow.need_confirm:
             self.pending_workflow = None
         logger.info(
@@ -665,7 +705,7 @@ class ChatSession:
         if workflow is None:
             return None
 
-        self.pending_workflow = workflow.copy(deep=True)
+        self.pending_workflow = workflow.model_copy(deep=True)
         self.last_workflow = workflow
         self.append_workflow_message(workflow, trace_id=workflow.trace_id)
         return self.pending_workflow
@@ -688,7 +728,7 @@ class ChatSession:
         self.messages.user_message(contents)
         current_trace_id = trace_id or self.last_trace_id
         if decision == "cancel":
-            cancelled_workflow = self.pending_workflow.copy(deep=True)
+            cancelled_workflow = self.pending_workflow.model_copy(deep=True)
             cancelled_workflow.status = "cancelled"
             if cancelled_workflow.approval.required:
                 cancelled_workflow.approval.status = "rejected"
@@ -755,7 +795,7 @@ class ChatSession:
     def append_workflow_message(self, workflow: TaskWorkflow, trace_id: str = "") -> None:
         """把工作流快照写入会话消息，便于后续轮次继续引用。"""
 
-        content = json.dumps(workflow.dict(), ensure_ascii=False, default=str)
+        content = json.dumps(workflow.model_dump(), ensure_ascii=False, default=str)
         self.messages.assistant_message(
             f"# 系统工作流状态\ntrace_id: {trace_id or workflow.trace_id or self.last_trace_id}\n{content}"
         )
@@ -799,9 +839,10 @@ class ChatSessionManager:
 
         if session := self.sessions.get(user_id):
             session.update_time = time()
+            await session.update_helpers(helpers)
         else:
             session = ChatSession(user_id, helpers)
-        await session.update_helpers(helpers)
+            await session.update_helpers(helpers)
         self.sessions[user_id] = session
         return session
 

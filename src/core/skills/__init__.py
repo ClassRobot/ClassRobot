@@ -1,6 +1,6 @@
-from .base import BaseProjectSkill, SkillManifest
+from .base import SkillManifest, BaseProjectSkill
 from .registry import SkillRegistry, skill_registry
-from .runtime import DocumentToImageSkill, ImageGenerationSkill, MarkdownToImageSkill, OCRSkill, QRCodeSkill
+from .runtime import OCRSkill, QRCodeSkill, DocumentToImageSkill, ImageGenerationSkill, MarkdownToImageSkill
 
 
 class LazySkillProxy:

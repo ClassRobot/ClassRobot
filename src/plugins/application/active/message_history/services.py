@@ -51,7 +51,7 @@ async def summarize_chat_history(params: dict, context: CommandExecutionContext)
             "已统计当前系统群聊天记录。",
             visible_outputs=[output],
             context_outputs=[output],
-            data={"scope": request.scope, "window": request.window, "group_id": group_id, **summary.dict()},
+            data={"scope": request.scope, "window": request.window, "group_id": group_id, **summary.model_dump()},
         )
 
     if context.user_id is None:
@@ -67,7 +67,7 @@ async def summarize_chat_history(params: dict, context: CommandExecutionContext)
         "已统计当前用户私聊记录。",
         visible_outputs=[output],
         context_outputs=[output],
-        data={"scope": request.scope, "window": request.window, "user_id": context.user_id, **summary.dict()},
+        data={"scope": request.scope, "window": request.window, "user_id": context.user_id, **summary.model_dump()},
     )
 
 

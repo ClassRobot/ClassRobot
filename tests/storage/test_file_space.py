@@ -31,7 +31,7 @@ def test_file_space_keeps_cwd_inside_home(loaded_plugins, tmp_path):
 
 
 def test_file_space_rejects_query_and_delete_escape(loaded_plugins, tmp_path):
-    from src.core.storage import PathEscapeError, StorageManager
+    from src.core.storage import StorageManager, PathEscapeError
 
     manager = StorageManager(tmp_path / "storage")
     user_a = manager.user_space("A")

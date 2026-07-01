@@ -112,8 +112,12 @@
 └── users/
     └── {user_id}/
         └── chat/
-            └── messages.db
+            ├── messages.db
+            └── daily/
+                └── YYYY-MM-DD.jsonl
 ```
+
+`messages.db` 是查询、统计和去重的主索引；`users/{user_id}/chat/daily/*.jsonl` 是用户聊天记录的按天时间线镜像。每日镜像面向后续日期检索、用户导出和长期记忆构建，写入前会先确认数据库插入成功，因此同一条消息重复上报不会重复追加到 JSONL。
 
 ## 核心字段
 
@@ -184,6 +188,8 @@ Agent 如果需要回顾系统群上下文，应优先调用 `检索群聊记录
 - 归属解析：[../../src/platform/session/resolvers.py](../../src/platform/session/resolvers.py)
 - 群历史能力服务：[../../src/plugins/library/message_history/services.py](../../src/plugins/library/message_history/services.py)
 - Agent 命令执行器：[../../src/plugins/application/active/message_history/services.py](../../src/plugins/application/active/message_history/services.py)
+
+按日期读取用户聊天时间线时，优先使用 `ChatHistoryStore.read_user_daily_messages(user_id, day)`，不要在业务代码中直接拼接 `daily/*.jsonl` 路径。
 
 ## 扩展原则
 

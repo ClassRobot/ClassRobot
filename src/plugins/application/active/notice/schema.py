@@ -6,12 +6,13 @@ from nonebot import logger
 from pydantic import BaseModel
 from src.core.llm.message import Content
 from nonebot_plugin_apscheduler import scheduler
-from apscheduler.jobstores.base import JobLookupError
 from src.models import User, Group, ScheduledNotice
+from apscheduler.jobstores.base import JobLookupError
 
 
 class NoticeGroup(BaseModel):
     "通知的群"
+
     group_id: int
     "通知的群ID"
     at_all: bool = False
@@ -22,12 +23,14 @@ class NoticeGroup(BaseModel):
 
 class NoticePrivate(BaseModel):
     "通知的私聊用户"
+
     user_id: int
     "通知的用户ID"
 
 
 class Notice(BaseModel):
     """描述通知消息的数据结构。"""
+
     id: int | None = None
     "通知事件"
     title: str
@@ -48,7 +51,7 @@ class Notice(BaseModel):
         返回:
             ScheduledNotice: 返回处理结果。
         """
-        self_dict = self.dict()
+        self_dict = self.model_dump()
         sn = await ScheduledNotice(
             title=self.title,
             notice_time=self.notice_time,
@@ -138,6 +141,7 @@ class Notice(BaseModel):
 
 class Notices(BaseModel):
     "通知列表"
+
     notices: list[Notice] = []
     "通知列表"
     reply: str

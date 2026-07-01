@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Any, Literal
 
 from nonebot import logger
-
 from src.platform.config import cache_dir
 
 from .config import plugin_config

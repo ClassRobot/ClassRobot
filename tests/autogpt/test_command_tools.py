@@ -77,7 +77,8 @@ def test_auto_task_params_to_service_dict_maps_text_params_by_command_spec(loade
             name="测试参数映射命令",
             description="测试参数映射",
             params=[
-                CommandParam(name="标题", description="标题"),
+                CommandParam(name="标题", description="标题", source_name="title"),
+                CommandParam(name="数量", description="数量", source_name="count", value_type="integer"),
                 CommandParam(name="内容", description="内容"),
             ],
             execution_mode="service",
@@ -89,6 +90,7 @@ def test_auto_task_params_to_service_dict_maps_text_params_by_command_spec(loade
             command="测试参数映射命令",
             params=[
                 Param(type="text", value="通知标题"),
+                Param(type="text", value="3"),
                 Param(type="text", value="通知正文"),
                 Param(type="image", value="https://example.com/a.png"),
             ],
@@ -97,6 +99,9 @@ def test_auto_task_params_to_service_dict_maps_text_params_by_command_spec(loade
 
     assert payload == {
         "标题": "通知标题",
+        "title": "通知标题",
+        "数量": 3,
+        "count": 3,
         "内容": "通知正文",
         "images": ["https://example.com/a.png"],
     }

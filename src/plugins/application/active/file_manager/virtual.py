@@ -6,15 +6,14 @@ from pathlib import Path
 from typing import Literal
 
 from nonebot.adapters import Event
-from pydantic import BaseModel, Field
-
-from src.platform.commands import CommandExecutionContext
-from src.platform.session.resolvers import resolve_bound_group_id, resolve_or_create_bound_group
-from src.models import Classes, College, Group, School, TeacherClasses, User
 from src.core.auth import StudentRole
 from src.platform.session import BaseSession
-from src.core.storage import FileEntry, FileSpace, FileSpaceError, PathEscapeError, StorageManager, storage_manager
+from pydantic import Field, BaseModel, ConfigDict
+from src.platform.commands import CommandExecutionContext
+from src.models import User, Group, School, Classes, College, TeacherClasses
 from src.core.storage.files import FileSpaceKind, split_path, validate_segment
+from src.platform.session.resolvers import resolve_bound_group_id, resolve_or_create_bound_group
+from src.core.storage import FileEntry, FileSpace, FileSpaceError, StorageManager, PathEscapeError, storage_manager
 
 VIRTUAL_STATE_FILE_NAME = "file_manager_cwd.json"
 """文件管理虚拟工作区的当前目录状态文件名。"""
@@ -67,9 +66,7 @@ class FileMount(BaseModel):
     space: FileSpace
     writable: bool = False
     readonly_reason: str | None = None
-
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     @property
     def key(self) -> str:
@@ -101,9 +98,7 @@ class ResolvedWorkspaceTarget(BaseModel):
     space: FileSpace | None = None
     mount: FileMount | None = None
     category: MountCategory | None = None
-
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     @property
     def is_physical(self) -> bool:
@@ -374,7 +369,7 @@ class VirtualFileWorkspace:
 
         if self.state_file.exists():
             try:
-                state = FileWorkspaceState.parse_obj(json.loads(self.state_file.read_text(encoding="utf-8")))
+                state = FileWorkspaceState.model_validate(json.loads(self.state_file.read_text(encoding="utf-8")))
                 return tuple(state.parts)
             except (OSError, ValueError, TypeError):
                 return tuple()
@@ -385,7 +380,10 @@ class VirtualFileWorkspace:
 
         self.personal_space.chat_dir.mkdir(parents=True, exist_ok=True)
         state = FileWorkspaceState(parts=parts)
-        self.state_file.write_text(state.json(ensure_ascii=False), encoding="utf-8")
+        self.state_file.write_text(
+            json.dumps(state.model_dump(mode="json"), ensure_ascii=False),
+            encoding="utf-8",
+        )
 
     def _parse_parts(self, path: str | None, *, clamp_escape: bool, reject_escape: bool) -> tuple[str, ...]:
         """把用户输入路径拆解为虚拟路径片段。"""
@@ -548,7 +546,7 @@ class VirtualFileWorkspace:
         relative_parts = display_to_parts(entry.path)
         return FileEntry(
             **{
-                **entry.dict(),
+                **entry.model_dump(),
                 "path": display_path_from_parts((*target.mount.path_parts, *relative_parts)),
                 "readonly": not target.mount.writable,
                 "kind": entry.kind or target.mount.kind.value,

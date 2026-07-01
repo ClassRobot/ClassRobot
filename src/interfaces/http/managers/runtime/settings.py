@@ -7,11 +7,10 @@ from typing import Any
 from pathlib import Path
 
 from nonebot import get_driver
-
-from src.platform.config import project_root
 from src.core.llm.config import LLMConfig
-from src.core.mcp.config import load_mcp_config
+from src.platform.config import project_root
 from src.core.auth.crypto import EncryptConfig
+from src.core.mcp.config import load_mcp_config
 from src.core.llm.config import plugin_config as llm_config
 from src.core.cache.config import plugin_config as cache_config
 from src.core.storage.object_store import plugin_config as cos_config
@@ -90,7 +89,7 @@ def _encrypt_config() -> EncryptConfig:
     Returns:
         EncryptConfig: 解析后的加密配置。
     """
-    return EncryptConfig.parse_obj(_get_manager_driver().config.dict())
+    return EncryptConfig.model_validate(_get_manager_driver().config.model_dump())
 
 
 def _model_configs_payload(mask: bool = True) -> list[dict[str, Any]]:
@@ -104,7 +103,7 @@ def _model_configs_payload(mask: bool = True) -> list[dict[str, Any]]:
     """
     configs = []
     for config in llm_config.llm_configs:
-        item = config.dict(exclude_none=True)
+        item = config.model_dump(exclude_none=True)
         if mask:
             item["key"] = mask_secret(item.get("key"))
         configs.append(item)
@@ -253,7 +252,7 @@ def _normalize_config_value(value: Any) -> Any:
     if hasattr(value, "model_dump"):
         return _normalize_config_value(value.model_dump())
     if hasattr(value, "dict"):
-        return _normalize_config_value(value.dict())
+        return _normalize_config_value(value.model_dump())
     return str(value)
 
 
@@ -445,7 +444,7 @@ def _validate_model_configs(value: Any, field: str) -> list[dict[str, Any]]:
         if not isinstance(item, dict):
             raise ValueError(f"Setting `{field}[{index}]` must be an object")
         try:
-            config = LLMConfig.parse_obj(item)
+            config = LLMConfig.model_validate(item)
         except Exception as error:  # noqa: BLE001
             raise ValueError(f"Setting `{field}[{index}]` is invalid: {error}") from error
         for key in ("name", "key", "url", "model"):
@@ -460,7 +459,7 @@ def _validate_model_configs(value: Any, field: str) -> list[dict[str, Any]]:
         if config.name in names:
             raise ValueError(f"Setting `{field}` contains duplicate model name `{config.name}`")
         names.add(config.name)
-        items.append(config.dict(exclude_none=True))
+        items.append(config.model_dump(exclude_none=True))
     return items
 
 

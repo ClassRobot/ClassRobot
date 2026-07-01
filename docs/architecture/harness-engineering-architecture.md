@@ -139,7 +139,7 @@ Harness Engineering 的思路是反过来：
 - `src/core/agent/runtime/harness/runtime.py`
 - `src/core/agent/runtime/playbooks.py`
 - `src/core/agent/runtime/orchestration_config.py`
-- `src/core/agent/runtime/graph_executor.py`
+- `src/core/agent/runtime/langgraph_runtime.py`
 
 这一层的职责是：
 
@@ -218,7 +218,7 @@ Harness Engineering 的思路是反过来：
 | --- | --- | --- | --- |
 | Policy | `resources/prompts/`, `docs/`, `.codex/skills/`, `src/core/agent/runtime/harness/policy.py` | 已有，并开始落到显式代码入口 | 收敛为明确契约和评测标准 |
 | Context | `src/core/agent/runtime/knowledge.py`, `src/core/agent/runtime/harness/context.py`, `src/core/storage/*` | 已有聊天记录、本地 RAG、文件空间，并开始收敛上下文入口 | 抽象成可替换的 context engine |
-| Coordination | `src/core/agent/runtime/pipeline.py`, `schema.py`, `orchestration_config.py`, `graph_executor.py` | 已有热更新 Runtime 图、路由、计划和 AI 任务流 | 增强 tool loop、长期任务规划 |
+| Coordination | `src/core/agent/runtime/pipeline.py`, `schema.py`, `orchestration_config.py`, `langgraph_runtime.py` | 已有热更新 Runtime 图、路由、计划和 AI 任务流 | 增强 tool loop、长期任务规划 |
 | Execution | `src/core/agent/runtime/workflow.py`, `dispatch_auto_task()`, 命令系统 | 已能顺序执行命令并回填 observation | 统一 command/tool/skill 结果结构 |
 | Integration | `src/core/llm/`, `src/core/agent/`, skill runtime, adapters | 已接入模型、Agent、技能和 RAG | 逐步引入 MCP host 和外部服务 adapter |
 | Observability | `trace_id`, `src/core/agent/runtime/harness/observability.py`, workflow checkpoint/run | 已有基础，并开始把阶段反馈收敛到显式层次 | 增加评测、审批和后台可视化 |

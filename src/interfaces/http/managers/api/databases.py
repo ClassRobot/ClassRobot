@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import Query, Depends, APIRouter, HTTPException, status
 
 from .. import audit
-from ..database import service as database_service
-from ..schemas import DatabaseRowUpdateRequest
 from ..security import manager_auth
+from ..schemas import DatabaseRowUpdateRequest
+from ..database import service as database_service
 
 router = APIRouter()
 

@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-from nonebot.adapters import Event
-from nonebot_plugin_alconna import AlconnaMatcher
-from nonebot_plugin_waiter import waiter
-
 from src.shared import Emoji
-from src.models import Classes, College, Major, Organization, School
+from nonebot.adapters import Event
+from nonebot_plugin_waiter import waiter
+from nonebot_plugin_alconna import AlconnaMatcher
 from src.platform.session.depends import UserOrCreatedDepends
+from src.models import Major, School, Classes, College, Organization
 
 from .constants import IDENTITY_MAPPING, ORGANIZATION_TYPE_LABELS
 
@@ -174,7 +173,8 @@ async def get_organization_or_finish(
     if len(organizations) > 1:
         organization_types = "、".join(get_organization_type_label(org.organization_type) for org in organizations)
         await matcher.finish(
-            Emoji.error + f"学校`{school.name}`下存在多个同名组织`{organization_name}`，当前类型包括：{organization_types}"
+            Emoji.error
+            + f"学校`{school.name}`下存在多个同名组织`{organization_name}`，当前类型包括：{organization_types}"
         )
     return organizations[0]
 

@@ -314,7 +314,10 @@ def test_format_execution_status_marks_failed_command(loaded_plugins):
         ],
     )
 
-    assert format_execution_status(WorkflowExecutionResult(workflow=workflow)) == "已运行 2 条命令，其中 `查询班级` 没有完成。"
+    assert (
+        format_execution_status(WorkflowExecutionResult(workflow=workflow))
+        == "已运行 2 条命令，其中 `查询班级` 没有完成。"
+    )
 
 
 @pytest.mark.asyncio

@@ -4,7 +4,7 @@
 
 ## 设计目的
 
-AutoGPT 最初承担的是“自然语言转项目命令”的职责：用户用白话描述需求，系统根据当前用户可见的命令目录生成回复和 `AutoTaskList`，再通过 `AgentCommandAdapter -> CommandExecutor` 调用已 service 化的项目命令。
+AutoGPT 最初承担的是“自然语言转项目命令”的职责：用户用白话描述需求，系统根据当前用户可见的命令目录生成回复和 `AutoTaskList`，再通过 `CommandCLI -> CommandExecutor` 调用已 service 化的项目命令。
 
 它真正要解决的不是自由聊天，而是三件事：
 
@@ -88,7 +88,7 @@ flowchart TD
     H --> I["TaskWorkflow"]
     I --> J["WorkflowExecutor"]
     J --> K["dispatch_auto_task()"]
-    K --> L["AgentCommandAdapter / CommandExecutor / service"]
+    K --> L["CommandCLI / CommandExecutor / service"]
     L --> M["CommandObservation + Workflow 状态"]
     M --> B
 ```
@@ -122,7 +122,7 @@ flowchart TD
 | 消息驱动 Agent 编排 | `ChatSession + MessageProcessingPipeline` |
 | typed tool / capability catalog | `CommandToolCatalog` |
 | 用户消息定制工作流 | `IntentRoute + AgentPlan + WorkflowBuilder` |
-| 确定性执行 | `WorkflowExecutor + AgentCommandAdapter + CommandExecutor` |
+| 确定性执行 | `WorkflowExecutor + CommandCLI + CommandExecutor` |
 | 观察记录与追踪 | `trace_id + CommandObservation + record_workflow()` |
 | 多轮继续规划 | 会话历史 + 工作流状态回写 |
 
@@ -216,7 +216,7 @@ flowchart TD
 
 除了 run history，现在每条工作流快照里还会同步保留事件时间线。这样排查时不只能看到“最后状态是什么”，还能看到“先进入待确认，后被用户确认，再开始执行到第几步失败/完成”的顺序。
 
-命令工具目录目前用于 Planner、Router 和 AutoTask 提示词，以及候选命令校验。它不会暴露未 service 化命令。后续进入工具循环阶段时，可以把 `CommandTool.name` 暴露给 function calling，把模型返回的工具名映射回 `CommandTool.command`，再交给 `AgentCommandAdapter -> CommandExecutor` 执行。
+命令工具目录目前用于 Planner、Router 和 AutoTask 提示词，以及候选命令校验。它不会暴露未 service 化命令。后续进入工具循环阶段时，可以把 `CommandTool.name` 暴露给 function calling，把模型返回的工具名映射回 `CommandTool.command`，再交给 `CommandCLI -> CommandExecutor` 执行。
 
 用户反馈通过 `MessageProcessingPipeline` 的 `progress_reporter` 回调实现，发送失败只记录日志，不会中断主流程。反馈内容必须对用户有价值，默认最多发送一条“正在查资料/正在处理”的等待提示，不能把内部节点、模型规划或命令名直接暴露给用户。
 

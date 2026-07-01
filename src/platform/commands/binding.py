@@ -282,7 +282,7 @@ def _binding_for_agent_command(
     binding = binding or CommandBinding()
     if service_handler is None or binding.execution_mode != "matcher":
         return binding
-    return binding.copy(update={"execution_mode": "service"})
+    return binding.model_copy(update={"execution_mode": "service"})
 
 
 def _attach_agent_handler_decorator(matcher) -> None:
@@ -661,7 +661,7 @@ def _with_default_plugin(binding: CommandBinding | None, module_name: str | None
     if binding.plugin_module:
         return binding
     inferred_module = module_name or _caller_module_name() or ""
-    return binding.copy(update={"plugin_module": _plugin_module_from_module_name(inferred_module)})
+    return binding.model_copy(update={"plugin_module": _plugin_module_from_module_name(inferred_module)})
 
 
 def _caller_module_name() -> str | None:

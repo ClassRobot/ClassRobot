@@ -2,32 +2,31 @@ from __future__ import annotations
 
 import copy
 import math
-from datetime import date, datetime, time
-from decimal import Decimal, InvalidOperation
 from typing import Any
+from datetime import date, time, datetime
+from decimal import Decimal, InvalidOperation
 
+from nonebot_plugin_orm import get_session
+from sqlalchemy.exc import DataError, IntegrityError, StatementError, SQLAlchemyError
 from sqlalchemy import (
     JSON,
     Date,
+    Text,
     Time,
-    Table,
     Float,
+    Table,
     String,
     Boolean,
     Integer,
     Numeric,
-    MetaData,
     DateTime,
+    MetaData,
     LargeBinary,
-    Text,
     func,
-    inspect,
     select,
     update,
+    inspect,
 )
-from sqlalchemy.exc import DataError, IntegrityError, SQLAlchemyError, StatementError
-from nonebot_plugin_orm import get_session
-
 
 PRIMARY_DATABASE_ID = "primary"
 SENSITIVE_COLUMN_HINTS = ("password", "token", "secret", "credential", "authorization")
@@ -100,9 +99,7 @@ class RowUpdateError(ValueError):
             payload["hint"] = self.hint
         if self.detail:
             payload["detail"] = self.detail
-        payload.update(
-            {key: value for key, value in self.extra.items() if value is not None}
-        )
+        payload.update({key: value for key, value in self.extra.items() if value is not None})
         return payload
 
 
@@ -407,8 +404,7 @@ async def get_schema(
                 pk_constraint = inspector.get_pk_constraint(table_name, schema=schema) or {}
                 primary_keys = set(pk_constraint.get("constrained_columns") or [])
                 columns = [
-                    _column_payload(column, primary_keys)
-                    for column in inspector.get_columns(table_name, schema=schema)
+                    _column_payload(column, primary_keys) for column in inspector.get_columns(table_name, schema=schema)
                 ]
                 foreign_keys = [
                     _foreign_key_payload(table_name, foreign_key)
@@ -523,6 +519,7 @@ async def _reflect_table(
     Raises:
         TableNotFoundError: 当目标表不存在时抛出。
     """
+
     def reflect(sync_connection):
         if validate_exists:
             inspector = inspect(sync_connection)
@@ -803,14 +800,8 @@ async def update_table_row(
                 hint="主键修改风险较高，请通过数据迁移或专门维护脚本处理。",
             )
 
-        where_clause = [
-            table_columns[name] == _coerce_value(table_columns[name], pk[name])
-            for name in primary_key
-        ]
-        update_values = {
-            name: _coerce_value(table_columns[name], value)
-            for name, value in values.items()
-        }
+        where_clause = [table_columns[name] == _coerce_value(table_columns[name], pk[name]) for name in primary_key]
+        update_values = {name: _coerce_value(table_columns[name], value) for name, value in values.items()}
         try:
             result = await session.execute(update(table).where(*where_clause).values(**update_values))
             if result.rowcount == 0:

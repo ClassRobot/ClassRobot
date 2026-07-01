@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import Depends, APIRouter, HTTPException, status
 
 from .. import audit
-from ..runtime import settings as settings_store
 from ..schemas import SettingsPatchRequest
-from ..security import manager_auth, token_store
+from ..runtime import settings as settings_store
+from ..security import token_store, manager_auth
 
 router = APIRouter()
 
@@ -40,7 +40,7 @@ async def update_settings(payload: SettingsPatchRequest, session=Depends(manager
     """
 
     try:
-        result = settings_store.update_settings(payload.dict(exclude_unset=True))
+        result = settings_store.update_settings(payload.model_dump(exclude_unset=True))
         audit.log_event(
             "settings",
             "update_settings",

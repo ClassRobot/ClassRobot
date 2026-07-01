@@ -3,12 +3,11 @@ from __future__ import annotations
 import re
 import json
 import shutil
-from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
+from dataclasses import dataclass
 
 from pydantic import BaseModel
-
 from src.platform.config import storage_dir
 
 DEFAULT_HOME_DIRS = ("documents", "videos", "images", "audio")

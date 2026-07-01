@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from contextlib import suppress
 from typing import Any
+from contextlib import suppress
 
 from src.shared.packages.aioredis import Redis
-from src.shared.packages.aioredis.exceptions import ConnectionError as RedisConnectionError
 from src.shared.packages.aioredis.exceptions import TimeoutError as RedisTimeoutError
+from src.shared.packages.aioredis.exceptions import ConnectionError as RedisConnectionError
 
 RECOVERABLE_REDIS_ERRORS = (RedisConnectionError, RedisTimeoutError, OSError)
 

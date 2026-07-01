@@ -1,20 +1,18 @@
 from __future__ import annotations
 
-from datetime import datetime
 from enum import Enum
+from datetime import datetime
 from typing import Any, Iterable
 
 from nonebot.adapters import Bot, Event
-from nonebot_plugin_alconna import SerializeFailed, UniMessage
-from pydantic import BaseModel, Extra
-
+from pydantic import BaseModel, ConfigDict
 from src.platform.session import BaseSession
-from src.core.storage import MessageActorRole, chat_history_store, normalize_message_text, normalize_raw_message
-
+from nonebot_plugin_alconna import UniMessage, SerializeFailed
+from src.core.storage import MessageActorRole, chat_history_store, normalize_raw_message, normalize_message_text
 from src.platform.session.resolvers import (
+    resolve_private_user,
     resolve_or_create_bound_group,
     resolve_or_create_private_user,
-    resolve_private_user,
 )
 
 ALCONNA_TEXT_FALLBACK_ERRORS = (SerializeFailed, NotImplementedError, ValueError)
@@ -47,11 +45,7 @@ class MessageTextPayload(BaseModel):
 
         return bool(self.plain_text or self.raw_text)
 
-    class Config:
-        """定义消息文本模型的运行约束。"""
-
-        extra = Extra.forbid
-        allow_mutation = False
+    model_config = ConfigDict(extra="forbid", frozen=True)
 
 
 def resolve_sender_name(event: Event) -> str:
