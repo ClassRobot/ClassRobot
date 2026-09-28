@@ -4,8 +4,8 @@ from fastapi import Depends, APIRouter, HTTPException, status
 
 from .. import audit
 from ..schemas import SettingsPatchRequest
-from ..runtime import settings as settings_store
 from ..security import token_store, manager_auth
+from ..runtime import settings as settings_store
 
 router = APIRouter()
 
