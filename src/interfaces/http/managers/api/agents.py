@@ -8,8 +8,8 @@ from fastapi import Query, Depends, APIRouter, WebSocket, HTTPException, WebSock
 
 from .. import audit
 from ..agent import service as agent_service
-from ..schemas import AgentDesignerUpdateRequest
 from ..security import token_store, manager_auth
+from ..schemas import AgentDesignerUpdateRequest
 
 router = APIRouter()
 
