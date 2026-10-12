@@ -5,9 +5,9 @@ from typing import Any
 from src.shared import Emoji
 from src.platform.session import EventSession
 from nonebot_plugin_alconna import AlconnaMatcher
-from src.platform.commands import CommandResult, CommandExecutionContext, command_executor
-from src.core.auth import StudentRole, StudentRoleLang, TeacherRoleLang, TeacherClassesRole
 from src.models import User, Major, School, Classes, College, Student, Teacher, TeacherClasses
+from src.core.auth import StudentRole, StudentRoleLang, TeacherRoleLang, TeacherClassesRole
+from src.platform.commands import CommandResult, CommandExecutionContext, command_executor
 
 from .presenters import render_classes_card
 

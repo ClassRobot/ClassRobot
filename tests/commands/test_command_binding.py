@@ -367,8 +367,8 @@ def test_runtime_roles_package_replaced_delegation_source_path():
 def test_bootstrap_helper_runtime_collects_matcher_bound_helpers(loaded_plugins):
     from arclet.alconna import Alconna, CommandMeta
     from src.platform.helper.config import helper_menu
-    from src.platform.helper.runtime import bootstrap_helper_runtime
     from src.platform.commands import CommandBinding, command_alconna
+    from src.platform.helper.runtime import bootstrap_helper_runtime
 
     matcher = command_alconna(
         Alconna("测试绑定帮助", meta=CommandMeta(description="测试绑定帮助说明")),
