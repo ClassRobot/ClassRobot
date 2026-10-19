@@ -7,8 +7,8 @@ from src.core.llm.message import Context
 from src.core.storage.object_store import upload_file
 
 from ..ragflow import AsyncRagFlow
-from ..ragflow.client import ragflow_enabled
 from ..base import BaseAgent, BaseAgentConfig
+from ..ragflow.client import ragflow_enabled
 from ..ragflow.schema import Chunk, ChatBotMessage
 
 

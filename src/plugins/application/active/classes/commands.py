@@ -3,8 +3,8 @@ from typing import Optional
 from src.shared import ValidateName, tip
 from src.platform.files import FileOrOtherFile
 from src.platform.helper import UserRole, HelperScope
-from src.platform.commands import CommandBinding, on_agent_command
 from nonebot_plugin_alconna import Args, Field, Alconna, CommandMeta
+from src.platform.commands import CommandBinding, on_agent_command
 from src.platform.config import priority, comp_config, alcoona_kwargs
 
 import_classes_cmd = on_agent_command(

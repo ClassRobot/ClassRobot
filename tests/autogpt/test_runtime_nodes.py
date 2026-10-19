@@ -10,8 +10,8 @@ async def test_planner_node_includes_user_message_for_plan_request(loaded_plugin
     from src.platform.helper import Helpers
     from src.core.agent.runtime.schema import IntentRoute
     from src.core.agent.runtime.coordination.nodes import PlannerNode
-    from src.core.agent.runtime.coordination.state import PipelineState
     from src.core.llm.message import Content, Context, LLMRole, Messages
+    from src.core.agent.runtime.coordination.state import PipelineState
     from src.core.agent.runtime.pipeline import MessageProcessingPipeline
 
     pipeline = MessageProcessingPipeline(Helpers(), Messages(), trace_id="planner-user-message")
@@ -314,8 +314,8 @@ async def test_planner_node_recovers_invalid_capability_requirements_for_realtim
     from src.core.mcp.catalog import MCPToolCatalog
     from src.core.agent.runtime.schema import IntentRoute
     from src.core.agent.runtime.coordination.nodes import PlannerNode
-    from src.core.agent.runtime.coordination.state import PipelineState
     from src.core.llm.message import Content, Context, LLMRole, Messages
+    from src.core.agent.runtime.coordination.state import PipelineState
     from src.core.agent.runtime.pipeline import MessageProcessingPipeline
 
     pipeline = MessageProcessingPipeline(
