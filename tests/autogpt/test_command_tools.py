@@ -44,8 +44,8 @@ def test_command_tool_catalog_hides_matcher_and_unregistered_service_commands(lo
 @pytest.mark.asyncio
 async def test_dispatch_auto_task_rejects_command_without_service_handler(loaded_plugins):
     from src.core.agent.runtime.schema import AutoTask
-    from src.core.agent.runtime.execution import dispatch_auto_task
     from src.platform.commands import CommandSpec, command_registry
+    from src.core.agent.runtime.execution import dispatch_auto_task
 
     command_registry.register(
         CommandSpec(
@@ -68,8 +68,8 @@ async def test_dispatch_auto_task_rejects_command_without_service_handler(loaded
 
 def test_auto_task_params_to_service_dict_maps_text_params_by_command_spec(loaded_plugins):
     from src.core.agent.runtime.schema import Param, AutoTask
-    from src.core.agent.runtime.execution import auto_task_params_to_service_dict
     from src.platform.commands import CommandSpec, CommandParam, command_registry
+    from src.core.agent.runtime.execution import auto_task_params_to_service_dict
 
     _ = loaded_plugins
     command_registry.register(
