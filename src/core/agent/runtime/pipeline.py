@@ -24,12 +24,6 @@ from .live_trace import agent_live_trace_registry
 from .knowledge import RuntimeContext, LocalKnowledgeRetriever
 from .harness import ProgressStage, AutoGPTHarness, ProgressReporter, ProgressFeedbackHarness
 from .coordination import RUNTIME_NODE_CLASS_REGISTRY, WorkflowNode, PipelineState, NormalizeUserInputNode
-from .orchestration_config import (
-    RuntimeNodeConfig,
-    RuntimeGraphConfig,
-    default_graph_config,
-    get_runtime_orchestration_snapshot,
-)
 from .schema import (
     AgentPlan,
     ChatMessage,
@@ -38,6 +32,12 @@ from .schema import (
     RuntimeScene,
     AgentTurnResult,
     KnowledgeSourceRequest,
+)
+from .orchestration_config import (
+    RuntimeNodeConfig,
+    RuntimeGraphConfig,
+    default_graph_config,
+    get_runtime_orchestration_snapshot,
 )
 from .coordination.nodes import (
     PlannerNode,

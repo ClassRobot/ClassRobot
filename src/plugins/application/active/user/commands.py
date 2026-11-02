@@ -2,8 +2,8 @@ from src.shared import tip
 from nonebot import on_command
 from src.platform.config import priority, comp_config
 from src.platform.helper import Context, UserRole, HelperScope
-from src.platform.commands import CommandBinding, on_agent_command
 from nonebot_plugin_alconna import Args, Field, Alconna, CommandMeta
+from src.platform.commands import CommandBinding, on_agent_command
 
 self_info_cmd = on_agent_command(
     Alconna(
