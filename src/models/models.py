@@ -5,7 +5,6 @@ from typing import Any, List, Literal, Callable, Optional
 
 from nonebot import logger
 from strenum import StrEnum
-from sqlalchemy import select, update
 from sqlalchemy import delete as sql_delete
 from src.shared.tools import get_file_suffix
 from nonebot_plugin_orm import Model, get_session
@@ -23,6 +22,8 @@ from sqlalchemy import (
     CheckConstraint,
     UniqueConstraint,
     and_,
+    select,
+    update,
 )
 from src.core.auth import (
     UserRole,

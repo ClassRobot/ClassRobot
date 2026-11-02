@@ -304,8 +304,8 @@ class ImageGenerationSkill(BaseProjectSkill):
         from filetype import guess
         from httpx import AsyncClient
         from filetype.types import IMAGE
-        from src.platform.config import global_config
         from nonebot_plugin_alconna import Text, Image
+        from src.platform.config import global_config
         from nonebot_plugin_htmlrender import get_new_page
 
         parts: list[dict[str, Any]] = []

@@ -3,9 +3,9 @@ from enum import StrEnum
 from openai.types.chat.chat_completion import ChatCompletion as ChatCompletion  # noqa
 from openai.types.chat.chat_completion_message import ChatCompletionMessage as ChatCompletionMessage  # noqa
 from openai.types.chat.chat_completion_tool_param import ChatCompletionToolParam as ChatCompletionToolParam  # noqa
-from openai.types.chat.chat_completion_message_param import (  # noqa
+from openai.types.chat.chat_completion_message_param import (
     ChatCompletionMessageParam as ChatCompletionMessageParam,
-)
+)  # noqa
 from openai.types.chat.chat_completion_message_tool_call import (  # noqa
     ChatCompletionMessageToolCall as ChatCompletionMessageToolCall,
 )
