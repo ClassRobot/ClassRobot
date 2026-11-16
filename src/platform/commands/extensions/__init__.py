@@ -1,7 +1,6 @@
 from nonebot.typing import T_State
 from nonebot.adapters import Bot, Event
-from nonebot_plugin_alconna import Alconna
-from nonebot_plugin_alconna import UniMessage
+from nonebot_plugin_alconna import Alconna, UniMessage
 from src.platform.session import session as get_session
 from src.platform.session.depends import get_user_depends
 from nonebot_plugin_alconna import Extension as BaseExtension

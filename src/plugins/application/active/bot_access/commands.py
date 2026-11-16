@@ -2,8 +2,8 @@ from src.shared import tip
 from src.core.auth import UserRole
 from src.platform.helper import Context, HelperScope
 from src.platform.config import priority, comp_config
-from src.platform.commands import CommandBinding, on_agent_command
 from nonebot_plugin_alconna import Args, Field, Alconna, CommandMeta
+from src.platform.commands import CommandBinding, on_agent_command
 
 bot_access_cmd = on_agent_command(
     Alconna(
