@@ -296,8 +296,8 @@ async def test_cognitive_loop_supports_confirm_decision_without_command(loaded_p
 async def test_cognitive_loop_runs_mcp_tool_with_budget(loaded_plugins):
     from src.core.mcp.catalog import MCPToolCatalog
     from src.core.mcp.schema import MCPTool, MCPCallResult
-    from src.core.agent.runtime.loop import AgentLoopConfig, CognitiveAgentLoop
     from src.core.agent.runtime.schema import Param, TaskWorkflow, WorkflowStep
+    from src.core.agent.runtime.loop import AgentLoopConfig, CognitiveAgentLoop
 
     class FakeMCPClient:
         async def call_tool(self, tool_name, arguments):
@@ -350,8 +350,8 @@ async def test_cognitive_loop_runs_mcp_tool_with_budget(loaded_plugins):
 async def test_cognitive_loop_injects_mcp_session_from_previous_observation(loaded_plugins):
     from src.core.mcp.catalog import MCPToolCatalog
     from src.core.mcp.schema import MCPTool, MCPCallResult
-    from src.core.agent.runtime.loop import AgentLoopConfig, CognitiveAgentLoop
     from src.core.agent.runtime.schema import Param, TaskWorkflow, WorkflowStep
+    from src.core.agent.runtime.loop import AgentLoopConfig, CognitiveAgentLoop
 
     calls: list[tuple[str, dict]] = []
 
@@ -440,8 +440,8 @@ async def test_cognitive_loop_injects_mcp_session_from_previous_observation(load
 async def test_cognitive_loop_reports_progress_before_mcp_call(loaded_plugins):
     from src.core.mcp.catalog import MCPToolCatalog
     from src.core.mcp.schema import MCPTool, MCPCallResult
-    from src.core.agent.runtime.loop import AgentLoopConfig, CognitiveAgentLoop
     from src.core.agent.runtime.schema import Param, TaskWorkflow, WorkflowStep
+    from src.core.agent.runtime.loop import AgentLoopConfig, CognitiveAgentLoop
 
     class FakeMCPClient:
         async def call_tool(self, tool_name, arguments):
@@ -497,8 +497,8 @@ async def test_cognitive_loop_reports_progress_before_mcp_call(loaded_plugins):
 async def test_cognitive_loop_rewrites_low_relevance_mcp_query_once(loaded_plugins):
     from src.core.mcp.catalog import MCPToolCatalog
     from src.core.mcp.schema import MCPTool, MCPCallResult
-    from src.core.agent.runtime.loop import AgentLoopConfig, CognitiveAgentLoop
     from src.core.agent.runtime.schema import Param, TaskWorkflow, WorkflowStep
+    from src.core.agent.runtime.loop import AgentLoopConfig, CognitiveAgentLoop
 
     calls: list[dict] = []
 
